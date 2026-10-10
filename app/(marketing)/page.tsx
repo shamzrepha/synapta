@@ -102,10 +102,10 @@ export default function LandingPage() {
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800 pb-4 mb-6">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold">
-                    AR
+                    CT
                   </div>
                   <div>
-                    <h2 className="font-semibold text-sm">Alex Rivera — Student Twin State</h2>
+                    <h2 className="font-semibold text-sm">Cognitive Digital Twin — Live Mastery State</h2>
                     <p className="text-xs text-slate-500">Live Bayesian Posterior Probability: P(L)</p>
                   </div>
                 </div>

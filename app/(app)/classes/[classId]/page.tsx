@@ -75,74 +75,13 @@ export default function ClassOverviewPage({
           setEnrollmentStatus(data.data.enrollmentStatus || "none");
           setIsOwner(data.data.isOwner || false);
         } else {
-          // Demo fallback
-          loadFallbackData();
+          setClassData(null);
         }
       } catch {
-        loadFallbackData();
+        setClassData(null);
       } finally {
         setLoading(false);
       }
-    }
-
-    function loadFallbackData() {
-      setClassData({
-        id: classId,
-        title: "Foundations of Electrical Circuits & Signals",
-        subject: "Electrical Engineering",
-        description:
-          "Comprehensive laboratory-grounded course covering fundamental circuit analysis, Ohm's law, Kirchhoff's laws, and frequency response filters.",
-        teacherId: "teacher-1",
-        teacherName: "Dr. Elena Vance",
-        visibility: "public",
-        studentCount: 38,
-        status: "published",
-      });
-      setKcs([
-        {
-          id: "kc-ohms-law",
-          title: "Ohm's Law: Voltage, Current, and Power Dissipation",
-          order: 1,
-          description: "Relate potential difference V to current I and resistance R. Calculate power P = I²R.",
-          prerequisiteIds: [],
-          lab: { type: "ohms_law", config: { targetCurrent: 0.12, maxPower: 1.5 } },
-          objectives: ["Analyze linear V-I relationship", "Calculate power ratings", "Tune resistance safe thresholds"],
-        },
-        {
-          id: "kc-rc-filter",
-          title: "RC Low-Pass Filter: Cutoff Frequency & Attenuation",
-          order: 2,
-          description: "Understand reactive impedance and calculate cutoff frequency fc = 1/(2πRC).",
-          prerequisiteIds: ["kc-ohms-law"],
-          lab: { type: "rc_filter", config: { targetCutoff: 1000 } },
-          objectives: ["Calculate -3dB cutoff frequency", "Analyze high frequency attenuation", "Phase shift dynamics"],
-        },
-        {
-          id: "kc-logic-gates",
-          title: "Digital Logic Foundations: Boolean Algebra & Half Adders",
-          order: 3,
-          description: "Construct combinational logic networks using AND, OR, and XOR gates to form binary adders.",
-          prerequisiteIds: ["kc-ohms-law"],
-          lab: { type: "logic_gates", config: { target: "half_adder" } },
-          objectives: ["Verify Boolean truth tables", "Construct XOR sum gate", "Form carry bit logic"],
-        },
-        {
-          id: "kc-projectile",
-          title: "Kinematic Trajectories & Conservation Laws",
-          order: 4,
-          description: "Model two-dimensional ballistic trajectories under gravitational acceleration.",
-          prerequisiteIds: ["kc-rc-filter", "kc-logic-gates"],
-          lab: { type: "projectile", config: { targetDistance: 120, tolerance: 5 } },
-          objectives: ["Calculate flight range", "Decompose velocity components", "Hit distance targets"],
-        },
-      ]);
-      setMasteryMap({
-        "kc-ohms-law": 0.964,
-        "kc-rc-filter": 0.628,
-        "kc-logic-gates": 0.341,
-        "kc-projectile": 0.2,
-      });
-      setEnrollmentStatus("active");
     }
 
     loadData();

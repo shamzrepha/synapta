@@ -19,12 +19,64 @@ import {
   Clock,
 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 
 export default function ProfilePage() {
   const { user, updateUser } = useUserStore();
   const { refreshUser } = useAuth();
   const { toast } = useToast();
   const [requestingTeacher, setRequestingTeacher] = useState(false);
+
+  // Profile Edit State
+  const [nameInput, setNameInput] = useState<string | null>(null);
+  const [usernameInput, setUsernameInput] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const editName = nameInput !== null ? nameInput : (user?.displayName || "");
+  const editUsername = usernameInput !== null ? usernameInput : (user?.username || "");
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) return;
+
+    setSavingProfile(true);
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: editName.trim(),
+          username: editUsername.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        updateUser({
+          displayName: editName.trim(),
+          username: editUsername.trim().toLowerCase(),
+        });
+        toast({
+          title: "Profile Saved!",
+          description: "Your display name and username have been updated.",
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: "Update Failed",
+          description: data.error?.message || "Could not save profile.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Connection Error",
+        description: "Failed to update profile.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleRequestTeacher = async () => {
     setRequestingTeacher(true);
@@ -80,7 +132,10 @@ export default function ProfilePage() {
               {user?.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
             </div>
             <CardTitle className="text-lg">{user?.displayName || "Learner"}</CardTitle>
-            <CardDescription className="text-xs truncate">{user?.email}</CardDescription>
+            <p className="text-xs font-semibold text-teal-600 dark:text-teal-400">
+              @{user?.username || "choose_handle"}
+            </p>
+            <CardDescription className="text-xs truncate mt-0.5">{user?.email}</CardDescription>
             <div className="pt-2 flex justify-center">
               <Badge
                 variant={
@@ -129,8 +184,57 @@ export default function ProfilePage() {
           </CardFooter>
         </Card>
 
-        {/* Role & Access Card */}
+        {/* Role & Access Card + Edit Form */}
         <div className="md:col-span-2 space-y-6">
+          {/* Edit Display Name and Username Card */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <User className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                <CardTitle className="text-base">Profile & Handle Settings</CardTitle>
+              </div>
+              <CardDescription>
+                Customize how you appear to peers and search for friends across Synapta.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSaveProfile} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Full Display Name
+                    </label>
+                    <Input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      placeholder="e.g. Jane Doe"
+                      className="text-xs"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Unique @username
+                    </label>
+                    <Input
+                      type="text"
+                      value={editUsername}
+                      onChange={(e) => setUsernameInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                      placeholder="e.g. janedoe_99"
+                      className="text-xs font-mono"
+                      required
+                    />
+                    <p className="text-[10px] text-slate-400">Lowercase letters, numbers, and underscores only</p>
+                  </div>
+                </div>
+                <Button type="submit" size="sm" isLoading={savingProfile} className="text-xs">
+                  Save Profile Changes
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">

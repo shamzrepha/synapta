@@ -8,6 +8,7 @@ import {
   Compass,
   BookOpen,
   Users,
+  MessageSquare,
   User,
   GraduationCap,
   Activity,
@@ -38,6 +39,12 @@ const navItems: NavItem[] = [
     label: "Explore",
     href: "/explore",
     icon: Compass,
+    roles: ["student", "teacher", "admin"],
+  },
+  {
+    label: "Friends & Chat",
+    href: "/friends",
+    icon: MessageSquare,
     roles: ["student", "teacher", "admin"],
   },
   {

@@ -38,36 +38,13 @@ export default function TeacherClassesListPage() {
         if (data.ok && Array.isArray(data.data?.classes)) {
           setClasses(data.data.classes);
         } else {
-          loadFallbacks();
+          setClasses([]);
         }
       } catch {
-        loadFallbacks();
+        setClasses([]);
       } finally {
         setLoading(false);
       }
-    }
-
-    function loadFallbacks() {
-      setClasses([
-        {
-          id: "class-circuits-101",
-          title: "Foundations of Electrical Circuits & Signals",
-          subject: "Electrical Engineering",
-          description: "Circuit analysis, Ohm's law, and RC filter frequency response with live virtual apparatus simulations.",
-          visibility: "public",
-          studentCount: 38,
-          status: "published",
-        },
-        {
-          id: "class-digital-logic",
-          title: "Digital Logic Systems & Computer Architecture",
-          subject: "Computer Science",
-          description: "Boolean algebra, gate simulations, and half adders.",
-          visibility: "private",
-          studentCount: 15,
-          status: "published",
-        },
-      ]);
     }
 
     load();

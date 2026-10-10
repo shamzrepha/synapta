@@ -95,48 +95,8 @@ export default function AdminConsolePage() {
         setUsageData(usageJson.data);
       }
     } catch {
-      // Fallback demo data if offline
-      setUsers([
-        {
-          uid: "demo-admin-1",
-          displayName: "Admin Operator",
-          email: "admin@synapta.edu",
-          role: "admin",
-          disabled: false,
-          xp: 1250,
-          streakDays: 14,
-          monthlyTokensUsed: 18450,
-          monthlyTokenLimit: 500000,
-          createdAt: new Date().toISOString(),
-          lastActiveDate: new Date().toISOString().split("T")[0],
-        },
-        {
-          uid: "demo-teacher-1",
-          displayName: "Dr. Elena Vance",
-          email: "elena.vance@synapta.edu",
-          role: "teacher",
-          disabled: false,
-          xp: 890,
-          streakDays: 7,
-          monthlyTokensUsed: 34200,
-          monthlyTokenLimit: 200000,
-          createdAt: new Date().toISOString(),
-          lastActiveDate: new Date().toISOString().split("T")[0],
-        },
-        {
-          uid: "demo-student-1",
-          displayName: "Alex Rivera",
-          email: "alex.rivera@student.synapta.edu",
-          role: "student",
-          disabled: false,
-          xp: 640,
-          streakDays: 5,
-          monthlyTokensUsed: 8900,
-          monthlyTokenLimit: 50000,
-          createdAt: new Date().toISOString(),
-          lastActiveDate: new Date().toISOString().split("T")[0],
-        },
-      ]);
+      setUsers([]);
+      setUsageData(null);
     } finally {
       setLoading(false);
     }

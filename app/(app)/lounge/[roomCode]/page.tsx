@@ -95,41 +95,7 @@ export default function LoungeRoomPage({
           setScratchpadText(json.data.scratchpad || "");
         }
       } catch {
-        if (!ignore) {
-          const demo: RoomData = {
-            roomCode,
-            title: "Ohm's Law & Circuit Analysis Review",
-            classId: "circuits-101",
-            kcId: "kc-ohms-law",
-            kcTitle: "Ohm's Law: Voltage, Current, and Power Dissipation",
-            hostId: "user-host",
-            hostName: "Alex Rivera",
-            scratchpad: `# Ohm's Law Study Session\n\nCollaborative scratchpad for room **${roomCode}**.\n\n$$I = \\frac{V}{R}, \\quad P = I^2 R = \\frac{V^2}{R}$$\n\n### Key Derivation Steps\n1. Calculate current through resistor.\n2. Verify Joule heating power does not exceed safe rating.`,
-            participants: [
-              { uid: "user-host", displayName: "Alex Rivera", role: "host" },
-              { uid: user?.uid || "user-self", displayName: user?.displayName || "You", role: "learner" },
-            ],
-            messages: [
-              {
-                id: "m1",
-                uid: "system",
-                displayName: "Synapta Bot",
-                text: `Welcome to Study Room ${roomCode}!`,
-                createdAt: new Date().toISOString(),
-              },
-              {
-                id: "m2",
-                uid: "user-host",
-                displayName: "Alex Rivera",
-                text: "Hey! Let's walk through the quadratic power relation $P = I^2 R$. Let me know if you want to write in the scratchpad.",
-                createdAt: new Date().toISOString(),
-              },
-            ],
-          };
-          setRoom(demo);
-          setMessages(demo.messages);
-          setScratchpadText(demo.scratchpad);
-        }
+        // Room not found or network error
       } finally {
         if (!ignore) setLoading(false);
       }

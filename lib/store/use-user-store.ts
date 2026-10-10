@@ -6,6 +6,7 @@ export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
+  username?: string | null;
   photoURL: string | null;
   role: UserRole;
   roleRequest: "none" | "pending" | "approved" | "rejected";
@@ -29,21 +30,8 @@ interface UserState {
 }
 
 export const useUserStore = create<UserState>((set) => ({
-  user: {
-    uid: "mock-student-id",
-    email: "student@synapta.edu",
-    displayName: "Alex Rivera",
-    photoURL: null,
-    role: "student",
-    roleRequest: "none",
-    xp: 450,
-    streakDays: 5,
-    lastActiveDate: new Date().toISOString(),
-    monthlyTokenLimit: 50000,
-    monthlyTokensUsed: 1240,
-    disabled: false,
-  },
-  isLoading: false,
+  user: null,
+  isLoading: true,
   isSidebarCollapsed: false,
   setUser: (user) => set({ user }),
   updateUser: (partial) =>

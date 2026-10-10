@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Compass,
-  BookOpen,
   Users,
+  MessageSquare,
   Activity,
   User,
 } from "lucide-react";
@@ -22,7 +22,7 @@ export function MobileNav() {
   const items = [
     { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Explore", href: "/explore", icon: Compass },
-    { label: "Notebook", href: "/notebook", icon: BookOpen },
+    { label: "Friends", href: "/friends", icon: MessageSquare },
     { label: "Lounge", href: "/lounge", icon: Users },
     ...(userRole === "teacher" || userRole === "admin"
       ? [{ label: "Heatmap", href: "/classes/heatmap", icon: Activity }]

@@ -73,6 +73,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await bootstrapRes.json().catch(() => ({}));
       if (data.ok && data.data?.user) {
         setUser(data.data.user);
+        if (data.data.user.role === "admin") {
+          await user.getIdToken(true).catch(() => {});
+        }
+      } else if (!bootstrapRes.ok && data.error?.message) {
+        console.warn("Bootstrap notice:", data.error.message);
       }
     },
     [setUser]

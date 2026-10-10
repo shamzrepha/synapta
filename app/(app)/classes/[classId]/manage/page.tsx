@@ -54,47 +54,13 @@ export default function ClassManagePage({
           setActiveStudents(data.data.activeStudents || []);
           setPendingRequests(data.data.pendingRequests || []);
         } else if (!ignore) {
-          setClassInfo({
-            id: classId,
-            title: "Foundations of Electrical Circuits & Signals",
-            visibility: "private",
-          });
-          setActiveStudents([
-            {
-              uid: "user-alex",
-              displayName: "Alex Rivera",
-              email: "alex.rivera@example.com",
-              photoURL: null,
-              status: "active",
-              joinedAt: new Date(Date.now() - 3600000 * 48).toISOString(),
-            },
-            {
-              uid: "user-jordan",
-              displayName: "Jordan Lee",
-              email: "jordan.lee@example.com",
-              photoURL: null,
-              status: "active",
-              joinedAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-            },
-          ]);
-          setPendingRequests([
-            {
-              uid: "user-morgan",
-              displayName: "Morgan Taylor",
-              email: "morgan.taylor@example.com",
-              photoURL: null,
-              status: "pending",
-              joinedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
-            },
-          ]);
+          setActiveStudents([]);
+          setPendingRequests([]);
         }
       } catch {
         if (!ignore) {
-          setClassInfo({
-            id: classId,
-            title: "Foundations of Electrical Circuits & Signals",
-            visibility: "private",
-          });
+          setActiveStudents([]);
+          setPendingRequests([]);
         }
       } finally {
         if (!ignore) setLoading(false);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
-import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { adminDb } from "@/lib/firebase/admin";
 import { MASTERY_THRESHOLD } from "@/lib/bkt/engine";
 
 export const runtime = "nodejs";
@@ -261,129 +261,10 @@ export async function GET(
   }
 }
 
-// POST endpoint: Seed demo cohort for testing and instant visualization
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const caller = await requireUser(req, ["teacher", "admin"]);
-
-    const classDoc = await adminDb().collection("classes").doc(id).get();
-    if (!classDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Class not found" } },
-        { status: 404 }
-      );
-    }
-
-    const classData = classDoc.data()!;
-    if (classData.teacherId !== caller.uid && caller.role !== "admin") {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Unauthorized" } },
-        { status: 403 }
-      );
-    }
-
-    // Get KCs
-    const kcsSubSnap = await adminDb()
-      .collection("classes")
-      .doc(id)
-      .collection("kcs")
-      .get();
-
-    let rawKcs = kcsSubSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    if (rawKcs.length === 0 && Array.isArray(classData.kcs)) {
-      rawKcs = classData.kcs;
-    }
-
-    if (rawKcs.length === 0) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NO_KCS", message: "Please generate a syllabus with Knowledge Components first." } },
-        { status: 400 }
-      );
-    }
-
-    // Demo student cohort profiles
-    const demoStudents = [
-      { id: `demo_alex_${id}`, name: "Alex Chen", email: "alex.chen@student.synapta.edu", xp: 480, streak: 6, bias: 0.96 },
-      { id: `demo_maya_${id}`, name: "Maya Patel", email: "maya.patel@student.synapta.edu", xp: 390, streak: 4, bias: 0.88 },
-      { id: `demo_liam_${id}`, name: "Liam Smith", email: "liam.smith@student.synapta.edu", xp: 210, streak: 2, bias: 0.55 },
-      { id: `demo_zoe_${id}`, name: "Zoe Martinez", email: "zoe.m@student.synapta.edu", xp: 520, streak: 8, bias: 0.98 },
-      { id: `demo_noah_${id}`, name: "Noah Kim", email: "noah.kim@student.synapta.edu", xp: 140, streak: 1, bias: 0.32 },
-      { id: `demo_chloe_${id}`, name: "Chloe Taylor", email: "chloe.t@student.synapta.edu", xp: 290, streak: 3, bias: 0.72 },
-    ];
-
-    const batch = adminDb().batch();
-
-    for (const s of demoStudents) {
-      // 1. User doc
-      const userRef = adminDb().collection("users").doc(s.id);
-      batch.set(
-        userRef,
-        {
-          uid: s.id,
-          displayName: s.name,
-          email: s.email,
-          role: "student",
-          xp: s.xp,
-          streakDays: s.streak,
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        },
-        { merge: true }
-      );
-
-      // 2. Enrollment doc
-      const enrollRef = adminDb().collection("enrollments").doc(`${s.id}_${id}`);
-      batch.set(
-        enrollRef,
-        {
-          uid: s.id,
-          classId: id,
-          status: "active",
-          role: "student",
-          joinedAt: Timestamp.now(),
-        },
-        { merge: true }
-      );
-
-      // 3. Mastery docs for each KC
-      rawKcs.forEach((kc, kcIndex) => {
-        // Vary mastery slightly per topic
-        const variation = ((kcIndex % 3) - 1) * 0.15;
-        const pL = Math.max(0.15, Math.min(0.99, s.bias + variation));
-        const attempts = Math.floor(Math.random() * 8) + 3;
-        const correct = Math.floor(attempts * pL);
-
-        const masteryRef = adminDb().collection("mastery").doc(`${s.id}_${kc.id}`);
-        batch.set(
-          masteryRef,
-          {
-            uid: s.id,
-            classId: id,
-            kcId: kc.id,
-            pL: parseFloat(pL.toFixed(3)),
-            attempts,
-            correct,
-            lastUpdated: Timestamp.now(),
-          },
-          { merge: true }
-        );
-      });
-    }
-
-    await batch.commit();
-
-    return NextResponse.json({
-      ok: true,
-      data: {
-        message: "Successfully seeded sample student cohort with mastery data",
-        count: demoStudents.length,
-      },
-    });
-  } catch (error) {
-    return handleAuthError(error);
-  }
+// POST endpoint: Seed demo cohort disabled in production
+export async function POST() {
+  return NextResponse.json(
+    { ok: false, error: { code: "DISABLED", message: "Demo cohort seeding is disabled in production." } },
+    { status: 400 }
+  );
 }

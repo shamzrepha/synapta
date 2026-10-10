@@ -88,34 +88,8 @@ export default function LoungeHubPage() {
           if (classesJson.ok) setClasses(classesJson.data || []);
         }
       } catch {
-        // Fallback sample data if offline
         if (!ignore) {
-          setRooms([
-            {
-              roomCode: "SYN-E742",
-              title: "Ohm's Law Power Dissipation Derivations",
-              classId: "circuits-101",
-              kcId: "kc-ohms-law",
-              kcTitle: "Ohm's Law & Resistor Power",
-              hostId: "user-alex",
-              hostName: "Alex Rivera",
-              participantCount: 2,
-              isMember: false,
-              updatedAt: new Date().toISOString(),
-            },
-            {
-              roomCode: "SYN-K981",
-              title: "RC Filter Cutoff Frequency Study Lab",
-              classId: "circuits-101",
-              kcId: "kc-rc-filter",
-              kcTitle: "RC Low-Pass Filter Response",
-              hostId: "user-maya",
-              hostName: "Maya Patel",
-              participantCount: 3,
-              isMember: true,
-              updatedAt: new Date().toISOString(),
-            },
-          ]);
+          setRooms([]);
         }
       } finally {
         if (!ignore) setLoading(false);

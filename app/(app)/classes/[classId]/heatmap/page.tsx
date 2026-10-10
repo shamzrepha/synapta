@@ -14,7 +14,6 @@ import {
   Download,
   Search,
   Filter,
-  Sparkles,
   Users,
   BrainCircuit,
   X,
@@ -84,7 +83,6 @@ export default function ClassHeatmapPage({
 
   const [data, setData] = useState<HeatmapPayload | null>(null);
   const [loading, setLoading] = useState(true);
-  const [seeding, setSeeding] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "struggling" | "emerging" | "competent" | "mastered">("all");
   const [sortBy, setSortBy] = useState<"mastery_asc" | "mastery_desc" | "name_asc" | "xp_desc">("mastery_asc");
@@ -136,36 +134,6 @@ export default function ClassHeatmapPage({
       ignore = true;
     };
   }, [classId]);
-
-  const handleSeedCohort = async () => {
-    try {
-      setSeeding(true);
-      const res = await fetch(`/api/classes/${classId}/heatmap`, { method: "POST" });
-      const json = await res.json();
-      if (json.ok) {
-        toast({
-          title: "Demo Cohort Seeded",
-          description: "Populated 6 sample students with diverse BKT mastery profiles.",
-          variant: "success",
-        });
-        await refreshHeatmap();
-      } else {
-        toast({
-          title: "Seeding Failed",
-          description: json.error?.message || "Make sure syllabus KCs exist first.",
-          variant: "destructive",
-        });
-      }
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to generate demo student cohort.",
-        variant: "destructive",
-      });
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   const handleExportCSV = () => {
     if (!data || data.students.length === 0) {
@@ -297,16 +265,6 @@ export default function ClassHeatmapPage({
             className="text-xs"
           >
             <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSeedCohort}
-            isLoading={seeding}
-            className="text-xs"
-          >
-            <Sparkles className="h-3.5 w-3.5 mr-1 text-amber-500" />
-            Seed Demo Cohort
           </Button>
           <Button
             size="sm"
@@ -506,19 +464,14 @@ export default function ClassHeatmapPage({
           </div>
           <div>
             <h3 className="font-bold text-base text-slate-800 dark:text-slate-200">
-              No students match the current criteria
+              {data.students.length === 0 ? "No students enrolled yet" : "No students match the current criteria"}
             </h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
               {data.students.length === 0
-                ? "No active students are enrolled in this class yet. Click 'Seed Demo Cohort' to populate realistic mock students for testing."
+                ? "No active students are enrolled in this class yet. Share the class invite code or course link with your learners to start tracking mastery."
                 : "Try clearing your search query or adjusting the status filter."}
             </p>
           </div>
-          {data.students.length === 0 && (
-            <Button size="sm" onClick={handleSeedCohort} isLoading={seeding}>
-              <Sparkles className="h-4 w-4 mr-1.5" /> Seed Demo Cohort Now
-            </Button>
-          )}
         </Card>
       ) : (
         <Card className="overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">

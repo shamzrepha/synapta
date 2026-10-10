@@ -66,11 +66,11 @@ export default function ExplorePage() {
         if (!ignore && data.ok && Array.isArray(data.data?.classes)) {
           setClasses(data.data.classes);
         } else if (!ignore) {
-          setClasses(getSampleClasses());
+          setClasses([]);
         }
       } catch {
         if (!ignore) {
-          setClasses(getSampleClasses());
+          setClasses([]);
         }
       } finally {
         if (!ignore) setLoading(false);
@@ -470,48 +470,4 @@ export default function ExplorePage() {
       )}
     </div>
   );
-}
-
-function getSampleClasses(): ClassItem[] {
-  return [
-    {
-      id: "class-circuits-101",
-      title: "Foundations of Electrical Circuits & Signals",
-      subject: "Electrical Engineering",
-      description:
-        "Master fundamental circuit theory, Ohm's law, Kirchhoff's laws, and RC filter frequency response with live virtual apparatus simulations.",
-      teacherId: "teacher-1",
-      teacherName: "Dr. Elena Vance",
-      visibility: "public",
-      studentCount: 38,
-      status: "published",
-      userEnrollmentStatus: "none",
-    },
-    {
-      id: "class-physics-mech",
-      title: "Classical Mechanics & Kinematics",
-      subject: "Physics",
-      description:
-        "Explore Newtonian dynamics, vector projectile motion, and conservation laws through interactive trajectory experiments.",
-      teacherId: "teacher-2",
-      teacherName: "Prof. Marcus Thorne",
-      visibility: "public",
-      studentCount: 24,
-      status: "published",
-      userEnrollmentStatus: "none",
-    },
-    {
-      id: "class-digital-logic",
-      title: "Digital Logic Systems & Computer Architecture",
-      subject: "Computer Science",
-      description:
-        "Build Boolean logic networks, half adders, registers, and sequential circuits from first principles.",
-      teacherId: "teacher-3",
-      teacherName: "Dr. Sarah Chen",
-      visibility: "private",
-      studentCount: 15,
-      status: "published",
-      userEnrollmentStatus: "none",
-    },
-  ];
 }
