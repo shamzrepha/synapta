@@ -14,7 +14,14 @@ function getFirebaseAdmin(): { app: App; auth: Auth; db: Firestore } {
 
   if (!adminApp) {
     const env = getServerEnv();
-    const formattedPrivateKey = env.FIREBASE_ADMIN_PRIVATE_KEY.replace(/\\n/g, "\n");
+    let formattedPrivateKey = env.FIREBASE_ADMIN_PRIVATE_KEY.trim();
+    if (
+      (formattedPrivateKey.startsWith('"') && formattedPrivateKey.endsWith('"')) ||
+      (formattedPrivateKey.startsWith("'") && formattedPrivateKey.endsWith("'"))
+    ) {
+      formattedPrivateKey = formattedPrivateKey.slice(1, -1);
+    }
+    formattedPrivateKey = formattedPrivateKey.replace(/\\n/g, "\n");
 
     const existingApps = getApps();
     if (existingApps.length > 0) {
