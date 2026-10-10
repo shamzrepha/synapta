@@ -33,6 +33,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["firebase-admin"],
   turbopack: {
     rules: {
       "*.css": {

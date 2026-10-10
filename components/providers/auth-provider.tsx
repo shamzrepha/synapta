@@ -40,36 +40,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const syncBackendSession = useCallback(
     async (user: FirebaseUser, roleRequest: "none" | "pending" = "none") => {
-      try {
-        const idToken = await user.getIdToken();
+      const idToken = await user.getIdToken();
 
-        // 1. Set session cookie for middleware
-        await fetch("/api/auth/session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idToken }),
-        });
+      // 1. Set session cookie for middleware
+      const sessionRes = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
 
-        // 2. Bootstrap user profile
-        const bootstrapRes = await fetch("/api/auth/bootstrap", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({
-            roleRequest,
-            displayName: user.displayName || user.email?.split("@")[0] || "Learner",
-            photoURL: user.photoURL || null,
-          }),
-        });
+      if (!sessionRes.ok) {
+        const errJson = await sessionRes.json().catch(() => ({}));
+        throw new Error(
+          errJson?.error?.message || "Failed to initialize server session cookie."
+        );
+      }
 
-        const data = await bootstrapRes.json();
-        if (data.ok && data.data?.user) {
-          setUser(data.data.user);
-        }
-      } catch (err) {
-        console.error("Failed to sync backend session:", err);
+      // 2. Bootstrap user profile
+      const bootstrapRes = await fetch("/api/auth/bootstrap", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          roleRequest,
+          displayName: user.displayName || user.email?.split("@")[0] || "Learner",
+          photoURL: user.photoURL || null,
+        }),
+      });
+
+      const data = await bootstrapRes.json().catch(() => ({}));
+      if (data.ok && data.data?.user) {
+        setUser(data.data.user);
       }
     },
     [setUser]

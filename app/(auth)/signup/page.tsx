@@ -35,11 +35,15 @@ export default function SignupPage() {
     setSubmitting(true);
     try {
       await signUpWithEmail(email, password, name, requestTeacher);
-      router.push("/dashboard");
+      window.location.assign("/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create account";
       if (msg.includes("auth/email-already-in-use")) {
         setError("An account with this email already exists. Please log in instead.");
+      } else if (msg.includes("auth/operation-not-allowed")) {
+        setError("Email/Password sign-in is not enabled yet in your Firebase project. Please enable it in Firebase Console under Authentication > Sign-in method.");
+      } else if (msg.includes("auth/unauthorized-domain")) {
+        setError("This domain is not authorized in Firebase Auth. Add synapta-zeta.vercel.app under Firebase Console > Authentication > Settings > Authorized domains.");
       } else {
         setError(msg);
       }
@@ -53,7 +57,7 @@ export default function SignupPage() {
     setSubmitting(true);
     try {
       await signInWithGoogle(requestTeacher);
-      router.push("/dashboard");
+      window.location.assign("/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
       setError(msg);

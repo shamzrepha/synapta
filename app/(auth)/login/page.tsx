@@ -31,7 +31,7 @@ function LoginForm() {
     setSubmitting(true);
     try {
       await signInWithEmail(email, password);
-      router.push(redirectPath);
+      window.location.assign(redirectPath);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to sign in";
       if (
@@ -53,7 +53,7 @@ function LoginForm() {
     setSubmitting(true);
     try {
       await signInWithGoogle();
-      router.push(redirectPath);
+      window.location.assign(redirectPath);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
       setError(msg);
