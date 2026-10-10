@@ -1,0 +1,136 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default: deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isEnrolled(classId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/enrollments/$(classId + '_' + request.auth.uid)) &&
+        get(/databases/$(database)/documents/enrollments/$(classId + '_' + request.auth.uid)).data.status == 'active';
+    }
+
+    // 1. Users collection: users can read their own doc, and update ONLY non-sensitive fields
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      // Deny client modification of role, xp, monthlyTokensUsed, monthlyTokenLimit, disabled
+      allow update: if isOwner(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['role', 'xp', 'monthlyTokensUsed', 'monthlyTokenLimit', 'disabled']);
+      allow create, delete: if false; // User docs are created via server bootstrap
+    }
+
+    // 2. Classes collection:
+    // - Any authenticated user can read published public classes
+    // - Owner or actively enrolled students can read private classes
+    // - All writes happen via server route handlers
+    match /classes/{classId} {
+      allow read: if isAuthenticated() && (
+        (resource.data.visibility == 'public' && resource.data.status == 'published') ||
+        resource.data.teacherId == request.auth.uid ||
+        isEnrolled(classId)
+      );
+      allow write: if false;
+
+      // Knowledge Components subcollection
+      match /kcs/{kcId} {
+        allow read: if isAuthenticated() && (
+          (get(/databases/$(database)/documents/classes/$(classId)).data.visibility == 'public' &&
+           get(/databases/$(database)/documents/classes/$(classId)).data.status == 'published') ||
+          get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid ||
+          isEnrolled(classId)
+        );
+        allow write: if false;
+      }
+    }
+
+    // 3. Enrollments: client can only read their own enrollments, no client writes
+    match /enrollments/{enrollmentId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // 4. Mastery: client can read their own mastery doc only, no client writes
+    match /mastery/{masteryId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // 5. Evidence: client can read their own evidence logs only, no client writes
+    match /evidence/{evidenceId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // 6. Sources: user can read their own uploaded sources and chunks
+    match /sources/{sourceId} {
+      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow write: if false;
+
+      match /chunks/{chunkId} {
+        allow read: if isAuthenticated() &&
+          get(/databases/$(database)/documents/sources/$(sourceId)).data.ownerId == request.auth.uid;
+        allow write: if false;
+      }
+    }
+
+    // 7. Artifacts: owner read only, writes via server
+    match /artifacts/{artifactId} {
+      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // 8. Usage: user can read own usage records only
+    match /usage/{usageId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // 9. Peer Lounge Rooms:
+    // Members can read room details, messages, and presence.
+    // Client can write messages and update presence/scratchpad if in memberIds.
+    match /rooms/{roomCode} {
+      allow read: if isAuthenticated() && (
+        resource.data.memberIds.hasAny([request.auth.uid]) ||
+        resource.data.hostId == request.auth.uid
+      );
+      // Debounced scratchpad edits allowed for room members
+      allow update: if isAuthenticated() && (
+        resource.data.memberIds.hasAny([request.auth.uid]) ||
+        resource.data.hostId == request.auth.uid
+      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scratchpad', 'updatedAt']);
+      allow create, delete: if false; // Room creation managed via server
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() &&
+          get(/databases/$(database)/documents/rooms/$(roomCode)).data.memberIds.hasAny([request.auth.uid]);
+        allow create: if isAuthenticated() &&
+          get(/databases/$(database)/documents/rooms/$(roomCode)).data.memberIds.hasAny([request.auth.uid]) &&
+          request.resource.data.uid == request.auth.uid &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() <= 500;
+        allow update, delete: if false;
+      }
+
+      match /presence/{userId} {
+        allow read: if isAuthenticated() &&
+          get(/databases/$(database)/documents/rooms/$(roomCode)).data.memberIds.hasAny([request.auth.uid]);
+        allow write: if isOwner(userId) &&
+          get(/databases/$(database)/documents/rooms/$(roomCode)).data.memberIds.hasAny([request.auth.uid]);
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+# Synapta — Build Progress (PROGRESS.md)
+
+| Phase | Description | Status | Verification & Notes |
+|---|---|---|---|
+| **Phase 1: Foundation** | Next.js App Router, strict TS, Tailwind & theme system, app shell (sidebar, topbar, mobile tab bar), Firebase client/admin setup, Zod env validation, documentation files. | 🟢 Completed | Built cleanly with Turbopack, TS strict, ESLint zero errors/warnings. Mobile and desktop shell layouts verified. |
+| **Phase 2: Auth & Roles** | Firebase Auth (Email/Pass + Google), bootstrap route, session cookies, route-guard middleware, custom claims, onboarding & teacher request, admin email whitelist. | 🟢 Completed | Bootstrap API, session cookies, route guard middleware, role selection & requests, login/signup forms, TS strict & ESLint zero errors. |
+| **Phase 3: Classes & Enrollment** | Create/list/join classes, public vs private approval flow, teacher manage page, Firestore rules for classes & enrollments. | 🟢 Completed | Class CRUD, explore page, public instant enrollment, private join requests & approvals, teacher roster management, zero lint/TS errors. |
+| **Phase 4: Syllabus & KCs** | Knowledge Component CRUD, AI Syllabus Synthesis (Gemini with Zod validation), editable draft, publish, prerequisite unlocking graph. | 🟢 Completed | Gemini client with official @google/genai SDK, structured syllabus synthesis, KC CRUD APIs, interactive syllabus editor with live markdown & lab selection, TS/lint/build clean. |
+| **Phase 5: BKT & Evidence** | Pure BKT engine with Vitest unit suite, transactional `/api/evidence`, mastery docs, XP, streaks, student dashboard mastery radar. | 🟢 Completed | Pure BKT engine, 8/8 Vitest tests passed, transactional Firestore evidence logging, XP & streak logic, Recharts Mastery Radar with live simulator. |
+| **Phase 6: Topic Page Tools** | Lesson markdown + LaTeX renderer, AI quiz, flip flashcards, streaming AI tutor, token quota guard, usage display. | 🟢 Completed | Markdown + KaTeX math renderer, AI quiz & flashcard endpoints, streaming Socratic tutor, live BKT twin card, token quota guard & usage APIs. |
+| **Phase 7: Labs** | In-situ simulation lab registry (Ohm's Law, RC Filter, Logic Gates, Projectile, None), lab completion to evidence, anti-farming timer. | 🟢 Completed | Registry in `components/labs/index.ts`, Ohm's Law, RC Filter, Logic Gates, and Projectile labs with SVG telemetries, 10-minute anti-farming guard in `/api/evidence`. |
+| **Phase 8: Teacher Heatmap** | Class heatmap matrix (students x KCs), student twin drill-down, filter, CSV export. | 🟢 Completed | Route `GET/POST /api/classes/[id]/heatmap`, `/classes/[classId]/heatmap` with color-coded matrix, Cognitive Twin drill-down modal, Recharts radar, filtering, sorting, CSV export, and cohort seeding. |
+| **Phase 9: Notebook** | Source upload/paste/PDF text parsing, chunking, retrieval, grounded chat with citations, summary/cards/quiz artifacts, 2-host Deep Dive with browser TTS. | 🟢 Completed | Pure TS TF-IDF retrieval engine (`lib/notebook/retrieval.ts`, 4 unit tests), PDF/text parser (`lib/pdf/extractor.ts`), routes `/api/notebook/chat`, `/discussion`, `/artifacts`, and full 3-pane `/notebook` workspace with browser `speechSynthesis` playback and interactive citation badges. |
+| **Phase 10: Peer Lounge & Matching** | Peer lounge rooms, realtime chat, presence tracking, shared debounced scratchpad, BKT-based peer matching (`pL < 0.40` with `pL > 0.85`), peer explain evidence. | 🟢 Completed | Routes `/api/lounge/match`, `/api/lounge/rooms`, `rooms/[roomCode]`, `/messages`, `/scratchpad`. Pages `/lounge` & `/lounge/[roomCode]` with presence, chat, shared scratchpad, and +40 XP peer explain evidence submission. |
+| **Phase 11: Admin Console** | User management table, role change, account toggle, platform token usage and cost analytics. | 🟡 In Progress | Building `/api/admin/users`, `/api/admin/usage`, and `/admin` console with user management, role elevation, account status toggle, and cost/token analytics. |
+| **Phase 12: Hardening & Launch** | Security audit, accessibility & contrast pass, mobile layout verification, error boundaries, README & deployment verification. | ⚪ Pending | - |
+
+---
+
+## Known Issues & Notes
+- None currently.

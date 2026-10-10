@@ -1,0 +1,97 @@
+@import "tailwindcss";
+@import "katex/dist/katex.min.css";
+
+@layer base {
+  :root {
+    --background: #F7F6F2;
+    --foreground: #14191F;
+    --card: #FFFFFF;
+    --card-foreground: #14191F;
+    --popover: #FFFFFF;
+    --popover-foreground: #14191F;
+    --primary: #0F766E;
+    --primary-foreground: #FFFFFF;
+    --secondary: #EBE8E1;
+    --secondary-foreground: #1E293B;
+    --muted: #F0EDE6;
+    --muted-foreground: #64748B;
+    --accent: #14B8A6;
+    --accent-foreground: #042F2E;
+    --amber-accent: #D97706;
+    --border: #E0DDD6;
+    --input: #E0DDD6;
+    --ring: #14B8A6;
+    --radius: 0.875rem;
+
+    --mastery-unmastered: #EF4444;
+    --mastery-learning: #F59E0B;
+    --mastery-mastered: #10B981;
+  }
+
+  .dark {
+    --background: #0B0F14;
+    --foreground: #F1F5F9;
+    --card: #121820;
+    --card-foreground: #F1F5F9;
+    --popover: #121820;
+    --popover-foreground: #F1F5F9;
+    --primary: #14B8A6;
+    --primary-foreground: #0B0F14;
+    --secondary: #19222E;
+    --secondary-foreground: #F1F5F9;
+    --muted: #151D28;
+    --muted-foreground: #94A3B8;
+    --accent: #2DD4BF;
+    --accent-foreground: #0B0F14;
+    --amber-accent: #F59E0B;
+    --border: #212C3B;
+    --input: #212C3B;
+    --ring: #14B8A6;
+
+    --mastery-unmastered: #F87171;
+    --mastery-learning: #FBBF24;
+    --mastery-mastered: #34D399;
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif);
+  min-height: 100vh;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Accessible focus ring */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

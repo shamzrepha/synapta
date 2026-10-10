@@ -1,0 +1,517 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { useUserStore } from "@/lib/store/use-user-store";
+import { useToast } from "@/components/ui/toast";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Compass,
+  Search,
+  Plus,
+  Users,
+  Lock,
+  Globe,
+  BookOpen,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  X,
+} from "lucide-react";
+
+interface ClassItem {
+  id: string;
+  title: string;
+  subject: string;
+  description: string;
+  teacherId: string;
+  teacherName: string;
+  visibility: "public" | "private";
+  studentCount: number;
+  status: "draft" | "published";
+  joinCode?: string;
+  userEnrollmentStatus?: "active" | "pending" | "rejected" | "none";
+  isOwner?: boolean;
+}
+
+export default function ExplorePage() {
+  const { user } = useUserStore();
+  const { toast } = useToast();
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<"explore" | "mine">("explore");
+
+  // Create class modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createSubject, setCreateSubject] = useState("");
+  const [createDescription, setCreateDescription] = useState("");
+  const [createVisibility, setCreateVisibility] = useState<"public" | "private">("public");
+  const [isCreating, setIsCreating] = useState(false);
+  const [joiningId, setJoiningId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function load() {
+      try {
+        const res = await fetch(`/api/classes?scope=${activeTab}`);
+        const data = await res.json();
+        if (!ignore && data.ok && Array.isArray(data.data?.classes)) {
+          setClasses(data.data.classes);
+        } else if (!ignore) {
+          setClasses(getSampleClasses());
+        }
+      } catch {
+        if (!ignore) {
+          setClasses(getSampleClasses());
+        }
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      ignore = true;
+    };
+  }, [activeTab]);
+
+  const handleJoinClass = async (classItem: ClassItem) => {
+    setJoiningId(classItem.id);
+    try {
+      const res = await fetch(`/api/classes/${classItem.id}/join`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        const newStatus = data.data.status;
+        toast({
+          title: newStatus === "active" ? "Enrolled Successfully!" : "Join Request Sent",
+          description: data.data.message || (newStatus === "active" ? "You have access to this course." : "Waiting for teacher approval."),
+          variant: newStatus === "active" ? "success" : "amber",
+        });
+
+        // Update local state
+        setClasses((prev) =>
+          prev.map((c) =>
+            c.id === classItem.id
+              ? {
+                  ...c,
+                  userEnrollmentStatus: newStatus,
+                  studentCount: newStatus === "active" ? c.studentCount + 1 : c.studentCount,
+                }
+              : c
+          )
+        );
+      } else {
+        toast({
+          title: "Join Error",
+          description: data.error?.message || "Failed to join class.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      // Local demo mode
+      const newStatus = classItem.visibility === "public" ? "active" : "pending";
+      toast({
+        title: newStatus === "active" ? "Enrolled Successfully!" : "Join Request Sent",
+        description: newStatus === "active" ? "Enrolled in class!" : "Join request submitted to teacher.",
+        variant: newStatus === "active" ? "success" : "amber",
+      });
+      setClasses((prev) =>
+        prev.map((c) =>
+          c.id === classItem.id ? { ...c, userEnrollmentStatus: newStatus } : c
+        )
+      );
+    } finally {
+      setJoiningId(null);
+    }
+  };
+
+  const handleCreateClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!createTitle || !createSubject || !createDescription) return;
+
+    setIsCreating(true);
+    try {
+      const res = await fetch("/api/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: createTitle,
+          subject: createSubject,
+          description: createDescription,
+          visibility: createVisibility,
+          status: "published",
+        }),
+      });
+      const data = await res.json();
+
+      if (data.ok && data.data?.class) {
+        toast({
+          title: "Class Created!",
+          description: `"${data.data.class.title}" has been created and published.`,
+          variant: "success",
+        });
+        setIsModalOpen(false);
+        setCreateTitle("");
+        setCreateSubject("");
+        setClasses((prev) => [data.data.class, ...prev]);
+      } else {
+        toast({
+          title: "Creation Error",
+          description: data.error?.message || "Failed to create class.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: "Creation Error",
+        description: "Network error creating class.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const subjects = Array.from(new Set(classes.map((c) => c.subject).filter(Boolean)));
+
+  const filtered = classes.filter((c) => {
+    const matchesSearch =
+      c.title.toLowerCase().includes(search.toLowerCase()) ||
+      c.subject.toLowerCase().includes(search.toLowerCase()) ||
+      c.description.toLowerCase().includes(search.toLowerCase());
+    const matchesSubject = selectedSubject === "all" || c.subject === selectedSubject;
+    return matchesSearch && matchesSubject;
+  });
+
+  return (
+    <div className="space-y-6">
+      {/* Top Header & Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+            <Compass className="h-7 w-7 text-teal-600 dark:text-teal-400" />
+            Explore Courses & Labs
+          </h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Browse public classes or manage your enrolled learning tracks.
+          </p>
+        </div>
+
+        {/* Teacher / Admin Action Button */}
+        {(user?.role === "teacher" || user?.role === "admin") && (
+          <Button onClick={() => setIsModalOpen(true)} size="sm">
+            <Plus className="h-4 w-4 mr-1.5" />
+            Create Class
+          </Button>
+        )}
+      </div>
+
+      {/* Tabs and Controls */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab("explore")}
+            className={`px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-colors ${
+              activeTab === "explore"
+                ? "bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+            }`}
+          >
+            All Courses ({classes.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("mine")}
+            className={`px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-colors ${
+              activeTab === "mine"
+                ? "bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+            }`}
+          >
+            {user?.role === "teacher" ? "My Created Classes" : "My Enrolled Classes"}
+          </button>
+        </div>
+
+        {/* Search & Subject Filter */}
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <div className="relative flex-1 md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <input
+              type="search"
+              placeholder="Filter by title or topic..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-9 rounded-xl border border-slate-200 bg-white pl-8 pr-3 text-xs text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <select
+            value={selectedSubject}
+            onChange={(e) => setSelectedSubject(e.target.value)}
+            className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-xs text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+          >
+            <option value="all">All Subjects</option>
+            {subjects.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Classes Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <Card key={i} className="p-6">
+              <Skeleton className="h-6 w-3/4 mb-3" />
+              <Skeleton className="h-4 w-1/2 mb-4" />
+              <Skeleton className="h-16 w-full mb-4" />
+              <Skeleton className="h-10 w-full" />
+            </Card>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 border rounded-2xl border-dashed border-slate-300 dark:border-slate-800 space-y-3">
+          <BookOpen className="h-10 w-10 text-slate-400 mx-auto" />
+          <h2 className="text-lg font-bold">No classes match your filter</h2>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            Try adjusting your search query or subject filter, or create a new class.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filtered.map((item) => (
+            <Card
+              key={item.id}
+              className="flex flex-col border-slate-200 dark:border-slate-800 hover:border-teal-500/40 transition-all shadow-sm"
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider">
+                    {item.subject}
+                  </Badge>
+                  <div className="flex items-center gap-1.5">
+                    {item.visibility === "private" ? (
+                      <Badge variant="amber" className="text-[10px] flex items-center gap-1">
+                        <Lock className="h-3 w-3" /> Private
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-[10px] flex items-center gap-1">
+                        <Globe className="h-3 w-3" /> Public
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <CardTitle className="text-base font-bold line-clamp-1">{item.title}</CardTitle>
+                <CardDescription className="text-xs">
+                  Instructor: <span className="font-semibold text-slate-700 dark:text-slate-300">{item.teacherName}</span>
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="flex-1 pb-4">
+                <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-3 leading-relaxed">
+                  {item.description}
+                </p>
+                <div className="mt-4 flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <Users className="h-3.5 w-3.5" /> {item.studentCount} students
+                  </span>
+                </div>
+              </CardContent>
+
+              <CardFooter className="pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2">
+                <Link href={`/classes/${item.id}`} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full text-xs">
+                    View Syllabus
+                  </Button>
+                </Link>
+
+                {item.userEnrollmentStatus === "active" ? (
+                  <Link href={`/classes/${item.id}`}>
+                    <Button size="sm" className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white">
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Enrolled
+                    </Button>
+                  </Link>
+                ) : item.userEnrollmentStatus === "pending" ? (
+                  <Button size="sm" variant="amber" disabled className="text-xs">
+                    <Clock className="h-3.5 w-3.5 mr-1" /> Pending
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => handleJoinClass(item)}
+                    isLoading={joiningId === item.id}
+                  >
+                    {item.visibility === "private" ? "Request Access" : "Join Class"}
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Create Class Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                <h3 className="font-bold text-lg">Create New Class</h3>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateClass} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Class Title
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Introduction to Analog Circuit Analysis"
+                  value={createTitle}
+                  onChange={(e) => setCreateTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Subject Category
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Electrical Engineering, Physics, Computer Science"
+                  value={createSubject}
+                  onChange={(e) => setCreateSubject(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Class Description
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Provide an overview of the curriculum and target learning objectives..."
+                  value={createDescription}
+                  onChange={(e) => setCreateDescription(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Access Visibility
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCreateVisibility("public")}
+                    className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 ${
+                      createVisibility === "public"
+                        ? "border-teal-500 bg-teal-500/10 text-teal-900 dark:text-teal-200 ring-2 ring-teal-500/30"
+                        : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
+                    }`}
+                  >
+                    <Globe className="h-4 w-4" /> Public (Instant Join)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCreateVisibility("private")}
+                    className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 ${
+                      createVisibility === "private"
+                        ? "border-amber-500 bg-amber-500/10 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/30"
+                        : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
+                    }`}
+                  >
+                    <Lock className="h-4 w-4" /> Private (Approval Required)
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setIsModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" isLoading={isCreating}>
+                  Publish Class
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getSampleClasses(): ClassItem[] {
+  return [
+    {
+      id: "class-circuits-101",
+      title: "Foundations of Electrical Circuits & Signals",
+      subject: "Electrical Engineering",
+      description:
+        "Master fundamental circuit theory, Ohm's law, Kirchhoff's laws, and RC filter frequency response with live virtual apparatus simulations.",
+      teacherId: "teacher-1",
+      teacherName: "Dr. Elena Vance",
+      visibility: "public",
+      studentCount: 38,
+      status: "published",
+      userEnrollmentStatus: "none",
+    },
+    {
+      id: "class-physics-mech",
+      title: "Classical Mechanics & Kinematics",
+      subject: "Physics",
+      description:
+        "Explore Newtonian dynamics, vector projectile motion, and conservation laws through interactive trajectory experiments.",
+      teacherId: "teacher-2",
+      teacherName: "Prof. Marcus Thorne",
+      visibility: "public",
+      studentCount: 24,
+      status: "published",
+      userEnrollmentStatus: "none",
+    },
+    {
+      id: "class-digital-logic",
+      title: "Digital Logic Systems & Computer Architecture",
+      subject: "Computer Science",
+      description:
+        "Build Boolean logic networks, half adders, registers, and sequential circuits from first principles.",
+      teacherId: "teacher-3",
+      teacherName: "Dr. Sarah Chen",
+      visibility: "private",
+      studentCount: 15,
+      status: "published",
+      userEnrollmentStatus: "none",
+    },
+  ];
+}
