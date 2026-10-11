@@ -35,10 +35,12 @@ export async function POST(
     const body = await req.json().catch(() => ({}));
 
     let buffer: Buffer;
+    let isExtractedText = false;
 
     // Direct text / outline payload support
     if (typeof body.contentText === "string" && body.contentText.trim().length > 0) {
       buffer = Buffer.from(body.contentText, "utf-8");
+      isExtractedText = true;
     } else if (materialData.storagePath) {
       // Download file bytes from Firebase Storage
       const bucket = adminBucket();
@@ -73,14 +75,29 @@ export async function POST(
       );
     }
 
-    // Verify PDF Magic Bytes (%PDF-)
-    const isPdf =
-      materialData.mime === "application/pdf" ||
-      (materialData.fileName && materialData.fileName.toLowerCase().endsWith(".pdf"));
+    // Verify PDF Magic Bytes (%PDF-) only when raw binary PDF was downloaded from storage.
+    // If the client extracted text locally (fallback path), buffer is already UTF-8 text.
+    const isBinaryPdf =
+      !isExtractedText &&
+      (materialData.mime === "application/pdf" ||
+        (materialData.fileName && materialData.fileName.toLowerCase().endsWith(".pdf")));
 
-    if (isPdf && buffer.length >= 5) {
-      const magic = buffer.toString("utf8", 0, 5);
-      if (magic !== "%PDF-") {
+    if (isBinaryPdf) {
+      if (buffer.length < 5) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: {
+              code: "CORRUPTED_PDF",
+              message: "Uploaded PDF file is empty or corrupted.",
+            },
+          },
+          { status: 400 }
+        );
+      }
+      // Search first 1024 bytes per ISO 32000-1 PDF spec (handles BOM, comments, and leading newlines)
+      const headerChunk = buffer.slice(0, Math.min(1024, buffer.length)).toString("latin1");
+      if (!headerChunk.includes("%PDF-")) {
         return NextResponse.json(
           {
             ok: false,
@@ -132,8 +149,8 @@ export async function POST(
       classId: id,
       materialId: mid,
       title: materialData.title || "Uploaded Material",
-      fileName: materialData.fileName || "material.pdf",
-      mime: materialData.mime || "application/pdf",
+      fileName: materialData.fileName || (isExtractedText ? "document.txt" : "material.pdf"),
+      mime: isExtractedText ? "text/plain" : (materialData.mime || "application/pdf"),
       buffer,
       userId: caller.uid,
     });

@@ -226,7 +226,7 @@ export async function ingestMaterialBuffer({
 
   // 1. Parse text & outline
   let skeleton: DocumentSkeleton;
-  if (mime === "application/pdf" || fileName.toLowerCase().endsWith(".pdf")) {
+  if ((mime === "application/pdf" || fileName.toLowerCase().endsWith(".pdf")) && mime !== "text/plain") {
     const parsedPdf = await parsePdfBuffer(buffer);
     skeleton = buildDocumentSkeleton(title, parsedPdf);
   } else {

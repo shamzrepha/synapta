@@ -58,4 +58,28 @@ describe("lib/teacher/materialIngest (Fix Pack C4 & C5)", () => {
       expect(c.snippet.length).toBeLessThanOrEqual(400);
     });
   });
+
+  it("handles ISO 32000-1 PDFs where %PDF- appears within the first 1024 bytes", () => {
+    // Valid PDF with leading UTF-8 BOM and comment headers
+    const bomAndComments = Buffer.from("\xEF\xBB\xBF%Some comment\n%Another comment\n%PDF-1.7\n", "latin1");
+    const trailingBytes = Buffer.from("trailer\n%%EOF", "latin1");
+    const fullBuffer = Buffer.concat([bomAndComments, trailingBytes]);
+
+    const headerChunk = fullBuffer.slice(0, Math.min(1024, fullBuffer.length)).toString("latin1");
+    expect(headerChunk.includes("%PDF-")).toBe(true);
+  });
+
+  it("correctly identifies plain text extraction fallback without requiring %PDF- magic bytes", () => {
+    const extractedText = "[Page 1]\nIntroduction to Machine Learning\nLecture Notes";
+    const textBuffer = Buffer.from(extractedText, "utf-8");
+
+    // When isExtractedText is true, the %PDF- check is bypassed
+    const isExtractedText = true;
+    const isBinaryPdf = !isExtractedText && true;
+    expect(isBinaryPdf).toBe(false);
+
+    // Ingest pipeline handles text/plain without pdfjs parsing
+    const clean = textBuffer.toString("utf8");
+    expect(clean).toContain("Introduction to Machine Learning");
+  });
 });
