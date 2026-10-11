@@ -33,3 +33,9 @@ This log records architectural and design decisions, trade-offs, and deviations 
 - **Context:** Clean, calm aesthetic avoiding generic purple gradients; full light & dark mode support.
 - **Decision:** Custom CSS design system with CSS custom variables for Deep Ink (`#0B0F14`), Warm Off-White (`#F7F6F2`), Teal accent (`#14B8A6`), and Amber secondary (`#F59E0B`). Persisted via `synapta-theme` in `localStorage` and applied to `<html>` class.
 - **Rationale:** Ensures high contrast (WCAG AA), accessible focus rings, and seamless hydration without flash of unstyled theme.
+
+## Decision 7: Centralized ApiError & Leaked Provider Information Defense (A2)
+- **Context:** Heterogeneous errors across auth, class authorization, rate-limiting, and AI exhaustion previously returned generic 500s or leaked raw provider JSON payloads (e.g. Google Cloud 429 quota failure dumps).
+- **Decision:** Centralized `ApiError` base class in `lib/api/errors.ts` extended by `AuthError`, `ClassAccessError`, `QuotaError`, and `AiQuotaExhaustedError`. Enforced uniform `{ ok: false, error: { code, message, requestId? } }` responses via `toErrorResponse(err, requestId)`. Mask unhandled 500 exceptions with opaque error messages while capturing request IDs for server-side logs. Intercept any leaked upstream provider quota payloads and map them to friendly `AI_QUOTA_EXHAUSTED` responses with `Retry-After` headers.
+- **Rationale:** Prevents information disclosure vulnerabilities, protects users from cryptic provider payloads, and guarantees uniform client error contracts.
+

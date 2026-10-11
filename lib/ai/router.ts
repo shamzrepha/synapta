@@ -17,6 +17,7 @@ import {
   isWithinModelReserve,
 } from "./health";
 import { adminDb } from "@/lib/firebase/admin";
+import { ApiError } from "@/lib/api/errors";
 
 export { sanitizeModelId, DEFAULT_GEMINI_MODEL };
 
@@ -28,14 +29,17 @@ export type AiTask =
   | "class_build"         // Initial map draft & map reconciliation -> heavy
   | "voice";              // live audio -> heavy
 
-export class AiQuotaExhaustedError extends Error {
-  public code = "AI_QUOTA_EXHAUSTED" as const;
+export class AiQuotaExhaustedError extends ApiError {
   public resumeAt: string;
   public resumeTimestampMs: number;
 
   constructor(resumeAt: string, resumeTimestampMs: number) {
+    const retryAfter = Math.max(1, Math.ceil((resumeTimestampMs - Date.now()) / 1000)).toString();
     super(
-      `The AI is at its daily limit. Your upload is saved and will be analysed automatically after ${resumeAt}, or you can retry later.`
+      429,
+      "AI_QUOTA_EXHAUSTED",
+      `The AI is at its daily limit. Your upload is saved and will be analysed automatically after ${resumeAt}, or you can retry later.`,
+      { "Retry-After": retryAfter }
     );
     this.name = "AiQuotaExhaustedError";
     this.resumeAt = resumeAt;

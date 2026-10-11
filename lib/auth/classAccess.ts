@@ -1,5 +1,6 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { AuthUser } from "@/lib/auth/requireUser";
+import { ApiError } from "@/lib/api/errors";
 
 export interface ClassAccessResult {
   classDoc: FirebaseFirestore.DocumentSnapshot;
@@ -13,14 +14,10 @@ export interface ClassAccessResult {
   canMutate: boolean;
 }
 
-export class ClassAccessError extends Error {
-  code: string;
-  status: number;
+export class ClassAccessError extends ApiError {
   constructor(message: string, code: string, status: number) {
-    super(message);
+    super(status, code, message);
     this.name = "ClassAccessError";
-    this.code = code;
-    this.status = status;
   }
 }
 

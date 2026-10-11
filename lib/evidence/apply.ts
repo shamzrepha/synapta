@@ -1,5 +1,6 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { updateMastery, Activity, OMEGA, MASTERY_THRESHOLD } from "@/lib/bkt/engine";
+import { ApiError } from "@/lib/api/errors";
 
 export interface ApplyEvidenceParams {
   uid: string;
@@ -64,12 +65,12 @@ export async function applyEvidence({
       const diffMinutes = (Date.now() - lastLabMillis) / (1000 * 60);
       if (diffMinutes < 10) {
         const waitTime = Math.ceil(10 - diffMinutes);
-        const err = new Error(
-          `Lab evidence rate-limited. Please wait ${waitTime} more minute(s) before resubmitting for this concept.`
+        throw new ApiError(
+          429,
+          "LAB_RATE_LIMITED",
+          `Lab evidence rate-limited. Please wait ${waitTime} more minute(s) before resubmitting for this concept.`,
+          { "Retry-After": (waitTime * 60).toString() }
         );
-        (err as { code?: string; status?: number }).code = "LAB_RATE_LIMITED";
-        (err as { code?: string; status?: number }).status = 429;
-        throw err;
       }
     }
 

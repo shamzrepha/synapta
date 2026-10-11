@@ -1,20 +1,16 @@
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { AuthError } from "@/lib/auth/requireUser";
+import { ApiError } from "@/lib/api/errors";
 
 // In-memory sliding window rate limiting (max 10 calls per minute per user)
 const userCallTimestamps = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const MAX_CALLS_PER_WINDOW = 10;
 
-export class QuotaError extends Error {
-  code: "QUOTA_EXCEEDED" | "RATE_LIMITED";
-  status: number;
-
+export class QuotaError extends ApiError {
   constructor(code: "QUOTA_EXCEEDED" | "RATE_LIMITED", message: string, status: number) {
-    super(message);
+    super(status, code, message);
     this.name = "QuotaError";
-    this.code = code;
-    this.status = status;
   }
 }
 

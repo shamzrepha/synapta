@@ -2,6 +2,7 @@ import { executeStructuredAiTask } from "@/lib/ai/router";
 import { sanitizeUntrustedPromptText } from "@/lib/ai/scrub";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { slugify, deriveBktPriors } from "@/lib/teacher/classBuilder";
+import { ApiError } from "@/lib/api/errors";
 import { z } from "zod";
 
 export interface MapOperation {
@@ -184,7 +185,7 @@ export async function applyMapProposal({
 
   const pDoc = await proposalRef.get();
   if (!pDoc.exists) {
-    throw new Error("Proposal not found");
+    throw new ApiError(404, "NOT_FOUND", "Proposal not found");
   }
 
   const proposalData = pDoc.data() as MapProposal;

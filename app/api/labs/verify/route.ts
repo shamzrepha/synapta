@@ -76,18 +76,6 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      (error as { code: string }).code === "LAB_RATE_LIMITED"
-    ) {
-      const err = error as { code: string; message: string; status?: number };
-      return NextResponse.json(
-        { ok: false, error: { code: err.code, message: err.message } },
-        { status: err.status || 429 }
-      );
-    }
     return handleAuthError(error);
   }
 }

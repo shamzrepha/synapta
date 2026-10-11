@@ -5,6 +5,7 @@ describe("lib/env (A1.2 Canonical and Legacy Firebase Admin Env Resolution)", ()
   const originalEnv = { ...process.env };
 
   const validClientEnv = {
+    NODE_ENV: "test" as const,
     NEXT_PUBLIC_FIREBASE_API_KEY: "mock-key",
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "mock.firebaseapp.com",
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: "mock-project",

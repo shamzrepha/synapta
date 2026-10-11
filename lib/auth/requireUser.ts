@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { UserRole } from "@/lib/store/use-user-store";
+import { ApiError, toErrorResponse } from "@/lib/api/errors";
 
 export interface AuthenticatedUser {
   uid: string;
@@ -11,15 +12,10 @@ export interface AuthenticatedUser {
 
 export type AuthUser = AuthenticatedUser;
 
-export class AuthError extends Error {
-  code: "UNAUTHENTICATED" | "FORBIDDEN";
-  status: number;
-
+export class AuthError extends ApiError {
   constructor(code: "UNAUTHENTICATED" | "FORBIDDEN", message: string, status: number) {
-    super(message);
+    super(status, code, message);
     this.name = "AuthError";
-    this.code = code;
-    this.status = status;
   }
 }
 
@@ -86,61 +82,4 @@ export async function requireUser(
   };
 }
 
-export function handleAuthError(error: unknown) {
-  if (error instanceof AuthError) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: { code: error.code, message: error.message },
-      },
-      { status: error.status }
-    );
-  }
-
-  // Check for typed AI Quota Exhausted error
-  if (
-    (typeof error === "object" && error !== null && (error as { code?: string }).code === "AI_QUOTA_EXHAUSTED") ||
-    (error instanceof Error && error.name === "AiQuotaExhaustedError")
-  ) {
-    const resumeAt = (error as { resumeAt?: string }).resumeAt;
-    return NextResponse.json(
-      {
-        ok: false,
-        error: {
-          code: "AI_QUOTA_EXHAUSTED",
-          message: error instanceof Error ? error.message : "The AI is at its daily limit. Your upload is saved and will be analysed automatically.",
-          resumeAt,
-        },
-      },
-      { status: 429 }
-    );
-  }
-
-  let message = error instanceof Error ? error.message : "Internal server error";
-
-  // Prevent leaking raw provider JSON to users
-  if (message.includes("RESOURCE_EXHAUSTED") || message.includes("429") || message.includes("Quota exceeded")) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: {
-          code: "AI_QUOTA_EXHAUSTED",
-          message: "The AI is at its daily limit. Your upload is saved and will be analysed automatically, or you can retry later.",
-        },
-      },
-      { status: 429 }
-    );
-  }
-
-  if (message.startsWith("{") && message.includes('"error"')) {
-    message = "An error occurred during AI processing. Please retry.";
-  }
-
-  return NextResponse.json(
-    {
-      ok: false,
-      error: { code: "INTERNAL", message },
-    },
-    { status: 500 }
-  );
-}
+export const handleAuthError = toErrorResponse;
