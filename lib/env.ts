@@ -9,38 +9,29 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_FIREBASE_APP_ID: z.string().min(1, "NEXT_PUBLIC_FIREBASE_APP_ID is required"),
 });
 
-export const DEFAULT_GEMINI_MODEL = "gemini-3.7-flash";
+import { DEFAULT_MODEL_CONFIG, sanitizeModelId } from "./ai/models";
 
-export function sanitizeModelId(model?: string | null): string {
-  if (!model || typeof model !== "string") return DEFAULT_GEMINI_MODEL;
-  const trimmed = model.trim();
-  // Intercept obsolete/deprecated model identifiers or free-tier quota-capped previews
-  if (
-    trimmed.startsWith("gemini-2.") ||
-    trimmed.startsWith("gemini-1.") ||
-    trimmed.includes("gemini-2.5") ||
-    trimmed.includes("gemini-2.0") ||
-    trimmed.includes("gemini-1.5") ||
-    trimmed.includes("gemini-3.1-pro") ||
-    trimmed.includes("gemini-3.8-flash") // free tier capped at 20 requests/day
-  ) {
-    return DEFAULT_GEMINI_MODEL;
-  }
-  return trimmed || DEFAULT_GEMINI_MODEL;
-}
+export { sanitizeModelId, DEFAULT_MODEL_CONFIG };
+export const DEFAULT_GEMINI_MODEL = DEFAULT_MODEL_CONFIG.tutor;
 
 const serverEnvSchema = clientEnvSchema.extend({
   FIREBASE_ADMIN_PROJECT_ID: z.string().min(1, "FIREBASE_ADMIN_PROJECT_ID is required"),
   FIREBASE_ADMIN_CLIENT_EMAIL: z.string().min(1, "FIREBASE_ADMIN_CLIENT_EMAIL is required"),
   FIREBASE_ADMIN_PRIVATE_KEY: z.string().min(1, "FIREBASE_ADMIN_PRIVATE_KEY is required"),
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
-  GEMINI_MODEL: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
-  GEMINI_MODEL_TUTOR: z.string().default("gemini-3.5-flash-lite").transform(sanitizeModelId),
-  GEMINI_MODEL_STRUCTURED: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
-  GEMINI_MODEL_GRADING: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
-  GEMINI_MODEL_LONGDOC: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
-  GEMINI_MODEL_VOICE: z.string().default("gemini-3.8-live").transform(sanitizeModelId),
-  GEMINI_MODEL_FALLBACK: z.string().default("gemini-3.6-flash").transform(sanitizeModelId),
+  GEMINI_MODEL: z.string().default(DEFAULT_MODEL_CONFIG.legacy).transform((m) => sanitizeModelId(m, DEFAULT_MODEL_CONFIG.legacy)),
+  GEMINI_MODEL_TUTOR: z.string().default(DEFAULT_MODEL_CONFIG.tutor).transform((m) => sanitizeModelId(m, DEFAULT_MODEL_CONFIG.tutor)),
+  GEMINI_MODEL_STRUCTURED: z.string().default(DEFAULT_MODEL_CONFIG.structured).transform((m) => sanitizeModelId(m, DEFAULT_MODEL_CONFIG.structured)),
+  GEMINI_MODEL_LONGDOC: z.string().default(DEFAULT_MODEL_CONFIG.longdoc).transform((m) => sanitizeModelId(m, DEFAULT_MODEL_CONFIG.longdoc)),
+  GEMINI_MODEL_BUILD: z.string().default(DEFAULT_MODEL_CONFIG.build).transform((m) => sanitizeModelId(m, DEFAULT_MODEL_CONFIG.build)),
+  GEMINI_MODEL_GRADING: z.string().default(DEFAULT_MODEL_CONFIG.grading).transform((m) => sanitizeModelId(m, DEFAULT_MODEL_CONFIG.grading)),
+  GEMINI_MODEL_VOICE: z.string().default(DEFAULT_MODEL_CONFIG.voice).transform((m) => sanitizeModelId(m, DEFAULT_MODEL_CONFIG.voice)),
+  GEMINI_CHAIN_LIGHT: z.string().default(DEFAULT_MODEL_CONFIG.chainLight.join(",")),
+  GEMINI_CHAIN_HEAVY: z.string().default(DEFAULT_MODEL_CONFIG.chainHeavy.join(",")),
+  GEMINI_MODEL_OVERFLOW: z.string().default(DEFAULT_MODEL_CONFIG.overflow),
+  GEMINI_MODEL_FALLBACK: z.string().default("gemini-3.5-flash-lite").transform((m) => sanitizeModelId(m, "gemini-3.5-flash-lite")),
+  GEMINI_FALLBACK_CHAIN: z.string().default(""),
+  GEMINI_RPD_LIMITS: z.string().default(""),
   ADMIN_EMAILS: z.string().default(""),
   STUDENT_TOKEN_LIMIT: z.coerce.number().default(50000),
   TEACHER_TOKEN_LIMIT: z.coerce.number().default(200000),
@@ -92,13 +83,19 @@ export function getServerEnv(): ServerEnv {
     FIREBASE_ADMIN_CLIENT_EMAIL: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
     FIREBASE_ADMIN_PRIVATE_KEY: process.env.FIREBASE_ADMIN_PRIVATE_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-    GEMINI_MODEL: sanitizeModelId(process.env.GEMINI_MODEL),
-    GEMINI_MODEL_TUTOR: sanitizeModelId(process.env.GEMINI_MODEL_TUTOR || "gemini-3.5-flash-lite"),
-    GEMINI_MODEL_STRUCTURED: sanitizeModelId(process.env.GEMINI_MODEL_STRUCTURED),
-    GEMINI_MODEL_GRADING: sanitizeModelId(process.env.GEMINI_MODEL_GRADING),
-    GEMINI_MODEL_LONGDOC: sanitizeModelId(process.env.GEMINI_MODEL_LONGDOC),
-    GEMINI_MODEL_VOICE: sanitizeModelId(process.env.GEMINI_MODEL_VOICE || "gemini-3.8-live"),
-    GEMINI_MODEL_FALLBACK: sanitizeModelId(process.env.GEMINI_MODEL_FALLBACK || "gemini-3.6-flash"),
+    GEMINI_MODEL: process.env.GEMINI_MODEL || DEFAULT_MODEL_CONFIG.legacy,
+    GEMINI_MODEL_TUTOR: process.env.GEMINI_MODEL_TUTOR || DEFAULT_MODEL_CONFIG.tutor,
+    GEMINI_MODEL_STRUCTURED: process.env.GEMINI_MODEL_STRUCTURED || DEFAULT_MODEL_CONFIG.structured,
+    GEMINI_MODEL_LONGDOC: process.env.GEMINI_MODEL_LONGDOC || DEFAULT_MODEL_CONFIG.longdoc,
+    GEMINI_MODEL_BUILD: process.env.GEMINI_MODEL_BUILD || DEFAULT_MODEL_CONFIG.build,
+    GEMINI_MODEL_GRADING: process.env.GEMINI_MODEL_GRADING || DEFAULT_MODEL_CONFIG.grading,
+    GEMINI_MODEL_VOICE: process.env.GEMINI_MODEL_VOICE || DEFAULT_MODEL_CONFIG.voice,
+    GEMINI_CHAIN_LIGHT: process.env.GEMINI_CHAIN_LIGHT || DEFAULT_MODEL_CONFIG.chainLight.join(","),
+    GEMINI_CHAIN_HEAVY: process.env.GEMINI_CHAIN_HEAVY || DEFAULT_MODEL_CONFIG.chainHeavy.join(","),
+    GEMINI_MODEL_OVERFLOW: process.env.GEMINI_MODEL_OVERFLOW || DEFAULT_MODEL_CONFIG.overflow,
+    GEMINI_MODEL_FALLBACK: process.env.GEMINI_MODEL_FALLBACK || "gemini-3.5-flash-lite",
+    GEMINI_FALLBACK_CHAIN: process.env.GEMINI_FALLBACK_CHAIN || "",
+    GEMINI_RPD_LIMITS: process.env.GEMINI_RPD_LIMITS || "",
     ADMIN_EMAILS: process.env.ADMIN_EMAILS || "",
     STUDENT_TOKEN_LIMIT: process.env.STUDENT_TOKEN_LIMIT || 50000,
     TEACHER_TOKEN_LIMIT: process.env.TEACHER_TOKEN_LIMIT || 200000,

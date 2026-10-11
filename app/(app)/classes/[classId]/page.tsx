@@ -23,6 +23,7 @@ import {
   FileText,
 } from "lucide-react";
 import { formatPL, getMasteryStatus } from "@/lib/utils";
+import { MaterialsUploader } from "@/components/teacher/MaterialsUploader";
 
 interface KCItem {
   id: string;
@@ -69,9 +70,6 @@ export default function ClassOverviewPage({
   const [isJoining, setIsJoining] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isBuilding, setIsBuilding] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [materialTitle, setMaterialTitle] = useState("");
-  const [materialText, setMaterialText] = useState("");
   const [showMaterialModal, setShowMaterialModal] = useState(false);
 
   useEffect(() => {
@@ -153,40 +151,6 @@ export default function ClassOverviewPage({
       toast({ title: "AI Build Error", description: "Network error starting build.", variant: "destructive" });
     } finally {
       setIsBuilding(false);
-    }
-  };
-
-  const handleUploadMaterial = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!materialTitle || !materialText) return;
-    setIsUploading(true);
-    try {
-      const res = await fetch(`/api/classes/${classId}/materials`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: materialTitle, contentText: materialText }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        toast({
-          title: "Material Uploaded & Analyzed",
-          description: "AI topic router generated new proposals for review.",
-          variant: "success",
-        });
-        setShowMaterialModal(false);
-        setMaterialTitle("");
-        setMaterialText("");
-      } else {
-        toast({
-          title: "Upload Error",
-          description: data.error?.message || "Failed to process document.",
-          variant: "destructive",
-        });
-      }
-    } catch {
-      toast({ title: "Upload Error", description: "Network error uploading document.", variant: "destructive" });
-    } finally {
-      setIsUploading(false);
     }
   };
 
@@ -383,41 +347,23 @@ export default function ClassOverviewPage({
         </CardContent>
       </Card>
 
-      {/* Upload Material Modal */}
-      {showMaterialModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4">
-            <h3 className="font-bold text-lg">Upload & Route Course Document</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400">
-              Paste textbook content, notes, or lab guidelines. The AI topic router will automatically analyze and propose attaching to existing KCs or creating new ones.
-            </p>
-            <form onSubmit={handleUploadMaterial} className="space-y-3">
-              <Input
-                placeholder="Document Title (e.g. Chapter 4: Nyquist Stability)"
-                value={materialTitle}
-                onChange={(e) => setMaterialTitle(e.target.value)}
-                required
-              />
-              <textarea
-                rows={6}
-                placeholder="Paste document text here..."
-                value={materialText}
-                onChange={(e) => setMaterialText(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                required
-              />
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="ghost" onClick={() => setShowMaterialModal(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={isUploading}>
-                  Analyze & Generate Proposals
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Real Materials Uploader Modal */}
+      <MaterialsUploader
+        classId={classId}
+        isOpen={showMaterialModal}
+        onClose={() => setShowMaterialModal(false)}
+        onSuccess={() => {
+          fetch(`/api/classes/${classId}`)
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.ok && data.data?.class) {
+                setClassData(data.data.class);
+                setKcs(data.data.kcs || []);
+              }
+            })
+            .catch(() => {});
+        }}
+      />
 
       {/* Progress & Twin Status Metric */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

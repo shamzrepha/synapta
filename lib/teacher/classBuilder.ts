@@ -1,7 +1,22 @@
-import { executeStructuredAiTask } from "@/lib/ai/router";
+import { executeStructuredAiTask, AiQuotaExhaustedError } from "@/lib/ai/router";
 import { sanitizeUntrustedPromptText } from "@/lib/ai/scrub";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { z } from "zod";
+
+export function extractOutlineHeadings(text?: string): string[] {
+  if (!text) return [];
+  const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+  const headings: string[] = [];
+  for (const line of lines) {
+    const m = line.match(/^(?:(?:\d+[\.\)]|(?:Week|Chapter|Unit|Module|Section|Topic)\s+\d+[:\.\-]?|#{1,4}|[-*•])\s+)(.+)$/i);
+    if (m && m[1].length >= 3 && m[1].length <= 120) {
+      headings.push(m[1].trim());
+    } else if (line.length >= 4 && line.length <= 80 && !line.endsWith(".") && !line.endsWith(",")) {
+      headings.push(line);
+    }
+  }
+  return headings.slice(0, 30);
+}
 
 export interface ClassBuildInput {
   classId: string;
@@ -138,9 +153,10 @@ export function deriveBktPriors(
  */
 export async function buildClassWithAi(input: ClassBuildInput, jobId?: string): Promise<{
   jobId: string;
-  status: "ready" | "needs_review";
+  status: "ready" | "needs_review" | "waiting_quota";
   kcCount: number;
   clarifications?: string[];
+  resumeAt?: string;
 }> {
   const effectiveJobId = jobId || `job_${Date.now()}`;
   const jobRef = adminDb()
@@ -166,6 +182,8 @@ export async function buildClassWithAi(input: ClassBuildInput, jobId?: string): 
     ? sanitizeUntrustedPromptText(input.seedMaterialText, 8000)
     : "";
 
+  const outlineHeadings = extractOutlineHeadings(input.seedMaterialText);
+
   const systemInstruction = `You are Synapta's Senior AI Co-Teacher and Curriculum Architect.
 Your task is to structure a master Knowledge Component (KC) graph for a course.
 
@@ -175,7 +193,15 @@ Rules:
 3. Generate between 8 and 25 granular Knowledge Components logically ordered by week.
 4. Each KC must have Bloom-tagged learning objectives (e.g. "[Understand] ...", "[Apply] ...").
 5. Specify prerequisiteTitles using the exact titles of previously introduced KCs in this course.
-6. Absolutely NO circular dependencies.`;
+6. Absolutely NO circular dependencies.
+${
+  outlineHeadings.length >= 2
+    ? `\n7. CRITICAL OUTLINE MAPPING DIRECTIVE:
+The teacher provided the following exact ${outlineHeadings.length} curriculum outline topics:
+${outlineHeadings.map((h, i) => `${i + 1}. ${h}`).join("\n")}
+You MUST map these headings 1:1 into Knowledge Components, preserving the titles and sequencing exactly.`
+    : ""
+}`;
 
   const userPrompt = `Course Title: ${input.title}
 Subject: ${input.subject}
@@ -188,14 +214,46 @@ Synthesize the concept map.`;
 
   await jobRef.update({ step: "drafting_map", pct: 35, updatedAt: Timestamp.now() });
 
-  const aiResult = await executeStructuredAiTask({
-    task: "structured_spec",
-    systemInstruction,
-    userPrompt,
-    schema: classPlanSchema,
-    userId: input.userId,
-    estimatedTokens: 3500,
-  });
+  let aiResult;
+  try {
+    aiResult = await executeStructuredAiTask({
+      task: "class_build",
+      systemInstruction,
+      userPrompt,
+      schema: classPlanSchema,
+      userId: input.userId,
+      estimatedTokens: 3500,
+    });
+  } catch (err: unknown) {
+    if (err instanceof AiQuotaExhaustedError) {
+      console.warn(`[classBuilder] Daily quota exhausted during class build for ${input.classId}. Pausing job until ${err.resumeAt}.`);
+      await jobRef.update({
+        status: "waiting_quota",
+        step: "paused_quota",
+        resumeAt: err.resumeAt,
+        resumeTimestampMs: err.resumeTimestampMs,
+        input,
+        updatedAt: Timestamp.now(),
+      });
+      await adminDb().collection("classes").doc(input.classId).update({
+        buildState: "waiting_quota",
+        resumeAt: err.resumeAt,
+        updatedAt: Timestamp.now(),
+      });
+      return {
+        jobId: effectiveJobId,
+        status: "waiting_quota",
+        resumeAt: err.resumeAt,
+        kcCount: 0,
+      };
+    }
+    await jobRef.update({
+      status: "failed",
+      error: err instanceof Error ? err.message : String(err),
+      updatedAt: Timestamp.now(),
+    });
+    throw err;
+  }
 
   const { kcs: rawKcs, clarifications } = aiResult.data;
 

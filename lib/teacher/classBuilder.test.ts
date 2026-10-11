@@ -3,6 +3,7 @@ import {
   slugify,
   validateAndPruneCycles,
   deriveBktPriors,
+  extractOutlineHeadings,
 } from "./classBuilder";
 
 describe("lib/teacher/classBuilder", () => {
@@ -59,4 +60,32 @@ describe("lib/teacher/classBuilder", () => {
       expect(priors.pS).toBe(0.14);
     });
   });
+
+  describe("extractOutlineHeadings (Fix Pack C5 Outline-First)", () => {
+    it("extracts structured headings 1:1 from numbered and markdown outline notes", () => {
+      const outline = `
+1. Introduction to Feedback Control
+2. Frequency Domain Analysis & Transfer Functions
+3. Stability Criteria & Root Locus
+## 4. State Space Representation
+Week 5: Digital PID Controller Design
+- 6. Robust Control and H-infinity
+      `.trim();
+
+      const headings = extractOutlineHeadings(outline);
+      expect(headings).toHaveLength(6);
+      expect(headings[0]).toBe("Introduction to Feedback Control");
+      expect(headings[1]).toBe("Frequency Domain Analysis & Transfer Functions");
+      expect(headings[2]).toBe("Stability Criteria & Root Locus");
+      expect(headings[3]).toBe("4. State Space Representation");
+      expect(headings[4]).toBe("Digital PID Controller Design");
+      expect(headings[5]).toBe("6. Robust Control and H-infinity");
+    });
+
+    it("returns empty array for empty or whitespace outline text", () => {
+      expect(extractOutlineHeadings("")).toEqual([]);
+      expect(extractOutlineHeadings("   \n\n  ")).toEqual([]);
+    });
+  });
 });
+

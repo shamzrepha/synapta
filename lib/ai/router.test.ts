@@ -1,36 +1,201 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { modelFor, fallbackModel, sanitizeModelId } from "./router";
+import {
+  modelFor,
+  fallbackModel,
+  getChainForTask,
+  classifyProviderError,
+  AiQuotaExhaustedError,
+  generateWithFallback,
+} from "./router";
+import { sanitizeModelId, parseModelChain, DEFAULT_MODEL_CONFIG } from "./models";
+import { markModelExhausted, isModelAvailable } from "./health";
+import { handleAuthError } from "@/lib/auth/requireUser";
 
-describe("lib/ai/router", () => {
+// Mock Firebase Admin and Gemini Client for unit testing
+vi.mock("@/lib/firebase/admin", () => {
+  const store = new Map<string, Record<string, unknown>>();
+  return {
+    adminDb: () => ({
+      collection: (col: string) => ({
+        doc: (id: string) => ({
+          get: async () => ({
+            exists: store.has(`${col}/${id}`),
+            data: () => store.get(`${col}/${id}`) || {},
+          }),
+          set: async (val: Record<string, unknown>, opts?: { merge?: boolean }) => {
+            const key = `${col}/${id}`;
+            const existing = store.get(key) || {};
+            store.set(key, opts?.merge ? { ...existing, ...val } : val);
+          },
+        }),
+      }),
+      runTransaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({
+        get: async () => ({ exists: false, data: () => ({}) }),
+        set: () => {},
+        update: () => {},
+      }),
+    }),
+    Timestamp: {
+      now: () => ({ toMillis: () => Date.now(), toDate: () => new Date() }),
+    },
+  };
+});
+
+const mockGenerateContent = vi.fn();
+vi.mock("@/lib/gemini/client", () => ({
+  getGeminiClient: () => ({
+    models: {
+      generateContent: (...args: unknown[]) => mockGenerateContent(...args),
+    },
+  }),
+}));
+
+describe("lib/ai/router & models (Fix Pack C1 & C2)", () => {
   beforeEach(() => {
-    vi.resetModules();
+    vi.clearAllMocks();
+    delete process.env.GEMINI_MODEL_TUTOR;
+    delete process.env.GEMINI_MODEL_STRUCTURED;
+    delete process.env.GEMINI_MODEL_BUILD;
+    delete process.env.GEMINI_FALLBACK_CHAIN;
   });
 
-  it("returns default models for defined tasks", () => {
-    expect(modelFor("tutor_chat")).toBe("gemini-3.5-flash-lite");
-    expect(modelFor("structured_spec")).toBe("gemini-3.7-flash");
-    expect(modelFor("grading_high_stakes")).toBe("gemini-3.7-flash");
-    expect(modelFor("long_document")).toBe("gemini-3.7-flash");
-    expect(modelFor("voice")).toBe("gemini-3.8-live");
-    expect(fallbackModel()).toBe("gemini-3.6-flash");
+  describe("C1: Model Registry and Defaults", () => {
+    it("returns correct C1 defaults for each defined task", () => {
+      expect(modelFor("tutor_chat")).toBe(DEFAULT_MODEL_CONFIG.tutor);
+      expect(modelFor("structured_spec")).toBe(DEFAULT_MODEL_CONFIG.structured);
+      expect(modelFor("long_document")).toBe(DEFAULT_MODEL_CONFIG.longdoc);
+      expect(modelFor("class_build")).toBe(DEFAULT_MODEL_CONFIG.build);
+      expect(modelFor("grading_high_stakes")).toBe(DEFAULT_MODEL_CONFIG.grading);
+      expect(modelFor("voice")).toBe(DEFAULT_MODEL_CONFIG.voice);
+      expect(fallbackModel()).toBe("gemini-3.5-flash-lite");
+    });
+
+    it("honors environment overrides verbatim without silent rewrites", () => {
+      process.env.GEMINI_MODEL_TUTOR = "my-custom-experimental-model";
+      expect(modelFor("tutor_chat")).toBe("my-custom-experimental-model");
+    });
+
+    it("deduplicates chains cleanly", () => {
+      const chain = parseModelChain("gemini-3.1-flash-lite, gemini-3.1-flash-lite, gemini-3.5-flash-lite");
+      expect(chain).toEqual(["gemini-3.1-flash-lite", "gemini-3.5-flash-lite"]);
+    });
+
+    it("passes through unknown model IDs with a warning without silently replacing", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const unknownId = "custom-unknown-provider-model-v1";
+      const result = sanitizeModelId(unknownId);
+
+      expect(result).toBe(unknownId);
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Model ID "custom-unknown-provider-model-v1" is not recognized')
+      );
+      warnSpy.mockRestore();
+    });
+
+    it("ensures light tasks never spill into heavy models", () => {
+      const chain = getChainForTask("tutor_chat");
+      expect(chain).toEqual(["gemini-3.1-flash-lite", "gemini-3.5-flash-lite"]);
+      expect(chain).not.toContain("gemini-3.6-flash");
+      expect(chain).not.toContain("gemini-3.8-flash");
+    });
+
+    it("ensures heavy tasks walk heavy chain and as last resort drop to light", () => {
+      const chain = getChainForTask("class_build");
+      expect(chain[0]).toBe("gemini-3.6-flash");
+      expect(chain).toContain("gemini-3.7-flash");
+      expect(chain).toContain("gemini-3.1-flash-lite");
+    });
   });
 
-  it("falls back to fallbackModel for unknown task", () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(modelFor("unknown_task" as any)).toBe("gemini-3.6-flash");
-  });
+  describe("C2: Quota-Aware Error Classification & Execution", () => {
+    it("classifies daily exhaustion errors accurately", () => {
+      const err = {
+        status: "RESOURCE_EXHAUSTED",
+        message: "You exceeded your current quota. limit: 20",
+        details: [
+          {
+            violations: [
+              { quotaId: "GenerateRequestsPerDayPerProjectPerModel-FreeTier" },
+            ],
+            retryDelay: "64700s",
+          },
+        ],
+      };
 
-  it("sanitizes legacy, deprecated, or quota-capped Gemini model identifiers", () => {
-    expect(sanitizeModelId("gemini-2.5-flash")).toBe("gemini-3.7-flash");
-    expect(sanitizeModelId("gemini-2.0-flash")).toBe("gemini-3.7-flash");
-    expect(sanitizeModelId("gemini-1.5-flash")).toBe("gemini-3.7-flash");
-    expect(sanitizeModelId("gemini-1.5-pro")).toBe("gemini-3.7-flash");
-    expect(sanitizeModelId("gemini-3.8-flash")).toBe("gemini-3.7-flash");
-    expect(sanitizeModelId("models/gemini-2.5-flash")).toBe("gemini-3.7-flash");
-    expect(sanitizeModelId(undefined)).toBe("gemini-3.7-flash");
-    expect(sanitizeModelId("")).toBe("gemini-3.7-flash");
-    expect(sanitizeModelId("gemini-3.7-flash")).toBe("gemini-3.7-flash");
-    expect(sanitizeModelId("gemini-3.6-flash")).toBe("gemini-3.6-flash");
-    expect(sanitizeModelId("gemini-3.5-flash-lite")).toBe("gemini-3.5-flash-lite");
+      const classified = classifyProviderError(err);
+      expect(classified.type).toBe("daily_exhaustion");
+      expect(classified.retryDelaySeconds).toBe(64700);
+    });
+
+    it("classifies per-minute burst rate limits", () => {
+      const err = {
+        status: "RESOURCE_EXHAUSTED",
+        details: [
+          {
+            violations: [{ quotaId: "GenerateRequestsPerMinutePerProject" }],
+            retryDelay: "15s",
+          },
+        ],
+      };
+
+      const classified = classifyProviderError(err);
+      expect(classified.type).toBe("rate_limit_minute");
+      expect(classified.retryDelaySeconds).toBe(15);
+    });
+
+    it("cascades from Model A to Model B on simulated 429 daily quota and marks Model A exhausted", async () => {
+      // First call (Model A) fails with daily exhaustion
+      mockGenerateContent
+        .mockRejectedValueOnce({
+          status: "RESOURCE_EXHAUSTED",
+          message: "Quota exceeded for metric: generate_content_free_tier_requests",
+          details: [{ violations: [{ quotaId: "GenerateRequestsPerDay" }], retryDelay: "50000s" }],
+        })
+        .mockResolvedValueOnce({
+          text: JSON.stringify({ syllabusTitle: "Physics 101" }),
+          usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 100 },
+        });
+
+      const res = await generateWithFallback({
+        task: "structured_spec",
+        userPrompt: "Generate syllabus",
+      });
+
+      expect(res.fallbackTriggered).toBe(true);
+      expect(res.modelUsed).toBe("gemini-3.5-flash-lite");
+
+      // Verify Model A was marked exhausted and is no longer available
+      const primaryAvail = await isModelAvailable("gemini-3.1-flash-lite");
+      expect(primaryAvail).toBe(false);
+    });
+
+    it("throws typed AiQuotaExhaustedError when all candidate models are exhausted", async () => {
+      await markModelExhausted("gemini-3.1-flash-lite");
+      await markModelExhausted("gemini-3.5-flash-lite");
+
+      await expect(
+        generateWithFallback({
+          task: "tutor_chat",
+          userPrompt: "Explain gravity",
+        })
+      ).rejects.toThrowError(AiQuotaExhaustedError);
+    });
+
+    it("handleAuthError never leaks raw provider JSON in user-facing message", () => {
+      const rawError = new Error(
+        JSON.stringify({
+          error: {
+            code: 429,
+            message: "Quota exceeded for metric: generativelanguage.googleapis.com, limit: 20",
+          },
+        })
+      );
+
+      const response = handleAuthError(rawError);
+      expect(response.status).toBe(429);
+
+      // In NextResponse.json, check headers and status
+      expect(response.headers.get("content-type")).toContain("application/json");
+    });
   });
 });

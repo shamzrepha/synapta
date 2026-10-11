@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
-import { getGeminiClient } from "@/lib/gemini/client";
-import { getServerEnv } from "@/lib/env";
+import { generateWithFallback } from "@/lib/ai/router";
 import { chunkText, retrieveRelevantChunks, TextChunk } from "@/lib/notebook/retrieval";
 import { checkRateLimitAndQuota, recordTokenUsage, QuotaError } from "@/lib/quota/guard";
 import { z } from "zod";
@@ -89,32 +88,21 @@ RULES:
 SOURCE EXCERPTS:
 ${contextText}`;
 
-    // 4. Generate answer via Gemini
-    const ai = getGeminiClient();
+    // 4. Generate answer via generateWithFallback
+    const conversationPrompt = history.length > 0
+      ? `Prior conversation:\n${history.map((h) => `${h.role}: ${h.text}`).join("\n")}\n\nCurrent Question: ${query}`
+      : query;
 
-    const messagesFormatted = [
-      ...history.slice(-4).map((h) => ({
-        role: h.role,
-        parts: [{ text: h.text }],
-      })),
-      { role: "user" as const, parts: [{ text: query }] },
-    ];
-
-    const env = getServerEnv();
-    const response = await ai.models.generateContent({
-      model: env.GEMINI_MODEL,
-      contents: messagesFormatted,
-      config: {
-        systemInstruction: systemPrompt,
-        temperature: 0.2, // Low temperature for high factual adherence
-      },
+    const res = await generateWithFallback({
+      task: "tutor_chat",
+      userPrompt: conversationPrompt,
+      systemInstruction: systemPrompt,
+      userId: caller.uid,
     });
 
-    const answerText = response.text || "";
-    const tokensIn = response.usageMetadata?.promptTokenCount || 400;
-    const tokensOut = response.usageMetadata?.candidatesTokenCount || 300;
-
-    await recordTokenUsage(caller.uid, tokensIn, tokensOut).catch(() => {});
+    const answerText = res.text || "";
+    const tokensIn = res.tokensIn;
+    const tokensOut = res.tokensOut;
 
     return NextResponse.json({
       ok: true,

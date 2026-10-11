@@ -1,5 +1,4 @@
-import { getGeminiClient } from "@/lib/gemini/client";
-import { getServerEnv } from "@/lib/env";
+import { executeStructuredAiTask } from "@/lib/ai/router";
 import { z } from "zod";
 
 const qualityResponseSchema = z.object({
@@ -24,8 +23,6 @@ export async function runPedagogicalQualityCheck({
   kind: string;
 }): Promise<QualityReport> {
   try {
-    const ai = getGeminiClient();
-
     const systemInstruction = `You are Synapta's Automated Pedagogical Quality Reviewer.
 Evaluate the drafted learning content for accuracy and curriculum alignment.
 
@@ -53,27 +50,14 @@ Drafted Content:
 ${contentPayload.slice(0, 3000)}
 </DRAFT>`;
 
-    const response = await ai.models.generateContent({
-      model: getServerEnv().GEMINI_MODEL,
-      contents: [{ role: "user", parts: [{ text: `${systemInstruction}\n\n${userPrompt}` }] }],
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.1,
-      },
+    const res = await executeStructuredAiTask({
+      task: "structured_spec",
+      systemInstruction,
+      userPrompt,
+      schema: qualityResponseSchema,
     });
 
-    const parsed = JSON.parse(response.text || "{}");
-    const validated = qualityResponseSchema.safeParse(parsed);
-
-    if (validated.success) {
-      return validated.data;
-    }
-
-    return {
-      passed: true,
-      score: 85,
-      issues: [],
-    };
+    return res.data;
   } catch (err) {
     console.warn("Automated quality check fallback:", err);
     return {

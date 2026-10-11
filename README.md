@@ -6,8 +6,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38bdf8?logo=tailwindcss)](https://tailwindcss.com/)
 [![Firebase](https://img.shields.io/badge/Firebase-Auth_%26_Firestore-ffca28?logo=firebase)](https://firebase.google.com/)
-[![Gemini](https://img.shields.io/badge/Google_Gemini-3.8_Flash-8e75ff?logo=google)](https://deepmind.google/technologies/gemini/)
-[![Vitest](https://img.shields.io/badge/Vitest-12%2F12_Passed-729b1b?logo=vitest)](https://vitest.dev/)
+[![Gemini](https://img.shields.io/badge/Google_Gemini-3.1_Flash_Lite_%26_3.6_Flash-8e75ff?logo=google)](https://deepmind.google/technologies/gemini/)
+[![Vitest](https://img.shields.io/badge/Vitest-Passed-729b1b?logo=vitest)](https://vitest.dev/)
 
 ---
 
@@ -97,7 +97,7 @@ Where $\Omega_{\text{peer}} = 2.0$, $\Omega_{\text{lab}} = 1.5$, $\Omega_{\text{
 - **Framework**: Next.js 16.4.0 (Turbopack, App Router, React 19)
 - **Styling**: Tailwind CSS v4, Lucide React Icons
 - **Database & Auth**: Firebase Authentication & Cloud Firestore (Client SDK + `firebase-admin` Server SDK)
-- **AI Engine**: `@google/genai` Official SDK (`gemini-3.8-flash`)
+- **AI Engine**: `@google/genai` Official SDK (Dual-Tier Quota Architecture: `gemini-3.1-flash-lite` light tier & `gemini-3.6-flash` heavy tier with multi-tier fallback chains and RPM pacer)
 - **Mathematics & Visualizations**: Recharts, KaTeX (`rehype-katex`, `remark-math`), React Markdown
 - **Testing**: Vitest 5.0 with TypeScript strict mode
 

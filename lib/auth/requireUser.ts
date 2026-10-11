@@ -97,7 +97,45 @@ export function handleAuthError(error: unknown) {
     );
   }
 
-  const message = error instanceof Error ? error.message : "Internal server error";
+  // Check for typed AI Quota Exhausted error
+  if (
+    (typeof error === "object" && error !== null && (error as { code?: string }).code === "AI_QUOTA_EXHAUSTED") ||
+    (error instanceof Error && error.name === "AiQuotaExhaustedError")
+  ) {
+    const resumeAt = (error as { resumeAt?: string }).resumeAt;
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          code: "AI_QUOTA_EXHAUSTED",
+          message: error instanceof Error ? error.message : "The AI is at its daily limit. Your upload is saved and will be analysed automatically.",
+          resumeAt,
+        },
+      },
+      { status: 429 }
+    );
+  }
+
+  let message = error instanceof Error ? error.message : "Internal server error";
+
+  // Prevent leaking raw provider JSON to users
+  if (message.includes("RESOURCE_EXHAUSTED") || message.includes("429") || message.includes("Quota exceeded")) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          code: "AI_QUOTA_EXHAUSTED",
+          message: "The AI is at its daily limit. Your upload is saved and will be analysed automatically, or you can retry later.",
+        },
+      },
+      { status: 429 }
+    );
+  }
+
+  if (message.startsWith("{") && message.includes('"error"')) {
+    message = "An error occurred during AI processing. Please retry.";
+  }
+
   return NextResponse.json(
     {
       ok: false,

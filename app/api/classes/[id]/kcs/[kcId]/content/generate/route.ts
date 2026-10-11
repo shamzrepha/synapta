@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
-import { checkRateLimitAndQuota, recordTokenUsage } from "@/lib/quota/guard";
-import { getGeminiClient } from "@/lib/gemini/client";
-import { getServerEnv } from "@/lib/env";
+import { checkRateLimitAndQuota } from "@/lib/quota/guard";
+import { generateWithFallback } from "@/lib/ai/router";
 import { computeContentHash, ContentKind, ContentLevel } from "@/lib/teacher/cache";
 import { runPedagogicalQualityCheck } from "@/lib/teacher/qualityCheck";
 import { REPRESENTATION_METADATA, Representation } from "@/lib/teacher/representations";
@@ -56,7 +55,6 @@ export async function POST(
     // Quota check for teacher
     await checkRateLimitAndQuota(caller.uid, 2000);
 
-    const ai = getGeminiClient();
     const repMeta = REPRESENTATION_METADATA[representation as Representation] || REPRESENTATION_METADATA.worked_example;
 
     let prompt = "";
@@ -101,20 +99,13 @@ Ground strictly in:
 ${lessonMarkdown}`;
     }
 
-    const response = await ai.models.generateContent({
-      model: getServerEnv().GEMINI_MODEL,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        temperature: 0.3,
-        responseMimeType: kind === "quiz" || kind === "flashcards" ? "application/json" : "text/plain",
-      },
+    const fallbackResult = await generateWithFallback({
+      task: "structured_spec",
+      userPrompt: prompt,
+      userId: caller.uid,
     });
 
-    const tokensIn = response.usageMetadata?.promptTokenCount || 600;
-    const tokensOut = response.usageMetadata?.candidatesTokenCount || 600;
-    await recordTokenUsage(caller.uid, tokensIn, tokensOut);
-
-    const rawContentText = response.text || "";
+    const rawContentText = fallbackResult.text;
     let finalContent: unknown = rawContentText;
     if (kind === "quiz" || kind === "flashcards") {
       try {
@@ -159,7 +150,7 @@ ${lessonMarkdown}`;
       ok: true,
       data: {
         item: cacheItem,
-        tokensUsed: tokensIn + tokensOut,
+        tokensUsed: fallbackResult.tokensIn + fallbackResult.tokensOut,
       },
     });
   } catch (error) {

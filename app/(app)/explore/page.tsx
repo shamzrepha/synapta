@@ -540,17 +540,48 @@ export default function ExplorePage() {
 
               {wizardStep === 2 && (
                 <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Optional Seed Material / Syllabus Notes
-                    </label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Course Outline / Syllabus Notes (Outline-First Mode)
+                      </label>
+                      <label className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold cursor-pointer hover:underline">
+                        Upload outline file
+                        <input
+                          type="file"
+                          accept=".txt,.md,.json,.csv"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const text = ev.target?.result;
+                                if (typeof text === "string") setSeedText(text);
+                              };
+                              reader.readAsText(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+
                     <textarea
                       rows={6}
-                      placeholder="Paste textbook excerpts, course outline, or lecture notes here. The AI Co-Teacher will align KCs with this text. (Or click skip below)."
+                      placeholder={`1. Introduction to Feedback Control\n2. Frequency Domain Analysis & Transfer Functions\n3. Stability Criteria & Root Locus\n4. PID Controller Design & Tuning`}
                       value={seedText}
                       onChange={(e) => setSeedText(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 font-mono"
                     />
+
+                    {seedText.trim().length > 0 && (
+                      <div className="p-2.5 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-between text-xs">
+                        <span className="font-semibold text-teal-800 dark:text-teal-200">
+                          ✓ Outline-First Mapping: Detected {seedText.split("\n").filter((l) => l.trim().length >= 3).length} curriculum headings.
+                        </span>
+                        <span className="text-[10px] text-slate-500">Mapped 1:1 to modules/KCs</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between pt-2">

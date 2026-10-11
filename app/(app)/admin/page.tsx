@@ -116,7 +116,17 @@ interface PlatformUsageData {
   };
 }
 
-type AdminTab = "overview" | "users" | "requests" | "classes" | "reports" | "usage" | "audit";
+interface ModelHealthData {
+  model: string;
+  tier: string;
+  rpd: number;
+  requestsToday: number;
+  tokensToday: number;
+  status: "ok" | "exhausted" | "invalid";
+  exhaustedUntil?: string;
+}
+
+type AdminTab = "overview" | "users" | "requests" | "classes" | "reports" | "usage" | "audit" | "system";
 
 export default function AdminConsolePage() {
   const { user } = useUserStore();
@@ -128,6 +138,8 @@ export default function AdminConsolePage() {
   const [reports, setReports] = useState<AdminReportItem[]>([]);
   const [auditLogs, setAuditLogs] = useState<AdminAuditItem[]>([]);
   const [usageData, setUsageData] = useState<PlatformUsageData | null>(null);
+  const [modelsHealth, setModelsHealth] = useState<ModelHealthData[]>([]);
+  const [testingModel, setTestingModel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Filter & Search
@@ -140,20 +152,22 @@ export default function AdminConsolePage() {
   const fetchAdminData = useCallback(async () => {
     try {
       setLoading(true);
-      const [usersRes, usageRes, classesRes, reportsRes, auditRes] = await Promise.all([
+      const [usersRes, usageRes, classesRes, reportsRes, auditRes, modelsRes] = await Promise.all([
         fetch("/api/admin/users"),
         fetch("/api/admin/usage"),
         fetch("/api/classes?scope=explore"),
         fetch("/api/admin/reports"),
         fetch("/api/admin/audit"),
+        fetch("/api/admin/system/models"),
       ]);
 
-      const [usersJson, usageJson, classesJson, reportsJson, auditJson] = await Promise.all([
+      const [usersJson, usageJson, classesJson, reportsJson, auditJson, modelsJson] = await Promise.all([
         usersRes.json().catch(() => ({})),
         usageRes.json().catch(() => ({})),
         classesRes.json().catch(() => ({})),
         reportsRes.json().catch(() => ({})),
         auditRes.json().catch(() => ({})),
+        modelsRes.json().catch(() => ({})),
       ]);
 
       if (usersJson.ok) setUsers(asArray<AdminUserItem>(usersJson.data?.users));
@@ -161,6 +175,7 @@ export default function AdminConsolePage() {
       if (classesJson.ok) setClasses(asArray<AdminClassItem>(classesJson.data));
       if (reportsJson.ok) setReports(asArray<AdminReportItem>(reportsJson.data?.reports));
       if (auditJson.ok) setAuditLogs(asArray<AdminAuditItem>(auditJson.data?.logs));
+      if (modelsJson.ok && Array.isArray(modelsJson.data?.models)) setModelsHealth(modelsJson.data.models);
     } catch {
       toast({ title: "Failed to load telemetry", variant: "destructive" });
     } finally {
@@ -172,19 +187,21 @@ export default function AdminConsolePage() {
     let ignore = false;
     async function initData() {
       try {
-        const [usersRes, usageRes, classesRes, reportsRes, auditRes] = await Promise.all([
+        const [usersRes, usageRes, classesRes, reportsRes, auditRes, modelsRes] = await Promise.all([
           fetch("/api/admin/users"),
           fetch("/api/admin/usage"),
           fetch("/api/classes?scope=explore"),
           fetch("/api/admin/reports"),
           fetch("/api/admin/audit"),
+          fetch("/api/admin/system/models"),
         ]);
-        const [usersJson, usageJson, classesJson, reportsJson, auditJson] = await Promise.all([
+        const [usersJson, usageJson, classesJson, reportsJson, auditJson, modelsJson] = await Promise.all([
           usersRes.json().catch(() => ({})),
           usageRes.json().catch(() => ({})),
           classesRes.json().catch(() => ({})),
           reportsRes.json().catch(() => ({})),
           auditRes.json().catch(() => ({})),
+          modelsRes.json().catch(() => ({})),
         ]);
 
         if (!ignore) {
@@ -193,6 +210,7 @@ export default function AdminConsolePage() {
           if (classesJson.ok) setClasses(asArray<AdminClassItem>(classesJson.data));
           if (reportsJson.ok) setReports(asArray<AdminReportItem>(reportsJson.data?.reports));
           if (auditJson.ok) setAuditLogs(asArray<AdminAuditItem>(auditJson.data?.logs));
+          if (modelsJson.ok && Array.isArray(modelsJson.data?.models)) setModelsHealth(modelsJson.data.models);
         }
       } catch {
         // Fail gracefully without mock data
@@ -206,6 +224,42 @@ export default function AdminConsolePage() {
       ignore = true;
     };
   }, []);
+
+  // Test AI Model Health
+  const handleTestModel = async (modelName: string) => {
+    setTestingModel(modelName);
+    try {
+      const res = await fetch("/api/admin/system/models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelName }),
+      });
+      const json = await res.json();
+      if (json.ok && json.data?.success) {
+        toast({
+          title: "Test Successful",
+          description: `Model ${modelName} responded in ${json.data.latencyMs}ms.`,
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: "Test Alert",
+          description: json.data?.errorMessage || json.error?.message || "Model test call failed.",
+          variant: "destructive",
+        });
+      }
+      // Refresh models table
+      const refRes = await fetch("/api/admin/system/models");
+      const refJson = await refRes.json();
+      if (refJson.ok && Array.isArray(refJson.data?.models)) {
+        setModelsHealth(refJson.data.models);
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to connect to model endpoint.", variant: "destructive" });
+    } finally {
+      setTestingModel(null);
+    }
+  };
 
   // Update User Role
   const handleRoleChange = async (targetUid: string, newRole: "student" | "teacher" | "admin") => {
@@ -654,6 +708,17 @@ export default function AdminConsolePage() {
           }`}
         >
           <FileText className="h-4 w-4" /> Audit Log
+        </button>
+
+        <button
+          onClick={() => setActiveTab("system")}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
+            activeTab === "system"
+              ? "bg-teal-600 text-white shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+          }`}
+        >
+          <Cpu className="h-4 w-4" /> System & AI Health
         </button>
       </div>
 
@@ -1276,6 +1341,182 @@ export default function AdminConsolePage() {
                         </td>
                       </tr>
                     ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB: SYSTEM & AI HEALTH */}
+      {activeTab === "system" && (
+        <div className="space-y-6">
+          {/* Summary Row */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Card className="p-4 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                  Registered AI Models
+                </span>
+                <span className="text-2xl font-black text-slate-900 dark:text-slate-100 mt-1 block">
+                  {asArray(modelsHealth).length}
+                </span>
+                <span className="text-[10px] text-slate-400">Google Gemini API models</span>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+                <Cpu className="h-5 w-5" />
+              </div>
+            </Card>
+
+            <Card className="p-4 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                  Available Models
+                </span>
+                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+                  {asArray(modelsHealth).filter((m) => m.status === "ok").length}
+                </span>
+                <span className="text-[10px] text-slate-400">Ready for user requests</span>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <CheckCircle className="h-5 w-5" />
+              </div>
+            </Card>
+
+            <Card className="p-4 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
+                  Exhausted / Cooling
+                </span>
+                <span className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 block">
+                  {asArray(modelsHealth).filter((m) => m.status !== "ok").length}
+                </span>
+                <span className="text-[10px] text-slate-400">Waiting for Pacific reset</span>
+              </div>
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+            </Card>
+          </div>
+
+          {/* Model Registry & Health Table */}
+          <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm">Gemini Model Routing & Quota Health</h3>
+                <p className="text-xs text-slate-500">
+                  Per-model rate pacing, daily limits (RPD), and automatic fallback chains. Daily caps reset at midnight Pacific Time.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchAdminData}
+                className="text-xs"
+              >
+                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
+              </Button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                    <th className="p-3.5 font-bold">Model Identifier</th>
+                    <th className="p-3 font-semibold">Tier</th>
+                    <th className="p-3 font-semibold">Free Tier RPD</th>
+                    <th className="p-3 font-semibold">Today&apos;s Usage</th>
+                    <th className="p-3 font-semibold">Health Status</th>
+                    <th className="p-3 font-semibold">Reset / Cooldown</th>
+                    <th className="p-3 font-semibold text-right">Diagnostic Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {asArray(modelsHealth).length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-8 text-center text-slate-400 italic">
+                        No model health telemetry recorded yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    asArray(modelsHealth).map((m) => {
+                      const isExhausted = m.status === "exhausted";
+                      const isInvalid = m.status === "invalid";
+                      const percent = m.rpd > 0 ? Math.min(100, Math.round((m.requestsToday / m.rpd) * 100)) : 0;
+
+                      return (
+                        <tr key={m.model} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
+                          <td className="p-3.5 font-mono font-semibold text-[12px] text-slate-800 dark:text-slate-200">
+                            {m.model}
+                          </td>
+                          <td className="p-3">
+                            <Badge
+                              variant={m.tier === "light" ? "emerald" : "amber"}
+                              className="text-[10px] uppercase font-bold"
+                            >
+                              {m.tier}
+                            </Badge>
+                          </td>
+                          <td className="p-3 font-mono text-[11px] text-slate-600 dark:text-slate-400">
+                            {m.rpd} req/day
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className={`h-full ${
+                                    percent >= 90 ? "bg-rose-500" : percent >= 60 ? "bg-amber-500" : "bg-teal-500"
+                                  }`}
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                              <span className="font-mono text-[11px] text-slate-600 dark:text-slate-400">
+                                {m.requestsToday} ({percent}%)
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            {isInvalid ? (
+                              <Badge variant="destructive" className="text-[10px] flex items-center gap-1 w-fit">
+                                <XCircle className="h-3 w-3" /> Deprecated / 404
+                              </Badge>
+                            ) : isExhausted ? (
+                              <Badge variant="amber" className="text-[10px] flex items-center gap-1 w-fit">
+                                <AlertTriangle className="h-3 w-3" /> Quota Exhausted
+                              </Badge>
+                            ) : (
+                              <Badge variant="emerald" className="text-[10px] flex items-center gap-1 w-fit">
+                                <CheckCircle className="h-3 w-3" /> Operational
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="p-3 font-mono text-[11px] text-slate-500">
+                            {m.exhaustedUntil ? (
+                              <span className="text-amber-600 dark:text-amber-400">
+                                {new Date(m.exhaustedUntil).toLocaleTimeString()}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">Midnight Pacific</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-[11px] h-7 px-2.5"
+                              disabled={testingModel === m.model}
+                              onClick={() => handleTestModel(m.model)}
+                            >
+                              {testingModel === m.model ? (
+                                <RefreshCw className="h-3 w-3 animate-spin mr-1" />
+                              ) : null}
+                              Test Call
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>

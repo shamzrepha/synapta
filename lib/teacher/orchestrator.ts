@@ -1,6 +1,6 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { getGeminiClient } from "@/lib/gemini/client";
-import { getServerEnv } from "@/lib/env";
+import { modelFor } from "@/lib/ai/router";
 import { checkRateLimitAndQuota, recordTokenUsage } from "@/lib/quota/guard";
 import { getTeacherSystemPrompt, checkStudentMessageSafety } from "./prompts";
 import { REPRESENTATIONS, Representation, REPRESENTATION_METADATA } from "./representations";
@@ -233,7 +233,7 @@ export async function runTeacherAgent({
     iterations++;
 
     const response = await ai.models.generateContent({
-      model: getServerEnv().GEMINI_MODEL,
+      model: modelFor("tutor_chat"),
       contents: conversationTurns as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
       config: {
         systemInstruction,

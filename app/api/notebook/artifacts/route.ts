@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
-import { getGeminiClient } from "@/lib/gemini/client";
-import { getServerEnv } from "@/lib/env";
-import { checkRateLimitAndQuota, recordTokenUsage, QuotaError } from "@/lib/quota/guard";
+import { generateWithFallback } from "@/lib/ai/router";
+import { checkRateLimitAndQuota, QuotaError } from "@/lib/quota/guard";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -16,6 +15,26 @@ const artifactInputSchema = z.object({
     })
   ).min(1),
   type: z.enum(["summary", "flashcards", "quiz"]),
+});
+
+const flashcardsSchema = z.object({
+  cards: z.array(
+    z.object({
+      front: z.string(),
+      back: z.string(),
+    })
+  ).min(1),
+});
+
+const quizSchema = z.object({
+  questions: z.array(
+    z.object({
+      question: z.string(),
+      options: z.array(z.string()),
+      correctIndex: z.number(),
+      explanation: z.string(),
+    })
+  ).min(1),
 });
 
 export async function POST(req: NextRequest) {
@@ -39,8 +58,6 @@ export async function POST(req: NextRequest) {
       .map((s) => `--- SOURCE: ${s.title} ---\n${s.content.slice(0, 2500)}`)
       .join("\n\n");
 
-    const ai = getGeminiClient();
-
     if (type === "summary") {
       const prompt = `Synthesize a comprehensive, executive Study Guide strictly grounded in the source documents provided below.
 Include:
@@ -52,32 +69,19 @@ Include:
 SOURCES:
 ${combinedSources}`;
 
-      try {
-        const response = await ai.models.generateContent({
-          model: getServerEnv().GEMINI_MODEL,
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          config: { temperature: 0.3 },
-        });
+      const res = await generateWithFallback({
+        task: "long_document",
+        userPrompt: prompt,
+        userId: caller.uid,
+      });
 
-        const markdown = response.text || "No response generated from model.";
-        const tokensIn = response.usageMetadata?.promptTokenCount ?? Math.round(prompt.length / 4);
-        const tokensOut = response.usageMetadata?.candidatesTokenCount ?? Math.round(markdown.length / 4);
-        await recordTokenUsage(caller.uid, tokensIn, tokensOut);
-
-        return NextResponse.json({
-          ok: true,
-          data: {
-            type: "summary",
-            markdown,
-          },
-        });
-      } catch (err) {
-        console.error("Artifact summary generation failed:", err);
-        return NextResponse.json(
-          { ok: false, error: { code: "GENERATION_FAILED", message: err instanceof Error ? err.message : "Failed to generate summary" } },
-          { status: 502 }
-        );
-      }
+      return NextResponse.json({
+        ok: true,
+        data: {
+          type: "summary",
+          markdown: res.text || "No response generated from model.",
+        },
+      });
     }
 
     if (type === "flashcards") {
@@ -91,33 +95,20 @@ ${combinedSources}`;
 SOURCES:
 ${combinedSources}`;
 
-      try {
-        const response = await ai.models.generateContent({
-          model: getServerEnv().GEMINI_MODEL,
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          config: {
-            responseMimeType: "application/json",
-            temperature: 0.2,
-          },
-        });
+      const res = await generateWithFallback({
+        task: "structured_spec",
+        userPrompt: prompt,
+        schema: flashcardsSchema,
+        userId: caller.uid,
+      });
 
-        const parsedJson = JSON.parse(response.text || "{}");
-        if (!Array.isArray(parsedJson.cards) || parsedJson.cards.length === 0) {
-          throw new Error("Model returned invalid or empty flashcards schema");
-        }
-
-        const tokensIn = response.usageMetadata?.promptTokenCount ?? Math.round(prompt.length / 4);
-        const tokensOut = response.usageMetadata?.candidatesTokenCount ?? Math.round((response.text?.length || 0) / 4);
-        await recordTokenUsage(caller.uid, tokensIn, tokensOut);
-
-        return NextResponse.json({ ok: true, data: { type: "flashcards", cards: parsedJson.cards } });
-      } catch (err) {
-        console.error("Artifact flashcards generation failed:", err);
-        return NextResponse.json(
-          { ok: false, error: { code: "GENERATION_FAILED", message: err instanceof Error ? err.message : "Failed to generate flashcards" } },
-          { status: 502 }
-        );
-      }
+      return NextResponse.json({
+        ok: true,
+        data: {
+          type: "flashcards",
+          cards: res.data?.cards || [],
+        },
+      });
     }
 
     if (type === "quiz") {
@@ -136,33 +127,20 @@ ${combinedSources}`;
 SOURCES:
 ${combinedSources}`;
 
-      try {
-        const response = await ai.models.generateContent({
-          model: getServerEnv().GEMINI_MODEL,
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          config: {
-            responseMimeType: "application/json",
-            temperature: 0.2,
-          },
-        });
+      const res = await generateWithFallback({
+        task: "structured_spec",
+        userPrompt: prompt,
+        schema: quizSchema,
+        userId: caller.uid,
+      });
 
-        const parsedJson = JSON.parse(response.text || "{}");
-        if (!Array.isArray(parsedJson.questions) || parsedJson.questions.length === 0) {
-          throw new Error("Model returned invalid or empty quiz schema");
-        }
-
-        const tokensIn = response.usageMetadata?.promptTokenCount ?? Math.round(prompt.length / 4);
-        const tokensOut = response.usageMetadata?.candidatesTokenCount ?? Math.round((response.text?.length || 0) / 4);
-        await recordTokenUsage(caller.uid, tokensIn, tokensOut);
-
-        return NextResponse.json({ ok: true, data: { type: "quiz", questions: parsedJson.questions } });
-      } catch (err) {
-        console.error("Artifact quiz generation failed:", err);
-        return NextResponse.json(
-          { ok: false, error: { code: "GENERATION_FAILED", message: err instanceof Error ? err.message : "Failed to generate quiz" } },
-          { status: 502 }
-        );
-      }
+      return NextResponse.json({
+        ok: true,
+        data: {
+          type: "quiz",
+          questions: res.data?.questions || [],
+        },
+      });
     }
 
     return NextResponse.json({ ok: false, error: { code: "INVALID_TYPE", message: "Unsupported artifact type" } }, { status: 400 });

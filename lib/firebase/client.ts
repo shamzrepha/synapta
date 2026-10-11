@@ -1,11 +1,13 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAuth, Auth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
+import { getStorage, FirebaseStorage } from "firebase/storage";
 import { getClientEnv } from "@/lib/env";
 
 let firebaseApp: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
+let storage: FirebaseStorage;
 
 function getClientFirebase() {
   if (typeof window === "undefined") {
@@ -24,6 +26,7 @@ function getClientFirebase() {
       app,
       auth: getAuth(app),
       db: getFirestore(app),
+      storage: getStorage(app),
     };
   }
 
@@ -41,9 +44,10 @@ function getClientFirebase() {
     firebaseApp = getApps().length > 0 ? getApp() : initializeApp(config);
     auth = getAuth(firebaseApp);
     db = getFirestore(firebaseApp);
+    storage = getStorage(firebaseApp);
   }
 
-  return { app: firebaseApp, auth, db };
+  return { app: firebaseApp, auth, db, storage };
 }
 
 export const googleProvider = new GoogleAuthProvider();
@@ -53,3 +57,4 @@ export { getClientFirebase };
 export const clientApp = () => getClientFirebase().app;
 export const clientAuth = () => getClientFirebase().auth;
 export const clientDb = () => getClientFirebase().db;
+export const clientStorage = () => getClientFirebase().storage;
