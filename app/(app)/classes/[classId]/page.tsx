@@ -18,6 +18,7 @@ import {
   Play,
   Layers,
   Zap,
+  Compass,
 } from "lucide-react";
 import { formatPL, getMasteryStatus } from "@/lib/utils";
 
@@ -161,21 +162,29 @@ export default function ClassOverviewPage({
               )}
             </div>
 
-            {/* Teacher management buttons */}
-            {(isOwner || user?.role === "admin") && (
-              <div className="flex items-center gap-2">
-                <Link href={`/classes/${classId}/heatmap`}>
-                  <Button variant="outline" size="sm" className="text-xs">
-                    <Activity className="h-3.5 w-3.5 mr-1 text-teal-500" /> Class Heatmap
-                  </Button>
-                </Link>
-                <Link href={`/classes/${classId}/manage`}>
-                  <Button size="sm" className="text-xs">
-                    <Settings className="h-3.5 w-3.5 mr-1" /> Manage Roster
-                  </Button>
-                </Link>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <Link href={`/classes/${classId}/map`}>
+                <Button variant="default" size="sm" className="text-xs">
+                  <Compass className="h-3.5 w-3.5 mr-1" /> Quest Map
+                </Button>
+              </Link>
+
+              {/* Teacher management buttons */}
+              {(isOwner || user?.role === "admin") && (
+                <>
+                  <Link href={`/classes/${classId}/heatmap`}>
+                    <Button variant="outline" size="sm" className="text-xs">
+                      <Activity className="h-3.5 w-3.5 mr-1 text-teal-500" /> Class Heatmap
+                    </Button>
+                  </Link>
+                  <Link href={`/classes/${classId}/manage`}>
+                    <Button size="sm" className="text-xs">
+                      <Settings className="h-3.5 w-3.5 mr-1" /> Manage Roster
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
