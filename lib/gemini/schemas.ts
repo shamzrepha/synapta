@@ -33,6 +33,7 @@ export const quizQuestionSchema = z.object({
   correctIndex: z.number().int().min(0).max(3),
   explanation: z.string().min(5),
   difficulty: z.enum(["easy", "medium", "hard"]).default("medium"),
+  distractorMisconceptions: z.array(z.string()).optional(),
 });
 
 export const quizResponseSchema = z.object({

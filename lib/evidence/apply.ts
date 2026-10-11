@@ -79,14 +79,18 @@ export async function applyEvidence({
 
     // 4. Calculate XP
     let xpEarned = 1; // base effort for attempting
-    if (correct) {
-      if (activity === "quiz") xpEarned = 10;
-      else if (activity === "flashcard") xpEarned = 5;
-      else if (activity === "lab") xpEarned = 30;
-      else if (activity === "peer_explain") xpEarned = 40;
-    }
-    if (crossedMasteryFirstTime) {
-      xpEarned += 100; // Mastery achievement reward
+    if (metadata?.diagnostic === true) {
+      xpEarned = 0; // Diagnostic assessment establishes baseline without inflating gamified XP
+    } else {
+      if (correct) {
+        if (activity === "quiz") xpEarned = 10;
+        else if (activity === "flashcard") xpEarned = 5;
+        else if (activity === "lab") xpEarned = 30;
+        else if (activity === "peer_explain") xpEarned = 40;
+      }
+      if (crossedMasteryFirstTime) {
+        xpEarned += 100; // Mastery achievement reward
+      }
     }
 
     // 5. Read User doc for streak and XP calculation
@@ -122,6 +126,9 @@ export async function applyEvidence({
       attempts: prevAttempts + 1,
       correct: prevCorrect + (correct ? 1 : 0),
       lastUpdated: Timestamp.now(),
+      lastPracticedAt: Timestamp.now(),
+      stability: masteryDoc.exists ? (masteryDoc.data()?.stability ?? 1.0) : 1.0,
+      nextReviewAt: masteryDoc.exists ? (masteryDoc.data()?.nextReviewAt ?? null) : null,
     };
     if (activity === "lab") {
       masteryUpdates.lastLabAt = Timestamp.now();

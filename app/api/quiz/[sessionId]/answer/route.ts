@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { applyEvidence } from "@/lib/evidence/apply";
+import { trackMisconception } from "@/lib/teacher/misconceptions";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -93,6 +94,28 @@ export async function POST(
         selectedOptionIndex,
       },
     });
+
+    // Misconception detection & resolution tracking
+    const misconceptionLabel = targetQuestion.distractorMisconceptions?.[selectedOptionIndex];
+    if (!isCorrect && misconceptionLabel) {
+      await trackMisconception({
+        uid: caller.uid,
+        classId: sessionData.classId,
+        kcId: sessionData.kcId,
+        label: misconceptionLabel,
+        description: targetQuestion.explanation,
+        isCorrect: false,
+      }).catch((err) => console.warn("Failed to record misconception:", err));
+    } else if (isCorrect) {
+      // Advance resolution for any existing diagnosed misconception for this KC
+      await trackMisconception({
+        uid: caller.uid,
+        classId: sessionData.classId,
+        kcId: sessionData.kcId,
+        label: "general_kc_accuracy",
+        isCorrect: true,
+      }).catch(() => {});
+    }
 
     // Mark as answered in session doc
     await sessionRef.update({

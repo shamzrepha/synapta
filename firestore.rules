@@ -132,5 +132,28 @@ service cloud.firestore {
           get(/databases/$(database)/documents/rooms/$(roomCode)).data.memberIds.hasAny([request.auth.uid]);
       }
     }
+
+    // 10. AI Teacher Engine: Learner Profiles (owner read, server-written only)
+    match /learnerProfiles/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
+    // 11. Misconceptions (owner read, server-written only)
+    match /misconceptions/{misconceptionId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // 12. Misconception Catalog (authenticated read, teachers/admins write)
+    match /kcMisconceptionCatalog/{catalogId}/items/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.token.role in ['teacher', 'admin'];
+    }
+
+    // 13. Diagnostic Sessions & Server-side evaluations (server-only via admin SDK)
+    match /diagnosticSessions/{sessionId} {
+      allow read, write: if false;
+    }
   }
 }

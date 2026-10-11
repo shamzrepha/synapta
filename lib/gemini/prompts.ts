@@ -82,6 +82,7 @@ Each question must have:
 - A single correctIndex (0, 1, 2, or 3).
 - A concise, educational explanation explaining WHY the correct option is right and the others are incorrect.
 - difficulty: "easy", "medium", or "hard".
+- distractorMisconceptions: An array of 4 strings where the correct option has "" and each incorrect option identifies the specific underlying misconception or conceptual error (e.g. "Current consumed across resistor", "Confusing potential difference with energy").
 Return JSON conforming to the quiz schema.`;
 
   const userPrompt = `Topic: ${params.kcTitle}
@@ -90,7 +91,7 @@ Lesson Content:
 ${params.lessonMarkdown}
 </LESSON_CONTENT>
 
-Generate ${count} distinct multiple-choice questions testing core concepts and calculations from this lesson.`;
+Generate ${count} distinct multiple-choice questions testing core concepts and calculations from this lesson with diagnosed distractor misconceptions.`;
 
   return { systemInstruction, userPrompt };
 }
