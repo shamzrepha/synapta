@@ -122,8 +122,8 @@ ${lessonMarkdown}`;
       kind,
     });
 
-    // Compute deterministic hash
-    const hash = computeContentHash(kcId, kind as ContentKind, representation, level as ContentLevel);
+    // Compute deterministic hash scoped to this class
+    const hash = computeContentHash(classId, kcId, kind as ContentKind, representation, level as ContentLevel);
     const contentDocRef = adminDb().collection("contentCache").doc(hash);
 
     const cacheItem = {

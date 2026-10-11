@@ -12,11 +12,30 @@ const STUDENT_ID_REGEX = /\b(?:student\s*id|id|matric|matriculation|reg\s*no)[:#
 export function scrubPii(text: string): string {
   if (!text || typeof text !== "string") return "";
 
-  return text
+  // 1. Temporarily protect LaTeX equations so STEM math formulas are never altered
+  const mathPlaceholders: string[] = [];
+  const withProtectedMath = text.replace(
+    /(\$\$[\s\S]*?\$\$|\$[^$\n]+\$|\\\(.+?\\\)|\\\[[\s\S]+?\\\])/g,
+    (match) => {
+      const idx = mathPlaceholders.length;
+      mathPlaceholders.push(match);
+      return `___MATH_BLOCK_${idx}___`;
+    }
+  );
+
+  // 2. Perform STEM-safe redaction
+  let scrubbed = withProtectedMath
     .replace(EMAIL_REGEX, "[REDACTED_EMAIL]")
     .replace(SSN_REGEX, "[REDACTED_SSN]")
     .replace(STUDENT_ID_REGEX, (_match, id) => _match.replace(id, "[REDACTED_ID]"))
     .replace(PHONE_REGEX, "[REDACTED_PHONE]");
+
+  // 3. Restore protected math blocks
+  mathPlaceholders.forEach((math, idx) => {
+    scrubbed = scrubbed.replace(`___MATH_BLOCK_${idx}___`, () => math);
+  });
+
+  return scrubbed;
 }
 
 /**

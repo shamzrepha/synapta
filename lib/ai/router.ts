@@ -58,11 +58,42 @@ export function createCallBudget(actionName: "class_build" | "material_upload", 
   return { maxCalls, usedCalls: 0, actionName };
 }
 
+let cachedDynamicModels: Record<string, string> | null = null;
+let lastDynamicModelsFetchMs = 0;
+
+export async function getDynamicModelConfig(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (cachedDynamicModels && now - lastDynamicModelsFetchMs < 60000) {
+    return cachedDynamicModels;
+  }
+  try {
+    const doc = await adminDb().collection("systemConfig").doc("aiModels").get();
+    if (doc.exists) {
+      cachedDynamicModels = (doc.data() as Record<string, string>) || {};
+    } else {
+      cachedDynamicModels = {};
+    }
+  } catch {
+    cachedDynamicModels = cachedDynamicModels || {};
+  }
+  lastDynamicModelsFetchMs = now;
+  return cachedDynamicModels;
+}
+
+export function setCachedDynamicModels(config: Record<string, string>) {
+  cachedDynamicModels = config;
+  lastDynamicModelsFetchMs = Date.now();
+}
+
 /**
  * Returns the configured Gemini model identifier for a given task.
- * Model identifiers are loaded verbatim from server environment variables without silent rewrites.
+ * Honors dynamic admin configuration if set, falling back to server environment variables.
  */
 export function modelFor(task: AiTask): string {
+  if (cachedDynamicModels && cachedDynamicModels[task]) {
+    return cachedDynamicModels[task];
+  }
+
   try {
     const env = getServerEnv();
     switch (task) {

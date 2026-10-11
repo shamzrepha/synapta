@@ -55,7 +55,15 @@ This log records architectural and design decisions, trade-offs, and deviations 
   1. Enforced room membership checks (`memberIds.includes(caller.uid) || caller.role === 'admin'`) in both `POST /api/lounge/rooms/[roomCode]/messages` and `PATCH /api/lounge/rooms/[roomCode]/scratchpad`.
   2. Enforced classroom published state check in `POST /api/classes/[id]/join`, rejecting student enrollments into draft classes.
   3. Verified Firestore rules allowlist patterns and user profile mutation constraints with unit test coverage.
-- **Rationale:** Prevents unauthorized room injection, protects draft curriculum from premature student access, and guarantees strict multi-tenant boundary isolation.
-
+## Decision 10: Course Schema, Prompt Injection Fencing, and Dynamic Task Model Routing (B1, B11, B7.1-B7.2)
+- **Context:** Course data models required rigorous type safety for Knowledge Components, Lessons, Materials, and Assignments. Untrusted user content needed injection defense without corrupting STEM LaTeX equations. Teacher cache hash keys risked multi-tenant cross-class collisions. Model routing needed real-time administrative reassignment without redeploying.
+- **Decision:**
+  1. Established comprehensive Zod schemas and TypeScript models in `lib/validation/course.ts` and `lib/types/course.ts`.
+  2. Implemented `createKc`, `updateKc`, and deduplicated `upsertAiKc` in `lib/teacher/kcStore.ts` with BKT parameter validation and slug stabilization.
+  3. Created `fenceUntrusted` in `lib/ai/generate.ts` with XML tagging and closing delimiter neutralization.
+  4. Updated `scrubPii` to protect LaTeX math blocks (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) during sanitization using a replacer function to avoid `$$` escape artifacting.
+  5. Scoped `computeContentHash` with `classId` in `lib/teacher/cache.ts` for secure multi-tenant cache isolation.
+  6. Added dynamic Firestore model routing via `systemConfig/aiModels` with 60-second in-memory caching and an administrative console UI.
+- **Rationale:** Guarantees end-to-end data integrity for classroom curriculum generation, prevents prompt injection escapes, protects mathematical equations from regex damage, isolates cache spaces, and gives administrators instant operational control over Gemini model deployments.
 
 

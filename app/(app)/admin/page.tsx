@@ -35,6 +35,7 @@ import {
   Activity,
   Globe,
   Lock,
+  Save,
 } from "lucide-react";
 
 interface AdminUserItem {
@@ -139,6 +140,15 @@ export default function AdminConsolePage() {
   const [auditLogs, setAuditLogs] = useState<AdminAuditItem[]>([]);
   const [usageData, setUsageData] = useState<PlatformUsageData | null>(null);
   const [modelsHealth, setModelsHealth] = useState<ModelHealthData[]>([]);
+  const [modelAssignments, setModelAssignments] = useState<Record<string, string>>({
+    tutor_chat: "gemini-3.1-flash-lite",
+    structured_spec: "gemini-3.1-flash-lite",
+    class_build: "gemini-3.6-flash",
+    grading_high_stakes: "gemini-3.6-flash",
+    long_document: "gemini-3.1-flash-lite",
+    voice: "gemini-3.8-live",
+  });
+  const [savingAssignments, setSavingAssignments] = useState(false);
   const [testingModel, setTestingModel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -174,8 +184,10 @@ export default function AdminConsolePage() {
       if (usageJson.ok) setUsageData(usageJson.data || null);
       if (classesJson.ok) setClasses(asArray<AdminClassItem>(classesJson.data));
       if (reportsJson.ok) setReports(asArray<AdminReportItem>(reportsJson.data?.reports));
-      if (auditJson.ok) setAuditLogs(asArray<AdminAuditItem>(auditJson.data?.logs));
-      if (modelsJson.ok && Array.isArray(modelsJson.data?.models)) setModelsHealth(modelsJson.data.models);
+      if (modelsJson.ok) {
+        if (Array.isArray(modelsJson.data?.models)) setModelsHealth(modelsJson.data.models);
+        if (modelsJson.data?.assignments) setModelAssignments(modelsJson.data.assignments);
+      }
     } catch {
       toast({ title: "Failed to load telemetry", variant: "destructive" });
     } finally {
@@ -209,8 +221,10 @@ export default function AdminConsolePage() {
           if (usageJson.ok) setUsageData(usageJson.data || null);
           if (classesJson.ok) setClasses(asArray<AdminClassItem>(classesJson.data));
           if (reportsJson.ok) setReports(asArray<AdminReportItem>(reportsJson.data?.reports));
-          if (auditJson.ok) setAuditLogs(asArray<AdminAuditItem>(auditJson.data?.logs));
-          if (modelsJson.ok && Array.isArray(modelsJson.data?.models)) setModelsHealth(modelsJson.data.models);
+          if (modelsJson.ok) {
+            if (Array.isArray(modelsJson.data?.models)) setModelsHealth(modelsJson.data.models);
+            if (modelsJson.data?.assignments) setModelAssignments(modelsJson.data.assignments);
+          }
         }
       } catch {
         // Fail gracefully without mock data
@@ -258,6 +272,39 @@ export default function AdminConsolePage() {
       toast({ title: "Error", description: "Failed to connect to model endpoint.", variant: "destructive" });
     } finally {
       setTestingModel(null);
+    }
+  };
+
+  // Save Dynamic Model Task Assignments
+  const handleSaveModelAssignments = async () => {
+    setSavingAssignments(true);
+    try {
+      const res = await fetch("/api/admin/system/models", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignments: modelAssignments }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        toast({
+          title: "Model Routing Updated",
+          description: "Task model assignments successfully persisted to Firestore systemConfig.",
+          variant: "success",
+        });
+        if (json.data?.assignments) {
+          setModelAssignments(json.data.assignments);
+        }
+      } else {
+        toast({
+          title: "Update Failed",
+          description: json.error?.message || "Failed to persist model assignments.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to connect to system models endpoint.", variant: "destructive" });
+    } finally {
+      setSavingAssignments(false);
     }
   };
 
@@ -1520,6 +1567,71 @@ export default function AdminConsolePage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </Card>
+
+          {/* Dynamic Model Task Assignments Card */}
+          <Card className="p-5 border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                  <Cpu className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                  Dynamic Task Model Routing & Assignment
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Assign primary Gemini models to distinct platform workloads. Changes take effect across all serverless runtimes immediately.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                className="text-xs shrink-0"
+                onClick={handleSaveModelAssignments}
+                disabled={savingAssignments}
+              >
+                {savingAssignments ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                ) : (
+                  <Save className="h-3.5 w-3.5 mr-1.5" />
+                )}
+                Save Model Routing
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+              {[
+                { task: "tutor_chat", label: "Tutor & Dialogue (Text)", desc: "Student AI tutor chat & quick interactive explanations", defaultTier: "Light" },
+                { task: "structured_spec", label: "Structure & Schema (JSON)", desc: "JSON schema extraction, flashcards, and concept maps", defaultTier: "Light" },
+                { task: "class_build", label: "Classroom Builder (Heavy)", desc: "Course syllabus synthesis, map reconciliation, and lesson generation", defaultTier: "Heavy" },
+                { task: "grading_high_stakes", label: "Grading & Quiz Evaluation", desc: "Boss quests, rubric scoring, and teach-the-bot evaluation", defaultTier: "Heavy" },
+                { task: "long_document", label: "Long Document Processing", desc: "Textbook extraction, syllabus parsing, and lecture notes", defaultTier: "Light" },
+                { task: "voice", label: "Voice Lab & Podcast", desc: "High-fidelity audio podcast generation and real-time dialogue", defaultTier: "Voice" },
+              ].map(({ task, label, desc, defaultTier }) => (
+                <div key={task} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-xs text-slate-800 dark:text-slate-200">{label}</span>
+                    <Badge variant="outline" className="text-[10px] uppercase font-mono">{defaultTier}</Badge>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">{desc}</p>
+                  <select
+                    className="w-full text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    value={modelAssignments[task] || ""}
+                    onChange={(e) =>
+                      setModelAssignments((prev) => ({
+                        ...prev,
+                        [task]: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (500 RPD, Light)</option>
+                    <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (500 RPD, Light)</option>
+                    <option value="gemini-3.6-flash">gemini-3.6-flash (20 RPD, Heavy)</option>
+                    <option value="gemini-3.7-flash">gemini-3.7-flash (20 RPD, Heavy)</option>
+                    <option value="gemini-3.5-flash">gemini-3.5-flash (20 RPD, Heavy)</option>
+                    <option value="gemini-3.8-flash">gemini-3.8-flash (20 RPD, Heavy)</option>
+                    <option value="gemini-3.8-live">gemini-3.8-live (Audio / Voice)</option>
+                  </select>
+                </div>
+              ))}
             </div>
           </Card>
         </div>

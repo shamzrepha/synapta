@@ -28,15 +28,17 @@ export interface ContentCacheItem {
 }
 
 /**
- * Computes a deterministic cache key for content deduplication.
+ * Computes a deterministic cache key for content deduplication scoped by classroom.
+ * Including classId strictly isolates caching across different classrooms.
  */
 export function computeContentHash(
+  classId: string,
   kcId: string,
   kind: ContentKind,
   representation = "default",
   level: ContentLevel = "standard"
 ): string {
-  const seed = `${kcId}_${kind}_${representation}_${level}`;
+  const seed = `${classId}_${kcId}_${kind}_${representation}_${level}`;
   return crypto.createHash("sha256").update(seed).digest("hex").slice(0, 32);
 }
 
@@ -50,7 +52,7 @@ export async function getApprovedCachedContent(
   representation = "default",
   level: ContentLevel = "standard"
 ): Promise<ContentCacheItem | null> {
-  const hash = computeContentHash(kcId, kind, representation, level);
+  const hash = computeContentHash(classId, kcId, kind, representation, level);
   const docRef = adminDb().collection("contentCache").doc(hash);
   const doc = await docRef.get();
 
