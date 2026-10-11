@@ -13,6 +13,7 @@ import {
   Sparkles,
   RefreshCw,
 } from "lucide-react";
+import { extractTextFromFile } from "@/lib/pdf/extractor";
 
 interface MaterialsUploaderProps {
   classId: string;
@@ -107,35 +108,49 @@ export function MaterialsUploader({
 
         const { materialId, uploadUrl } = initJson.data;
 
-        // Step 2: Direct-to-Storage upload using XMLHttpRequest for progress
-        setStatusText("Uploading directly to storage...");
+        let uploadedToStorage = false;
         if (uploadUrl) {
-          await new Promise<void>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open("PUT", uploadUrl, true);
-            if (selectedFile.type) {
-              xhr.setRequestHeader("Content-Type", selectedFile.type);
-            }
-
-            xhr.upload.onprogress = (ev) => {
-              if (ev.lengthComputable) {
-                const pct = Math.round((ev.loaded / ev.total) * 60) + 10;
-                setUploadProgress(pct);
+          try {
+            setStatusText("Uploading directly to storage...");
+            await new Promise<void>((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open("PUT", uploadUrl, true);
+              if (selectedFile.type) {
+                xhr.setRequestHeader("Content-Type", selectedFile.type);
               }
-            };
 
-            xhr.onload = () => {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                setUploadProgress(75);
-                resolve();
-              } else {
-                reject(new Error(`Storage upload failed with HTTP status ${xhr.status}`));
-              }
-            };
+              xhr.upload.onprogress = (ev) => {
+                if (ev.lengthComputable) {
+                  const pct = Math.round((ev.loaded / ev.total) * 60) + 10;
+                  setUploadProgress(pct);
+                }
+              };
 
-            xhr.onerror = () => reject(new Error("Network error during direct storage upload"));
-            xhr.send(selectedFile);
-          });
+              xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                  setUploadProgress(75);
+                  uploadedToStorage = true;
+                  resolve();
+                } else {
+                  reject(new Error(`Storage upload failed with HTTP status ${xhr.status}`));
+                }
+              };
+
+              xhr.onerror = () => reject(new Error("Network error during direct storage upload"));
+              xhr.send(selectedFile);
+            });
+          } catch (storageErr) {
+            console.warn("Direct storage upload failed, falling back to local extraction:", storageErr);
+          }
+        }
+
+        // If not uploaded to storage, extract text locally in browser
+        let fallbackContentText: string | undefined = undefined;
+        if (!uploadedToStorage) {
+          setStatusText("Processing and extracting document locally...");
+          setUploadProgress(50);
+          fallbackContentText = await extractTextFromFile(selectedFile);
+          setUploadProgress(75);
         }
 
         // Step 3: Complete and trigger AI analysis
@@ -145,7 +160,9 @@ export function MaterialsUploader({
         const completeRes = await fetch(`/api/classes/${classId}/materials/${materialId}/complete`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
+          body: JSON.stringify({
+            contentText: fallbackContentText,
+          }),
         });
 
         const completeJson = await completeRes.json();

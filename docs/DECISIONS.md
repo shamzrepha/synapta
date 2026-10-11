@@ -66,4 +66,10 @@ This log records architectural and design decisions, trade-offs, and deviations 
   6. Added dynamic Firestore model routing via `systemConfig/aiModels` with 60-second in-memory caching and an administrative console UI.
 - **Rationale:** Guarantees end-to-end data integrity for classroom curriculum generation, prevents prompt injection escapes, protects mathematical equations from regex damage, isolates cache spaces, and gives administrators instant operational control over Gemini model deployments.
 
-
+## Decision 11: Real PDF Upload Pipeline & Map Proposal Rollback Isolation (B3-B4)
+- **Context:** Course syllabus building required real PDF material uploads (textbooks, slides, past papers). Relying purely on Cloud Storage could fail if the storage bucket was unconfigured or lacked Blaze plan permissions. Curriculum proposals mutated the live concept map and needed atomic execution and full rollback snapshots.
+- **Decision:**
+  1. Implemented dual-path PDF upload in `components/teacher/MaterialsUploader.tsx`: uploads directly to Cloud Storage via signed PUT URL if available; if unconfigured or failing, automatically falls back to client-side text extraction using `extractTextFromFile` with `pdfjs-dist` and delivers `contentText` to `/complete`.
+  2. Created `lib/pdf/extract.ts` as canonical extraction module interface.
+  3. Built map proposal analysis and batch mutations in `lib/teacher/materialRouter.ts`: operations (`attach_material`, `add_kc`, `merge_into`) are atomically batched, creating a pre-mutation snapshot in `classes/{classId}/mapVersions` to allow complete rollback, and archiving merged nodes rather than destructively deleting them.
+- **Rationale:** Delivers zero-config resilience for document ingestion across local and cloud environments, while ensuring non-destructive curriculum mutation with instant rollback capabilities.
