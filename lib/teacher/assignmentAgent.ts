@@ -1,4 +1,4 @@
-import { getGeminiClient, getGeminiModel } from "@/lib/gemini/client";
+import { generateWithFallback } from "@/lib/ai/router";
 import { AssignmentPayload, AssignmentPayloadSchema } from "./assignments";
 
 export interface GenerateAssignmentInput {
@@ -10,6 +10,7 @@ export interface GenerateAssignmentInput {
   difficulty: "introductory" | "intermediate" | "advanced" | "olympiad";
   numItems?: number; // Questions count for theory, or steps/questions for practical
   specialInstructions?: string;
+  userId?: string;
 }
 
 /**
@@ -30,9 +31,6 @@ export interface GenerateAssignmentInput {
 export async function runMultiAgentAssignmentGenerator(
   input: GenerateAssignmentInput
 ): Promise<AssignmentPayload> {
-  const ai = getGeminiClient();
-  const model = getGeminiModel();
-
   const kcsContext = input.selectedKcs.map((k) => `• [${k.id}] ${k.title}`).join("\n");
 
   // ==========================================
@@ -55,12 +53,14 @@ ${input.specialInstructions ? `Special constraints: ${input.specialInstructions}
 
 Keep your blueprint crisp and actionable (max 300 words).`;
 
-  const architectResponse = await ai.models.generateContent({
-    model,
-    contents: architectPrompt,
+  const architectResult = await generateWithFallback({
+    task: "structured_spec",
+    userPrompt: architectPrompt,
+    userId: input.userId,
+    isPrivileged: true,
   });
 
-  const architectPlan = architectResponse.text || "Focus on rigorous conceptual depth and analytical rubrics.";
+  const architectPlan = architectResult.text || "Focus on rigorous conceptual depth and analytical rubrics.";
 
   // ==========================================
   // AGENT 2: Pedagogical Author
@@ -83,12 +83,14 @@ ${
 
 Provide the complete raw draft.`;
 
-  const authorResponse = await ai.models.generateContent({
-    model,
-    contents: authorPrompt,
+  const authorResult = await generateWithFallback({
+    task: "structured_spec",
+    userPrompt: authorPrompt,
+    userId: input.userId,
+    isPrivileged: true,
   });
 
-  const draftContent = authorResponse.text || "";
+  const draftContent = authorResult.text || "";
 
   // ==========================================
   // AGENT 3: Reviewer & Verifier (Outputs Validated JSON)
@@ -160,12 +162,14 @@ Produce a single JSON object with this exact shape:
 
 Respond ONLY with valid JSON. Do not wrap with markdown code fences if possible, or use standard \`\`\`json.`;
 
-  const reviewerResponse = await ai.models.generateContent({
-    model,
-    contents: reviewerPrompt,
+  const reviewerResult = await generateWithFallback({
+    task: "structured_spec",
+    userPrompt: reviewerPrompt,
+    userId: input.userId,
+    isPrivileged: true,
   });
 
-  const rawJson = reviewerResponse.text || "{}";
+  const rawJson = reviewerResult.text || "{}";
   let cleaned = rawJson.trim();
   if (cleaned.startsWith("```json")) {
     cleaned = cleaned.replace(/^```json\s*/, "").replace(/\s*```$/, "");

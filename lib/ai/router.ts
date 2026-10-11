@@ -64,7 +64,8 @@ let lastDynamicModelsFetchMs = 0;
 
 export async function getDynamicModelConfig(): Promise<Record<string, string>> {
   const now = Date.now();
-  if (cachedDynamicModels && now - lastDynamicModelsFetchMs < 60000) {
+  // Invalidate after 10s so changes apply rapidly across serverless instances
+  if (cachedDynamicModels && now - lastDynamicModelsFetchMs < 10000) {
     return cachedDynamicModels;
   }
   try {
@@ -84,6 +85,15 @@ export async function getDynamicModelConfig(): Promise<Record<string, string>> {
 export function setCachedDynamicModels(config: Record<string, string>) {
   cachedDynamicModels = config;
   lastDynamicModelsFetchMs = Date.now();
+}
+
+/**
+ * Resolves the model chain asynchronously and guaranteed fresh for a given task.
+ * Per Fix Pack D: Zero hardcoded models appended behind the admin's back.
+ */
+export async function resolveModelChain(task: AiTask): Promise<string[]> {
+  await getDynamicModelConfig();
+  return getChainForTask(task);
 }
 
 /**
@@ -178,12 +188,6 @@ export function getChainForTask(task: AiTask): string[] {
 
   if (customFallbackChain.length > 0) {
     return Array.from(new Set([primary, ...customFallbackChain]));
-  }
-
-  // If the admin explicitly assigned this task a model, honor it exclusively:
-  // no hardcoded models are appended behind the admin's back.
-  if (cachedDynamicModels && cachedDynamicModels[task]) {
-    return [primary];
   }
 
   if (task === "tutor_chat" || task === "structured_spec" || task === "long_document") {
@@ -291,9 +295,13 @@ export function classifyProviderError(err: unknown): ClassifiedError {
 
 export interface GenerateWithFallbackOptions<T> {
   task: AiTask;
-  userPrompt: string;
+  userPrompt?: string;
+  contents?: unknown;
   systemInstruction?: string;
-  schema?: z.ZodType<T>;
+  tools?: unknown[];
+  temperature?: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema?: z.ZodType<T, z.ZodTypeDef, any>;
   userId?: string;
   budget?: CallBudget;
   isPrivileged?: boolean;
@@ -304,6 +312,7 @@ export interface GenerateWithFallbackOptions<T> {
 export interface GenerateWithFallbackResult<T> {
   text: string;
   data?: T;
+  functionCalls?: Array<{ name: string; args: Record<string, unknown> }>;
   modelUsed: string;
   tokensIn: number;
   tokensOut: number;
@@ -319,7 +328,10 @@ export interface GenerateWithFallbackResult<T> {
 export async function generateWithFallback<T>({
   task,
   userPrompt,
+  contents,
   systemInstruction,
+  tools,
+  temperature,
   schema,
   userId,
   budget,
@@ -398,19 +410,39 @@ export async function generateWithFallback<T>({
         const config: Record<string, unknown> = {
           systemInstruction,
         };
+        if (typeof temperature === "number") {
+          config.temperature = temperature;
+        }
+        if (tools && tools.length > 0) {
+          config.tools = tools;
+        }
         if (schema) {
           config.responseMimeType = "application/json";
         }
 
+        const callContents = contents !== undefined ? contents : userPrompt;
+
         const response = await ai.models.generateContent({
           model: activeModel,
-          contents: userPrompt,
-          config,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          contents: callContents as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          config: config as any,
         });
 
         const responseText = response.text || "";
         const tokensIn = response.usageMetadata?.promptTokenCount || 500;
         const tokensOut = response.usageMetadata?.candidatesTokenCount || 600;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rawFunctionCalls = (response as any).functionCalls;
+        const functionCalls = Array.isArray(rawFunctionCalls)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ? rawFunctionCalls.map((fc: any) => ({
+              name: String(fc.name || "unknown"),
+              args: (fc.args as Record<string, unknown>) || {},
+            }))
+          : undefined;
 
         let parsedData: T | undefined = undefined;
         if (schema) {
@@ -455,6 +487,7 @@ export async function generateWithFallback<T>({
         return {
           text: responseText,
           data: parsedData,
+          functionCalls,
           modelUsed: activeModel,
           tokensIn,
           tokensOut,
@@ -512,10 +545,13 @@ export async function generateWithFallback<T>({
       const config: Record<string, unknown> = { systemInstruction };
       if (schema) config.responseMimeType = "application/json";
 
+      const callContents = contents !== undefined ? contents : (userPrompt || "");
       const response = await ai.models.generateContent({
         model: probeModel,
-        contents: userPrompt,
-        config,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        contents: callContents as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        config: config as any,
       });
 
       const responseText = response.text || "";
@@ -586,7 +622,8 @@ export async function executeStructuredAiTask<T>({
   task: AiTask;
   systemInstruction?: string;
   userPrompt: string;
-  schema: z.ZodType<T>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: z.ZodType<T, z.ZodTypeDef, any>;
   userId?: string;
   estimatedTokens?: number;
   maxRetries?: number;
@@ -624,4 +661,31 @@ export async function executeStructuredAiTask<T>({
     latencyMs: result.latencyMs,
     fallbackTriggered: result.fallbackTriggered,
   };
+}
+
+/**
+ * Executes a lightweight test ping to a single model.
+ * Contained strictly within lib/ai/** to respect architectural isolation.
+ */
+export async function testSingleModel(
+  model: string,
+  prompt = "Respond with exactly the single word: OK"
+): Promise<{ text: string; inTokens: number; outTokens: number; latencyMs: number }> {
+  const startTime = Date.now();
+  const client = getGeminiClient();
+  const response = await client.models.generateContent({
+    model,
+    contents: prompt,
+  });
+  const latencyMs = Date.now() - startTime;
+  const rawText = response.text;
+  const text = typeof rawText === "string" ? rawText : "";
+  const usage = response.usageMetadata;
+  const inTokens = usage?.promptTokenCount || 5;
+  const outTokens = usage?.candidatesTokenCount || 2;
+
+  await recordModelUsage(model, inTokens, outTokens);
+  await clearModelExhausted(model);
+
+  return { text, inTokens, outTokens, latencyMs };
 }

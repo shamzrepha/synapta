@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:acceptance": "tsx scripts/acceptance-b14.ts",
     "check:guards": "node scripts/check-list-guards.mjs",
-    "verify": "tsc --noEmit && eslint . && vitest run && npm run check:guards && npm run test:acceptance"
+    "check:models": "node scripts/check-no-hardcoded-models.mjs",
+    "verify": "tsc --noEmit && eslint . && vitest run && npm run check:guards && npm run check:models && npm run test:acceptance"
   },
   "dependencies": {
     "@google/genai": "2.28.0",

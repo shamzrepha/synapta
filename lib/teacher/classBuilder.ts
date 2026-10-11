@@ -47,9 +47,9 @@ export interface GeneratedKcSpec {
 
 const kcSpecSchema = z.object({
   title: z.string().min(2),
-  description: z.string().min(5),
-  week: z.number().int().min(1),
-  objectives: z.array(z.string()).min(1),
+  description: z.string().default("Course module"),
+  week: z.coerce.number().int().min(1).default(1),
+  objectives: z.array(z.string()).default(["Master foundational concepts"]),
   prerequisiteTitles: z.array(z.string()).default([]),
   difficulty: z.enum(["introductory", "intermediate", "advanced"]).default("intermediate"),
   // Notebook-style hierarchy: empty/omitted = top-level topic, otherwise exact title of the parent topic
@@ -57,10 +57,33 @@ const kcSpecSchema = z.object({
   sourceMaterialTitles: z.array(z.string()).optional().default([]),
 });
 
-const classPlanSchema = z.object({
+export type KcSpec = z.infer<typeof kcSpecSchema>;
+export interface ClassPlan {
+  clarifications?: string[];
+  kcs: KcSpec[];
+}
+
+const classPlanSchema: z.ZodType<ClassPlan, z.ZodTypeDef, unknown> = z.preprocess((val) => {
+  if (Array.isArray(val)) {
+    return { kcs: val };
+  }
+  if (typeof val === "object" && val !== null) {
+    const obj = val as Record<string, unknown>;
+    if (Array.isArray(obj.kcs)) {
+      return obj;
+    }
+    if (Array.isArray(obj.topics)) {
+      return { ...obj, kcs: obj.topics };
+    }
+    if (Array.isArray(obj.modules)) {
+      return { ...obj, kcs: obj.modules };
+    }
+  }
+  return val;
+}, z.object({
   clarifications: z.array(z.string()).optional(),
-  kcs: z.array(kcSpecSchema).min(3).max(60),
-});
+  kcs: z.array(kcSpecSchema).min(1).max(60),
+}));
 
 export function slugify(text: string): string {
   return text
@@ -247,9 +270,9 @@ Synthesize the concept map.`;
 
   await jobRef.update({ step: "drafting_map", pct: 35, updatedAt: Timestamp.now() });
 
-  let aiResult;
+  let aiResult: { data: ClassPlan; modelUsed: string; tokensIn: number; tokensOut: number; latencyMs: number; fallbackTriggered: boolean };
   try {
-    aiResult = await executeStructuredAiTask({
+    aiResult = await executeStructuredAiTask<ClassPlan>({
       task: "class_build",
       systemInstruction,
       userPrompt,
@@ -285,6 +308,11 @@ Synthesize the concept map.`;
       error: err instanceof Error ? err.message : String(err),
       updatedAt: Timestamp.now(),
     });
+    await adminDb().collection("classes").doc(input.classId).update({
+      buildState: "failed",
+      buildError: err instanceof Error ? err.message : "Failed to structure class with AI. Please retry.",
+      updatedAt: Timestamp.now(),
+    }).catch(() => null);
     throw err;
   }
 

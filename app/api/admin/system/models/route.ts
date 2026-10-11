@@ -8,9 +8,13 @@ import {
   clearModelExhausted,
   clearAllModelExhaustion,
 } from "@/lib/ai/health";
-import { getGeminiClient } from "@/lib/gemini/client";
-import { classifyProviderError, getDynamicModelConfig, setCachedDynamicModels } from "@/lib/ai/router";
-import { DEFAULT_MODEL_CONFIG, sanitizeModelId } from "@/lib/ai/models";
+import {
+  classifyProviderError,
+  getDynamicModelConfig,
+  setCachedDynamicModels,
+  testSingleModel,
+} from "@/lib/ai/router";
+import { DEFAULT_MODEL_CONFIG, KNOWN_MODELS, sanitizeModelId } from "@/lib/ai/models";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { z } from "zod";
@@ -43,6 +47,12 @@ export async function GET(req: NextRequest) {
       data: {
         models: report,
         assignments: activeAssignments,
+        catalog: Object.values(KNOWN_MODELS).map((m) => ({
+          id: m.id,
+          tier: m.tier,
+          rpd: m.rpd,
+          notes: m.notes,
+        })),
       },
     });
   } catch (err) {
@@ -125,22 +135,7 @@ export async function POST(req: NextRequest) {
 
     const startTime = Date.now();
     try {
-      const client = getGeminiClient();
-      const response = await client.models.generateContent({
-        model,
-        contents: "Respond with exactly the single word: OK",
-      });
-
-      const latencyMs = Date.now() - startTime;
-      const rawText = response.text;
-      const text = typeof rawText === "string" ? rawText : "";
-      const usage = response.usageMetadata;
-      const inTokens = usage?.promptTokenCount || 5;
-      const outTokens = usage?.candidatesTokenCount || 2;
-
-      await recordModelUsage(model, inTokens, outTokens);
-      // Unmark model if previously marked exhausted
-      await clearModelExhausted(model);
+      const { text, inTokens, outTokens, latencyMs } = await testSingleModel(model);
 
       return NextResponse.json({
         ok: true,

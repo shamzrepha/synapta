@@ -40,6 +40,7 @@ function getFirebaseAdmin(): { app: App; auth: Auth; db: Firestore; storage: Sto
 
     adminAuthInstance = getAuth(adminApp);
     adminDbInstance = getFirestore(adminApp);
+    adminDbInstance.settings({ ignoreUndefinedProperties: true });
     adminStorageInstance = getStorage(adminApp);
   }
 

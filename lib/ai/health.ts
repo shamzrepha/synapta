@@ -240,22 +240,10 @@ export async function getModelUsageToday(model: string): Promise<{ requests: num
 
 /**
  * Checks if model is within reserve limits.
- * Routine traffic stops at 90% of RPD.
- * Privileged teacher actions (class build) are allowed above 90% up to 100%.
+ * Per Fix Pack D, Synapta never imposes its own artificial daily quota or 90% reserve.
+ * Only real provider 429 errors from Google may divert or pause a call.
  */
-export async function isWithinModelReserve(model: string, isPrivileged = false): Promise<boolean> {
-  const usage = await getModelUsageToday(model);
-  const limit = getRpdLimit(model);
-
-  if (usage.requests >= limit) {
-    return false;
-  }
-
-  // 90% reserve threshold for unprivileged routine traffic
-  if (!isPrivileged && usage.requests >= Math.floor(limit * 0.90)) {
-    return false;
-  }
-
+export async function isWithinModelReserve(_model: string, _isPrivileged = false): Promise<boolean> {
   return true;
 }
 
@@ -279,6 +267,7 @@ export async function getModelsHealthReport(): Promise<Array<{
     const usage = await getModelUsageToday(m);
     const mem = memoryHealthCache.get(m);
     const isAvail = await isModelAvailable(m);
+    const status = (!isAvail ? (mem?.entry.status || "exhausted") : "ok") as "ok" | "exhausted" | "invalid";
 
     results.push({
       model: m,
@@ -286,8 +275,8 @@ export async function getModelsHealthReport(): Promise<Array<{
       rpd: getRpdLimit(m),
       requestsToday: usage.requests,
       tokensToday: usage.totalTokens,
-      status: (!isAvail ? (mem?.entry.status || "exhausted") : "ok") as "ok" | "exhausted" | "invalid",
-      exhaustedUntil: mem?.entry.exhaustedUntil,
+      status,
+      exhaustedUntil: status !== "ok" ? mem?.entry.exhaustedUntil : undefined,
     });
   }
 

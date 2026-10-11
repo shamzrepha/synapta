@@ -1,6 +1,5 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
-import { getGeminiClient } from "@/lib/gemini/client";
-import { modelFor } from "@/lib/ai/router";
+import { generateWithFallback } from "@/lib/ai/router";
 import { checkRateLimitAndQuota, recordTokenUsage } from "@/lib/quota/guard";
 import { getTeacherSystemPrompt, checkStudentMessageSafety } from "./prompts";
 import { REPRESENTATIONS, Representation, REPRESENTATION_METADATA } from "./representations";
@@ -58,7 +57,6 @@ export async function runTeacherAgent({
   // 3. Quota check
   await checkRateLimitAndQuota(uid, 1200);
 
-  const ai = getGeminiClient();
   const systemInstruction = getTeacherSystemPrompt({
     kcTitle,
     lessonMarkdown,
@@ -232,18 +230,17 @@ export async function runTeacherAgent({
   while (iterations < MAX_TOOL_CALLS) {
     iterations++;
 
-    const response = await ai.models.generateContent({
-      model: modelFor("tutor_chat"),
-      contents: conversationTurns as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
-      config: {
-        systemInstruction,
-        temperature: 0.3,
-        tools: [{ functionDeclarations }],
-      },
+    const response = await generateWithFallback({
+      task: "tutor_chat",
+      contents: conversationTurns,
+      systemInstruction,
+      temperature: 0.3,
+      tools: [{ functionDeclarations }],
+      userId: uid,
     });
 
-    totalTokensIn += response.usageMetadata?.promptTokenCount || 400;
-    totalTokensOut += response.usageMetadata?.candidatesTokenCount || 200;
+    totalTokensIn += response.tokensIn || 400;
+    totalTokensOut += response.tokensOut || 200;
 
     // Check if the model requested function calls
     const functionCalls = response.functionCalls;

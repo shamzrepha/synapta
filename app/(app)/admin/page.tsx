@@ -128,6 +128,13 @@ interface ModelHealthData {
   exhaustedUntil?: string;
 }
 
+interface ModelCatalogItem {
+  id: string;
+  tier: string;
+  rpd: number;
+  notes?: string;
+}
+
 type AdminTab = "overview" | "users" | "requests" | "classes" | "reports" | "usage" | "audit" | "system";
 
 export default function AdminConsolePage() {
@@ -141,14 +148,8 @@ export default function AdminConsolePage() {
   const [auditLogs, setAuditLogs] = useState<AdminAuditItem[]>([]);
   const [usageData, setUsageData] = useState<PlatformUsageData | null>(null);
   const [modelsHealth, setModelsHealth] = useState<ModelHealthData[]>([]);
-  const [modelAssignments, setModelAssignments] = useState<Record<string, string>>({
-    tutor_chat: "gemini-3.1-flash-lite",
-    structured_spec: "gemini-3.1-flash-lite",
-    class_build: "gemini-3.6-flash",
-    grading_high_stakes: "gemini-3.6-flash",
-    long_document: "gemini-3.1-flash-lite",
-    voice: "gemini-3.8-live",
-  });
+  const [modelCatalog, setModelCatalog] = useState<ModelCatalogItem[]>([]);
+  const [modelAssignments, setModelAssignments] = useState<Record<string, string>>({});
   const [savingAssignments, setSavingAssignments] = useState(false);
   const [testingModel, setTestingModel] = useState<string | null>(null);
   const [resettingCooldowns, setResettingCooldowns] = useState(false);
@@ -225,6 +226,7 @@ export default function AdminConsolePage() {
           if (reportsJson.ok) setReports(asArray<AdminReportItem>(reportsJson.data?.reports));
           if (modelsJson.ok) {
             if (Array.isArray(modelsJson.data?.models)) setModelsHealth(modelsJson.data.models);
+            if (Array.isArray(modelsJson.data?.catalog)) setModelCatalog(modelsJson.data.catalog);
             if (modelsJson.data?.assignments) setModelAssignments(modelsJson.data.assignments);
           }
         }
@@ -1693,14 +1695,21 @@ export default function AdminConsolePage() {
                       }))
                     }
                   >
-                    <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (500 RPD, Light)</option>
-                    <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (500 RPD, Light)</option>
-                    <option value="gemini-3.6-flash">gemini-3.6-flash (20 RPD, Heavy)</option>
-                    <option value="gemini-3.7-flash">gemini-3.7-flash (20 RPD, Heavy)</option>
-                    <option value="gemini-3.5-flash">gemini-3.5-flash (20 RPD, Heavy)</option>
-                    <option value="gemini-3.8-flash">gemini-3.8-flash (20 RPD, Heavy)</option>
-                    <option value="gemini-2.5-flash-preview-tts">gemini-2.5-flash-preview-tts (Voice Lab Studio TTS)</option>
-                    <option value="gemini-3.8-live">gemini-3.8-live (Audio / Voice)</option>
+                    {modelAssignments[task] &&
+                      !modelCatalog.some((m) => m.id === modelAssignments[task]) &&
+                      !modelsHealth.some((m) => m.model === modelAssignments[task]) && (
+                        <option value={modelAssignments[task]}>
+                          {modelAssignments[task]} (Currently assigned)
+                        </option>
+                      )}
+                    {(modelCatalog.length > 0
+                      ? modelCatalog
+                      : modelsHealth.map((m) => ({ id: m.model, tier: m.tier, rpd: m.rpd, notes: undefined }))
+                    ).map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.id} ({m.rpd} RPD, {m.tier})
+                      </option>
+                    ))}
                   </select>
                 </div>
               ))}
