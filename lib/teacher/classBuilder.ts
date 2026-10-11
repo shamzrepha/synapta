@@ -55,6 +55,12 @@ const kcSpecSchema = z.object({
   // Notebook-style hierarchy: empty/omitted = top-level topic, otherwise exact title of the parent topic
   parentTopic: z.string().optional().nullable(),
   sourceMaterialTitles: z.array(z.string()).optional().default([]),
+  lab: z
+    .object({
+      type: z.enum(["ohms_law", "rc_filter", "logic_gates", "projectile", "none"]).default("none"),
+      config: z.record(z.union([z.string(), z.number()])).optional(),
+    })
+    .optional(),
 });
 
 export type KcSpec = z.infer<typeof kcSpecSchema>;
@@ -250,9 +256,16 @@ Rules:
 4. Each KC must have Bloom-tagged learning objectives (e.g. "[Understand] ...", "[Apply] ...").
 5. Specify prerequisiteTitles using the exact titles of previously introduced KCs in this course.
 6. Absolutely NO circular dependencies.
+7. IN-SITU SIMULATION LAB ASSIGNMENT:
+When a Knowledge Component relates to interactive STEM experiments, assign the matching "lab" object:
+- "rc_filter": For Inductors, Capacitors, RL circuits, RC filters, RLC frequency response, or AC reactive components. (config: { targetCutoff: 1000 })
+- "ohms_law": For DC circuits, voltage dividers, resistors, current and electrical power. (config: { targetCurrent: 0.12, maxPower: 1.5 })
+- "logic_gates": For Boolean algebra, digital logic, AND/OR/NOT gates.
+- "projectile": For classical kinematics, projectile trajectories, launch angles.
+- "none": For purely analytical or theoretical topics without an interactive apparatus.
 ${
   outlineHeadings.length >= 2
-    ? `\n7. CRITICAL OUTLINE MAPPING DIRECTIVE:
+    ? `\n8. CRITICAL OUTLINE MAPPING DIRECTIVE:
 The teacher provided the following exact ${outlineHeadings.length} curriculum outline topics:
 ${outlineHeadings.map((h, i) => `${i + 1}. ${h}`).join("\n")}
 You MUST map these headings 1:1 into Knowledge Components, preserving the titles and sequencing exactly.`
@@ -335,6 +348,7 @@ Synthesize the concept map.`;
       bkt: deriveBktPriors(kc.difficulty ?? "intermediate", input.level || "undergrad"),
       parentTitle: (kc.parentTopic || "").trim(),
       sourceMaterialTitles: kc.sourceMaterialTitles || [],
+      lab: kc.lab?.type && kc.lab.type !== "none" ? kc.lab : { type: "none" as const },
     };
   });
 
@@ -393,6 +407,7 @@ Synthesize the concept map.`;
       sourceMaterialIds: kc.sourceMaterialIds,
       parentId: kc.parentId,
       difficulty: kc.difficulty,
+      lab: kc.lab,
       aliases: [kc.title.toLowerCase()],
       contentVersion: 1,
       createdAt: Timestamp.now(),

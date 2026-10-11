@@ -63,6 +63,7 @@ export default function ClassOverviewPage({
   const [classData, setClassData] = useState<ClassDetail | null>(null);
   const [kcs, setKcs] = useState<KCItem[]>([]);
   const [masteryMap, setMasteryMap] = useState<Record<string, number>>({});
+  const [attemptsMap, setAttemptsMap] = useState<Record<string, number>>({});
   const [enrollmentStatus, setEnrollmentStatus] = useState<string>("none");
   const [role, setRole] = useState<"owner" | "admin" | "student" | "visitor">("visitor");
   const [isOwner, setIsOwner] = useState(false);
@@ -82,6 +83,7 @@ export default function ClassOverviewPage({
           setClassData(data.data.class);
           setKcs(data.data.kcs || []);
           setMasteryMap(data.data.masteryMap || {});
+          setAttemptsMap(data.data.attemptsMap || {});
           setEnrollmentStatus(data.data.enrollmentStatus || "none");
           setRole(data.data.role || (data.data.isOwner ? "owner" : "visitor"));
           setIsOwner(data.data.isOwner || data.data.role === "owner" || data.data.role === "admin");
@@ -418,8 +420,9 @@ export default function ClassOverviewPage({
         <div className="space-y-3">
           {kcs.map((kc, idx) => {
             const unlocked = isKcUnlocked(kc);
+            const attempts = attemptsMap[kc.id] ?? 0;
             const currentPL = masteryMap[kc.id] ?? (kc.bkt?.pL0 || 0.2);
-            const mastery = getMasteryStatus(currentPL);
+            const mastery = getMasteryStatus(currentPL, attempts);
 
             return (
               <Card
@@ -451,7 +454,7 @@ export default function ClassOverviewPage({
                           </Badge>
                         )}
                         <Badge className={`text-[10px] py-0 ${mastery.colorClass}`}>
-                          {mastery.label} ({formatPL(currentPL)})
+                          {mastery.label} {attempts > 0 ? `(${formatPL(currentPL)})` : "(Prior Baseline)"}
                         </Badge>
                       </div>
 
@@ -482,13 +485,15 @@ export default function ClassOverviewPage({
                       <div className="w-24 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mt-1">
                         <div
                           className={`h-full rounded-full ${
-                            currentPL >= 0.95
+                            attempts === 0
+                              ? "bg-slate-300 dark:bg-slate-700"
+                              : currentPL >= 0.95
                               ? "bg-emerald-500"
                               : currentPL >= 0.4
                               ? "bg-amber-500"
                               : "bg-rose-500"
                           }`}
-                          style={{ width: `${Math.min(100, currentPL * 100)}%` }}
+                          style={{ width: `${attempts === 0 ? 0 : Math.min(100, currentPL * 100)}%` }}
                         />
                       </div>
                     </div>

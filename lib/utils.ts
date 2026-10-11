@@ -13,11 +13,14 @@ export function formatPL(pL: number): string {
   return (pL * 100).toFixed(1) + "%";
 }
 
-export function getMasteryStatus(pL: number): {
-  status: "unmastered" | "learning" | "mastered";
+export function getMasteryStatus(pL: number, attempts = 1): {
+  status: "unstarted" | "unmastered" | "learning" | "mastered";
   label: string;
   colorClass: string;
 } {
+  if (attempts === 0) {
+    return { status: "unstarted", label: "Unstarted", colorClass: "text-slate-500 bg-slate-500/10 border-slate-500/30" };
+  }
   if (pL >= 0.95) {
     return { status: "mastered", label: "Mastered", colorClass: "text-emerald-500 bg-emerald-500/10 border-emerald-500/30" };
   }

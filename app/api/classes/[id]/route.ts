@@ -60,6 +60,7 @@ export async function GET(
 
     // Load caller's mastery for these KCs
     const masteryMap: Record<string, number> = {};
+    const attemptsMap: Record<string, number> = {};
     if (kcs.length > 0 && caller.uid) {
       for (const kc of kcs) {
         const mDoc = await adminDb()
@@ -67,9 +68,12 @@ export async function GET(
           .doc(`${caller.uid}_${kc.id}`)
           .get();
         if (mDoc.exists) {
-          masteryMap[kc.id] = mDoc.data()?.pL ?? 0.2;
+          const mData = mDoc.data();
+          masteryMap[kc.id] = mData?.pL ?? 0.2;
+          attemptsMap[kc.id] = mData?.attempts ?? 0;
         } else {
           masteryMap[kc.id] = (kc as { bkt?: { pL0?: number } })?.bkt?.pL0 ?? 0.2;
+          attemptsMap[kc.id] = 0;
         }
       }
     }
@@ -80,6 +84,7 @@ export async function GET(
         class: { id, ...classData },
         kcs,
         masteryMap,
+        attemptsMap,
         role,
         enrollmentStatus,
         isOwner: isOwner || isAdmin,

@@ -70,6 +70,7 @@ export default function TopicPage({
 
   const [kc, setKc] = useState<KcDetails | null>(null);
   const [currentPL, setCurrentPL] = useState<number>(0.2);
+  const [attempts, setAttempts] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"learn" | "lab" | "flashcards" | "quiz" | "tutor">("learn");
 
@@ -105,6 +106,9 @@ export default function TopicPage({
           }
           if (data.data.masteryMap?.[kcId] !== undefined) {
             setCurrentPL(data.data.masteryMap[kcId]);
+          }
+          if (data.data.attemptsMap?.[kcId] !== undefined) {
+            setAttempts(data.data.attemptsMap[kcId]);
           }
         }
       } catch {
@@ -245,12 +249,42 @@ export default function TopicPage({
   };
 
   function loadFallbackCards() {
-    setFlashcards([
-      { front: "What is Ohm's Law expressed in terms of current I?", back: "I = V / R (Current equals Voltage divided by Resistance)" },
-      { front: "What is the formula for electric power in terms of I and R?", back: "P = I^2 * R" },
-      { front: "What is the SI unit of electrical resistance?", back: "Ohm (symbol: Ω)" },
-      { front: "If current I = 0.5 A and R = 100 Ω, what is the voltage V?", back: "V = I * R = 0.5 * 100 = 50 Volts" },
-    ]);
+    const topicTitle = kc?.title || "This Concept";
+    const topicDesc = kc?.description || `Key fundamentals of ${topicTitle}`;
+    const objs = kc?.objectives && kc.objectives.length > 0 ? kc.objectives : [];
+
+    const dynamicCards: FlashcardItem[] = [
+      {
+        front: `What is the core definition and primary principle of ${topicTitle}?`,
+        back: topicDesc,
+      },
+    ];
+
+    if (objs.length > 0) {
+      objs.slice(0, 4).forEach((obj, idx) => {
+        dynamicCards.push({
+          front: `[Objective ${idx + 1}] How do you apply: ${obj}?`,
+          back: `Demonstrate understanding of "${obj}" by connecting its governing mechanisms directly to ${topicTitle}.`,
+        });
+      });
+    } else {
+      dynamicCards.push(
+        {
+          front: `Why is ${topicTitle} critical within this course syllabus?`,
+          back: `It provides the conceptual foundation for downstream mastery, prerequisite topics, and analytical problem solving.`,
+        },
+        {
+          front: `What key governing relationships or formulas define ${topicTitle}?`,
+          back: `Refer to the lesson notes and textbook excerpts above for the exact governing equations of ${topicTitle}.`,
+        },
+        {
+          front: `How do you verify your mastery of ${topicTitle}?`,
+          back: `Complete the diagnostic Quiz and In-Situ Lab to demonstrate predictive understanding to your Cognitive Twin.`,
+        }
+      );
+    }
+
+    setFlashcards(dynamicCards);
     setCurrentCardIndex(0);
     setIsFlipped(false);
   }
@@ -336,12 +370,13 @@ export default function TopicPage({
         }
       }
     } catch {
+      const topic = kc?.title || "this topic";
       setMessages((prev) =>
         prev.map((m) =>
           m.id === modelMsgId
             ? {
                 ...m,
-                text: "To solve this Socratic question, notice the ratio $I = \\frac{V}{R}$. What happens to $I$ when you increase the denominator $R$?",
+                text: `To explore ${topic} deeply: Consider its core definition and what fundamental governing variables change when an external force or input is applied. What first comes to mind?`,
               }
             : m
         )
@@ -372,7 +407,7 @@ export default function TopicPage({
     );
   }
 
-  const masteryStatus = getMasteryStatus(currentPL);
+  const masteryStatus = getMasteryStatus(currentPL, attempts);
 
   return (
     <div className="space-y-6">
@@ -828,19 +863,21 @@ export default function TopicPage({
                 <div className="flex justify-between items-center mb-1.5">
                   <span className="text-xs text-slate-500">Bayesian Posterior P(L):</span>
                   <Badge className={`text-xs ${masteryStatus.colorClass}`}>
-                    {masteryStatus.label} ({formatPL(currentPL)})
+                    {masteryStatus.label} {attempts > 0 ? `(${formatPL(currentPL)})` : "(Prior Baseline)"}
                   </Badge>
                 </div>
                 <div className="w-full h-3 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                   <div
                     className={`h-full transition-all duration-500 rounded-full ${
-                      currentPL >= 0.95
+                      attempts === 0
+                        ? "bg-slate-300 dark:bg-slate-700"
+                        : currentPL >= 0.95
                         ? "bg-emerald-500"
                         : currentPL >= 0.4
                         ? "bg-amber-500"
                         : "bg-rose-500"
                     }`}
-                    style={{ width: `${Math.min(100, currentPL * 100)}%` }}
+                    style={{ width: `${attempts === 0 ? 0 : Math.min(100, currentPL * 100)}%` }}
                   />
                 </div>
               </div>
@@ -856,8 +893,8 @@ export default function TopicPage({
                 </div>
               </div>
 
-              {/* Intervention recommendation if struggling */}
-              {currentPL < 0.40 && (
+              {/* Intervention recommendation if struggling after attempts */}
+              {attempts > 0 && currentPL < 0.40 && (
                 <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-950 dark:text-rose-200 text-xs space-y-2">
                   <p className="font-semibold flex items-center gap-1.5">
                     <Users className="h-4 w-4 text-rose-500" /> Peer Study Recommended

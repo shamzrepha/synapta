@@ -101,10 +101,19 @@ export async function applyEvidence({
       xpEarned = 0; // Diagnostic assessment establishes baseline without inflating gamified XP
     } else {
       if (correct) {
-        if (activity === "quiz") xpEarned = 10;
-        else if (activity === "flashcard") xpEarned = 5;
-        else if (activity === "lab") xpEarned = 30;
-        else if (activity === "peer_explain") xpEarned = 40;
+        if (activity === "quiz") {
+          xpEarned = 10;
+        } else if (activity === "flashcard") {
+          // Anti-farming: Full +5 XP awarded for the first 5 cards per KC each day; 1 XP effort reward thereafter
+          const todayStr = new Date().toISOString().split("T")[0];
+          const lastDate = masteryData?.lastFlashcardDate;
+          const countToday = lastDate === todayStr ? (masteryData?.flashcardCountToday ?? 0) : 0;
+          xpEarned = countToday < 5 ? 5 : 1;
+        } else if (activity === "lab") {
+          xpEarned = 30;
+        } else if (activity === "peer_explain") {
+          xpEarned = 40;
+        }
       }
       if (crossedMasteryFirstTime) {
         xpEarned += 100; // Mastery achievement reward (once per KC lifetime)

@@ -46,7 +46,39 @@ export async function POST(req: NextRequest) {
 
     const kcData = kcDoc.data()!;
     const kcTitle = kcData.title || "Topic";
-    const lessonMarkdown = kcData.lessonMarkdown || kcData.description || "Lesson content";
+    const objectivesText = Array.isArray(kcData.objectives) && kcData.objectives.length > 0
+      ? `\nKey Objectives:\n${kcData.objectives.map((o: string) => `- ${o}`).join("\n")}`
+      : "";
+    let lessonMarkdown = kcData.lessonMarkdown || kcData.description || "";
+    
+    // If lesson is short or empty, pull excerpt from uploaded class materials to give Gemini deep context
+    if (lessonMarkdown.length < 200) {
+      const matSnap = await adminDb()
+        .collection("classes")
+        .doc(classId)
+        .collection("materials")
+        .limit(3)
+        .get()
+        .catch(() => null);
+      
+      const excerpts = (matSnap?.docs || [])
+        .map((d) => (d.data() as { extractedText?: string })?.extractedText)
+        .filter((t): t is string => typeof t === "string" && t.length > 0)
+        .map((t) => t.slice(0, 1500))
+        .join("\n\n---\n\n");
+
+      lessonMarkdown = [
+        `Topic: ${kcTitle}`,
+        kcData.description ? `Description: ${kcData.description}` : "",
+        objectivesText,
+        excerpts ? `Reference Notes from Uploaded Materials:\n${excerpts}` : "",
+        lessonMarkdown ? `Lesson Notes:\n${lessonMarkdown}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+    } else if (objectivesText) {
+      lessonMarkdown = `${lessonMarkdown}\n${objectivesText}`;
+    }
 
     // Rate limit and token quota check
     await checkRateLimitAndQuota(caller.uid, 1500);

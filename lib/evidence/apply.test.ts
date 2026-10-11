@@ -222,6 +222,35 @@ describe("lib/evidence/apply (A3: XP and Mastery Integrity)", () => {
     }
   });
 
+  it("tapers flashcard correct XP from 5 to 1 after 5 submissions today to prevent XP farming", async () => {
+    mockDocs["classes/class-1/kcs/kc-1"] = {
+      title: "Ohm's Law",
+      bkt: { pL0: 0.20, pT: 0.15, pG: 0.20, pS: 0.10 },
+    };
+    const todayStr = new Date().toISOString().split("T")[0];
+    mockDocs["mastery/user-1_kc-1"] = {
+      pL: 0.50,
+      lastFlashcardDate: todayStr,
+      flashcardCountToday: 5, // already answered 5 cards today
+    };
+    mockDocs["users/user-1"] = {
+      xp: 100,
+      streakDays: 1,
+    };
+
+    const result = await applyEvidence({
+      uid: "user-1",
+      classId: "class-1",
+      kcId: "kc-1",
+      activity: "flashcard",
+      correct: true,
+    });
+
+    // Awarded 1 XP effort instead of +5 XP farming
+    expect(result.xpGained).toBe(1);
+    expect(result.totalXp).toBe(101);
+  });
+
   it("enforces 10-minute anti-farming interval for lab submissions", async () => {
     mockDocs["classes/class-1/kcs/kc-1"] = {
       title: "Ohm's Law",
