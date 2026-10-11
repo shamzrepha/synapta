@@ -85,7 +85,7 @@ function LoginForm() {
             </label>
             <Input
               type="email"
-              placeholder="alex@synapta.edu"
+              placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
