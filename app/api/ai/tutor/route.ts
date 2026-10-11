@@ -72,49 +72,31 @@ export async function POST(req: NextRequest) {
       studentPL: currentPL,
     });
 
-    // Live Gemini Streaming
-    const ai = getGeminiClient();
-    const model = getGeminiModel();
-
-    const sanitizedContent = `<STUDENT_MESSAGE>\n${message}\n</STUDENT_MESSAGE>`;
-
-    const responseStream = await ai.models.generateContentStream({
-      model,
-      contents: sanitizedContent,
-      config: {
-        systemInstruction,
-      },
+    // Run AI Teacher Agent with function calling and pedagogical protocol
+    const { runTeacherAgent } = await import("@/lib/teacher/orchestrator");
+    const agentResult = await runTeacherAgent({
+      uid: caller.uid,
+      classId,
+      kcId,
+      userMessage: message,
+      history: (parsed.data.history || []).map((h) => ({
+        role: h.role,
+        text: h.parts,
+      })),
     });
 
     const encoder = new TextEncoder();
-    let totalOutputTokens = 0;
-
     const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of responseStream) {
-            const text = chunk.text;
-            if (text) {
-              controller.enqueue(encoder.encode(text));
-            }
-            if (chunk.usageMetadata?.candidatesTokenCount) {
-              totalOutputTokens = chunk.usageMetadata.candidatesTokenCount;
-            }
-          }
-        } catch (streamErr) {
-          console.error("Stream error:", streamErr);
-          controller.error(streamErr);
-        } finally {
-          controller.close();
-          await recordTokenUsage(caller.uid, 300, totalOutputTokens || 200).catch(() => {});
-        }
+      start(controller) {
+        controller.enqueue(encoder.encode(agentResult.reply));
+        controller.close();
       },
     });
 
     return new Response(readable, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked",
+        "X-Tool-Calls-Executed": String(agentResult.toolCallsExecuted.length),
       },
     });
   } catch (error) {
