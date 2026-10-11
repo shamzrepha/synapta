@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { ApiError } from "@/lib/api/errors";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -32,10 +33,14 @@ export async function POST(
     const roomDoc = await roomRef.get();
 
     if (!roomDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Room not found" } },
-        { status: 404 }
-      );
+      throw new ApiError(404, "NOT_FOUND", "Room not found");
+    }
+
+    const roomData = roomDoc.data()!;
+    const memberIds: string[] = Array.isArray(roomData.memberIds) ? roomData.memberIds : [];
+
+    if (!memberIds.includes(caller.uid) && caller.role !== "admin") {
+      throw new ApiError(403, "FORBIDDEN", "You must join this study room before posting messages.");
     }
 
     const userDoc = await adminDb().collection("users").doc(caller.uid).get();

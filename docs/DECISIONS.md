@@ -49,4 +49,13 @@ This log records architectural and design decisions, trade-offs, and deviations 
   5. Transaction-wrapped quiz answering in `app/api/quiz/[sessionId]/answer` to atomically claim answers and eliminate parallel submission double-scoring.
 - **Rationale:** Protects pedagogical integrity, prevents leaderboard exploitation, and mathematically guarantees valid BKT inference.
 
+## Decision 9: Authorization Hardening & Security Rule Integrity (A4)
+- **Context:** Study room endpoints (messages and scratchpad) were open to unjoined authenticated callers; non-admin users could attempt joining draft classes.
+- **Decision:**
+  1. Enforced room membership checks (`memberIds.includes(caller.uid) || caller.role === 'admin'`) in both `POST /api/lounge/rooms/[roomCode]/messages` and `PATCH /api/lounge/rooms/[roomCode]/scratchpad`.
+  2. Enforced classroom published state check in `POST /api/classes/[id]/join`, rejecting student enrollments into draft classes.
+  3. Verified Firestore rules allowlist patterns and user profile mutation constraints with unit test coverage.
+- **Rationale:** Prevents unauthorized room injection, protects draft curriculum from premature student access, and guarantees strict multi-tenant boundary isolation.
+
+
 

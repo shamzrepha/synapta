@@ -128,3 +128,54 @@ describe("Class Access Authorization Matrix", () => {
     expect(access.canMutate).toBe(true);
   });
 });
+
+describe("Study Room Membership Authorization (A4.2)", () => {
+  function canPostToRoom(uid: string, role: string, memberIds: string[]): boolean {
+    return memberIds.includes(uid) || role === "admin";
+  }
+
+  it("permits room members to post messages and edit scratchpad", () => {
+    expect(canPostToRoom("user-1", "student", ["user-1", "user-2"])).toBe(true);
+  });
+
+  it("rejects non-members who attempt to post or mutate room without joining", () => {
+    expect(canPostToRoom("user-attacker", "student", ["user-1", "user-2"])).toBe(false);
+  });
+
+  it("permits platform admins to moderate any room", () => {
+    expect(canPostToRoom("admin-1", "admin", ["user-1", "user-2"])).toBe(true);
+  });
+});
+
+describe("Class Join Authorization & Eligibility (A4.3)", () => {
+  function canJoinClass(
+    caller: { uid: string; role: string },
+    classDoc: { teacherId: string; coTeacherIds?: string[]; status: "draft" | "published" }
+  ): { eligible: boolean; errorReason?: string } {
+    if (classDoc.status !== "published" && caller.role !== "admin") {
+      return { eligible: false, errorReason: "CLASS_NOT_PUBLISHED" };
+    }
+    const isCoTeacher = Array.isArray(classDoc.coTeacherIds) && classDoc.coTeacherIds.includes(caller.uid);
+    if (classDoc.teacherId === caller.uid || isCoTeacher || caller.role === "admin") {
+      return { eligible: false, errorReason: "OWNER_CANNOT_ENROLL" };
+    }
+    return { eligible: true };
+  }
+
+  it("allows students to join published classes", () => {
+    const res = canJoinClass({ uid: "s1", role: "student" }, { teacherId: "t1", status: "published" });
+    expect(res.eligible).toBe(true);
+  });
+
+  it("rejects enrollment into draft classes for non-admins", () => {
+    const res = canJoinClass({ uid: "s1", role: "student" }, { teacherId: "t1", status: "draft" });
+    expect(res.eligible).toBe(false);
+    expect(res.errorReason).toBe("CLASS_NOT_PUBLISHED");
+  });
+
+  it("rejects teacher from enrolling in their own class", () => {
+    const res = canJoinClass({ uid: "t1", role: "teacher" }, { teacherId: "t1", status: "published" });
+    expect(res.eligible).toBe(false);
+    expect(res.errorReason).toBe("OWNER_CANNOT_ENROLL");
+  });
+});

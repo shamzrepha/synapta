@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
-
+import { ApiError } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
@@ -29,19 +29,25 @@ export async function POST(
     const result = await adminDb().runTransaction(async (t) => {
       const classDoc = await t.get(classRef);
       if (!classDoc.exists) {
-        const err = new Error("Class not found");
-        (err as { code?: string; status?: number }).code = "NOT_FOUND";
-        (err as { code?: string; status?: number }).status = 404;
-        throw err;
+        throw new ApiError(404, "NOT_FOUND", "Class not found");
       }
 
       const classData = classDoc.data()!;
+      if (classData.status !== "published" && caller.role !== "admin") {
+        throw new ApiError(
+          403,
+          "CLASS_NOT_PUBLISHED",
+          "This classroom is currently in draft mode and not accepting enrollments."
+        );
+      }
+
       const isCoTeacher = Array.isArray(classData.coTeacherIds) && classData.coTeacherIds.includes(caller.uid);
       if (classData.teacherId === caller.uid || isCoTeacher || caller.role === "admin") {
-        const err = new Error("Teachers and administrators cannot enroll as students in their own classes.");
-        (err as { code?: string; status?: number }).code = "OWNER_CANNOT_ENROLL";
-        (err as { code?: string; status?: number }).status = 403;
-        throw err;
+        throw new ApiError(
+          403,
+          "OWNER_CANNOT_ENROLL",
+          "Teachers and administrators cannot enroll as students in their own classes."
+        );
       }
 
       const enrollmentDoc = await t.get(enrollmentRef);

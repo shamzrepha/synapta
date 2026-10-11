@@ -2,21 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { createClassSchema, generateSecureJoinCode } from "@/lib/validation/classes";
-
+import { parseJson } from "@/lib/api/errors";
 
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req, ["teacher", "admin"]);
-    const body = await req.json();
-    const parsed = createClassSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { ok: false, error: { code: "VALIDATION", message: parsed.error.issues[0]?.message || "Validation failed" } },
-        { status: 400 }
-      );
-    }
-
     const {
       title,
       subject,
@@ -27,7 +17,7 @@ export async function POST(req: NextRequest) {
       visibility,
       status,
       buildState,
-    } = parsed.data;
+    } = await parseJson(req, createClassSchema);
 
     // Fetch teacher display name
     let teacherName = "Teacher";
