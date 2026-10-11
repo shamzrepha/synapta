@@ -209,7 +209,7 @@ export async function POST(req: NextRequest) {
         error: {
           code: isFirestoreDisabled ? "FIRESTORE_DISABLED" : "INTERNAL",
           message: isFirestoreDisabled
-            ? "Cloud Firestore API is not enabled yet in your Firebase project. Please enable it in the Firebase Console: https://console.firebase.google.com/project/synapta-learning/firestore"
+            ? `Cloud Firestore API is not enabled yet in your Firebase project. Please enable it in the Firebase Console: https://console.firebase.google.com/project/${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_ADMIN_PROJECT_ID || "synapta-learning"}/firestore`
             : message,
         },
       },

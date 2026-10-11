@@ -34,13 +34,13 @@
    - **Ballistic Projectile Lab**: Kinematic motion simulation with gravitational acceleration ($g = 9.8\text{ m/s}^2$) and trajectory tracing.
 
 4. **Peer Study Lounge & BKT Matchmaking**
-   - Algorithmic matchmaking connecting students struggling with a concept ($P(L) < 0.60$) to peer mentors who have mastered it ($P(L) \ge 0.75$).
+   - Algorithmic matchmaking connecting students struggling with a concept ($P(L) < 0.40$) to peer mentors who have mastered it ($P(L) \ge 0.85$).
    - Synchronous collaborative scratchpad with debounced synchronization and quick-insert LaTeX formula buttons.
    - Real-time room chat with active presence avatars and evidence awards for peer explanations (+40 XP).
 
 5. **Teacher Heatmap & Curriculum Control**
    - Class-wide mastery matrix displaying all enrolled students against all curriculum Knowledge Components.
-   - Automatic identification of systemically struggling concepts ($P(L) < 0.60$).
+   - Automatic identification of systemically struggling concepts ($P(L) < 0.40$).
    - One-click Cognitive Twin drill-down modal per student with historical mastery radar.
    - CSV export of gradebook and mastery data.
    - AI-assisted syllabus generator decomposing high-level course topics into a directed acyclic graph (DAG) of prerequisite KCs.
@@ -84,11 +84,11 @@ $$P(L_{t+1}) = P(L_t \mid \text{obs}) + (1 - P(L_t \mid \text{obs})) \cdot T$$
 ### 3. Mastery Criteria & XP Allocation
 
 A Knowledge Component is deemed **Mastered** when:
-$$P(L) \ge 0.85$$
+$$P(L) \ge 0.95$$
 
 When a student crosses the mastery threshold for the first time, a bonus of **+100 XP** is awarded. Everyday evidence submissions earn standard XP scaled by the activity weight:
 $$\Delta\text{XP} = \text{Base XP} \cdot \Omega_{\text{activity}}$$
-Where $\Omega_{\text{peer}} = 2.0$, $\Omega_{\text{lab}} = 1.5$, $\Omega_{\text{quiz}} = 1.0$, and $\Omega_{\text{flashcard}} = 0.5$.
+Where $\Omega_{\text{peer}} = 2.0$, $\Omega_{\text{lab}} = 1.75$, $\Omega_{\text{quiz}} = 1.0$, and $\Omega_{\text{flashcard}} = 1.25$.
 
 ---
 
@@ -107,7 +107,7 @@ Where $\Omega_{\text{peer}} = 2.0$, $\Omega_{\text{lab}} = 1.5$, $\Omega_{\text{
 
 ### Prerequisites
 
-- **Node.js** >= 20.0.0
+- **Node.js** >= 24.12.0
 - **npm** >= 10.0.0
 - A Firebase project with Firestore and Authentication enabled (or use demo mode)
 - A Google Gemini API key from [Google AI Studio](https://aistudio.google.com/)

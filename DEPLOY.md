@@ -34,11 +34,11 @@ Set the following environment variables in your Vercel Project Settings (**Setti
 | `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Cloud Storage Bucket | `synapta-learning.firebasestorage.app` |
 | `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Sender ID | `39168865444` |
 | `NEXT_PUBLIC_FIREBASE_APP_ID` | Web App ID | `1:39168865444:web:...` |
-| `FIREBASE_PROJECT_ID` | Server Project ID | `synapta-learning` |
-| `FIREBASE_CLIENT_EMAIL` | Service Account Email | `firebase-adminsdk-...@synapta-learning.iam.gserviceaccount.com` |
-| `FIREBASE_PRIVATE_KEY` | Private Key (PEM) | Replace `\n` with actual newlines |
+| `FIREBASE_ADMIN_PROJECT_ID` | Server Project ID (legacy `FIREBASE_PROJECT_ID` supported) | `synapta-learning` |
+| `FIREBASE_ADMIN_CLIENT_EMAIL` | Service Account Email (legacy `FIREBASE_CLIENT_EMAIL` supported) | `firebase-adminsdk-...@synapta-learning.iam.gserviceaccount.com` |
+| `FIREBASE_ADMIN_PRIVATE_KEY` | Private Key PEM (legacy `FIREBASE_PRIVATE_KEY` supported) | Replace `\n` with actual newlines |
 | `GEMINI_API_KEY` | Google Gemini API Key | `AIzaSy...` |
-| `GEMINI_MODEL` | Gemini Model ID | `gemini-3.8-flash` |
+| `GEMINI_MODEL` | Gemini Model ID | `gemini-3.1-flash-lite` |
 | `ADMIN_EMAILS` | Comma-separated admin whitelist | `admin@synapta.app` |
 | `STUDENT_TOKEN_LIMIT` | Monthly student token cap | `50000` |
 | `TEACHER_TOKEN_LIMIT` | Monthly teacher token cap | `200000` |
