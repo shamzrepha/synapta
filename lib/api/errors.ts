@@ -85,6 +85,7 @@ export function toErrorResponse(err: unknown, requestId?: string): NextResponse 
           code: "AI_QUOTA_EXHAUSTED",
           message: qErr.message,
           ...(qErr.resumeAt ? { resumeAt: qErr.resumeAt } : {}),
+          ...(requestId ? { requestId } : {}),
         },
       },
       {
@@ -106,6 +107,7 @@ export function toErrorResponse(err: unknown, requestId?: string): NextResponse 
           error: {
             code: "AI_QUOTA_EXHAUSTED",
             message: "The AI is at its daily limit. Your upload is saved and will be analysed automatically, or you can retry later.",
+            ...(requestId ? { requestId } : {}),
           },
         },
         { status: 429 }
