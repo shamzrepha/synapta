@@ -39,3 +39,14 @@ This log records architectural and design decisions, trade-offs, and deviations 
 - **Decision:** Centralized `ApiError` base class in `lib/api/errors.ts` extended by `AuthError`, `ClassAccessError`, `QuotaError`, and `AiQuotaExhaustedError`. Enforced uniform `{ ok: false, error: { code, message, requestId? } }` responses via `toErrorResponse(err, requestId)`. Mask unhandled 500 exceptions with opaque error messages while capturing request IDs for server-side logs. Intercept any leaked upstream provider quota payloads and map them to friendly `AI_QUOTA_EXHAUSTED` responses with `Retry-After` headers.
 - **Rationale:** Prevents information disclosure vulnerabilities, protects users from cryptic provider payloads, and guarantees uniform client error contracts.
 
+## Decision 8: XP & Mastery Integrity Defense (A3)
+- **Context:** Vulnerabilities allowed client-claimed peer explain rewards, unbounded flashcard grind loops, repeat harvesting of +100 XP mastery bonuses by cycling mastery probabilities, and parallel double-scoring races in quiz sessions.
+- **Decision:**
+  1. Deprecated self-claimed `peer_explain` on `POST /api/evidence`; peer rewards must be granted by other peers via `POST /api/lounge/rooms/[roomCode]/credit` within an active study room.
+  2. Rate-limited daily flashcard evidence submissions to 30/day per concept in `applyEvidence`.
+  3. Added `masteryBonusAwardedAt` tracking in `mastery` documents to ensure the +100 XP mastery bonus is awarded strictly once per concept lifetime.
+  4. Added `safeBktParams` to enforce model identifiability ($p_G + p_S < 1$) and sanitize priors.
+  5. Transaction-wrapped quiz answering in `app/api/quiz/[sessionId]/answer` to atomically claim answers and eliminate parallel submission double-scoring.
+- **Rationale:** Protects pedagogical integrity, prevents leaderboard exploitation, and mathematically guarantees valid BKT inference.
+
+

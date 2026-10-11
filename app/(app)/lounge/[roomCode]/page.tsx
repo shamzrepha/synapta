@@ -61,7 +61,7 @@ export default function LoungeRoomPage({
   params: Promise<{ roomCode: string }>;
 }) {
   const { roomCode } = use(params);
-  const { user, updateUser } = useUserStore();
+  const { user } = useUserStore();
   const { toast } = useToast();
 
   const [room, setRoom] = useState<RoomData | null>(null);
@@ -83,6 +83,7 @@ export default function LoungeRoomPage({
   // Peer Teaching Evidence Submission State
   const [submittingEvidence, setSubmittingEvidence] = useState(false);
   const [evidenceSubmitted, setEvidenceSubmitted] = useState(false);
+  const [targetPeerUid, setTargetPeerUid] = useState("");
 
   // Initial room load
   useEffect(() => {
@@ -259,27 +260,23 @@ export default function LoungeRoomPage({
     handleScratchpadChange(updated);
   };
 
-  // Submit Peer Explanation Evidence (+40 XP, Omega = 2.0)
-  const handleSubmitPeerEvidence = async () => {
-    if (!room || submittingEvidence || evidenceSubmitted) return;
+  // Credit Peer Explanation Evidence (+40 XP, Omega = 2.0 to peer)
+  const handleCreditPeer = async (peerUidToCredit: string) => {
+    if (!room || submittingEvidence || !peerUidToCredit) return;
 
     setSubmittingEvidence(true);
     try {
-      const res = await fetch("/api/evidence", {
+      const res = await fetch(`/api/lounge/rooms/${roomCode}/credit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          classId: room.classId,
-          kcId: room.kcId || "kc-general",
-          activity: "peer_explain",
-          correct: true,
+          targetUid: peerUidToCredit,
         }),
       });
 
       const json = await res.json();
       if (json.ok) {
         setEvidenceSubmitted(true);
-        if (user) updateUser({ xp: json.data.totalXp });
 
         confetti({
           particleCount: 150,
@@ -288,33 +285,22 @@ export default function LoungeRoomPage({
         });
 
         toast({
-          title: "🎉 PEER EXPLANATION RECORDED!",
-          description: "+40 XP awarded! BKT Cognitive Twin accelerated with Omega = 2.0 weighting.",
+          title: "🎉 PEER EXPLANATION CREDITED!",
+          description: "+40 XP awarded to peer! BKT Cognitive Twin accelerated with Omega = 2.0 weighting.",
           variant: "success",
-        });
-
-        // Also broadcast in room chat
-        await fetch(`/api/lounge/rooms/${roomCode}/messages`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text: `🎯 Recorded peer explanation evidence session! +40 XP awarded with Omega = 2.0 mastery acceleration.`,
-          }),
         });
       } else {
         toast({
-          title: "Submission Notice",
-          description: json.error?.message || "Failed to submit peer evidence.",
+          title: "Credit Notice",
+          description: json.error?.message || "Failed to credit peer.",
           variant: "destructive",
         });
       }
     } catch {
-      setEvidenceSubmitted(true);
-      confetti({ particleCount: 100, spread: 70 });
       toast({
-        title: "Peer Explanation Verified",
-        description: "+40 XP awarded in simulated session.",
-        variant: "success",
+        title: "Credit Notice",
+        description: "Failed to connect to room server.",
+        variant: "destructive",
       });
     } finally {
       setSubmittingEvidence(false);
@@ -426,7 +412,7 @@ export default function LoungeRoomPage({
                     Peer Explanation Verification
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    Teaching or learning with a peer? Record it for both Cognitive Twins.
+                    Did a peer explain a concept clearly? Credit them to accelerate their Cognitive Twin.
                   </p>
                 </div>
               </div>
@@ -435,23 +421,47 @@ export default function LoungeRoomPage({
               </Badge>
             </div>
 
-            <Button
-              size="sm"
-              onClick={handleSubmitPeerEvidence}
-              isLoading={submittingEvidence}
-              disabled={evidenceSubmitted}
-              className="w-full text-xs h-8 bg-amber-600 hover:bg-amber-700 text-white"
-            >
-              {evidenceSubmitted ? (
-                <>
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Peer Evidence Recorded!
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-3.5 w-3.5 mr-1" /> Verify Peer Explanation (+40 XP)
-                </>
-              )}
-            </Button>
+            {room.participants.filter((p) => p.uid !== user?.uid).length === 0 ? (
+              <p className="text-[11px] text-slate-500 italic">
+                Waiting for study partners to join this room...
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <select
+                    value={targetPeerUid}
+                    onChange={(e) => setTargetPeerUid(e.target.value)}
+                    className="flex-1 text-xs rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 py-1 text-slate-900 dark:text-slate-100"
+                  >
+                    <option value="">Select peer who explained...</option>
+                    {room.participants
+                      .filter((p) => p.uid !== user?.uid)
+                      .map((p) => (
+                        <option key={p.uid} value={p.uid}>
+                          {p.displayName}
+                        </option>
+                      ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    onClick={() => handleCreditPeer(targetPeerUid)}
+                    isLoading={submittingEvidence}
+                    disabled={!targetPeerUid || evidenceSubmitted}
+                    className="text-xs h-8 bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+                  >
+                    {evidenceSubmitted ? (
+                      <>
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Credited!
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-3.5 w-3.5 mr-1" /> Credit (+40 XP)
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* Realtime Room Chat Thread */}

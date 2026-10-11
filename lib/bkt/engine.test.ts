@@ -6,6 +6,7 @@ import {
   isStruggling,
   isStrong,
   OMEGA,
+  safeBktParams,
 } from "./engine";
 
 describe("Bayesian Knowledge Tracing (BKT) Engine", () => {
@@ -85,5 +86,32 @@ describe("Bayesian Knowledge Tracing (BKT) Engine", () => {
 
     expect(isStrong(0.86)).toBe(true);
     expect(isStrong(0.85)).toBe(false);
+  });
+
+  describe("safeBktParams", () => {
+    it("returns defaults when input is empty or null", () => {
+      const p = safeBktParams(null);
+      expect(p).toEqual({ pL0: 0.20, pT: 0.15, pG: 0.20, pS: 0.10 });
+    });
+
+    it("sanitizes valid custom parameters", () => {
+      const p = safeBktParams({ pL0: 0.35, pT: 0.25, pG: 0.15, pS: 0.05 });
+      expect(p).toEqual({ pL0: 0.35, pT: 0.25, pG: 0.15, pS: 0.05 });
+    });
+
+    it("falls back pG and pS when model identifiability invariant (pG + pS < 1) is violated", () => {
+      const p = safeBktParams({ pT: 0.20, pG: 0.70, pS: 0.40 }); // 0.70 + 0.40 = 1.10 >= 1
+      expect(p.pG).toBe(0.20);
+      expect(p.pS).toBe(0.10);
+      expect(p.pT).toBe(0.20);
+    });
+
+    it("clamps or replaces out-of-range negative or >1 parameters", () => {
+      const p = safeBktParams({ pL0: -0.5, pT: 1.5, pG: -0.1, pS: 2.0 });
+      expect(p.pL0).toBe(0.20);
+      expect(p.pT).toBe(0.15);
+      expect(p.pG).toBe(0.20);
+      expect(p.pS).toBe(0.10);
+    });
   });
 });

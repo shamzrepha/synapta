@@ -1,5 +1,5 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
-import { updateMastery, Activity, OMEGA, MASTERY_THRESHOLD } from "@/lib/bkt/engine";
+import { updateMastery, Activity, OMEGA, MASTERY_THRESHOLD, safeBktParams } from "@/lib/bkt/engine";
 import { ApiError } from "@/lib/api/errors";
 
 export interface ApplyEvidenceParams {
@@ -40,21 +40,37 @@ export async function applyEvidence({
   const kcRef = adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId);
 
   return adminDb().runTransaction(async (t) => {
-    // 1. Read KC doc for BKT parameters
+    // 1. Read KC doc for BKT parameters (enforcing KC existence)
     const kcDoc = await t.get(kcRef);
-    const kcData = kcDoc.exists ? kcDoc.data() : null;
-
-    const pL0 = kcData?.bkt?.pL0 ?? 0.20;
-    const pT = kcData?.bkt?.pT ?? 0.15;
-    const pG = kcData?.bkt?.pG ?? 0.20;
-    const pS = kcData?.bkt?.pS ?? 0.10;
+    if (!kcDoc.exists) {
+      throw new ApiError(404, "NOT_FOUND", `Knowledge component ${kcId} not found in class ${classId}`);
+    }
+    const kcData = kcDoc.data()!;
+    const { pL0, pT, pG, pS } = safeBktParams(kcData?.bkt);
 
     // 2. Read existing Mastery doc
     const masteryDoc = await t.get(masteryRef);
-    const pLPrev = masteryDoc.exists ? (masteryDoc.data()?.pL ?? pL0) : pL0;
-    const prevAttempts = masteryDoc.exists ? (masteryDoc.data()?.attempts ?? 0) : 0;
-    const prevCorrect = masteryDoc.exists ? (masteryDoc.data()?.correct ?? 0) : 0;
-    const lastLabAt = masteryDoc.exists ? masteryDoc.data()?.lastLabAt : null;
+    const masteryData = masteryDoc.exists ? masteryDoc.data() : null;
+    const pLPrev = masteryData?.pL ?? pL0;
+    const prevAttempts = masteryData?.attempts ?? 0;
+    const prevCorrect = masteryData?.correct ?? 0;
+    const lastLabAt = masteryData?.lastLabAt ?? null;
+    const masteryBonusAwardedAt = masteryData?.masteryBonusAwardedAt ?? null;
+
+    // Anti-farming guard: max 30 flashcard submissions per day per KC
+    if (activity === "flashcard") {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const lastDate = masteryData?.lastFlashcardDate;
+      const countToday = lastDate === todayStr ? (masteryData?.flashcardCountToday ?? 0) : 0;
+      if (countToday >= 30) {
+        throw new ApiError(
+          429,
+          "FLASHCARD_RATE_LIMITED",
+          "Daily flashcard practice limit reached for this concept (30/day). Try other activities or review tomorrow.",
+          { "Retry-After": "3600" }
+        );
+      }
+    }
 
     // Anti-farming guard: max 1 lab completion per 10 minutes per KC
     if (activity === "lab" && lastLabAt) {
@@ -76,7 +92,8 @@ export async function applyEvidence({
 
     // 3. Compute new mastery via BKT engine
     const pLAfter = updateMastery(pLPrev, correct, { pT, pG, pS }, activity);
-    const crossedMasteryFirstTime = pLPrev < MASTERY_THRESHOLD && pLAfter >= MASTERY_THRESHOLD;
+    // Crossed mastery first time only if it crossed threshold AND bonus was never awarded before
+    const crossedMasteryFirstTime = pLPrev < MASTERY_THRESHOLD && pLAfter >= MASTERY_THRESHOLD && !masteryBonusAwardedAt;
 
     // 4. Calculate XP
     let xpEarned = 1; // base effort for attempting
@@ -90,7 +107,7 @@ export async function applyEvidence({
         else if (activity === "peer_explain") xpEarned = 40;
       }
       if (crossedMasteryFirstTime) {
-        xpEarned += 100; // Mastery achievement reward
+        xpEarned += 100; // Mastery achievement reward (once per KC lifetime)
       }
     }
 
@@ -133,6 +150,15 @@ export async function applyEvidence({
     };
     if (activity === "lab") {
       masteryUpdates.lastLabAt = Timestamp.now();
+    }
+    if (activity === "flashcard") {
+      const lastDate = masteryData?.lastFlashcardDate;
+      const countToday = lastDate === todayStr ? (masteryData?.flashcardCountToday ?? 0) : 0;
+      masteryUpdates.flashcardCountToday = countToday + 1;
+      masteryUpdates.lastFlashcardDate = todayStr;
+    }
+    if (crossedMasteryFirstTime) {
+      masteryUpdates.masteryBonusAwardedAt = Timestamp.now();
     }
 
     t.set(masteryRef, masteryUpdates, { merge: true });

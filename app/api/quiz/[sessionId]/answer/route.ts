@@ -3,6 +3,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { applyEvidence } from "@/lib/evidence/apply";
 import { trackMisconception } from "@/lib/teacher/misconceptions";
+import { ApiError, parseJson } from "@/lib/api/errors";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -19,67 +20,73 @@ export async function POST(
   try {
     const { sessionId } = await params;
     const caller = await requireUser(req);
-    const body = await req.json();
-    const parsed = answerSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: {
-            code: "VALIDATION",
-            message: parsed.error.issues[0]?.message || "Invalid answer payload",
-          },
-        },
-        { status: 400 }
-      );
-    }
-
-    const { questionIndex, selectedOptionIndex } = parsed.data;
+    const { questionIndex, selectedOptionIndex } = await parseJson(req, answerSchema);
 
     const sessionRef = adminDb().collection("quizSessions").doc(sessionId);
-    const sessionDoc = await sessionRef.get();
 
-    if (!sessionDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Quiz session not found" } },
-        { status: 404 }
-      );
-    }
+    // Atomically claim and lock the question answer in a transaction to prevent race conditions
+    const claim = await adminDb().runTransaction(async (t) => {
+      const sessionDoc = await t.get(sessionRef);
 
-    const sessionData = sessionDoc.data()!;
+      if (!sessionDoc.exists) {
+        throw new ApiError(404, "NOT_FOUND", "Quiz session not found");
+      }
 
-    if (sessionData.uid !== caller.uid) {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Unauthorized quiz session" } },
-        { status: 403 }
-      );
-    }
+      const sessionData = sessionDoc.data()!;
 
-    const questions = sessionData.questions;
-    if (!Array.isArray(questions) || !questions[questionIndex]) {
-      return NextResponse.json(
-        { ok: false, error: { code: "INVALID_QUESTION", message: "Invalid question index" } },
-        { status: 400 }
-      );
-    }
+      if (sessionData.uid !== caller.uid) {
+        throw new ApiError(403, "FORBIDDEN", "Unauthorized quiz session");
+      }
 
-    const targetQuestion = questions[questionIndex];
-    const isCorrect = selectedOptionIndex === targetQuestion.correctIndex;
+      const questions = sessionData.questions;
+      if (!Array.isArray(questions) || !questions[questionIndex]) {
+        throw new ApiError(400, "INVALID_QUESTION", "Invalid question index");
+      }
 
-    // Check if this question was already answered to avoid double-scoring
-    const existingAnswer = sessionData.answered?.[questionIndex];
-    if (existingAnswer) {
+      const targetQuestion = questions[questionIndex];
+      const existingAnswer = sessionData.answered?.[questionIndex];
+
+      if (existingAnswer) {
+        return {
+          alreadyAnswered: true as const,
+          correct: existingAnswer.isCorrect as boolean,
+          correctIndex: targetQuestion.correctIndex as number,
+          explanation: targetQuestion.explanation as string,
+        };
+      }
+
+      const isCorrect = selectedOptionIndex === targetQuestion.correctIndex;
+
+      // Lock answer in transaction
+      t.update(sessionRef, {
+        [`answered.${questionIndex}`]: {
+          selectedOptionIndex,
+          isCorrect,
+          answeredAt: Timestamp.now(),
+        },
+      });
+
+      return {
+        alreadyAnswered: false as const,
+        sessionData,
+        targetQuestion,
+        isCorrect,
+      };
+    });
+
+    if (claim.alreadyAnswered) {
       return NextResponse.json({
         ok: true,
         data: {
           alreadyAnswered: true,
-          correct: existingAnswer.isCorrect,
-          correctIndex: targetQuestion.correctIndex,
-          explanation: targetQuestion.explanation,
+          correct: claim.correct,
+          correctIndex: claim.correctIndex,
+          explanation: claim.explanation,
         },
       });
     }
+
+    const { sessionData, targetQuestion, isCorrect } = claim;
 
     // Atomically apply cognitive evidence and XP
     const evidenceResult = await applyEvidence({
@@ -116,15 +123,6 @@ export async function POST(
         isCorrect: true,
       }).catch(() => {});
     }
-
-    // Mark as answered in session doc
-    await sessionRef.update({
-      [`answered.${questionIndex}`]: {
-        selectedOptionIndex,
-        isCorrect,
-        answeredAt: Timestamp.now(),
-      },
-    });
 
     return NextResponse.json({
       ok: true,

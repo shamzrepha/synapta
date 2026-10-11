@@ -8,7 +8,12 @@ export const runtime = "nodejs";
 const evidenceInputSchema = z.object({
   classId: z.string().min(1),
   kcId: z.string().min(1),
-  activity: z.enum(["flashcard", "peer_explain"]),
+  activity: z.literal("flashcard", {
+    errorMap: () => ({
+      message:
+        "Invalid activity. Only 'flashcard' evidence can be submitted directly. Quiz and Lab require server grading, and 'peer_explain' must be credited by a peer in the Study Lounge.",
+    }),
+  }),
   correct: z.boolean(),
 });
 
@@ -26,7 +31,7 @@ export async function POST(req: NextRequest) {
             code: "VALIDATION",
             message:
               parsed.error.issues[0]?.message ||
-              "Invalid evidence payload. Note: Quiz and Lab evidence must be submitted via /api/quiz/[sessionId]/answer and /api/labs/verify for server grading.",
+              "Invalid evidence payload. Note: Only flashcard evidence is supported on this endpoint.",
           },
         },
         { status: 400 }

@@ -48,6 +48,24 @@ export function validateBktParameters(p: BktParameters): void {
 }
 
 /**
+ * Returns sanitized, valid BKT parameters with default fallbacks if missing or degenerate.
+ * Enforces 0 < p < 1 and the model identifiability invariant: pG + pS < 1.
+ */
+export function safeBktParams(raw?: Partial<BktParameters> | null): Required<BktParameters> {
+  const pL0 = typeof raw?.pL0 === "number" && raw.pL0 > 0 && raw.pL0 < 1 ? raw.pL0 : DEFAULT_BKT_PARAMS.pL0;
+  const pT = typeof raw?.pT === "number" && raw.pT > 0 && raw.pT < 1 ? raw.pT : DEFAULT_BKT_PARAMS.pT;
+  let pG = typeof raw?.pG === "number" && raw.pG > 0 && raw.pG < 1 ? raw.pG : DEFAULT_BKT_PARAMS.pG;
+  let pS = typeof raw?.pS === "number" && raw.pS > 0 && raw.pS < 1 ? raw.pS : DEFAULT_BKT_PARAMS.pS;
+
+  if (pG + pS >= 1) {
+    pG = DEFAULT_BKT_PARAMS.pG;
+    pS = DEFAULT_BKT_PARAMS.pS;
+  }
+
+  return { pL0, pT, pG, pS };
+}
+
+/**
  * Standard Bayesian Knowledge Tracing Bayesian update step with activity-specific learning rate scaling.
  *
  * @param pLPrev Prior probability of mastery P(L_{t-1}) in [0, 1]
