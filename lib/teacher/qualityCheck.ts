@@ -59,11 +59,11 @@ ${contentPayload.slice(0, 3000)}
 
     return res.data;
   } catch (err) {
-    console.warn("Automated quality check fallback:", err);
+    console.warn("Automated quality check fallback (failing closed):", err);
     return {
-      passed: true,
-      score: 80,
-      issues: ["Automated quality review skipped due to upstream timeout."],
+      passed: false,
+      score: 0,
+      issues: ["Automated quality review failed upstream. Manual teacher review required before approval."],
     };
   }
 }

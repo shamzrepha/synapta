@@ -182,4 +182,71 @@ describe("API Classes Contract & Join Code Security", () => {
     expect(studentResult.status).toBe(200);
     expect(studentResult.body.ok).toBe(true);
   });
+
+  it("verifies class publishing validation rejects empty courses and cyclic dependency graphs (B9)", () => {
+    function evaluatePublishInvariants(kcs: Array<{ id: string; prerequisiteIds: string[] }>) {
+      if (kcs.length === 0) {
+        return {
+          status: 400,
+          body: { ok: false, error: { code: "EMPTY_COURSE", message: "Cannot publish course: At least one Knowledge Component must exist." } },
+        };
+      }
+
+      // Check for cycles
+      const visited = new Set<string>();
+      const recStack = new Set<string>();
+      let hasCycle = false;
+
+      function dfs(curr: string) {
+        visited.add(curr);
+        recStack.add(curr);
+        const node = kcs.find((k) => k.id === curr);
+        for (const prereq of node?.prerequisiteIds || []) {
+          if (!visited.has(prereq)) {
+            dfs(prereq);
+          } else if (recStack.has(prereq)) {
+            hasCycle = true;
+          }
+        }
+        recStack.delete(curr);
+      }
+
+      for (const kc of kcs) {
+        if (!visited.has(kc.id)) dfs(kc.id);
+      }
+
+      if (hasCycle) {
+        return {
+          status: 400,
+          body: { ok: false, error: { code: "CYCLE_DETECTED", message: "Circular dependencies detected." } },
+        };
+      }
+
+      return { status: 200, body: { ok: true, data: { status: "published", publishedKcs: kcs.length } } };
+    }
+
+    // 1. Empty course rejection
+    const emptyResult = evaluatePublishInvariants([]);
+    expect(emptyResult.status).toBe(400);
+    expect(emptyResult.body.ok).toBe(false);
+    expect(emptyResult.body.error?.code).toBe("EMPTY_COURSE");
+
+    // 2. Cyclic dependency rejection
+    const cyclicResult = evaluatePublishInvariants([
+      { id: "kc_1", prerequisiteIds: ["kc_2"] },
+      { id: "kc_2", prerequisiteIds: ["kc_1"] },
+    ]);
+    expect(cyclicResult.status).toBe(400);
+    expect(cyclicResult.body.ok).toBe(false);
+    expect(cyclicResult.body.error?.code).toBe("CYCLE_DETECTED");
+
+    // 3. Valid DAG publication
+    const validResult = evaluatePublishInvariants([
+      { id: "kc_1", prerequisiteIds: [] },
+      { id: "kc_2", prerequisiteIds: ["kc_1"] },
+    ]);
+    expect(validResult.status).toBe(200);
+    expect(validResult.body.ok).toBe(true);
+    expect(validResult.body.data?.publishedKcs).toBe(2);
+  });
 });

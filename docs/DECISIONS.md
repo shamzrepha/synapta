@@ -73,3 +73,12 @@ This log records architectural and design decisions, trade-offs, and deviations 
   2. Created `lib/pdf/extract.ts` as canonical extraction module interface.
   3. Built map proposal analysis and batch mutations in `lib/teacher/materialRouter.ts`: operations (`attach_material`, `add_kc`, `merge_into`) are atomically batched, creating a pre-mutation snapshot in `classes/{classId}/mapVersions` to allow complete rollback, and archiving merged nodes rather than destructively deleting them.
 - **Rationale:** Delivers zero-config resilience for document ingestion across local and cloud environments, while ensuring non-destructive curriculum mutation with instant rollback capabilities.
+
+## Decision 12: Resumable Background Jobs, Fail-Closed Quality Gates, and Publishing Invariants (B5-B9)
+- **Context:** Large curriculum synthesis can encounter provider daily quota limits or network interruptions. Pedagogical quality checks previously failed open on upstream timeouts. Course publication allowed 0-KC shell publishing, which triggered student runtime errors.
+- **Decision:**
+  1. Implemented resumable background jobs in `buildClassWithAi` and added `POST /api/classes/[id]/build/[jobId]` enabling instant resumption of paused jobs using preserved input parameters.
+  2. Changed `runPedagogicalQualityCheck` in `lib/teacher/qualityCheck.ts` to strictly fail closed (`passed: false`, `score: 0`) on upstream errors, requiring teacher manual verification before content can be published.
+  3. Enforced course publishing invariants in `app/api/classes/[id]/publish/route.ts`: requires a minimum of 1 Knowledge Component (`EMPTY_COURSE` rejection) and validates DAG acyclicity (`CYCLE_DETECTED` rejection).
+- **Rationale:** Prevents unverified or hallucinated educational content from leaking into active classrooms, prevents empty course shells from degrading student UX, and ensures robust recovery when external quota caps are encountered.
+

@@ -22,17 +22,16 @@ export async function POST(
       .get();
 
     if (kcsSnap.empty) {
-      // Allow publishing empty course shell so students can discover and enroll
-      const classRef = adminDb().collection("classes").doc(id);
-      await classRef.update({
-        status: "published",
-        buildState: "ready",
-        updatedAt: Timestamp.now(),
-      });
-      return NextResponse.json({
-        ok: true,
-        data: { status: "published", publishedKcs: 0 },
-      });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "EMPTY_COURSE",
+            message: "Cannot publish course: At least one Knowledge Component must exist in the curriculum.",
+          },
+        },
+        { status: 400 }
+      );
     }
 
     const kcs = kcsSnap.docs.map((d) => ({
