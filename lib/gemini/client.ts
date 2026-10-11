@@ -52,13 +52,19 @@ export async function generateStructuredJson<T>({
     );
   }
 
-  let activeModel = getGeminiModel(task);
+  const primaryModel = getGeminiModel(task);
   const fallback = fallbackModel();
   const ai = getGeminiClient();
 
+  // Multi-tier candidate models cascade: primary -> fallback -> stable models with high quotas
+  const candidateModels = Array.from(
+    new Set([primaryModel, fallback, "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"])
+  );
+  let modelIndex = 0;
+  let activeModel = candidateModels[0];
+
   let attempt = 0;
   let lastError: unknown = null;
-  let fallbackAttempted = false;
 
   while (attempt <= maxRetries) {
     try {
@@ -102,7 +108,6 @@ export async function generateStructuredJson<T>({
       };
     } catch (err: unknown) {
       lastError = err;
-      attempt++;
 
       const errString = (err instanceof Error ? err.message : String(err)).toLowerCase();
       const isRecoverableOrRot =
@@ -110,17 +115,24 @@ export async function generateStructuredJson<T>({
         errString.includes("404") ||
         errString.includes("deprecated") ||
         errString.includes("not supported") ||
-        errString.includes("429");
+        errString.includes("resource_exhausted") ||
+        errString.includes("quota exceeded") ||
+        errString.includes("exceeded your current quota") ||
+        errString.includes("429") ||
+        errString.includes("unavailable") ||
+        errString.includes("503");
 
-      if (!fallbackAttempted && activeModel !== fallback && isRecoverableOrRot) {
+      if (isRecoverableOrRot && modelIndex < candidateModels.length - 1) {
+        modelIndex++;
+        const nextModel = candidateModels[modelIndex];
         console.warn(
-          `[model_fallback] Primary model "${activeModel}" failed. Falling back to "${fallback}".`
+          `[model_cascade] Model "${activeModel}" failed. Cascading to "${nextModel}".`
         );
-        activeModel = fallback;
-        fallbackAttempted = true;
+        activeModel = nextModel;
         continue;
       }
 
+      attempt++;
       if (attempt > maxRetries) break;
 
       const backoffMs = Math.pow(2, attempt) * 1000 + Math.random() * 500;

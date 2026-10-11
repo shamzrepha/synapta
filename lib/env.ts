@@ -9,19 +9,20 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_FIREBASE_APP_ID: z.string().min(1, "NEXT_PUBLIC_FIREBASE_APP_ID is required"),
 });
 
-export const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.7-flash";
 
 export function sanitizeModelId(model?: string | null): string {
   if (!model || typeof model !== "string") return DEFAULT_GEMINI_MODEL;
   const trimmed = model.trim();
-  // Intercept obsolete/deprecated model identifiers
+  // Intercept obsolete/deprecated model identifiers or free-tier quota-capped previews
   if (
     trimmed.startsWith("gemini-2.") ||
     trimmed.startsWith("gemini-1.") ||
     trimmed.includes("gemini-2.5") ||
     trimmed.includes("gemini-2.0") ||
     trimmed.includes("gemini-1.5") ||
-    trimmed.includes("gemini-3.1-pro")
+    trimmed.includes("gemini-3.1-pro") ||
+    trimmed.includes("gemini-3.8-flash") // free tier capped at 20 requests/day
   ) {
     return DEFAULT_GEMINI_MODEL;
   }
@@ -39,7 +40,7 @@ const serverEnvSchema = clientEnvSchema.extend({
   GEMINI_MODEL_GRADING: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
   GEMINI_MODEL_LONGDOC: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
   GEMINI_MODEL_VOICE: z.string().default("gemini-3.8-live").transform(sanitizeModelId),
-  GEMINI_MODEL_FALLBACK: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
+  GEMINI_MODEL_FALLBACK: z.string().default("gemini-3.6-flash").transform(sanitizeModelId),
   ADMIN_EMAILS: z.string().default(""),
   STUDENT_TOKEN_LIMIT: z.coerce.number().default(50000),
   TEACHER_TOKEN_LIMIT: z.coerce.number().default(200000),
@@ -97,7 +98,7 @@ export function getServerEnv(): ServerEnv {
     GEMINI_MODEL_GRADING: sanitizeModelId(process.env.GEMINI_MODEL_GRADING),
     GEMINI_MODEL_LONGDOC: sanitizeModelId(process.env.GEMINI_MODEL_LONGDOC),
     GEMINI_MODEL_VOICE: sanitizeModelId(process.env.GEMINI_MODEL_VOICE || "gemini-3.8-live"),
-    GEMINI_MODEL_FALLBACK: sanitizeModelId(process.env.GEMINI_MODEL_FALLBACK),
+    GEMINI_MODEL_FALLBACK: sanitizeModelId(process.env.GEMINI_MODEL_FALLBACK || "gemini-3.6-flash"),
     ADMIN_EMAILS: process.env.ADMIN_EMAILS || "",
     STUDENT_TOKEN_LIMIT: process.env.STUDENT_TOKEN_LIMIT || 50000,
     TEACHER_TOKEN_LIMIT: process.env.TEACHER_TOKEN_LIMIT || 200000,

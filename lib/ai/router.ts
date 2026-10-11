@@ -46,7 +46,7 @@ export function modelFor(task: AiTask): string {
       case "voice":
         return sanitizeModelId(process.env.GEMINI_MODEL_VOICE || "gemini-3.8-live");
       default:
-        return sanitizeModelId(process.env.GEMINI_MODEL_FALLBACK || DEFAULT_GEMINI_MODEL);
+        return sanitizeModelId(process.env.GEMINI_MODEL_FALLBACK || "gemini-3.6-flash");
     }
   }
 }
@@ -56,7 +56,7 @@ export function fallbackModel(): string {
     const env = getServerEnv();
     return sanitizeModelId(env.GEMINI_MODEL_FALLBACK);
   } catch {
-    return sanitizeModelId(process.env.GEMINI_MODEL_FALLBACK || DEFAULT_GEMINI_MODEL);
+    return sanitizeModelId(process.env.GEMINI_MODEL_FALLBACK || "gemini-3.6-flash");
   }
 }
 
@@ -88,14 +88,17 @@ function isModelRotOrRecoverableError(err: unknown): boolean {
     msg.includes("deprecated") ||
     msg.includes("not supported") ||
     msg.includes("resource_exhausted") ||
+    msg.includes("quota exceeded") ||
+    msg.includes("exceeded your current quota") ||
     msg.includes("429") ||
-    msg.includes("unavailable")
+    msg.includes("unavailable") ||
+    msg.includes("503")
   );
 }
 
 /**
  * Executes an AI structured JSON task with automated quota guarding,
- * fallback model routing, exponential backoff, and PII-safe logging.
+ * multi-tier fallback model cascade, exponential backoff, and PII-safe logging.
  */
 export async function executeStructuredAiTask<T>({
   task,
@@ -114,7 +117,12 @@ export async function executeStructuredAiTask<T>({
   const fallback = fallbackModel();
   const ai = getGeminiClient();
 
-  let activeModel = primaryModel;
+  // Multi-tier candidate models cascade: primary -> fallback -> stable models with high quotas
+  const candidateModels = Array.from(
+    new Set([primaryModel, fallback, "gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"])
+  );
+  let modelIndex = 0;
+  let activeModel = candidateModels[0];
   let fallbackTriggered = false;
   let attempt = 0;
   let lastError: unknown = null;
@@ -168,18 +176,20 @@ export async function executeStructuredAiTask<T>({
       };
     } catch (err: unknown) {
       lastError = err;
-      attempt++;
 
-      // Check if primary model failed with recoverable or model-rot error
-      if (!fallbackTriggered && activeModel !== fallback && isModelRotOrRecoverableError(err)) {
+      // Check if active model failed with recoverable, rate-limit, or model-rot error
+      if (isModelRotOrRecoverableError(err) && modelIndex < candidateModels.length - 1) {
+        modelIndex++;
+        const nextModel = candidateModels[modelIndex];
         console.warn(
-          `[model_fallback] Primary model "${activeModel}" failed for task "${task}". Retrying with fallback model "${fallback}".`
+          `[model_cascade] Model "${activeModel}" failed for task "${task}" (${err instanceof Error ? err.message : String(err)}). Cascading to candidate "${nextModel}".`
         );
-        activeModel = fallback;
+        activeModel = nextModel;
         fallbackTriggered = true;
         continue;
       }
 
+      attempt++;
       if (attempt > maxRetries) break;
       await new Promise((r) => setTimeout(r, 500 * attempt));
     }
