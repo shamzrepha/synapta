@@ -82,3 +82,10 @@ This log records architectural and design decisions, trade-offs, and deviations 
   3. Enforced course publishing invariants in `app/api/classes/[id]/publish/route.ts`: requires a minimum of 1 Knowledge Component (`EMPTY_COURSE` rejection) and validates DAG acyclicity (`CYCLE_DETECTED` rejection).
 - **Rationale:** Prevents unverified or hallucinated educational content from leaking into active classrooms, prevents empty course shells from degrading student UX, and ensures robust recovery when external quota caps are encountered.
 
+## Decision 13: Google Voice Lab Studio Audio & Elimination of Hardcoded Topic Fallbacks (B2, B10, Voice Lab)
+- **Context:** The Notebook Deep Dive podcast previously relied on the browser's robotic `speechSynthesis` API, providing an underwhelming audio experience. In addition, student topic and syllabus pages fell back to hardcoded Ohm's Law mock documents whenever network delays or 404s occurred.
+- **Decision:**
+  1. Built `lib/ai/voice.ts` using Google Gemini Voice with persona allocation (`Alex` -> `Puck`, `Sam` -> `Fenrir`). Handled raw PCM byte streams by synthesizing a standard 44-byte RIFF/WAV header on the server, producing native browser-playable audio (`audio/wav`).
+  2. Created `POST /api/notebook/voice` for audio synthesis with per-turn caching in the Notebook Deep Dive player, alongside seamless fallback to browser `speechSynthesis` if offline or on provider timeouts.
+  3. Added `GET /api/classes/[id]/kcs/[kcId]` for direct KC retrieval and removed all hardcoded Ohm's Law mock fallback injections from `app/(app)/classes/[classId]/topics/[kcId]/page.tsx` and `app/(app)/classes/[classId]/syllabus/page.tsx`, rendering clean empty states with navigation links instead.
+- **Rationale:** Delivers high-fidelity, studio-quality podcast learning dialogues powered by Gemini Voice while eliminating mock data leaks that masked real classroom data states.

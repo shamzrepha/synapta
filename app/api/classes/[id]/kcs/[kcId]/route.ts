@@ -24,6 +24,33 @@ const updateKcSchema = z.object({
   }).optional(),
 });
 
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string; kcId: string }> }
+) {
+  try {
+    const { id, kcId } = await params;
+    const caller = await requireUser(req);
+    await assertClassAccess(caller, id, "view");
+
+    const kcRef = adminDb().collection("classes").doc(id).collection("kcs").doc(kcId);
+    const kcDoc = await kcRef.get();
+    if (!kcDoc.exists) {
+      return NextResponse.json(
+        { ok: false, error: { code: "NOT_FOUND", message: "Knowledge Component not found" } },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      data: { id: kcDoc.id, ...kcDoc.data() },
+    });
+  } catch (error) {
+    return handleAuthError(error);
+  }
+}
+
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; kcId: string }> }

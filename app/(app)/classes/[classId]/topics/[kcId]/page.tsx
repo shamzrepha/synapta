@@ -108,23 +108,7 @@ export default function TopicPage({
           }
         }
       } catch {
-        // Fallback demo data
-        if (!ignore) {
-          setKc({
-            id: kcId,
-            title: "Ohm's Law: Voltage, Current, and Power Dissipation",
-            description: "Understand the linear V-I relationship and calculate electric power P = I^2 * R.",
-            lessonMarkdown: `## 1. Physical Principles of Ohm's Law\n\nIn electric circuits, **Ohm's Law** describes how electric charge moves through resistive matter under potential difference:\n\n$$I = \\frac{V}{R}$$\n\nWhere:\n- $V$ is the electrical potential difference across the component, measured in Volts ($\\text{V}$)\n- $I$ is the resulting rate of charge flow, measured in Amperes ($\\text{A}$)\n- $R$ is the material resistance to current flow, measured in Ohms ($\\Omega$)\n\n### 2. Joule Heating & Electrical Power\nWhen current traverses an ohmic resistor, electric potential energy is converted to thermal energy (heat). The rate of energy dissipation is power:\n\n$$P = V \\cdot I = I^2 R = \\frac{V^2}{R}$$\n\nIf the power dissipated exceeds the resistor's safe wattage rating (e.g. $0.5\\text{ W}$), the resistor suffers thermal destruction.\n\n### 3. Key Laboratory Takeaways\n- Doubling voltage doubles current through a fixed resistor.\n- Doubling resistance halves current for a fixed voltage.\n- Current decreases linearly as resistance increases.`,
-            objectives: [
-              "State Ohm's Law and identify standard SI units",
-              "Calculate current, voltage, and resistance in DC circuits",
-              "Determine power dissipation to prevent component burnout",
-            ],
-            prerequisiteIds: [],
-            lab: { type: "ohms_law", config: { targetCurrent: 0.12, maxPower: 1.5 } },
-          });
-          setCurrentPL(0.628);
-        }
+        // Fail gracefully without injecting fake mock data
       } finally {
         if (!ignore) setLoading(false);
       }

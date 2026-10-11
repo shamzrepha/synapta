@@ -62,23 +62,7 @@ export default function SyllabusEditorPage({
           setKcs(data.data.kcs || []);
         }
       } catch {
-        // Fallback
-        if (!ignore) {
-          setClassTitle("Foundations of Electrical Circuits");
-          setKcs([
-            {
-              id: "kc-1",
-              order: 1,
-              title: "Ohm's Law: Voltage, Current, and Power Dissipation",
-              description: "Relate potential difference V to current I and resistance R.",
-              lessonMarkdown: "# Ohm's Law\n\n$$I = \\frac{V}{R}$$",
-              prerequisiteIds: [],
-              objectives: ["Analyze linear V-I curve", "Calculate power ratings"],
-              bkt: { pL0: 0.2, pT: 0.15, pG: 0.2, pS: 0.1 },
-              lab: { type: "ohms_law", config: {} },
-            },
-          ]);
-        }
+        // Fail gracefully without injecting fake mock data
       } finally {
         if (!ignore) setLoading(false);
       }

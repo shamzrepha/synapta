@@ -31,6 +31,7 @@ import {
   CheckCircle2,
   Headphones,
   Info,
+  RefreshCw,
 } from "lucide-react";
 
 interface SourceItem {
@@ -114,11 +115,15 @@ export default function NotebookPage() {
   const [deepDiveEpisode, setDeepDiveEpisode] = useState<DeepDiveEpisode | null>(null);
   const [generatingPodcast, setGeneratingPodcast] = useState(false);
 
-  // Audio Playback State (speechSynthesis)
+  // Audio Playback State (Google Voice Lab & Fallback)
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentTurnIndex, setCurrentTurnIndex] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+  const [studioVoiceEnabled, setStudioVoiceEnabled] = useState(true);
+  const [loadingTurnAudio, setLoadingTurnAudio] = useState(false);
+  const [turnAudioCache, setTurnAudioCache] = useState<Record<number, string>>({});
   const isSpeakingRef = useRef(false);
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
   // Study Guide, Flashcards, Quiz Artifacts State
   const [studyGuideMarkdown, setStudyGuideMarkdown] = useState<string | null>(null);
@@ -302,33 +307,21 @@ export default function NotebookPage() {
     }
   };
 
-  // SpeechSynthesis Audio Engine for 2-Host Deep Dive
-  const playTurn = (index: number) => {
-    if (!deepDiveEpisode || index >= deepDiveEpisode.dialogue.length) {
+  // SpeechSynthesis Fallback Audio
+  const playWithBrowserTts = (turn: { speaker: string; text: string }, index: number) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      toast({ title: "Audio Unsupported", description: "Browser does not support audio synthesis.", variant: "destructive" });
       setIsPlayingAudio(false);
       isSpeakingRef.current = false;
       return;
     }
 
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      toast({ title: "Audio Unsupported", description: "Browser does not support SpeechSynthesis.", variant: "destructive" });
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    setCurrentTurnIndex(index);
-    isSpeakingRef.current = true;
-    setIsPlayingAudio(true);
-
-    const turn = deepDiveEpisode.dialogue[index];
     const utterance = new SpeechSynthesisUtterance(turn.text);
-
-    // Host character voice tuning
     utterance.rate = playbackSpeed;
     if (turn.speaker === "Alex") {
-      utterance.pitch = 1.08; // Inquisitive, slightly higher pitch
+      utterance.pitch = 1.08;
     } else {
-      utterance.pitch = 0.90; // Analytical, grounded deeper pitch
+      utterance.pitch = 0.90;
     }
 
     utterance.onend = () => {
@@ -345,15 +338,93 @@ export default function NotebookPage() {
     window.speechSynthesis.speak(utterance);
   };
 
-  const togglePlayAudio = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  // 2-Host Deep Dive Audio Engine (Google Voice Lab Primary)
+  const playTurn = async (index: number) => {
+    if (!deepDiveEpisode || index >= deepDiveEpisode.dialogue.length) {
+      setIsPlayingAudio(false);
+      isSpeakingRef.current = false;
+      return;
+    }
 
+    // Stop current audio elements
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+
+    setCurrentTurnIndex(index);
+    isSpeakingRef.current = true;
+    setIsPlayingAudio(true);
+
+    const turn = deepDiveEpisode.dialogue[index];
+
+    // Priority 1: High-fidelity Google Voice Lab
+    if (studioVoiceEnabled) {
+      let audioUrl = turnAudioCache[index];
+      if (!audioUrl) {
+        setLoadingTurnAudio(true);
+        try {
+          const res = await fetch("/api/notebook/voice", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text: turn.text,
+              speaker: turn.speaker,
+            }),
+          });
+          const json = await res.json();
+          if (json.ok && json.data?.audioBase64) {
+            audioUrl = `data:${json.data.mimeType || "audio/wav"};base64,${json.data.audioBase64}`;
+            setTurnAudioCache((prev) => ({ ...prev, [index]: audioUrl }));
+          }
+        } catch (err) {
+          console.warn("Studio voice synthesis failed, falling back to browser:", err);
+        } finally {
+          setLoadingTurnAudio(false);
+        }
+      }
+
+      if (audioUrl && isSpeakingRef.current) {
+        const audio = new Audio(audioUrl);
+        audio.playbackRate = playbackSpeed;
+        audioElementRef.current = audio;
+        audio.onended = () => {
+          if (isSpeakingRef.current) {
+            playTurn(index + 1);
+          }
+        };
+        audio.onerror = () => {
+          playWithBrowserTts(turn, index);
+        };
+        audio.play().catch(() => {
+          playWithBrowserTts(turn, index);
+        });
+        return;
+      }
+    }
+
+    // Priority 2: Browser SpeechSynthesis Fallback
+    playWithBrowserTts(turn, index);
+  };
+
+  const togglePlayAudio = () => {
     if (isPlayingAudio) {
-      window.speechSynthesis.pause();
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+      }
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.pause();
+      }
       setIsPlayingAudio(false);
       isSpeakingRef.current = false;
     } else {
-      if (window.speechSynthesis.paused) {
+      if (audioElementRef.current && audioElementRef.current.paused && audioElementRef.current.currentTime > 0) {
+        audioElementRef.current.play();
+        setIsPlayingAudio(true);
+        isSpeakingRef.current = true;
+      } else if (typeof window !== "undefined" && "speechSynthesis" in window && window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
         setIsPlayingAudio(true);
         isSpeakingRef.current = true;
@@ -364,6 +435,10 @@ export default function NotebookPage() {
   };
 
   const stopAudio = () => {
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.currentTime = 0;
+    }
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
@@ -374,6 +449,9 @@ export default function NotebookPage() {
 
   useEffect(() => {
     return () => {
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+      }
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
@@ -790,9 +868,23 @@ export default function NotebookPage() {
                               {deepDiveEpisode.title}
                             </h4>
                           </div>
-                          <Badge variant="emerald" className="text-[10px]">
-                            {deepDiveEpisode.dialogue.length} Turns
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setStudioVoiceEnabled((v) => !v)}
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors flex items-center gap-1 ${
+                                studioVoiceEnabled
+                                  ? "bg-teal-600 text-white shadow-sm"
+                                  : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                              }`}
+                            >
+                              <Sparkles className="h-2.5 w-2.5" />
+                              {studioVoiceEnabled ? "Google Voice Lab" : "Browser TTS"}
+                            </button>
+                            <Badge variant="emerald" className="text-[10px]">
+                              {deepDiveEpisode.dialogue.length} Turns
+                            </Badge>
+                          </div>
                         </div>
 
                         {/* Player Controls Bar */}
@@ -821,6 +913,11 @@ export default function NotebookPage() {
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
                             </Button>
+                            {loadingTurnAudio && (
+                              <span className="text-[10px] text-teal-600 dark:text-teal-400 flex items-center gap-1 font-mono">
+                                <RefreshCw className="h-2.5 w-2.5 animate-spin" /> Synthesizing...
+                              </span>
+                            )}
                           </div>
 
                           {/* Speed Toggle */}
