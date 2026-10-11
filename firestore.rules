@@ -26,10 +26,10 @@ service cloud.firestore {
     // 1. Users collection: users can read their own doc, and update ONLY non-sensitive fields
     match /users/{userId} {
       allow read: if isOwner(userId);
-      // Deny client modification of role, xp, monthlyTokensUsed, monthlyTokenLimit, disabled
+      // Strict allowlist: only displayName, photoURL, username, and updatedAt can be modified directly by client
       allow update: if isOwner(userId) &&
-        !request.resource.data.diff(resource.data).affectedKeys()
-          .hasAny(['role', 'xp', 'monthlyTokensUsed', 'monthlyTokenLimit', 'disabled']);
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName', 'photoURL', 'username', 'updatedAt']);
       allow create, delete: if false; // User docs are created via server bootstrap
     }
 

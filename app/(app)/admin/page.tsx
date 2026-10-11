@@ -22,6 +22,9 @@ import {
   UserX,
   BarChart3,
   Calendar,
+  GraduationCap,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
 interface AdminUserItem {
@@ -29,6 +32,7 @@ interface AdminUserItem {
   displayName: string;
   email: string;
   role: "student" | "teacher" | "admin";
+  roleRequest?: "none" | "pending" | "approved" | "rejected" | null;
   disabled: boolean;
   xp: number;
   streakDays: number;
@@ -67,7 +71,7 @@ export default function AdminConsolePage() {
   const { user } = useUserStore();
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<"users" | "usage">("users");
+  const [activeTab, setActiveTab] = useState<"users" | "requests" | "usage">("users");
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [usageData, setUsageData] = useState<PlatformUsageData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -192,6 +196,72 @@ export default function AdminConsolePage() {
       }
     } catch {
       toast({ title: "Error", description: "Failed to update account status.", variant: "destructive" });
+    } finally {
+      setUpdatingUid(null);
+    }
+  };
+
+  // Approve Teacher Request
+  const handleApproveTeacher = async (targetUid: string) => {
+    setUpdatingUid(targetUid);
+    try {
+      const res = await fetch(`/api/admin/users/${targetUid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "teacher" }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setUsers((prev) =>
+          prev.map((u) => (u.uid === targetUid ? { ...u, role: "teacher", roleRequest: "approved" } : u))
+        );
+        toast({
+          title: "Teacher Approved",
+          description: "User promoted to teacher successfully.",
+          variant: "success",
+        });
+      } else {
+        toast({
+          title: "Approval Failed",
+          description: json.error?.message || "Could not approve teacher request.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error approving request.", variant: "destructive" });
+    } finally {
+      setUpdatingUid(null);
+    }
+  };
+
+  // Reject Teacher Request
+  const handleRejectTeacher = async (targetUid: string) => {
+    setUpdatingUid(targetUid);
+    try {
+      const res = await fetch(`/api/admin/users/${targetUid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleRequest: "rejected" }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setUsers((prev) =>
+          prev.map((u) => (u.uid === targetUid ? { ...u, roleRequest: "rejected" } : u))
+        );
+        toast({
+          title: "Request Rejected",
+          description: "Teacher application rejected.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Action Failed",
+          description: json.error?.message || "Could not reject request.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error rejecting request.", variant: "destructive" });
     } finally {
       setUpdatingUid(null);
     }
@@ -364,6 +434,22 @@ export default function AdminConsolePage() {
         </button>
 
         <button
+          onClick={() => setActiveTab("requests")}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all ${
+            activeTab === "requests"
+              ? "bg-teal-600 text-white shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+          }`}
+        >
+          <GraduationCap className="h-4 w-4" /> Teacher Requests
+          {users.filter((u) => u.roleRequest === "pending").length > 0 && (
+            <Badge variant="amber" className="ml-1 text-[10px] px-1.5 py-0">
+              {users.filter((u) => u.roleRequest === "pending").length}
+            </Badge>
+          )}
+        </button>
+
+        <button
           onClick={() => setActiveTab("usage")}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all ${
             activeTab === "usage"
@@ -445,6 +531,11 @@ export default function AdminConsolePage() {
                                 {isSelf && (
                                   <Badge variant="outline" className="text-[9px]">
                                     You
+                                  </Badge>
+                                )}
+                                {u.roleRequest === "pending" && (
+                                  <Badge variant="amber" className="text-[9px]">
+                                    Teacher Req
                                   </Badge>
                                 )}
                               </p>
@@ -553,6 +644,108 @@ export default function AdminConsolePage() {
               </table>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* TAB: TEACHER PRIVILEGE REQUESTS */}
+      {activeTab === "requests" && (
+        <div className="space-y-4">
+          <Card className="p-4">
+            <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+              Pending Teacher Elevation Requests
+            </h3>
+            <p className="text-xs text-slate-500">
+              Users requesting educator privileges to create classrooms, publish syllabi, and invite students.
+            </p>
+          </Card>
+
+          {users.filter((u) => u.roleRequest === "pending").length === 0 ? (
+            <Card className="p-12 text-center border-dashed">
+              <GraduationCap className="h-10 w-10 text-slate-400 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                No Pending Teacher Requests
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                When students request teacher privileges from their settings or profile, they will appear here for review.
+              </p>
+            </Card>
+          ) : (
+            <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                      <th className="p-3.5 font-bold">Applicant Identity</th>
+                      <th className="p-3 font-semibold text-center">Current Role</th>
+                      <th className="p-3 font-semibold text-center">Account Status</th>
+                      <th className="p-3 font-semibold text-center">Joined Date</th>
+                      <th className="p-3 font-semibold text-right">Review Decision</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {users
+                      .filter((u) => u.roleRequest === "pending")
+                      .map((u) => {
+                        const isPendingAction = updatingUid === u.uid;
+                        return (
+                          <tr key={u.uid} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors">
+                            <td className="p-3.5">
+                              <div className="flex items-center gap-2.5">
+                                <div className="h-8 w-8 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold flex items-center justify-center text-xs shrink-0">
+                                  {u.displayName[0]?.toUpperCase() || "U"}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-slate-900 dark:text-slate-100 truncate">
+                                    {u.displayName}
+                                  </p>
+                                  <p className="text-[11px] text-slate-400 truncate">{u.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge variant="secondary" className="text-[10px] capitalize font-bold">
+                                {u.role}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-center">
+                              {u.disabled ? (
+                                <Badge variant="destructive" className="text-[10px]">Disabled</Badge>
+                              ) : (
+                                <Badge variant="emerald" className="text-[10px]">Active</Badge>
+                              )}
+                            </td>
+                            <td className="p-3 text-center text-slate-500 font-mono text-[11px]">
+                              {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className="inline-flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isPendingAction}
+                                  onClick={() => handleRejectTeacher(u.uid)}
+                                  className="h-7 px-2.5 text-[11px] text-rose-600 hover:bg-rose-50 border-rose-300"
+                                >
+                                  <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  disabled={isPendingAction}
+                                  onClick={() => handleApproveTeacher(u.uid)}
+                                  className="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white"
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve Teacher
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
         </div>
       )}
 

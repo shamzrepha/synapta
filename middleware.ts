@@ -37,18 +37,23 @@ export function middleware(req: NextRequest) {
   }
 
   // Special check for /admin: decode session token claims if possible
-  if (pathname.startsWith("/admin") && sessionCookie) {
+  if (pathname.startsWith("/admin")) {
+    if (!sessionCookie) {
+      return NextResponse.redirect(new URL("/login?redirect=/admin", req.url));
+    }
     try {
       const parts = sessionCookie.split(".");
-      if (parts.length === 3) {
-        const payloadJson = Buffer.from(parts[1], "base64").toString("utf-8");
-        const payload = JSON.parse(payloadJson);
-        if (payload.role !== "admin") {
-          return NextResponse.redirect(new URL("/dashboard?error=unauthorized", req.url));
-        }
+      if (parts.length !== 3) {
+        return NextResponse.redirect(new URL("/dashboard?error=unauthorized", req.url));
+      }
+      const payloadJson = Buffer.from(parts[1], "base64url").toString("utf-8");
+      const payload = JSON.parse(payloadJson);
+      if (payload.role !== "admin") {
+        return NextResponse.redirect(new URL("/dashboard?error=unauthorized", req.url));
       }
     } catch {
-      // If parsing fails, allow server handler to strictly verify
+      // Fail closed on decoding/parsing errors
+      return NextResponse.redirect(new URL("/dashboard?error=unauthorized", req.url));
     }
   }
 

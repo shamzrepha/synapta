@@ -38,46 +38,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { user: userProfile, setUser } = useUserStore();
   const router = useRouter();
 
-  const syncBackendSession = useCallback(
-    async (user: FirebaseUser, roleRequest: "none" | "pending" = "none") => {
-      const idToken = await user.getIdToken();
-
-      // 1. Set session cookie for middleware
+  const establishSessionCookie = async (idToken: string) => {
+    try {
       const sessionRes = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
       });
-
       if (!sessionRes.ok) {
         const errJson = await sessionRes.json().catch(() => ({}));
-        throw new Error(
-          errJson?.error?.message || "Failed to initialize server session cookie."
-        );
+        console.warn("Session cookie creation warning:", errJson?.error?.message);
       }
+    } catch (err) {
+      console.warn("Failed to set session cookie:", err);
+    }
+  };
 
-      // 2. Bootstrap user profile
-      const bootstrapRes = await fetch("/api/auth/bootstrap", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({
-          roleRequest,
-          displayName: user.displayName || user.email?.split("@")[0] || "Learner",
-          photoURL: user.photoURL || null,
-        }),
-      });
+  const bootstrapUser = useCallback(
+    async (user: FirebaseUser, roleRequest: "none" | "pending" = "none") => {
+      try {
+        const idToken = await user.getIdToken();
+        const bootstrapRes = await fetch("/api/auth/bootstrap", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            roleRequest,
+            displayName: user.displayName || user.email?.split("@")[0] || "Learner",
+            photoURL: user.photoURL || null,
+          }),
+        });
 
-      const data = await bootstrapRes.json().catch(() => ({}));
-      if (data.ok && data.data?.user) {
-        setUser(data.data.user);
-        if (data.data.user.role === "admin") {
-          await user.getIdToken(true).catch(() => {});
+        const data = await bootstrapRes.json().catch(() => ({}));
+        if (data.ok && data.data?.user) {
+          setUser(data.data.user);
+          if (data.data.user.role === "admin") {
+            await user.getIdToken(true).catch(() => {});
+          }
+        } else if (!bootstrapRes.ok && data.error?.message) {
+          console.warn("Bootstrap notice:", data.error.message);
         }
-      } else if (!bootstrapRes.ok && data.error?.message) {
-        console.warn("Bootstrap notice:", data.error.message);
+      } catch (err) {
+        console.error("Bootstrap error:", err);
       }
     },
     [setUser]
@@ -89,12 +93,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const auth = clientAuth();
       unsubscribe = onAuthStateChanged(auth, async (user) => {
         setFirebaseUser(user);
-        if (user) {
-          await syncBackendSession(user);
-        } else {
-          setUser(null);
+        try {
+          if (user) {
+            await bootstrapUser(user);
+          } else {
+            setUser(null);
+          }
+        } catch (err) {
+          console.warn("Auth state change error:", err);
+        } finally {
+          setIsLoading(false);
         }
-        setIsLoading(false);
       });
     } catch (err) {
       console.warn("Client Firebase Auth initialization skipped in environment:", err);
@@ -105,14 +114,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return () => unsubscribe();
-  }, [setUser, syncBackendSession]);
+  }, [setUser, bootstrapUser]);
 
   const signInWithEmail = async (email: string, pass: string) => {
     setIsLoading(true);
-    const auth = clientAuth();
-    const cred = await signInWithEmailAndPassword(auth, email, pass);
-    await syncBackendSession(cred.user);
-    setIsLoading(false);
+    try {
+      const auth = clientAuth();
+      const cred = await signInWithEmailAndPassword(auth, email, pass);
+      const idToken = await cred.user.getIdToken(true);
+      await establishSessionCookie(idToken);
+      await bootstrapUser(cred.user);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const signUpWithEmail = async (
@@ -122,21 +136,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     requestTeacher: boolean
   ) => {
     setIsLoading(true);
-    const auth = clientAuth();
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    if (name) {
-      await updateProfile(cred.user, { displayName: name });
+    try {
+      const auth = clientAuth();
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      if (name) {
+        await updateProfile(cred.user, { displayName: name });
+      }
+      const idToken = await cred.user.getIdToken(true);
+      await establishSessionCookie(idToken);
+      await bootstrapUser(cred.user, requestTeacher ? "pending" : "none");
+    } finally {
+      setIsLoading(false);
     }
-    await syncBackendSession(cred.user, requestTeacher ? "pending" : "none");
-    setIsLoading(false);
   };
 
   const signInWithGoogle = async (requestTeacher = false) => {
     setIsLoading(true);
-    const auth = clientAuth();
-    const cred = await signInWithPopup(auth, googleProvider);
-    await syncBackendSession(cred.user, requestTeacher ? "pending" : "none");
-    setIsLoading(false);
+    try {
+      const auth = clientAuth();
+      const cred = await signInWithPopup(auth, googleProvider);
+      const idToken = await cred.user.getIdToken(true);
+      await establishSessionCookie(idToken);
+      await bootstrapUser(cred.user, requestTeacher ? "pending" : "none");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const signOut = async () => {
@@ -156,8 +180,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshUser = async () => {
     if (!firebaseUser) return;
-    await firebaseUser.getIdToken(true); // force refresh claims
-    await syncBackendSession(firebaseUser);
+    try {
+      await firebaseUser.getIdToken(true); // force refresh claims
+      await bootstrapUser(firebaseUser);
+    } catch (err) {
+      console.warn("Refresh user error:", err);
+    }
   };
 
   return (

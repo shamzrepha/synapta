@@ -6,6 +6,7 @@ export interface AuthenticatedUser {
   uid: string;
   email: string | null;
   role: UserRole;
+  emailVerified?: boolean;
 }
 
 export class AuthError extends Error {
@@ -24,55 +25,51 @@ export async function requireUser(
   req: NextRequest,
   allowedRoles?: UserRole[]
 ): Promise<AuthenticatedUser> {
-  let idToken: string | null = null;
-
-  // 1. Check Authorization header
   const authHeader = req.headers.get("authorization");
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    idToken = authHeader.split("Bearer ")[1]?.trim() || null;
-  }
-
-  // 2. Check __session cookie if header was not present
-  if (!idToken) {
-    const sessionCookie = req.cookies.get("__session");
-    if (sessionCookie) {
-      idToken = sessionCookie.value;
-    }
-  }
-
-  if (!idToken) {
-    throw new AuthError("UNAUTHENTICATED", "Missing authorization token or session.", 401);
-  }
+  const sessionCookie = req.cookies.get("__session")?.value;
 
   let decodedToken;
-  try {
-    // Check if it is a session cookie or an ID token
-    try {
-      decodedToken = await adminAuth().verifyIdToken(idToken);
-    } catch {
-      decodedToken = await adminAuth().verifySessionCookie(idToken, true);
+
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const bearerToken = authHeader.split("Bearer ")[1]?.trim();
+    if (!bearerToken) {
+      throw new AuthError("UNAUTHENTICATED", "Malformed Bearer token.", 401);
     }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Token verification failed";
-    throw new AuthError("UNAUTHENTICATED", `Invalid or expired session: ${message}`, 401);
+    try {
+      decodedToken = await adminAuth().verifyIdToken(bearerToken, true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "ID token verification failed";
+      throw new AuthError("UNAUTHENTICATED", `Invalid or revoked token: ${msg}`, 401);
+    }
+  } else if (sessionCookie) {
+    try {
+      decodedToken = await adminAuth().verifySessionCookie(sessionCookie, true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Session cookie verification failed";
+      throw new AuthError("UNAUTHENTICATED", `Invalid or revoked session: ${msg}`, 401);
+    }
+  } else {
+    throw new AuthError("UNAUTHENTICATED", "Missing authorization header or session cookie.", 401);
   }
 
   const uid = decodedToken.uid;
   let role: UserRole = (decodedToken.role as UserRole) || "student";
 
-  // If claim is missing, look up from Firestore user document
-  if (!decodedToken.role) {
-    try {
-      const userDoc = await adminDb().collection("users").doc(uid).get();
-      if (userDoc.exists) {
-        const data = userDoc.data();
-        if (data?.role) {
-          role = data.role as UserRole;
-        }
+  // Check Firestore user record for disabled status and role consistency
+  try {
+    const userDoc = await adminDb().collection("users").doc(uid).get();
+    if (userDoc.exists) {
+      const data = userDoc.data();
+      if (data?.disabled === true) {
+        throw new AuthError("FORBIDDEN", "This account has been disabled by an administrator.", 403);
       }
-    } catch (e) {
-      console.warn("Could not retrieve user document for role check:", e);
+      if (data?.role) {
+        role = data.role as UserRole;
+      }
     }
+  } catch (err) {
+    if (err instanceof AuthError) throw err;
+    console.warn("Could not retrieve user document for disabled/role check:", err);
   }
 
   if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(role)) {
@@ -83,6 +80,7 @@ export async function requireUser(
     uid,
     email: decodedToken.email || null,
     role,
+    emailVerified: !!decodedToken.email_verified,
   };
 }
 

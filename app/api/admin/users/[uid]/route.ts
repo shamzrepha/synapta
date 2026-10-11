@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminAuth, adminDb, Timestamp } from "@/lib/firebase/admin";
+import { getServerEnv } from "@/lib/env";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -9,6 +10,7 @@ const patchUserSchema = z.object({
   role: z.enum(["student", "teacher", "admin"]).optional(),
   disabled: z.boolean().optional(),
   monthlyTokenLimit: z.number().min(1000).max(10000000).optional(),
+  roleRequest: z.enum(["none", "pending", "approved", "rejected"]).optional(),
 });
 
 export async function PATCH(
@@ -28,7 +30,7 @@ export async function PATCH(
       );
     }
 
-    const { role, disabled, monthlyTokenLimit } = parsed.data;
+    const { role, disabled, monthlyTokenLimit, roleRequest } = parsed.data;
 
     // Safety checks against self-lockout
     if (caller.uid === targetUid) {
@@ -56,29 +58,72 @@ export async function PATCH(
       );
     }
 
+    const currentData = userDoc.data()!;
+    const env = getServerEnv();
+
+    // Guard against demoting or disabling the LAST remaining admin
+    const isTargetAdmin = currentData.role === "admin" && currentData.disabled !== true;
+    const isDemotingOrDisablingAdmin = isTargetAdmin && (disabled === true || (role !== undefined && role !== "admin"));
+
+    if (isDemotingOrDisablingAdmin) {
+      const allAdminsSnap = await adminDb()
+        .collection("users")
+        .where("role", "==", "admin")
+        .where("disabled", "==", false)
+        .get();
+
+      if (allAdminsSnap.size <= 1) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: {
+              code: "FORBIDDEN",
+              message: "Cannot demote or disable the last remaining active administrator.",
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const updates: Record<string, unknown> = {
       updatedAt: Timestamp.now(),
     };
 
+    // Role change flow: Custom Claims -> Revoke Tokens -> Token Limit -> Updates
     if (role !== undefined) {
+      await adminAuth().setCustomUserClaims(targetUid, { role });
+      await adminAuth().revokeRefreshTokens(targetUid);
+
+      const effectiveTokenLimit =
+        monthlyTokenLimit !== undefined
+          ? monthlyTokenLimit
+          : role === "teacher"
+          ? env.TEACHER_TOKEN_LIMIT
+          : role === "student"
+          ? env.STUDENT_TOKEN_LIMIT
+          : 1_000_000;
+
       updates.role = role;
-      try {
-        await adminAuth().setCustomUserClaims(targetUid, { role });
-      } catch (authErr) {
-        console.warn("Failed to set custom claim in Firebase Auth:", authErr);
-      }
+      updates.monthlyTokenLimit = effectiveTokenLimit;
+      updates.roleRequest = role === "teacher" ? "approved" : "none";
     }
 
+    // Disable account flow
     if (disabled !== undefined) {
-      updates.disabled = disabled;
-      try {
-        await adminAuth().updateUser(targetUid, { disabled });
-      } catch (authErr) {
-        console.warn("Failed to update disabled state in Firebase Auth:", authErr);
+      await adminAuth().updateUser(targetUid, { disabled });
+      if (disabled === true) {
+        await adminAuth().revokeRefreshTokens(targetUid);
       }
+      updates.disabled = disabled;
     }
 
-    if (monthlyTokenLimit !== undefined) {
+    // Role request only flow (e.g. Rejecting a pending teacher request)
+    if (roleRequest !== undefined && role === undefined) {
+      updates.roleRequest = roleRequest;
+    }
+
+    if (monthlyTokenLimit !== undefined && role === undefined) {
       updates.monthlyTokenLimit = monthlyTokenLimit;
     }
 
@@ -88,9 +133,10 @@ export async function PATCH(
       ok: true,
       data: {
         uid: targetUid,
-        role: role ?? userDoc.data()?.role,
-        disabled: disabled ?? userDoc.data()?.disabled ?? false,
-        monthlyTokenLimit: monthlyTokenLimit ?? userDoc.data()?.monthlyTokenLimit,
+        role: role ?? currentData.role,
+        roleRequest: updates.roleRequest ?? currentData.roleRequest,
+        disabled: disabled ?? currentData.disabled ?? false,
+        monthlyTokenLimit: updates.monthlyTokenLimit ?? currentData.monthlyTokenLimit,
       },
     });
   } catch (error) {

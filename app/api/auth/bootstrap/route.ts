@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
 
     const decoded = await adminAuth().verifyIdToken(idToken);
     const { uid, email } = decoded;
+    const normalizedEmail = (email || "").toLowerCase().trim();
 
     const bodyJson = await req.json().catch(() => ({}));
     const parsed = bootstrapBodySchema.safeParse(bodyJson);
@@ -54,17 +55,20 @@ export async function POST(req: NextRequest) {
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
 
-    const normalizedEmail = email ? email.trim().toLowerCase() : "";
-    const isSuperAdminEmail =
+    const isEmailVerified = !!decoded.email_verified;
+    const isWhitelistedAdminEmail =
       !!normalizedEmail &&
       (adminEmails.includes(normalizedEmail) ||
         normalizedEmail === "shamzypre14@gmail.com");
+
+    const grantAdmin = isWhitelistedAdminEmail && isEmailVerified;
+    const adminPendingVerification = isWhitelistedAdminEmail && !isEmailVerified;
 
     const userRef = adminDb().collection("users").doc(uid);
     const userDoc = await userRef.get();
 
     const currentPeriod = new Date().toISOString().slice(0, 7); // YYYY-MM
-    let role: UserRole = isSuperAdminEmail ? "admin" : "student";
+    let role: UserRole = grantAdmin ? "admin" : "student";
     let userData;
 
     // Determine clean display name and username
@@ -82,8 +86,10 @@ export async function POST(req: NextRequest) {
 
     if (!userDoc.exists) {
       // Create fresh user profile
-      const defaultTokenLimit = isSuperAdminEmail
+      const defaultTokenLimit = grantAdmin
         ? 1_000_000
+        : roleRequest === "pending"
+        ? env.TEACHER_TOKEN_LIMIT
         : env.STUDENT_TOKEN_LIMIT;
 
       userData = {
@@ -93,7 +99,7 @@ export async function POST(req: NextRequest) {
         username: defaultUsernameSeed,
         photoURL: photoURL || decoded.picture || null,
         role,
-        roleRequest: isSuperAdminEmail ? "none" : roleRequest,
+        roleRequest: grantAdmin ? "none" : roleRequest,
         xp: 0,
         streakDays: 1,
         lastActiveDate: new Date().toISOString().split("T")[0],
@@ -109,12 +115,13 @@ export async function POST(req: NextRequest) {
     } else {
       // Existing user
       const existing = userDoc.data()!;
-      role = (existing.role as UserRole) || "student";
+      const existingRole = (existing.role as UserRole) || "student";
+      role = existingRole;
 
       const updates: Record<string, unknown> = {};
 
-      // If email is in ADMIN_EMAILS, elevate immediately to admin
-      if (isSuperAdminEmail && role !== "admin") {
+      // If whitelisted and email verified, elevate immediately to admin
+      if (grantAdmin && role !== "admin") {
         role = "admin";
         updates.role = "admin";
         updates.monthlyTokenLimit = 1_000_000;
@@ -139,6 +146,13 @@ export async function POST(req: NextRequest) {
         await userRef.update(updates);
       }
 
+      const effectiveTokenLimit =
+        role === "admin"
+          ? 1_000_000
+          : role === "teacher"
+          ? (existing.monthlyTokenLimit || env.TEACHER_TOKEN_LIMIT)
+          : (existing.monthlyTokenLimit || env.STUDENT_TOKEN_LIMIT);
+
       userData = {
         uid,
         email: existing.email || email || null,
@@ -150,7 +164,7 @@ export async function POST(req: NextRequest) {
         xp: existing.xp || 0,
         streakDays: existing.streakDays || 1,
         lastActiveDate: existing.lastActiveDate || null,
-        monthlyTokenLimit: isSuperAdminEmail ? 1_000_000 : (existing.monthlyTokenLimit || env.STUDENT_TOKEN_LIMIT),
+        monthlyTokenLimit: effectiveTokenLimit,
         monthlyTokensUsed: existing.monthlyTokensUsed || 0,
         disabled: !!existing.disabled,
       };
@@ -165,6 +179,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       data: {
         user: userData,
+        adminPendingVerification: !!adminPendingVerification,
       },
     });
   } catch (err: unknown) {
