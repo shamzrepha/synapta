@@ -40,10 +40,11 @@ interface KcDetails {
 }
 
 interface QuizItem {
+  id?: number;
   question: string;
   options: string[];
-  correctIndex: number;
-  explanation: string;
+  correctIndex?: number;
+  explanation?: string;
   difficulty?: string;
 }
 
@@ -74,6 +75,7 @@ export default function TopicPage({
 
   // Quiz state
   const [quizQuestions, setQuizQuestions] = useState<QuizItem[]>([]);
+  const [quizSessionId, setQuizSessionId] = useState<string | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [submittedAnswers, setSubmittedAnswers] = useState<Record<number, boolean>>({});
   const [loadingQuiz, setLoadingQuiz] = useState(false);
@@ -146,73 +148,65 @@ export default function TopicPage({
       const data = await res.json();
       if (data.ok && Array.isArray(data.data?.questions)) {
         setQuizQuestions(data.data.questions);
+        setQuizSessionId(data.data.sessionId || null);
         setSelectedAnswers({});
         setSubmittedAnswers({});
       } else {
-        loadFallbackQuiz();
+        toast({
+          title: "Quiz Generation Error",
+          description: data.error?.message || "Failed to generate AI quiz for this lesson.",
+          variant: "destructive",
+        });
       }
     } catch {
-      loadFallbackQuiz();
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to quiz generation service.",
+        variant: "destructive",
+      });
     } finally {
       setLoadingQuiz(false);
     }
   };
 
-  function loadFallbackQuiz() {
-    setQuizQuestions([
-      {
-        question: "If a 12V voltage source is connected across a 100-ohm resistor, what current flows through the circuit?",
-        options: ["0.12 A (120 mA)", "1.2 A", "0.012 A", "1200 A"],
-        correctIndex: 0,
-        explanation: "By Ohm's Law: I = V / R = 12 / 100 = 0.12 A (120 mA).",
-        difficulty: "easy",
-      },
-      {
-        question: "A resistor with R = 50 ohms carries a current of 0.2 A. What is the power dissipated?",
-        options: ["10 W", "2.0 W", "0.4 W", "5 W"],
-        correctIndex: 1,
-        explanation: "Power P = I^2 * R = (0.2)^2 * 50 = 0.04 * 50 = 2.0 W.",
-        difficulty: "medium",
-      },
-      {
-        question: "What happens to the power dissipation in a resistor if the applied voltage is doubled while resistance remains constant?",
-        options: ["Power remains unchanged", "Power doubles (2x)", "Power quadruples (4x)", "Power halves (0.5x)"],
-        correctIndex: 2,
-        explanation: "Since P = V^2 / R, doubling V results in (2V)^2 / R = 4 * (V^2 / R), quadrupling the power.",
-        difficulty: "hard",
-      },
-    ]);
-  }
-
-  // Submit Quiz Question Evidence
+  // Submit Quiz Question for Server-Side Grading
   const handleSubmitQuizAnswer = async (qIndex: number) => {
     const chosen = selectedAnswers[qIndex];
-    if (chosen === undefined) return;
+    if (chosen === undefined || !quizSessionId) return;
 
-    const question = quizQuestions[qIndex];
-    const isCorrect = chosen === question.correctIndex;
-
-    setSubmittedAnswers((prev) => ({ ...prev, [qIndex]: isCorrect }));
-
-    // Post to transactional BKT evidence route
     try {
-      const res = await fetch("/api/evidence", {
+      const res = await fetch(`/api/quiz/${quizSessionId}/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          classId,
-          kcId,
-          activity: "quiz",
-          correct: isCorrect,
+          questionIndex: qIndex,
+          selectedOptionIndex: chosen,
         }),
       });
       const data = await res.json();
       if (data.ok) {
-        const { pLAfter, xpGained, totalXp, masteredFirstTime } = data.data;
-        setCurrentPL(pLAfter);
-        if (user) updateUser({ xp: totalXp });
+        const {
+          correct,
+          correctIndex,
+          explanation,
+          pLAfter,
+          xpGained,
+          totalXp,
+          crossedMasteryFirstTime,
+        } = data.data;
 
-        if (masteredFirstTime) {
+        // Reveal the question's correct index and explanation
+        setQuizQuestions((prev) =>
+          prev.map((q, idx) =>
+            idx === qIndex ? { ...q, correctIndex, explanation } : q
+          )
+        );
+        setSubmittedAnswers((prev) => ({ ...prev, [qIndex]: correct }));
+
+        if (typeof pLAfter === "number") setCurrentPL(pLAfter);
+        if (user && typeof totalXp === "number") updateUser({ xp: totalXp });
+
+        if (crossedMasteryFirstTime) {
           confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
           toast({
             title: "🎉 MASTERY ACHIEVED!",
@@ -221,20 +215,24 @@ export default function TopicPage({
           });
         } else {
           toast({
-            title: isCorrect ? `Correct! (+${xpGained} XP)` : "Incorrect (+1 XP)",
+            title: correct ? `Correct! (+${xpGained} XP)` : "Incorrect (+1 XP)",
             description: `Cognitive Twin mastery updated to ${(pLAfter * 100).toFixed(1)}%.`,
-            variant: isCorrect ? "success" : "destructive",
+            variant: correct ? "success" : "destructive",
           });
         }
+      } else {
+        toast({
+          title: "Grading Notice",
+          description: data.error?.message || "Failed to grade quiz answer.",
+          variant: "destructive",
+        });
       }
     } catch {
-      // Local fallback
-      const prev = currentPL;
-      const next = updateMastery(prev, isCorrect, { pT: 0.15, pG: 0.2, pS: 0.1 }, "quiz");
-      setCurrentPL(next);
-      if (next >= 0.95 && prev < 0.95) {
-        confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
-      }
+      toast({
+        title: "Submission Error",
+        description: "Network error submitting answer to server.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -535,14 +533,14 @@ export default function TopicPage({
                     config={kc.lab?.config as Record<string, string | number> | undefined}
                     onComplete={async (result) => {
                       try {
-                        const res = await fetch("/api/evidence", {
+                        const res = await fetch("/api/labs/verify", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
                             classId,
                             kcId,
-                            activity: "lab",
-                            correct: result.success,
+                            labType,
+                            parameters: result.parameters || {},
                           }),
                         });
                         const data = await res.json();
@@ -565,16 +563,16 @@ export default function TopicPage({
                           });
                         } else {
                           toast({
-                            title: "Submission Notice",
-                            description: data.error?.message || "Failed to record lab completion",
+                            title: "Verification Failed",
+                            description: data.error?.message || "Lab parameters did not meet requirements.",
                             variant: "destructive",
                           });
                         }
                       } catch {
                         toast({
-                          title: "Offline Evidence Recorded",
-                          description: "Simulated offline lab completion.",
-                          variant: "default",
+                          title: "Connection Error",
+                          description: "Could not reach lab verification service.",
+                          variant: "destructive",
                         });
                       }
                     }}

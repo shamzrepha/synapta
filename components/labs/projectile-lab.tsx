@@ -35,6 +35,7 @@ export function ProjectileLab({ config = {}, onComplete }: LabProps) {
         onComplete({
           success: true,
           detail: `Hit target at ${range.toFixed(1)} m (target was ${targetDistance} m) at launch angle ${angle}°.`,
+          parameters: { angle, speed, targetDistance, tolerance },
         });
       }
     }, 1200);

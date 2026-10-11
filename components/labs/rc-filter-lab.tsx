@@ -33,6 +33,7 @@ export function RcFilterLab({ config = {}, onComplete }: LabProps) {
       onComplete({
         success: true,
         detail: `Tuned RC filter cutoff to ${cutoffFrequency.toFixed(1)} Hz (target: ${targetCutoff} Hz).`,
+        parameters: { resistance, capacitanceMicro, targetCutoff },
       });
     }
   };

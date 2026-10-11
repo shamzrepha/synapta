@@ -62,10 +62,31 @@ export async function POST(req: NextRequest) {
     // Record token usage
     await recordTokenUsage(caller.uid, tokensIn, tokensOut);
 
+    // Create secure server-side quiz session
+    const sessionRef = adminDb().collection("quizSessions").doc();
+    await sessionRef.set({
+      sessionId: sessionRef.id,
+      uid: caller.uid,
+      classId,
+      kcId,
+      questions: data.questions, // contains question, options, correctIndex, explanation, difficulty
+      answered: {},
+      createdAt: adminDb() ? new Date() : null,
+    });
+
+    // Strip answers from client payload for server-side evaluation
+    const clientQuestions = data.questions.map((q, idx) => ({
+      id: idx,
+      question: q.question,
+      options: q.options,
+      difficulty: q.difficulty,
+    }));
+
     return NextResponse.json({
       ok: true,
       data: {
-        questions: data.questions,
+        sessionId: sessionRef.id,
+        questions: clientQuestions,
         tokensUsed: tokensIn + tokensOut,
       },
     });

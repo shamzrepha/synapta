@@ -29,6 +29,7 @@ export function LogicGatesLab({ onComplete }: LabProps) {
       onComplete({
         success: true,
         detail: "Verified full 4-state binary Half Adder truth table (XOR sum + AND carry).",
+        parameters: { testedCombinations: Object.keys(nextTested) },
       });
     }
   };

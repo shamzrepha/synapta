@@ -7,7 +7,11 @@ import { RotateCcw, CheckCircle2, Sparkles } from "lucide-react";
 
 export interface LabProps {
   config?: Record<string, number | string>;
-  onComplete: (result: { success: boolean; detail: string }) => void;
+  onComplete: (result: {
+    success: boolean;
+    detail: string;
+    parameters?: Record<string, unknown>;
+  }) => void;
 }
 
 export function OhmsLawLab({ config = {}, onComplete }: LabProps) {
@@ -33,6 +37,7 @@ export function OhmsLawLab({ config = {}, onComplete }: LabProps) {
       onComplete({
         success: true,
         detail: `Achieved ${current.toFixed(3)} A safely at ${power.toFixed(2)} W dissipation.`,
+        parameters: { voltage, resistance, targetCurrent, maxPower },
       });
     }
   };
