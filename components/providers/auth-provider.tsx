@@ -105,25 +105,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setFirebaseUser(user);
         try {
           if (user) {
-            // Optimistically set real Google profile name while server bootstrap syncs
-            const current = useUserStore.getState().user;
-            if (!current) {
-              setUser({
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName || user.email?.split("@")[0] || "Learner",
-                username: user.email?.split("@")[0] || `user_${user.uid.slice(0, 6)}`,
-                photoURL: user.photoURL,
-                role: "student",
-                roleRequest: "none",
-                xp: 0,
-                streakDays: 1,
-                lastActiveDate: new Date().toISOString().split("T")[0],
-                monthlyTokenLimit: 50000,
-                monthlyTokensUsed: 0,
-                disabled: false,
-              });
-            }
             await bootstrapUser(user);
           } else {
             setUser(null);
@@ -211,7 +192,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     if (!firebaseUser) return;
     try {
-      await firebaseUser.getIdToken(true); // force refresh claims
+      const refreshedToken = await firebaseUser.getIdToken(true); // force refresh claims
+      await establishSessionCookie(refreshedToken);
       await bootstrapUser(firebaseUser);
     } catch (err) {
       console.warn("Refresh user error:", err);

@@ -33,22 +33,43 @@ export async function POST(req: NextRequest) {
     }
 
     const classRef = adminDb().collection("classes").doc();
+    const resolvedVisibility = visibility || "public";
+    const resolvedStatus = status || "published";
+
     const newClass = {
       id: classRef.id,
-      title,
-      subject,
-      description,
+      title: title.trim(),
+      subject: subject.trim(),
+      description: description.trim(),
       teacherId: caller.uid,
       teacherName,
-      visibility,
-      status,
+      visibility: resolvedVisibility,
+      status: resolvedStatus,
       joinCode: generateJoinCode(),
       studentCount: 0,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
 
-    await classRef.set(newClass);
+    // Atomic batch: write class document AND teacher active enrollment
+    const batch = adminDb().batch();
+    batch.set(classRef, newClass);
+
+    const teacherEnrollmentRef = adminDb()
+      .collection("enrollments")
+      .doc(`${classRef.id}_${caller.uid}`);
+
+    batch.set(teacherEnrollmentRef, {
+      classId: classRef.id,
+      uid: caller.uid,
+      userEmail: caller.email,
+      role: "teacher",
+      status: "active",
+      joinedAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+
+    await batch.commit();
 
     return NextResponse.json({
       ok: true,
@@ -85,10 +106,16 @@ export async function GET(req: NextRequest) {
         const snap = await adminDb()
           .collection("classes")
           .where("teacherId", "==", caller.uid)
-          .orderBy("createdAt", "desc")
           .get();
 
-        const classes = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const classes = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort((a: any, b: any) => {
+            const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+            const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+            return tB - tA;
+          });
+
         return NextResponse.json({ ok: true, data: { classes } });
       } else {
         // Student view: get classes where enrollment is active
@@ -114,13 +141,8 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Default: explore scope
-    const snap = await adminDb()
-      .collection("classes")
-      .where("visibility", "==", "public")
-      .where("status", "==", "published")
-      .orderBy("createdAt", "desc")
-      .get();
+    // Default: explore scope (retrieves published classes without failing on missing composite index)
+    const snap = await adminDb().collection("classes").get();
 
     // Map user enrollment status if signed in
     const userEnrollments: Record<string, string> = {};
@@ -135,15 +157,28 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const classes = snap.docs.map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        ...data,
-        userEnrollmentStatus: userEnrollments[d.id] || "none",
-        isOwner: caller ? data.teacherId === caller.uid : false,
-      };
-    });
+    const classes = snap.docs
+      .map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          ...data,
+          userEnrollmentStatus: userEnrollments[d.id] || "none",
+          isOwner: caller ? data.teacherId === caller.uid : false,
+        };
+      })
+      .filter((c: any) => {
+        // Show if published (both public & private so students can view & request to join),
+        // or if caller is the creator teacher / admin
+        if (c.status === "published") return true;
+        if (caller && (c.teacherId === caller.uid || caller.role === "admin")) return true;
+        return false;
+      })
+      .sort((a: any, b: any) => {
+        const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+        const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+        return tB - tA;
+      });
 
     return NextResponse.json({ ok: true, data: { classes } });
   } catch (error) {

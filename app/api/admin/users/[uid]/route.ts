@@ -86,57 +86,81 @@ export async function PATCH(
       }
     }
 
-    const updates: Record<string, unknown> = {
-      updatedAt: Timestamp.now(),
-    };
+    // Compute role-based limits
+    const effectiveTokenLimit =
+      monthlyTokenLimit !== undefined
+        ? monthlyTokenLimit
+        : role === "teacher"
+        ? env.TEACHER_TOKEN_LIMIT
+        : role === "student"
+        ? env.STUDENT_TOKEN_LIMIT
+        : 1_000_000;
 
-    // Role change flow: Custom Claims -> Revoke Tokens -> Token Limit -> Updates
+    // Transaction-wrapped atomic update strictly preserving the user document structure and UID
+    const updatedUser = await adminDb().runTransaction(async (t) => {
+      const uDoc = await t.get(userRef);
+      if (!uDoc.exists) {
+        const err = new Error("User not found");
+        (err as { code?: string; status?: number }).code = "NOT_FOUND";
+        (err as { code?: string; status?: number }).status = 404;
+        throw err;
+      }
+
+      const existingData = uDoc.data()!;
+      const updates: Record<string, unknown> = {
+        updatedAt: Timestamp.now(),
+      };
+
+      if (role !== undefined) {
+        updates.role = role;
+        updates.monthlyTokenLimit = effectiveTokenLimit;
+        updates.roleRequest = role === "teacher" ? "approved" : "none";
+      }
+
+      if (disabled !== undefined) {
+        updates.disabled = disabled;
+      }
+
+      if (roleRequest !== undefined && role === undefined) {
+        updates.roleRequest = roleRequest;
+      }
+
+      if (monthlyTokenLimit !== undefined && role === undefined) {
+        updates.monthlyTokenLimit = monthlyTokenLimit;
+      }
+
+      // Atomic update preserves UID, enrollments, classes, XP, streak, and creation dates
+      t.update(userRef, updates);
+
+      return {
+        ...existingData,
+        ...updates,
+        uid: targetUid,
+      } as Record<string, any>;
+    });
+
+    // Synchronize custom user claims in Firebase Auth without revoking refresh tokens
+    // (revoking tokens destroys the user's active session and causes re-authentication bugs)
     if (role !== undefined) {
       await adminAuth().setCustomUserClaims(targetUid, { role });
-      await adminAuth().revokeRefreshTokens(targetUid);
-
-      const effectiveTokenLimit =
-        monthlyTokenLimit !== undefined
-          ? monthlyTokenLimit
-          : role === "teacher"
-          ? env.TEACHER_TOKEN_LIMIT
-          : role === "student"
-          ? env.STUDENT_TOKEN_LIMIT
-          : 1_000_000;
-
-      updates.role = role;
-      updates.monthlyTokenLimit = effectiveTokenLimit;
-      updates.roleRequest = role === "teacher" ? "approved" : "none";
     }
 
-    // Disable account flow
+    // Only revoke tokens if an account is explicitly being disabled for security
     if (disabled !== undefined) {
       await adminAuth().updateUser(targetUid, { disabled });
       if (disabled === true) {
         await adminAuth().revokeRefreshTokens(targetUid);
       }
-      updates.disabled = disabled;
     }
-
-    // Role request only flow (e.g. Rejecting a pending teacher request)
-    if (roleRequest !== undefined && role === undefined) {
-      updates.roleRequest = roleRequest;
-    }
-
-    if (monthlyTokenLimit !== undefined && role === undefined) {
-      updates.monthlyTokenLimit = monthlyTokenLimit;
-    }
-
-    await userRef.update(updates);
 
     return NextResponse.json({
       ok: true,
       data: {
         uid: targetUid,
-        role: role ?? currentData.role,
-        roleRequest: updates.roleRequest ?? currentData.roleRequest,
-        disabled: disabled ?? currentData.disabled ?? false,
-        monthlyTokenLimit: updates.monthlyTokenLimit ?? currentData.monthlyTokenLimit,
+        role: updatedUser.role,
+        roleRequest: updatedUser.roleRequest,
+        disabled: updatedUser.disabled ?? false,
+        monthlyTokenLimit: updatedUser.monthlyTokenLimit,
       },
     });
   } catch (error) {

@@ -19,6 +19,7 @@ import {
   Layers,
   Zap,
   Compass,
+  FileText,
 } from "lucide-react";
 import { formatPL, getMasteryStatus } from "@/lib/utils";
 
@@ -166,6 +167,12 @@ export default function ClassOverviewPage({
               <Link href={`/classes/${classId}/map`}>
                 <Button variant="default" size="sm" className="text-xs">
                   <Compass className="h-3.5 w-3.5 mr-1" /> Quest Map
+                </Button>
+              </Link>
+
+              <Link href={`/classes/${classId}/assignments`}>
+                <Button variant="outline" size="sm" className="text-xs">
+                  <FileText className="h-3.5 w-3.5 mr-1 text-teal-600 dark:text-teal-400" /> Assignments
                 </Button>
               </Link>
 
