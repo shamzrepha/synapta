@@ -11,6 +11,7 @@ import { acquireModelSlot } from "./pacer";
 import {
   isModelAvailable,
   markModelExhausted,
+  clearModelExhausted,
   markModelInvalid,
   recordModelUsage,
   calculatePacificMidnightReset,
@@ -350,6 +351,7 @@ export async function generateWithFallback<T>({
 
   let fallbackTriggered = false;
   let lastError: unknown = null;
+  let attemptedAny = false;
 
   for (let i = 0; i < chain.length; i++) {
     const activeModel = chain[i];
@@ -372,6 +374,7 @@ export async function generateWithFallback<T>({
     let attempt = 0;
     while (attempt <= maxRetriesPerModel) {
       try {
+        attemptedAny = true;
         // Pacing slot
         await acquireModelSlot(activeModel);
 
@@ -414,6 +417,8 @@ export async function generateWithFallback<T>({
 
         // Record metrics
         await recordModelUsage(activeModel, tokensIn, tokensOut).catch(() => {});
+        // Unmark model if previously flagged exhausted
+        clearModelExhausted(activeModel).catch(() => {});
         if (userId) {
           await recordTokenUsage(userId, tokensIn, tokensOut).catch(() => {});
         }
@@ -480,6 +485,67 @@ export async function generateWithFallback<T>({
     }
   }
 
+  // If all models in the chain were skipped due to health/reserve flags,
+  // do NOT give up without attempting a direct call on the primary model.
+  // This prevents false lockouts from stale Firestore exhaustion state.
+  if (!attemptedAny) {
+    const probeModel = primaryModel;
+    try {
+      await acquireModelSlot(probeModel);
+      const config: Record<string, unknown> = { systemInstruction };
+      if (schema) config.responseMimeType = "application/json";
+
+      const response = await ai.models.generateContent({
+        model: probeModel,
+        contents: userPrompt,
+        config,
+      });
+
+      const responseText = response.text || "";
+      const tokensIn = response.usageMetadata?.promptTokenCount || 500;
+      const tokensOut = response.usageMetadata?.candidatesTokenCount || 600;
+
+      let parsedData: T | undefined = undefined;
+      if (schema) {
+        let rawJson: unknown;
+        try {
+          rawJson = JSON.parse(responseText);
+        } catch (jsonErr) {
+          throw new Error(`Failed to parse AI output as JSON: ${jsonErr instanceof Error ? jsonErr.message : String(jsonErr)}`);
+        }
+        parsedData = schema.parse(rawJson);
+      }
+
+      await clearModelExhausted(probeModel).catch(() => {});
+      await recordModelUsage(probeModel, tokensIn, tokensOut).catch(() => {});
+
+      if (cacheKey) {
+        adminDb().collection("aiCache").doc(cacheKey).set({
+          text: responseText,
+          data: parsedData || null,
+          modelUsed: probeModel,
+          createdAt: new Date().toISOString(),
+        }).catch(() => {});
+      }
+
+      return {
+        text: responseText,
+        data: parsedData,
+        modelUsed: probeModel,
+        tokensIn,
+        tokensOut,
+        latencyMs: Date.now() - startTime,
+        fallbackTriggered: true,
+      };
+    } catch (probeErr) {
+      lastError = probeErr;
+      const classified = classifyProviderError(probeErr);
+      if (classified.type === "daily_exhaustion") {
+        await markModelExhausted(probeModel, classified.retryDelaySeconds);
+      }
+    }
+  }
+
   // If we reach here, all candidate models in the chain were exhausted
   if (lastError) {
     console.warn(`[lib/ai/router] All models exhausted in chain. Last error:`, lastError instanceof Error ? lastError.message : String(lastError));
@@ -498,6 +564,7 @@ export async function executeStructuredAiTask<T>({
   schema,
   userId,
   estimatedTokens = 1000,
+  isPrivileged,
 }: {
   task: AiTask;
   systemInstruction?: string;
@@ -506,6 +573,7 @@ export async function executeStructuredAiTask<T>({
   userId?: string;
   estimatedTokens?: number;
   maxRetries?: number;
+  isPrivileged?: boolean;
 }): Promise<{
   data: T;
   modelUsed: string;
@@ -524,7 +592,7 @@ export async function executeStructuredAiTask<T>({
     systemInstruction,
     schema,
     userId,
-    isPrivileged: task === "class_build",
+    isPrivileged: isPrivileged !== undefined ? isPrivileged : (task === "class_build" || task === "structured_spec"),
   });
 
   if (!result.data) {

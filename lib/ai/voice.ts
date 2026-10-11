@@ -52,7 +52,45 @@ export async function generateGeminiVoice({
 
   const isAlex = speaker.toLowerCase().includes("alex");
   const voiceName = isAlex ? "Puck" : "Fenrir";
-  const model = modelFor("voice");
+
+  // Tier 1: ElevenLabs API (if ELEVENLABS_API_KEY configured)
+  const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
+  if (elevenLabsKey) {
+    try {
+      // Rachel (21m00Tcm4TlvDq8ikWAM) for Alex; Adam (pNInz6obpgDQGcFmaJgB) for Sam
+      const voiceId = isAlex ? "21m00Tcm4TlvDq8ikWAM" : "pNInz6obpgDQGcFmaJgB";
+      const elRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "xi-api-key": elevenLabsKey,
+        },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+        }),
+      });
+
+      if (elRes.ok) {
+        const audioBuffer = Buffer.from(await elRes.arrayBuffer());
+        return {
+          audioBase64: audioBuffer.toString("base64"),
+          mimeType: "audio/mpeg",
+          voiceName: isAlex ? "Rachel (ElevenLabs)" : "Adam (ElevenLabs)",
+        };
+      }
+    } catch (elErr) {
+      console.warn("[voice] ElevenLabs synthesis failed, falling back to Gemini Voice Lab:", elErr);
+    }
+  }
+
+  // Tier 2: Google Gemini Voice Lab (gemini-2.5-flash-preview-tts)
+  const configuredModel = modelFor("voice");
+  // Gemini 3.8-live only supports Bidi WebSockets; for unary TTS use gemini-2.5-flash-preview-tts
+  const model = (!configuredModel || configuredModel === "gemini-3.8-live")
+    ? "gemini-2.5-flash-preview-tts"
+    : configuredModel;
 
   try {
     const ai = getGeminiClient();

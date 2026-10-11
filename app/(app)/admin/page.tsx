@@ -1699,6 +1699,7 @@ export default function AdminConsolePage() {
                     <option value="gemini-3.7-flash">gemini-3.7-flash (20 RPD, Heavy)</option>
                     <option value="gemini-3.5-flash">gemini-3.5-flash (20 RPD, Heavy)</option>
                     <option value="gemini-3.8-flash">gemini-3.8-flash (20 RPD, Heavy)</option>
+                    <option value="gemini-2.5-flash-preview-tts">gemini-2.5-flash-preview-tts (Voice Lab Studio TTS)</option>
                     <option value="gemini-3.8-live">gemini-3.8-live (Audio / Voice)</option>
                   </select>
                 </div>

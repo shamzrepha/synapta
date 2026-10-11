@@ -109,6 +109,7 @@ ${cleanContent}
     schema: mapDecisionsSchema,
     userId,
     estimatedTokens: 3000,
+    isPrivileged: true,
   });
 
   const titleToIdMap = new Map<string, string>();

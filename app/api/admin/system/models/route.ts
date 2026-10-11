@@ -77,6 +77,11 @@ export async function PATCH(req: NextRequest) {
       { merge: true }
     );
 
+    // Clear exhaustion for updated models so the user isn't stuck with old locks
+    for (const modelId of Object.values(cleanAssignments)) {
+      await clearModelExhausted(modelId).catch(() => {});
+    }
+
     // Update in-memory cache immediately
     const fullConfig = await getDynamicModelConfig();
     const merged = { ...fullConfig, ...cleanAssignments };
