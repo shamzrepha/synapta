@@ -36,6 +36,7 @@ import {
   Globe,
   Lock,
   Save,
+  RotateCcw,
 } from "lucide-react";
 
 interface AdminUserItem {
@@ -150,6 +151,7 @@ export default function AdminConsolePage() {
   });
   const [savingAssignments, setSavingAssignments] = useState(false);
   const [testingModel, setTestingModel] = useState<string | null>(null);
+  const [resettingCooldowns, setResettingCooldowns] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Filter & Search
@@ -238,6 +240,42 @@ export default function AdminConsolePage() {
       ignore = true;
     };
   }, []);
+
+  // Clear AI Model Cooldowns
+  const handleClearCooldowns = async (modelName?: string) => {
+    setResettingCooldowns(true);
+    try {
+      const res = await fetch("/api/admin/system/models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear_cooldowns", model: modelName }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        toast({
+          title: "Cooldowns Cleared",
+          description: modelName ? `Cooldown removed for ${modelName}.` : "All model exhaustion cooldowns cleared.",
+          variant: "success",
+        });
+        // Refresh models table
+        const refRes = await fetch("/api/admin/system/models");
+        const refJson = await refRes.json();
+        if (refJson.ok && Array.isArray(refJson.data?.models)) {
+          setModelsHealth(refJson.data.models);
+        }
+      } else {
+        toast({
+          title: "Reset Failed",
+          description: json.error?.message || "Failed to clear cooldowns.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to connect to admin endpoint.", variant: "destructive" });
+    } finally {
+      setResettingCooldowns(false);
+    }
+  };
 
   // Test AI Model Health
   const handleTestModel = async (modelName: string) => {
@@ -789,15 +827,23 @@ export default function AdminConsolePage() {
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900/50 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-teal-700 dark:text-teal-300">
-                  Model Routing & Fallbacks
-                </span>
+              <div
+                onClick={() => setActiveTab("system")}
+                className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900/50 space-y-1 cursor-pointer hover:border-teal-400 dark:hover:border-teal-700 transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-teal-700 dark:text-teal-300">
+                    Model Routing & Fallbacks
+                  </span>
+                  <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 group-hover:underline">
+                    Configure →
+                  </span>
+                </div>
                 <p className="text-sm font-bold text-teal-950 dark:text-teal-100">
                   Dynamic Task Router Engaged
                 </p>
                 <p className="text-xs text-teal-700 dark:text-teal-300">
-                  Tutor, Structured, Grading, and Voice mapped to active Gemini versions.
+                  Assign models to workloads and manage quota cooldowns.
                 </p>
               </div>
 
@@ -1449,21 +1495,33 @@ export default function AdminConsolePage() {
 
           {/* Model Registry & Health Table */}
           <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="font-bold text-sm">Gemini Model Routing & Quota Health</h3>
                 <p className="text-xs text-slate-500">
                   Per-model rate pacing, daily limits (RPD), and automatic fallback chains. Daily caps reset at midnight Pacific Time.
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchAdminData}
-                className="text-xs"
-              >
-                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleClearCooldowns()}
+                  disabled={resettingCooldowns}
+                  className="text-xs text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                  {resettingCooldowns ? "Resetting..." : "Reset All Cooldowns"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchAdminData}
+                  className="text-xs"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> Refresh
+                </Button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -1548,18 +1606,31 @@ export default function AdminConsolePage() {
                             )}
                           </td>
                           <td className="p-3 text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-[11px] h-7 px-2.5"
-                              disabled={testingModel === m.model}
-                              onClick={() => handleTestModel(m.model)}
-                            >
-                              {testingModel === m.model ? (
-                                <RefreshCw className="h-3 w-3 animate-spin mr-1" />
-                              ) : null}
-                              Test Call
-                            </Button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              {isExhausted && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-[11px] h-7 px-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                  disabled={resettingCooldowns}
+                                  onClick={() => handleClearCooldowns(m.model)}
+                                >
+                                  Unstick
+                                </Button>
+                              )}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-[11px] h-7 px-2.5"
+                                disabled={testingModel === m.model}
+                                onClick={() => handleTestModel(m.model)}
+                              >
+                                {testingModel === m.model ? (
+                                  <RefreshCw className="h-3 w-3 animate-spin mr-1" />
+                                ) : null}
+                                Test Call
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       );

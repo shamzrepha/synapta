@@ -145,6 +145,41 @@ export async function markModelInvalid(model: string): Promise<void> {
 }
 
 /**
+ * Clears exhausted/invalid status for a specific model (e.g. after successful test call or manual unstick).
+ */
+export async function clearModelExhausted(model: string): Promise<void> {
+  memoryHealthCache.delete(model);
+  try {
+    const docRef = adminDb().collection("aiHealth").doc("models");
+    await docRef.set(
+      {
+        [model]: {
+          status: "ok",
+          lastChecked: new Date().toISOString(),
+        },
+      },
+      { merge: true }
+    );
+  } catch (err) {
+    console.warn(`[lib/ai/health] Failed to clear exhausted state for ${model}:`, err);
+  }
+}
+
+/**
+ * Clears all model exhaustion entries in Firestore and in-memory cache.
+ */
+export async function clearAllModelExhaustion(): Promise<void> {
+  memoryHealthCache.clear();
+  try {
+    const docRef = adminDb().collection("aiHealth").doc("models");
+    await docRef.delete();
+  } catch (err) {
+    console.warn(`[lib/ai/health] Failed to clear all exhausted models:`, err);
+  }
+}
+
+
+/**
  * Increments request count and token usage for the model's Pacific date budget.
  */
 export async function recordModelUsage(model: string, tokensIn: number, tokensOut: number): Promise<void> {

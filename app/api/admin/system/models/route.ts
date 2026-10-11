@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
-import { getModelsHealthReport, markModelExhausted, markModelInvalid, recordModelUsage } from "@/lib/ai/health";
+import {
+  getModelsHealthReport,
+  markModelExhausted,
+  markModelInvalid,
+  recordModelUsage,
+  clearModelExhausted,
+  clearAllModelExhaustion,
+} from "@/lib/ai/health";
 import { getGeminiClient } from "@/lib/gemini/client";
 import { classifyProviderError, getDynamicModelConfig, setCachedDynamicModels } from "@/lib/ai/router";
 import { DEFAULT_MODEL_CONFIG, sanitizeModelId } from "@/lib/ai/models";
@@ -90,6 +97,18 @@ export async function POST(req: NextRequest) {
   try {
     await requireUser(req, ["admin"]);
     const body = await req.json().catch(() => ({}));
+    if (body.action === "clear_cooldowns") {
+      if (typeof body.model === "string" && body.model.trim()) {
+        await clearModelExhausted(body.model.trim());
+      } else {
+        await clearAllModelExhaustion();
+      }
+      return NextResponse.json({
+        ok: true,
+        data: { message: "Model cooldowns reset successfully" },
+      });
+    }
+
     const model = typeof body.model === "string" ? body.model.trim() : "";
 
     if (!model) {
@@ -115,6 +134,8 @@ export async function POST(req: NextRequest) {
       const outTokens = usage?.candidatesTokenCount || 2;
 
       await recordModelUsage(model, inTokens, outTokens);
+      // Unmark model if previously marked exhausted
+      await clearModelExhausted(model);
 
       return NextResponse.json({
         ok: true,
