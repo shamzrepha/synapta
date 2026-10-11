@@ -170,8 +170,20 @@ export function getChainForTask(task: AiTask): string[] {
 
   const primary = modelFor(task);
 
+  // Admin-configured fallback chain (systemConfig/aiModels.fallbackChain, comma separated)
+  const adminChainRaw = cachedDynamicModels?.fallbackChain;
+  if (typeof adminChainRaw === "string" && adminChainRaw.trim()) {
+    customFallbackChain = parseModelChain(adminChainRaw, []);
+  }
+
   if (customFallbackChain.length > 0) {
     return Array.from(new Set([primary, ...customFallbackChain]));
+  }
+
+  // If the admin explicitly assigned this task a model, honor it exclusively:
+  // no hardcoded models are appended behind the admin's back.
+  if (cachedDynamicModels && cachedDynamicModels[task]) {
+    return [primary];
   }
 
   if (task === "tutor_chat" || task === "structured_spec" || task === "long_document") {
@@ -346,6 +358,9 @@ export async function generateWithFallback<T>({
   }
 
   const ai = getGeminiClient();
+  // Always load admin-assigned models BEFORE resolving the chain (serverless cold starts
+  // otherwise ignore admin configuration and fall back to env/default models).
+  await getDynamicModelConfig();
   const chain = getChainForTask(task);
   const primaryModel = chain[0];
 
@@ -356,19 +371,21 @@ export async function generateWithFallback<T>({
   for (let i = 0; i < chain.length; i++) {
     const activeModel = chain[i];
 
-    // Check if model is available in health table
-    const available = await isModelAvailable(activeModel);
-    if (!available) {
-      fallbackTriggered = true;
-      continue;
-    }
+    // Privileged (teacher class-building) calls never pre-emptively skip a model based on
+    // local counters or cached cooldowns; only a real provider error moves us along the chain.
+    if (!isPrivileged) {
+      const available = await isModelAvailable(activeModel);
+      if (!available) {
+        fallbackTriggered = true;
+        continue;
+      }
 
-    // Check 90% reserve (unless privileged teacher call)
-    const withinReserve = await isWithinModelReserve(activeModel, isPrivileged);
-    if (!withinReserve) {
-      console.warn(`[lib/ai/router] Model "${activeModel}" is at or above 90% reserve. Skipping to next candidate.`);
-      fallbackTriggered = true;
-      continue;
+      const withinReserve = await isWithinModelReserve(activeModel, false);
+      if (!withinReserve) {
+        console.warn(`[lib/ai/router] Model "${activeModel}" is at or above 90% reserve. Skipping to next candidate.`);
+        fallbackTriggered = true;
+        continue;
+      }
     }
 
     let attempt = 0;

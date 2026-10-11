@@ -153,6 +153,15 @@ export async function GET(
         });
       });
 
+      const parentId = (kc as { parentId?: string | null }).parentId || null;
+      if (parentId && !prereqs.includes(parentId)) {
+        edges.push({
+          id: `h-${parentId}-${kc.id}`,
+          source: parentId,
+          target: kc.id,
+        });
+      }
+
       return {
         id: kc.id,
         title: kc.title,
@@ -164,6 +173,7 @@ export async function GET(
         hasLab: !!kc.lab && kc.lab.type !== "none",
         misconceptionCount: misconceptionCountMap.get(kc.id) || 0,
         prerequisiteIds: prereqs,
+        parentId,
       };
     });
 

@@ -296,7 +296,32 @@ export default function NotebookPage() {
       if (json.ok) {
         setDeepDiveEpisode(json.data);
         setCurrentTurnIndex(0);
-        toast({ title: "Podcast Ready", description: "Generated 2-host audio discussion.", variant: "success" });
+        setTurnAudioCache({});
+        toast({ title: "Script Ready", description: "Converting the full two-host script to audio...", variant: "success" });
+
+        try {
+          const audioRes = await fetch("/api/notebook/voice", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              dialogue: (json.data.dialogue || []).map((t: { speaker: string; text: string }) => ({
+                speaker: t.speaker,
+                text: t.text,
+              })),
+            }),
+          });
+          const audioJson = await audioRes.json();
+          if (audioJson.ok && Array.isArray(audioJson.data?.turns)) {
+            const cache: Record<number, string> = {};
+            for (const t of audioJson.data.turns) {
+              cache[t.index] = `data:${t.mimeType || "audio/mpeg"};base64,${t.audioBase64}`;
+            }
+            setTurnAudioCache(cache);
+            toast({ title: "Podcast Ready", description: "Full 2-host audio generated. Press play.", variant: "success" });
+          }
+        } catch (audioErr) {
+          console.warn("Full-episode audio synthesis failed; will synthesize per turn:", audioErr);
+        }
       } else {
         toast({ title: "Error", description: json.error?.message || "Failed to generate podcast.", variant: "destructive" });
       }
@@ -879,7 +904,7 @@ export default function NotebookPage() {
                               }`}
                             >
                               <Sparkles className="h-2.5 w-2.5" />
-                              {studioVoiceEnabled ? "Google Voice Lab" : "Browser TTS"}
+                              {studioVoiceEnabled ? "Studio Neural Voice" : "Browser TTS"}
                             </button>
                             <Badge variant="emerald" className="text-[10px]">
                               {deepDiveEpisode.dialogue.length} Turns

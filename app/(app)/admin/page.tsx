@@ -1597,12 +1597,12 @@ export default function AdminConsolePage() {
                             )}
                           </td>
                           <td className="p-3 font-mono text-[11px] text-slate-500">
-                            {m.exhaustedUntil ? (
+                            {isExhausted && m.exhaustedUntil ? (
                               <span className="text-amber-600 dark:text-amber-400">
                                 {new Date(m.exhaustedUntil).toLocaleTimeString()}
                               </span>
                             ) : (
-                              <span className="text-slate-400">Midnight Pacific</span>
+                              <span className="text-slate-400">—</span>
                             )}
                           </td>
                           <td className="p-3 text-right">

@@ -1,6 +1,18 @@
 import { describe, it, expect, vi } from "vitest";
 import { pcmToWav, generateGeminiVoice } from "./voice";
 
+const edgeState = vi.hoisted(() => ({ fail: true }));
+
+vi.mock("edge-tts-universal", () => ({
+  Communicate: class {
+    constructor(public text: string) {}
+    async *stream() {
+      if (edgeState.fail) throw new Error("edge unavailable");
+      yield { type: "audio", data: Buffer.from("fakemp3") };
+    }
+  },
+}));
+
 vi.mock("@/lib/gemini/client", () => ({
   getGeminiClient: vi.fn(() => ({
     models: {
@@ -28,6 +40,18 @@ vi.mock("@/lib/gemini/client", () => ({
     },
   })),
 }));
+
+describe("lib/ai/voice default Edge neural voice", () => {
+  it("uses free Edge neural voices by default with distinct host voices", async () => {
+    edgeState.fail = false;
+    const alex = await generateGeminiVoice({ text: "Hello there", speaker: "Alex" });
+    const sam = await generateGeminiVoice({ text: "Hi Alex", speaker: "Sam" });
+    expect(alex?.mimeType).toBe("audio/mpeg");
+    expect(alex?.voiceName).toContain("Jenny");
+    expect(sam?.voiceName).toContain("Guy");
+    edgeState.fail = true;
+  });
+});
 
 describe("lib/ai/voice (Google Voice Lab Synthesis)", () => {
   it("pcmToWav constructs valid RIFF/WAV header with specified sample rate and channel", () => {

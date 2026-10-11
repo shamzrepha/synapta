@@ -52,11 +52,14 @@ const kcSpecSchema = z.object({
   objectives: z.array(z.string()).min(1),
   prerequisiteTitles: z.array(z.string()).default([]),
   difficulty: z.enum(["introductory", "intermediate", "advanced"]).default("intermediate"),
+  // Notebook-style hierarchy: empty/omitted = top-level topic, otherwise exact title of the parent topic
+  parentTopic: z.string().optional().nullable(),
+  sourceMaterialTitles: z.array(z.string()).optional().default([]),
 });
 
 const classPlanSchema = z.object({
   clarifications: z.array(z.string()).optional(),
-  kcs: z.array(kcSpecSchema).min(3).max(40),
+  kcs: z.array(kcSpecSchema).min(3).max(60),
 });
 
 export function slugify(text: string): string {
@@ -177,10 +180,38 @@ export async function buildClassWithAi(input: ClassBuildInput, jobId?: string): 
     { merge: true }
   );
 
-  const cleanDescription = sanitizeUntrustedPromptText(input.description, 2000);
-  const cleanSeed = input.seedMaterialText
-    ? sanitizeUntrustedPromptText(input.seedMaterialText, 8000)
-    : "";
+  const cleanDescription = sanitizeUntrustedPromptText(input.description, 4000);
+
+  // Document library: pull every uploaded material for this class (text extracted at upload time)
+  const libSnap = await adminDb()
+    .collection("classes")
+    .doc(input.classId)
+    .collection("materials")
+    .get()
+    .catch(() => null);
+  const libraryDocs: Array<{ id: string; title?: string; fileName?: string; extractedText?: string }> = (libSnap?.docs || [])
+    .map((d) => ({ id: d.id, ...(d.data() as { title?: string; fileName?: string; extractedText?: string }) }))
+    .filter((d) => typeof d.extractedText === "string" && d.extractedText.length > 0);
+  const PER_DOC_BUDGET = libraryDocs.length > 0 ? Math.floor(90000 / libraryDocs.length) : 0;
+  const libraryText = libraryDocs
+    .map((d) => {
+      const text = d.extractedText as string;
+      // Even sampling across the document when it exceeds the per-doc budget
+      let body = text;
+      if (text.length > PER_DOC_BUDGET) {
+        const chunks = 6;
+        const size = Math.floor(PER_DOC_BUDGET / chunks);
+        const step = Math.floor(text.length / chunks);
+        body = Array.from({ length: chunks }, (_, i) => text.slice(i * step, i * step + size)).join("\n...\n");
+      }
+      return `=== DOCUMENT: ${String(d.title || d.fileName || d.id)} ===\n${body}`;
+    })
+    .join("\n\n");
+
+  const cleanSeed = sanitizeUntrustedPromptText(
+    [input.seedMaterialText || "", libraryText].filter(Boolean).join("\n\n"),
+    100000
+  );
 
   const outlineHeadings = extractOutlineHeadings(input.seedMaterialText);
 
@@ -190,7 +221,9 @@ Your task is to structure a master Knowledge Component (KC) graph for a course.
 Rules:
 1. Target Level: ${input.level}. Duration: ${input.durationWeeks} weeks.
 2. Audience adaptation tags: ${(input.audienceTags || []).join(", ") || "General STEM"}.
-3. Generate between 8 and 25 granular Knowledge Components logically ordered by week.
+3. Generate between 8 and 50 Knowledge Components logically ordered by week. When source documents are provided, derive the topics and subtopics FROM THE DOCUMENTS (their chapters, headings and content), not from general knowledge.
+3b. Organise like a mind map: top-level topics have no parentTopic; each subtopic sets parentTopic to the EXACT title of its parent topic. Include sourceMaterialTitles naming the document(s) each KC comes from.
+3c. Choose each KC's difficulty (introductory/intermediate/advanced) from the document's depth; this seeds mastery priors, heatmap and quest map.
 4. Each KC must have Bloom-tagged learning objectives (e.g. "[Understand] ...", "[Apply] ...").
 5. Specify prerequisiteTitles using the exact titles of previously introduced KCs in this course.
 6. Absolutely NO circular dependencies.
@@ -272,10 +305,17 @@ Synthesize the concept map.`;
       prerequisiteTitles: kc.prerequisiteTitles,
       difficulty: kc.difficulty ?? "intermediate",
       bkt: deriveBktPriors(kc.difficulty ?? "intermediate", input.level || "undergrad"),
+      parentTitle: (kc.parentTopic || "").trim(),
+      sourceMaterialTitles: kc.sourceMaterialTitles || [],
     };
   });
 
-  // 2. Resolve prerequisite titles to IDs
+  const materialIdByTitle = new Map<string, string>();
+  for (const d of libraryDocs) {
+    materialIdByTitle.set(String(d.title || d.fileName || "").toLowerCase().trim(), d.id);
+  }
+
+  // 2. Resolve prerequisite titles + parent topic to IDs
   const nodesForDag = preparedKcs.map((kc) => {
     const prereqIds: string[] = [];
     for (const title of kc.prerequisiteTitles || []) {
@@ -284,9 +324,15 @@ Synthesize the concept map.`;
         prereqIds.push(matchId);
       }
     }
+    const parentMatch = kc.parentTitle ? titleToIdMap.get(kc.parentTitle.toLowerCase()) : undefined;
+    const sourceIds = kc.sourceMaterialTitles
+      .map((t) => materialIdByTitle.get(t.toLowerCase().trim()))
+      .filter((x): x is string => !!x);
     return {
       ...kc,
       prerequisiteIds: prereqIds,
+      parentId: parentMatch && parentMatch !== kc.id ? parentMatch : null,
+      sourceMaterialIds: sourceIds.length > 0 ? sourceIds : libraryDocs.map((d) => d.id),
     };
   });
 
@@ -316,7 +362,9 @@ Synthesize the concept map.`;
       bkt: kc.bkt,
       status: "draft" as const, // Starts as draft until approved or published
       source: "ai_topic" as const,
-      sourceMaterialIds: [] as string[],
+      sourceMaterialIds: kc.sourceMaterialIds,
+      parentId: kc.parentId,
+      difficulty: kc.difficulty,
       aliases: [kc.title.toLowerCase()],
       contentVersion: 1,
       createdAt: Timestamp.now(),

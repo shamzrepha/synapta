@@ -22,6 +22,7 @@
     "canvas-confetti": "1.9.4",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
+    "edge-tts-universal": "^1.4.0",
     "firebase": "13.0.0",
     "firebase-admin": "14.5.0",
     "framer-motion": "14.1.0",

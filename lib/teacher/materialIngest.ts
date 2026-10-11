@@ -226,12 +226,18 @@ export async function ingestMaterialBuffer({
 
   // 1. Parse text & outline
   let skeleton: DocumentSkeleton;
+  let libraryText = "";
   if ((mime === "application/pdf" || fileName.toLowerCase().endsWith(".pdf")) && mime !== "text/plain") {
     const parsedPdf = await parsePdfBuffer(buffer);
     skeleton = buildDocumentSkeleton(title, parsedPdf);
+    libraryText = parsedPdf.pages
+      .map((p, i) => `[Page ${i + 1}] ${p}`)
+      .join("\n")
+      .slice(0, 150000);
   } else {
     // Plain text or markdown
     const rawText = buffer.toString("utf8");
+    libraryText = rawText.slice(0, 150000);
     const clean = sanitizeUntrustedPromptText(rawText, 15000);
     skeleton = {
       title,
@@ -242,7 +248,7 @@ export async function ingestMaterialBuffer({
     };
   }
 
-  // Update material doc with extracted skeleton metrics
+  // Update material doc with extracted skeleton metrics + library text (document library DB)
   await materialRef.set(
     {
       contentHash,
@@ -250,6 +256,9 @@ export async function ingestMaterialBuffer({
       totalPages: skeleton.totalPages,
       isScanned: skeleton.isScanned,
       chapterCount: skeleton.chapters.length,
+      chapters: skeleton.chapters.map((c) => ({ title: c.title, pageNumber: c.pageNumber })),
+      extractedText: libraryText,
+      extractedChars: libraryText.length,
       updatedAt: Timestamp.now(),
     },
     { merge: true }

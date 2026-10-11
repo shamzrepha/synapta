@@ -24,30 +24,33 @@ export async function checkRateLimitAndQuota(
 ): Promise<{ monthlyTokensUsed: number; monthlyTokenLimit: number }> {
   const now = Date.now();
 
-  // 1. In-memory rate limiting check (10 calls/min)
-  const timestamps = userCallTimestamps.get(uid) || [];
-  const recentCalls = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  if (recentCalls.length >= MAX_CALLS_PER_WINDOW) {
-    throw new QuotaError(
-      "RATE_LIMITED",
-      "Rate limit exceeded (maximum 10 AI operations per minute). Please wait a moment.",
-      429
-    );
-  }
-  recentCalls.push(now);
-  userCallTimestamps.set(uid, recentCalls);
-
-  // 2. Monthly token quota check
   const userDoc = await adminDb().collection("users").doc(uid).get();
   if (!userDoc.exists) {
     throw new AuthError("UNAUTHENTICATED", "User record not found", 401);
   }
 
   const data = userDoc.data()!;
+  const isTeacherOrAdmin = data.role === "teacher" || data.role === "admin";
+
+  // 1. In-memory rate limiting check (teachers/admins have generous burst of 60 calls/min)
+  const maxCalls = isTeacherOrAdmin ? 60 : MAX_CALLS_PER_WINDOW;
+  const timestamps = userCallTimestamps.get(uid) || [];
+  const recentCalls = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (recentCalls.length >= maxCalls) {
+    throw new QuotaError(
+      "RATE_LIMITED",
+      "Rate limit exceeded. Please wait a moment before trying again.",
+      429
+    );
+  }
+  recentCalls.push(now);
+  userCallTimestamps.set(uid, recentCalls);
+
+  // 2. Monthly token quota check (teachers and admins are exempt from monthly caps)
   const currentMonthStr = new Date().toISOString().slice(0, 7); // YYYY-MM
   const storedPeriod = data.usagePeriod || "";
   let monthlyTokensUsed = data.monthlyTokensUsed || 0;
-  const monthlyTokenLimit = data.monthlyTokenLimit || 50000;
+  const monthlyTokenLimit = data.monthlyTokenLimit || (isTeacherOrAdmin ? 10000000 : 50000);
 
   // Monthly billing cycle rollover check
   if (storedPeriod !== currentMonthStr) {
@@ -64,7 +67,7 @@ export async function checkRateLimitAndQuota(
       .catch((err) => console.warn("Failed to reset monthly tokens on period rollover:", err));
   }
 
-  if (monthlyTokensUsed + estimatedTokens > monthlyTokenLimit && data.role !== "admin") {
+  if (!isTeacherOrAdmin && monthlyTokensUsed + estimatedTokens > monthlyTokenLimit) {
     throw new QuotaError(
       "QUOTA_EXCEEDED",
       `Monthly AI token quota exceeded (${monthlyTokensUsed.toLocaleString()} / ${monthlyTokenLimit.toLocaleString()} tokens used). Quota resets at the beginning of next month.`,
