@@ -25,16 +25,42 @@ interface MasteryRadarProps {
   data?: RadarDataPoint[];
 }
 
-const defaultRadarData: RadarDataPoint[] = [
-  { subject: "Ohm's Law", fullName: "Ohm's Law & DC Resistor Networks", pL: 96, threshold: 95 },
-  { subject: "RC Filters", fullName: "RC Low-Pass Filter Frequency Response", pL: 63, threshold: 95 },
-  { subject: "Logic Gates", fullName: "Combinational Logic & Half Adders", pL: 34, threshold: 95 },
-  { subject: "Kinematics", fullName: "Two-Dimensional Ballistic Trajectory", pL: 78, threshold: 95 },
-  { subject: "Kirchhoff", fullName: "Kirchhoff's Voltage & Current Laws", pL: 88, threshold: 95 },
-  { subject: "AC Impedance", fullName: "Capacitive & Inductive Reactance", pL: 52, threshold: 95 },
-];
+export function MasteryRadar({ data = [] }: MasteryRadarProps) {
+  if (!data || data.length === 0) {
+    return (
+      <Card className="border-slate-200 dark:border-slate-800">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+              <BrainCircuit className="h-4 w-4" />
+            </div>
+            <div>
+              <CardTitle className="text-base font-bold">Cognitive Twin Mastery Radar</CardTitle>
+              <CardDescription className="text-xs">
+                Real-time latent mastery probability P(L) mapped across Knowledge Components
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6 pb-8">
+          <div className="flex flex-col items-center justify-center text-center space-y-3 p-6 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-800">
+            <div className="h-12 w-12 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400">
+              <BrainCircuit className="h-6 w-6" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                No Knowledge Components Tracked Yet
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mt-1">
+                Enroll in a course and complete interactive quizzes, labs, or peer explanations to begin calibrating your Bayesian Cognitive Twin radar.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-export function MasteryRadar({ data = defaultRadarData }: MasteryRadarProps) {
   const masteredCount = data.filter((d) => d.pL >= 95).length;
   const learningCount = data.filter((d) => d.pL >= 40 && d.pL < 95).length;
   const strugglingCount = data.filter((d) => d.pL < 40).length;

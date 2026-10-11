@@ -29,38 +29,40 @@ interface EnrolledClass {
 }
 
 export default function DashboardPage() {
-  const { user } = useUserStore();
+  const { user, updateUser } = useUserStore();
   const [classes, setClasses] = useState<EnrolledClass[]>([]);
+  const [radarData, setRadarData] = useState<RadarDataPoint[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let ignore = false;
-    async function loadMine() {
+    async function loadDashboard() {
       try {
-        const res = await fetch("/api/classes?scope=mine");
+        const res = await fetch("/api/me/dashboard");
         const json = await res.json();
-        if (!ignore && json.ok && Array.isArray(json.data?.classes)) {
-          setClasses(json.data.classes);
+        if (!ignore && json.ok && json.data) {
+          if (Array.isArray(json.data.classes)) {
+            setClasses(json.data.classes);
+          }
+          if (Array.isArray(json.data.radarData)) {
+            setRadarData(json.data.radarData);
+          }
+          if (json.data.profile) {
+            updateUser(json.data.profile);
+          }
         }
       } catch {
         // network or offline
+      } finally {
+        if (!ignore) setLoading(false);
       }
     }
 
-    loadMine();
+    loadDashboard();
     return () => {
       ignore = true;
     };
-  }, []);
-
-  // Build radar data from real classes if knowledge components exist
-  const radarData: RadarDataPoint[] = classes.flatMap((c) =>
-    (c.kcs || []).map((kc) => ({
-      subject: kc.title.length > 18 ? `${kc.title.slice(0, 15)}...` : kc.title,
-      fullName: kc.title,
-      pL: 20, // default baseline prior
-      threshold: 95,
-    }))
-  ).slice(0, 6);
+  }, [updateUser]);
 
   return (
     <div className="space-y-6">
@@ -251,11 +253,9 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          {radarData.length > 0 && (
-            <div className="pt-4">
-              <MasteryRadar data={radarData} />
-            </div>
-          )}
+          <div className="pt-4">
+            <MasteryRadar data={radarData} />
+          </div>
         </div>
       )}
     </div>
