@@ -20,15 +20,11 @@ import {
 import { adminDb } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 
+import { AiTaskKey } from "./tasks";
+
 export { sanitizeModelId, DEFAULT_GEMINI_MODEL };
 
-export type AiTask =
-  | "tutor_chat"          // realtime Socratic chat, hints -> light
-  | "structured_spec"     // JSON: syllabus/KC map, quiz, SimSpec -> light
-  | "grading_high_stakes" // boss quests, transfer tests, teach-the-bot grading -> heavy
-  | "long_document"       // textbook/PDF analysis & topic extraction -> light
-  | "class_build"         // Initial map draft & map reconciliation -> heavy
-  | "voice";              // live audio -> heavy
+export type AiTask = AiTaskKey | (string & {});
 
 export class AiQuotaExhaustedError extends ApiError {
   public resumeAt: string;

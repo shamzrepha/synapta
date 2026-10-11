@@ -5,12 +5,15 @@ export interface TextChunk {
   chunkIndex: number;
   text: string;
   tokens: string[];
+  page?: number;
+  section?: string;
 }
 
 export interface ScoredChunk {
   chunk: TextChunk;
   score: number;
   citationTag: string;
+  page?: number;
 }
 
 const STOP_WORDS = new Set([
@@ -39,7 +42,9 @@ export function chunkText(
   sourceTitle: string,
   text: string,
   chunkSize = 500,
-  overlap = 80
+  overlap = 80,
+  page?: number,
+  section?: string
 ): TextChunk[] {
   const clean = text.trim();
   if (!clean) return [];
@@ -69,12 +74,14 @@ export function chunkText(
     const chunkContent = clean.slice(start, end).trim();
     if (chunkContent.length > 20) {
       chunks.push({
-        id: `${sourceId}_chunk_${chunkIndex}`,
+        id: `${sourceId}_chunk_${page ? `p${page}_` : ""}${chunkIndex}`,
         sourceId,
         sourceTitle,
         chunkIndex,
         text: chunkContent,
         tokens: tokenize(chunkContent),
+        page,
+        section,
       });
       chunkIndex++;
     }
@@ -84,6 +91,27 @@ export function chunkText(
   }
 
   return chunks;
+}
+
+export function chunkPages(
+  sourceId: string,
+  sourceTitle: string,
+  pages: Array<{ pageNumber: number; text: string; section?: string }>
+): TextChunk[] {
+  const allChunks: TextChunk[] = [];
+  for (const p of pages) {
+    const pageChunks = chunkText(
+      sourceId,
+      sourceTitle,
+      p.text,
+      500,
+      80,
+      p.pageNumber,
+      p.section
+    );
+    allChunks.push(...pageChunks);
+  }
+  return allChunks;
 }
 
 export function retrieveRelevantChunks(
@@ -150,6 +178,7 @@ export function retrieveRelevantChunks(
   return scored.slice(0, topK).map((item, index) => ({
     chunk: item.chunk,
     score: item.score,
-    citationTag: `[S${index + 1}]`,
+    citationTag: item.chunk.page ? `[S${index + 1} p.${item.chunk.page}]` : `[S${index + 1}]`,
+    page: item.chunk.page,
   }));
 }

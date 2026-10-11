@@ -22,14 +22,11 @@ export function MobileNav() {
   const activeRef = useRef<HTMLAnchorElement>(null);
 
   const items = [
-    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Explore", href: "/explore", icon: Compass },
-    { label: "Notebook", href: "/notebook", icon: BookOpen },
-    { label: "Friends", href: "/friends", icon: MessageSquare },
-    { label: "Lounge", href: "/lounge", icon: Users },
-    ...(userRole === "teacher" || userRole === "admin"
-      ? [{ label: "Heatmap", href: "/classes/heatmap", icon: Activity }]
-      : [{ label: "Profile", href: "/profile", icon: User }]),
+    { label: "Home", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Classes", href: "/classes/manage", icon: Users },
+    { label: "Study Hub", href: "/notebook", icon: BookOpen },
+    { label: "Review", href: "/classes/heatmap", icon: Activity },
+    { label: "More", href: "/profile", icon: User },
   ];
 
   useEffect(() => {

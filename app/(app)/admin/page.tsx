@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { asArray } from "@/lib/api/client";
+import { AI_TASK_DEFINITIONS } from "@/lib/ai/tasks";
 import {
   ShieldAlert,
   Users,
@@ -1671,20 +1672,18 @@ export default function AdminConsolePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
-              {[
-                { task: "tutor_chat", label: "Tutor & Dialogue (Text)", desc: "Student AI tutor chat & quick interactive explanations", defaultTier: "Light" },
-                { task: "structured_spec", label: "Structure & Schema (JSON)", desc: "JSON schema extraction, flashcards, and concept maps", defaultTier: "Light" },
-                { task: "class_build", label: "Classroom Builder (Heavy)", desc: "Course syllabus synthesis, map reconciliation, and lesson generation", defaultTier: "Heavy" },
-                { task: "grading_high_stakes", label: "Grading & Quiz Evaluation", desc: "Boss quests, rubric scoring, and teach-the-bot evaluation", defaultTier: "Heavy" },
-                { task: "long_document", label: "Long Document Processing", desc: "Textbook extraction, syllabus parsing, and lecture notes", defaultTier: "Light" },
-                { task: "voice", label: "Voice Lab & Podcast", desc: "High-fidelity audio podcast generation and real-time dialogue", defaultTier: "Voice" },
-              ].map(({ task, label, desc, defaultTier }) => (
-                <div key={task} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-xs text-slate-800 dark:text-slate-200">{label}</span>
-                    <Badge variant="outline" className="text-[10px] uppercase font-mono">{defaultTier}</Badge>
-                  </div>
-                  <p className="text-[11px] text-slate-500 leading-snug">{desc}</p>
+              {Object.values(AI_TASK_DEFINITIONS).map((def) => {
+                const task = def.key;
+                const label = def.label;
+                const desc = def.description;
+                const defaultTier = task.includes("build") || task.includes("grading") || task.includes("voice") ? "Heavy" : "Light";
+                return (
+                  <div key={task} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-xs text-slate-800 dark:text-slate-200">{label}</span>
+                      <Badge variant="outline" className="text-[10px] uppercase font-mono">{defaultTier}</Badge>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-snug">{desc}</p>
                   <select
                     className="w-full text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-500"
                     value={modelAssignments[task] || ""}
@@ -1712,7 +1711,8 @@ export default function AdminConsolePage() {
                     ))}
                   </select>
                 </div>
-              ))}
+              );
+            })}
             </div>
           </Card>
         </div>

@@ -15,6 +15,7 @@ import {
   testSingleModel,
 } from "@/lib/ai/router";
 import { DEFAULT_MODEL_CONFIG, KNOWN_MODELS, sanitizeModelId } from "@/lib/ai/models";
+import { ALL_AI_TASK_KEYS } from "@/lib/ai/tasks";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { z } from "zod";
@@ -33,14 +34,16 @@ export async function GET(req: NextRequest) {
       getDynamicModelConfig(),
     ]);
 
-    const activeAssignments = {
-      tutor_chat: dynamicAssignments.tutor_chat || process.env.GEMINI_MODEL_TUTOR || DEFAULT_MODEL_CONFIG.tutor,
-      structured_spec: dynamicAssignments.structured_spec || process.env.GEMINI_MODEL_STRUCTURED || DEFAULT_MODEL_CONFIG.structured,
-      class_build: dynamicAssignments.class_build || process.env.GEMINI_MODEL_BUILD || DEFAULT_MODEL_CONFIG.build,
-      grading_high_stakes: dynamicAssignments.grading_high_stakes || process.env.GEMINI_MODEL_GRADING || DEFAULT_MODEL_CONFIG.grading,
-      long_document: dynamicAssignments.long_document || process.env.GEMINI_MODEL_LONGDOC || DEFAULT_MODEL_CONFIG.longdoc,
-      voice: dynamicAssignments.voice || process.env.GEMINI_MODEL_VOICE || DEFAULT_MODEL_CONFIG.voice,
-    };
+    const activeAssignments: Record<string, string> = {};
+    for (const taskKey of ALL_AI_TASK_KEYS) {
+      activeAssignments[taskKey] =
+        dynamicAssignments[taskKey] ||
+        ((taskKey as string) === "class_build" || (taskKey as string) === "grading_high_stakes"
+          ? process.env.GEMINI_MODEL_BUILD || DEFAULT_MODEL_CONFIG.build
+          : (taskKey as string) === "voice" || (taskKey as string) === "voice_tts"
+          ? process.env.GEMINI_MODEL_VOICE || DEFAULT_MODEL_CONFIG.voice
+          : process.env.GEMINI_MODEL_TUTOR || DEFAULT_MODEL_CONFIG.tutor);
+    }
 
     return NextResponse.json({
       ok: true,

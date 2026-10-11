@@ -4,13 +4,15 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Compass,
+  Home,
+  GraduationCap,
   BookOpen,
+  RotateCw,
+  Compass,
+  Search,
   Users,
   MessageSquare,
   User,
-  GraduationCap,
   Activity,
   ShieldCheck,
   ChevronLeft,
@@ -30,27 +32,33 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    label: "Dashboard",
+    label: "Home",
     href: "/dashboard",
-    icon: LayoutDashboard,
+    icon: Home,
     roles: ["student", "teacher", "admin"],
   },
   {
-    label: "Explore",
-    href: "/explore",
-    icon: Compass,
+    label: "Classes",
+    href: "/classes/manage",
+    icon: GraduationCap,
     roles: ["student", "teacher", "admin"],
   },
   {
-    label: "Friends & Chat",
-    href: "/friends",
-    icon: MessageSquare,
-    roles: ["student", "teacher", "admin"],
-  },
-  {
-    label: "Notebook",
+    label: "Study Hub",
     href: "/notebook",
     icon: BookOpen,
+    roles: ["student", "teacher", "admin"],
+  },
+  {
+    label: "Review (FSRS)",
+    href: "/classes/heatmap",
+    icon: RotateCw,
+    roles: ["student", "teacher", "admin"],
+  },
+  {
+    label: "Explore & Research",
+    href: "/explore",
+    icon: Compass,
     roles: ["student", "teacher", "admin"],
   },
   {
@@ -60,16 +68,10 @@ const navItems: NavItem[] = [
     roles: ["student", "teacher", "admin"],
   },
   {
-    label: "Manage Classes",
-    href: "/classes/manage",
-    icon: GraduationCap,
-    roles: ["teacher", "admin"],
-  },
-  {
-    label: "Class Heatmap",
-    href: "/classes/heatmap",
-    icon: Activity,
-    roles: ["teacher", "admin"],
+    label: "Friends",
+    href: "/friends",
+    icon: MessageSquare,
+    roles: ["student", "teacher", "admin"],
   },
   {
     label: "Admin Console",

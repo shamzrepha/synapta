@@ -59,15 +59,65 @@ export const AI_TASK_DEFINITIONS = {
     label: "Discussion Script Generation",
     description: "Two-host podcast dialogue script authoring from sources.",
   },
+  source_guide: {
+    key: "source_guide",
+    label: "Source Guide Synthesizer",
+    description: "Per-source executive summary, key topics, glossaries, and suggested inquiry questions.",
+  },
+  notebook_mindmap: {
+    key: "notebook_mindmap",
+    label: "Notebook Mind Map",
+    description: "Hierarchical topic, subtopic, and concept mind-map graph builder from sources.",
+  },
+  study_guide: {
+    key: "study_guide",
+    label: "Study Guide & Briefing",
+    description: "Comprehensive study guides, briefing docs, FAQs, timelines, and cheat sheets.",
+  },
+  explain_selection: {
+    key: "explain_selection",
+    label: "Explain Selection / SciSpace Reader",
+    description: "Deep explanation, simplification (ELI-12), definition, and equation/figure analysis.",
+  },
+  paper_analysis: {
+    key: "paper_analysis",
+    label: "Paper Analysis Mode",
+    description: "Academic paper extraction: TL;DR, contributions, methods, limits, and citations.",
+  },
+  card_gen: {
+    key: "card_gen",
+    label: "Flashcard Generator (FSRS)",
+    description: "Atomic basic, cloze, and MCQ cards linked directly to source pages.",
+  },
   quiz_gen: {
     key: "quiz_gen",
-    label: "Quiz Generator",
-    description: "Active diagnostic quizzes and mastery probes.",
+    label: "Practice Test & Quiz Generator",
+    description: "Active diagnostic quizzes, timed practice exams, and mastery probes.",
   },
   flashcard_gen: {
     key: "flashcard_gen",
-    label: "Flashcard Generator",
+    label: "Flashcard Generator (Legacy)",
     description: "Spaced-repetition card pairs with Bloom-tagged objectives.",
+  },
+  research_plan: {
+    key: "research_plan",
+    label: "Research Planner (Perplexity-style)",
+    description: "Search inquiry decomposition, query generation, and factual cross-checking.",
+  },
+  research_answer: {
+    key: "research_answer",
+    label: "Research Synthesizer",
+    description: "Web-grounded research answers with rigorous cited web references.",
+  },
+  lesson_notes: {
+    key: "lesson_notes",
+    label: "Lesson Notes Synthesizer",
+    description: "Structured course lesson notes: overview, worked examples, key terms, check yourself.",
+  },
+  class_study_guide: {
+    key: "class_study_guide",
+    label: "Class Course Study Guide",
+    description: "End-of-course consolidated study guide pack and printable exam prep notes.",
   },
   embedding: {
     key: "embedding",
@@ -77,7 +127,7 @@ export const AI_TASK_DEFINITIONS = {
   transcribe: {
     key: "transcribe",
     label: "Audio Transcription",
-    description: "Speech-to-text processing for learner voice inputs.",
+    description: "Speech-to-text processing for learner voice inputs and lecture recordings.",
   },
   voice_tts: {
     key: "voice_tts",

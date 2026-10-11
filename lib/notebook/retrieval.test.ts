@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tokenize, chunkText, retrieveRelevantChunks } from "./retrieval";
+import { tokenize, chunkText, chunkPages, retrieveRelevantChunks } from "./retrieval";
 
 describe("Notebook Retrieval Engine", () => {
   it("tokenizes text correctly and filters stopwords", () => {
@@ -62,5 +62,18 @@ describe("Notebook Retrieval Engine", () => {
     const results = retrieveRelevantChunks("", chunks);
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].citationTag).toBe("[S1]");
+  });
+
+  it("preserves page numbers and generates page citation tags [S1 p.12]", () => {
+    const pages = [
+      { pageNumber: 12, text: "Thermodynamics first law states delta U = Q - W where energy is conserved." },
+      { pageNumber: 15, text: "Entropy in isolated systems never decreases according to the second law." },
+    ];
+    const chunks = chunkPages("src-thermo", "Thermodynamics", pages);
+    expect(chunks[0].page).toBe(12);
+
+    const results = retrieveRelevantChunks("What is the first law delta U?", chunks, 1);
+    expect(results[0].citationTag).toBe("[S1 p.12]");
+    expect(results[0].page).toBe(12);
   });
 });
