@@ -72,47 +72,15 @@ export async function POST(req: NextRequest) {
       studentPL: currentPL,
     });
 
-    const env = getServerEnv();
-    const isMock = !env.GEMINI_API_KEY || env.GEMINI_API_KEY.startsWith("mock-") || env.GEMINI_API_KEY === "demo";
-
-    if (isMock) {
-      // Simulate streaming Socratic response
-      const socraticHints = [
-        `Great question about **${kcTitle}**!\n\n`,
-        `Before jumping straight to the final formula, let's think about the physical intuition:\n\n`,
-        `- What happens to current $I$ if you keep voltage $V$ constant and double the resistance $R$?\n`,
-        `- Remember that resistance represents opposition to the flow of charge: $$I = \\frac{V}{R}$$\n\n`,
-        `Based on this relationship, how do you expect the power dissipated ($P = I^2 R$) to change? Give it a try!`,
-      ];
-
-      const encoder = new TextEncoder();
-      const readable = new ReadableStream({
-        async start(controller) {
-          for (const token of socraticHints) {
-            controller.enqueue(encoder.encode(token));
-            await new Promise((r) => setTimeout(r, 60));
-          }
-          controller.close();
-          // Record mock usage
-          await recordTokenUsage(caller.uid, 120, 180).catch(() => {});
-        },
-      });
-
-      return new Response(readable, {
-        headers: {
-          "Content-Type": "text/plain; charset=utf-8",
-          "Transfer-Encoding": "chunked",
-        },
-      });
-    }
-
     // Live Gemini Streaming
     const ai = getGeminiClient();
     const model = getGeminiModel();
 
+    const sanitizedContent = `<STUDENT_MESSAGE>\n${message}\n</STUDENT_MESSAGE>`;
+
     const responseStream = await ai.models.generateContentStream({
       model,
-      contents: message,
+      contents: sanitizedContent,
       config: {
         systemInstruction,
       },

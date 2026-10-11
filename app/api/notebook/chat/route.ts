@@ -3,7 +3,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { getGeminiClient } from "@/lib/gemini/client";
 import { getServerEnv } from "@/lib/env";
 import { chunkText, retrieveRelevantChunks, TextChunk } from "@/lib/notebook/retrieval";
-import { checkRateLimitAndQuota, QuotaError } from "@/lib/quota/guard";
+import { checkRateLimitAndQuota, recordTokenUsage, QuotaError } from "@/lib/quota/guard";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -90,51 +90,40 @@ SOURCE EXCERPTS:
 ${contextText}`;
 
     // 4. Generate answer via Gemini
-    try {
-      const ai = getGeminiClient();
+    const ai = getGeminiClient();
 
-      const messagesFormatted = [
-        ...history.slice(-4).map((h) => ({
-          role: h.role,
-          parts: [{ text: h.text }],
-        })),
-        { role: "user" as const, parts: [{ text: query }] },
-      ];
+    const messagesFormatted = [
+      ...history.slice(-4).map((h) => ({
+        role: h.role,
+        parts: [{ text: h.text }],
+      })),
+      { role: "user" as const, parts: [{ text: query }] },
+    ];
 
-      const env = getServerEnv();
-      const response = await ai.models.generateContent({
-        model: env.GEMINI_MODEL,
-        contents: messagesFormatted,
-        config: {
-          systemInstruction: systemPrompt,
-          temperature: 0.2, // Low temperature for high factual adherence
-        },
-      });
+    const env = getServerEnv();
+    const response = await ai.models.generateContent({
+      model: env.GEMINI_MODEL,
+      contents: messagesFormatted,
+      config: {
+        systemInstruction: systemPrompt,
+        temperature: 0.2, // Low temperature for high factual adherence
+      },
+    });
 
-      const answerText = response.text || "";
+    const answerText = response.text || "";
+    const tokensIn = response.usageMetadata?.promptTokenCount || 400;
+    const tokensOut = response.usageMetadata?.candidatesTokenCount || 300;
 
-      return NextResponse.json({
-        ok: true,
-        data: {
-          answer: answerText,
-          citations,
-        },
-      });
-    } catch (genError) {
-      console.warn("Gemini generation fallback for notebook chat:", genError);
+    await recordTokenUsage(caller.uid, tokensIn, tokensOut).catch(() => {});
 
-      // Deterministic source-grounded fallback
-      const primaryCitation = citations[0];
-      const fallbackAnswer = `Based on your source materials ${primaryCitation.tag}, ${primaryCitation.excerpt.slice(0, 180)}... ${primaryCitation.tag}\n\nKey finding: This behavior directly correlates with the physical principles outlined in "${primaryCitation.sourceTitle}". ${primaryCitation.tag}`;
-
-      return NextResponse.json({
-        ok: true,
-        data: {
-          answer: fallbackAnswer,
-          citations,
-        },
-      });
-    }
+    return NextResponse.json({
+      ok: true,
+      data: {
+        answer: answerText,
+        citations,
+        tokensUsed: tokensIn + tokensOut,
+      },
+    });
   } catch (error) {
     if (error instanceof QuotaError) {
       return NextResponse.json(
