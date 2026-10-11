@@ -9,12 +9,37 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_FIREBASE_APP_ID: z.string().min(1, "NEXT_PUBLIC_FIREBASE_APP_ID is required"),
 });
 
+export const DEFAULT_GEMINI_MODEL = "gemini-3.8-flash";
+
+export function sanitizeModelId(model?: string | null): string {
+  if (!model || typeof model !== "string") return DEFAULT_GEMINI_MODEL;
+  const trimmed = model.trim();
+  // Intercept obsolete/deprecated model identifiers
+  if (
+    trimmed.startsWith("gemini-2.") ||
+    trimmed.startsWith("gemini-1.") ||
+    trimmed.includes("gemini-2.5") ||
+    trimmed.includes("gemini-2.0") ||
+    trimmed.includes("gemini-1.5") ||
+    trimmed.includes("gemini-3.1-pro")
+  ) {
+    return DEFAULT_GEMINI_MODEL;
+  }
+  return trimmed || DEFAULT_GEMINI_MODEL;
+}
+
 const serverEnvSchema = clientEnvSchema.extend({
   FIREBASE_ADMIN_PROJECT_ID: z.string().min(1, "FIREBASE_ADMIN_PROJECT_ID is required"),
   FIREBASE_ADMIN_CLIENT_EMAIL: z.string().min(1, "FIREBASE_ADMIN_CLIENT_EMAIL is required"),
   FIREBASE_ADMIN_PRIVATE_KEY: z.string().min(1, "FIREBASE_ADMIN_PRIVATE_KEY is required"),
   GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
-  GEMINI_MODEL: z.string().default("gemini-2.5-flash"),
+  GEMINI_MODEL: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
+  GEMINI_MODEL_TUTOR: z.string().default("gemini-3.5-flash-lite").transform(sanitizeModelId),
+  GEMINI_MODEL_STRUCTURED: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
+  GEMINI_MODEL_GRADING: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
+  GEMINI_MODEL_LONGDOC: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
+  GEMINI_MODEL_VOICE: z.string().default("gemini-3.8-live").transform(sanitizeModelId),
+  GEMINI_MODEL_FALLBACK: z.string().default(DEFAULT_GEMINI_MODEL).transform(sanitizeModelId),
   ADMIN_EMAILS: z.string().default(""),
   STUDENT_TOKEN_LIMIT: z.coerce.number().default(50000),
   TEACHER_TOKEN_LIMIT: z.coerce.number().default(200000),
@@ -66,7 +91,13 @@ export function getServerEnv(): ServerEnv {
     FIREBASE_ADMIN_CLIENT_EMAIL: process.env.FIREBASE_ADMIN_CLIENT_EMAIL,
     FIREBASE_ADMIN_PRIVATE_KEY: process.env.FIREBASE_ADMIN_PRIVATE_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-    GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    GEMINI_MODEL: sanitizeModelId(process.env.GEMINI_MODEL),
+    GEMINI_MODEL_TUTOR: sanitizeModelId(process.env.GEMINI_MODEL_TUTOR || "gemini-3.5-flash-lite"),
+    GEMINI_MODEL_STRUCTURED: sanitizeModelId(process.env.GEMINI_MODEL_STRUCTURED),
+    GEMINI_MODEL_GRADING: sanitizeModelId(process.env.GEMINI_MODEL_GRADING),
+    GEMINI_MODEL_LONGDOC: sanitizeModelId(process.env.GEMINI_MODEL_LONGDOC),
+    GEMINI_MODEL_VOICE: sanitizeModelId(process.env.GEMINI_MODEL_VOICE || "gemini-3.8-live"),
+    GEMINI_MODEL_FALLBACK: sanitizeModelId(process.env.GEMINI_MODEL_FALLBACK),
     ADMIN_EMAILS: process.env.ADMIN_EMAILS || "",
     STUDENT_TOKEN_LIMIT: process.env.STUDENT_TOKEN_LIMIT || 50000,
     TEACHER_TOKEN_LIMIT: process.env.TEACHER_TOKEN_LIMIT || 200000,

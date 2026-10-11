@@ -93,51 +93,110 @@ export default function QuestMapPage({
   const [loading, setLoading] = useState(true);
 
   const [selectedNode, setSelectedNode] = useState<MapNode | null>(null);
-  const [viewMode, setViewMode] = useState<"map" | "list">("map");
+  const [viewMode, setViewMode] = useState<"map" | "list" | "proposals">("map");
   const [goalModalOpen, setGoalModalOpen] = useState(false);
   const [targetDateInput, setTargetDateInput] = useState("");
   const [minutesInput, setMinutesInput] = useState("30");
   const [savingGoal, setSavingGoal] = useState(false);
+  const [proposals, setProposals] = useState<Array<Record<string, unknown>>>([]);
+  const [loadingProposals, setLoadingProposals] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
+  const reloadMap = useCallback(() => setReloadTick((t) => t + 1), []);
 
-  const loadMapData = useCallback(async () => {
+  const handleApplyProposal = async (proposalId: string, operationIds?: string[]) => {
     try {
-      setLoading(true);
-      const res = await fetch(`/api/classes/${classId}/map`);
+      const res = await fetch(`/api/classes/${classId}/proposals/${proposalId}/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ operationIds }),
+      });
       const json = await res.json();
-      if (json.ok && json.data) {
-        setNodes(json.data.nodes || []);
-        setEdges(json.data.edges || []);
-        setRecommendedPath(json.data.recommendedPath || []);
-        setPacing(json.data.pacing || null);
-        setTeacherNote(json.data.teacherNote || null);
-        setGoal(json.data.goal || null);
-        if (json.data.goal?.targetDate) {
-          setTargetDateInput(json.data.goal.targetDate);
-        }
-        if (json.data.goal?.minutesPerDay) {
-          setMinutesInput(String(json.data.goal.minutesPerDay));
-        }
-      } else {
+      if (json.ok) {
         toast({
-          title: "Map Unavailable",
-          description: json.error?.message || "Could not load learning map.",
-          variant: "destructive",
+          title: "Proposals Applied!",
+          description: "Concept map updated with new topics and sources.",
+          variant: "success",
         });
+        reloadMap();
       }
     } catch {
-      toast({
-        title: "Connection Error",
-        description: "Failed to connect to class map service.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+      toast({ title: "Apply Error", description: "Failed to apply proposal.", variant: "destructive" });
     }
-  }, [classId, toast]);
+  };
+
+  const handleDismissProposal = async (proposalId: string) => {
+    try {
+      const res = await fetch(`/api/classes/${classId}/proposals/${proposalId}/dismiss`, {
+        method: "POST",
+      });
+      const json = await res.json();
+      if (json.ok) {
+        toast({ title: "Proposal Dismissed", variant: "default" });
+        reloadMap();
+      }
+    } catch {
+      toast({ title: "Dismiss Error", description: "Failed to dismiss proposal.", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
-    loadMapData();
-  }, [loadMapData]);
+    let ignore = false;
+    async function init() {
+      try {
+        const [mapRes, propRes] = await Promise.all([
+          fetch(`/api/classes/${classId}/map`),
+          fetch(`/api/classes/${classId}/proposals`),
+        ]);
+        const mapJson = await mapRes.json();
+        const propJson = await propRes.json();
+
+        if (!ignore) {
+          if (mapJson.ok && mapJson.data) {
+            setNodes(mapJson.data.nodes || []);
+            setEdges(mapJson.data.edges || []);
+            setRecommendedPath(mapJson.data.recommendedPath || []);
+            setPacing(mapJson.data.pacing || null);
+            setTeacherNote(mapJson.data.teacherNote || null);
+            setGoal(mapJson.data.goal || null);
+            if (mapJson.data.goal?.targetDate) {
+              setTargetDateInput(mapJson.data.goal.targetDate);
+            }
+            if (mapJson.data.goal?.minutesPerDay) {
+              setMinutesInput(String(mapJson.data.goal.minutesPerDay));
+            }
+          } else {
+            toast({
+              title: "Map Unavailable",
+              description: mapJson.error?.message || "Could not load learning map.",
+              variant: "destructive",
+            });
+          }
+
+          if (propJson.ok && Array.isArray(propJson.data)) {
+            setProposals(propJson.data);
+          }
+        }
+      } catch {
+        if (!ignore) {
+          toast({
+            title: "Connection Error",
+            description: "Failed to connect to class map service.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+          setLoadingProposals(false);
+        }
+      }
+    }
+
+    init();
+    return () => {
+      ignore = true;
+    };
+  }, [classId, reloadTick, toast]);
 
   const handleSaveGoal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,7 +220,7 @@ export default function QuestMapPage({
           variant: "success",
         });
         setGoalModalOpen(false);
-        loadMapData();
+        reloadMap();
       } else {
         toast({
           title: "Failed to save goal",
@@ -245,6 +304,20 @@ export default function QuestMapPage({
               <List className="h-3.5 w-3.5" />
               List View
             </button>
+            {proposals.length > 0 && (
+              <button
+                onClick={() => setViewMode("proposals")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                  viewMode === "proposals"
+                    ? "bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 shadow-sm font-bold"
+                    : "text-slate-500 hover:text-slate-900"
+                )}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-teal-600" />
+                Proposals ({proposals.filter((p) => p.status === "pending").length})
+              </button>
+            )}
           </div>
 
           <Button
@@ -257,7 +330,7 @@ export default function QuestMapPage({
             {goal?.targetDate ? `Goal: ${goal.targetDate}` : "Set Target Date"}
           </Button>
 
-          <Button size="sm" variant="ghost" onClick={loadMapData} className="text-xs">
+          <Button size="sm" variant="ghost" onClick={reloadMap} className="text-xs">
             <RotateCcw className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -563,7 +636,7 @@ export default function QuestMapPage({
             )}
           </div>
         </div>
-      ) : (
+      ) : viewMode === "list" ? (
         /* Accessible List View */
         <div className="space-y-3">
           {nodes.map((node) => (
@@ -593,6 +666,83 @@ export default function QuestMapPage({
               </div>
             </Card>
           ))}
+        </div>
+      ) : (
+        /* Proposals Inbox View (A5) */
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">AI Concept Map Proposals</h3>
+              <p className="text-xs text-slate-500">
+                Topic additions, merges, and source attachments derived from uploaded course documents.
+              </p>
+            </div>
+            {proposals.some((p) => p.status === "pending") && (
+              <Button
+                size="sm"
+                className="text-xs bg-teal-600 hover:bg-teal-700 text-white"
+                onClick={() => {
+                  const pendingProp = proposals.find((p) => p.status === "pending");
+                  if (pendingProp) handleApplyProposal(pendingProp.id as string);
+                }}
+              >
+                Apply All Safe Changes
+              </Button>
+            )}
+          </div>
+
+          {proposals.length === 0 ? (
+            <Card className="p-8 text-center text-slate-500">
+              No pending proposals for this class. Upload course materials in the class overview to generate topic proposals.
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {proposals.map((prop) => (
+                <Card key={prop.id as string} className="p-4 space-y-3 border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <span className="font-semibold text-xs text-slate-700 dark:text-slate-300">Proposal Ref: {prop.id as string}</span>
+                    <Badge variant={prop.status === "applied" ? "emerald" : prop.status === "dismissed" ? "secondary" : "amber"}>
+                      {prop.status as string}
+                    </Badge>
+                  </div>
+                  <div className="space-y-2">
+                    {Array.isArray(prop.operations) &&
+                      prop.operations.map((op: Record<string, unknown>, oIdx: number) => {
+                        const newKc = op.newKcData as Record<string, unknown> | undefined;
+                        return (
+                          <div key={(op.id as string) || oIdx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 text-xs space-y-1">
+                            <div className="flex items-center justify-between font-bold">
+                              <span className="uppercase text-[10px] text-teal-600 dark:text-teal-400 tracking-wider">
+                                {op.type as string}
+                              </span>
+                              <span className="text-slate-400 font-normal">
+                                Confidence: {Math.round(((op.confidence as number) || 0.8) * 100)}%
+                              </span>
+                            </div>
+                            <p className="text-slate-700 dark:text-slate-300">{op.rationale as string}</p>
+                            {newKc && (
+                              <div className="text-[11px] text-slate-500 mt-1">
+                                Proposed Topic: <strong>{newKc.title as string}</strong> — {newKc.description as string}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                  {prop.status === "pending" && (
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleDismissProposal(prop.id as string)}>
+                        Dismiss
+                      </Button>
+                      <Button size="sm" className="text-xs bg-teal-600 hover:bg-teal-700 text-white" onClick={() => handleApplyProposal(prop.id as string)}>
+                        Apply to Course Map
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

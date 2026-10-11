@@ -21,6 +21,27 @@ export async function GET(
     const caller = await requireUser(req);
     const { friendUid } = await params;
 
+    if (!friendUid || friendUid === caller.uid) {
+      return NextResponse.json(
+        { ok: false, error: { code: "VALIDATION", message: "Invalid friend recipient" } },
+        { status: 400 }
+      );
+    }
+
+    const friendDoc = await adminDb()
+      .collection("users")
+      .doc(caller.uid)
+      .collection("friends")
+      .doc(friendUid)
+      .get();
+
+    if (!friendDoc.exists) {
+      return NextResponse.json(
+        { ok: false, error: { code: "FORBIDDEN", message: "You can only view messages with established friends" } },
+        { status: 403 }
+      );
+    }
+
     const chatId = getChatId(caller.uid, friendUid);
 
     const messagesSnap = await adminDb()
@@ -63,6 +84,27 @@ export async function POST(
       return NextResponse.json(
         { ok: false, error: { code: "VALIDATION", message: "Message text cannot be empty" } },
         { status: 400 }
+      );
+    }
+
+    if (!friendUid || friendUid === caller.uid) {
+      return NextResponse.json(
+        { ok: false, error: { code: "VALIDATION", message: "Invalid friend recipient" } },
+        { status: 400 }
+      );
+    }
+
+    const friendDoc = await adminDb()
+      .collection("users")
+      .doc(caller.uid)
+      .collection("friends")
+      .doc(friendUid)
+      .get();
+
+    if (!friendDoc.exists) {
+      return NextResponse.json(
+        { ok: false, error: { code: "FORBIDDEN", message: "You can only message established friends" } },
+        { status: 403 }
       );
     }
 

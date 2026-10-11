@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { asArray } from "@/lib/api/client";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,8 +36,8 @@ export default function TeacherClassesListPage() {
       try {
         const res = await fetch("/api/classes?scope=mine");
         const data = await res.json();
-        if (data.ok && Array.isArray(data.data?.classes)) {
-          setClasses(data.data.classes);
+        if (data.ok) {
+          setClasses(asArray<ClassSummary>(data.data));
         } else {
           setClasses([]);
         }
@@ -96,7 +97,7 @@ export default function TeacherClassesListPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {classes.map((c) => (
+          {asArray(classes).map((c) => (
             <Card key={c.id} className="border-slate-200 dark:border-slate-800 flex flex-col justify-between">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2 mb-2">

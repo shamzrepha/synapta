@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:guards": "node scripts/check-list-guards.mjs",
+    "verify": "tsc --noEmit && eslint . && vitest run && npm run check:guards"
   },
   "dependencies": {
     "@google/genai": "2.28.0",
@@ -46,7 +48,8 @@
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "tsx": "^4.19.3"
   },
   "overrides": {
     "jwks-rsa": {

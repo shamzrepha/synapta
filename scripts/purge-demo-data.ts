@@ -47,7 +47,7 @@ async function purgeDemoData() {
   console.log(`=======================================================\n`);
 
   const db = adminDb();
-  let candidateDocs: { collection: string; id: string; reason: string }[] = [];
+  const candidateDocs: { collection: string; id: string; reason: string }[] = [];
 
   // 1. Audit Users collection
   console.log("Auditing [users] collection...");

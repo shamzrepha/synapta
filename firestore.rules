@@ -17,43 +17,50 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+
+    function isClassTeacher(classData) {
+      return isAuthenticated() && (
+        classData.teacherId == request.auth.uid ||
+        (classData.coTeacherIds != null && classData.coTeacherIds.hasAny([request.auth.uid])) ||
+        isAdmin()
+      );
+    }
+
     function isEnrolled(classId) {
       return isAuthenticated() &&
         exists(/databases/$(database)/documents/enrollments/$(classId + '_' + request.auth.uid)) &&
         get(/databases/$(database)/documents/enrollments/$(classId + '_' + request.auth.uid)).data.status == 'active';
     }
 
-    // 1. Users collection: users can read their own doc, and update ONLY non-sensitive fields
+    // 1. Users collection: owner or admin can read, client update restricted to non-sensitive profile fields
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      // Strict allowlist: only displayName, photoURL, username, and updatedAt can be modified directly by client
+      allow read: if isOwner(userId) || isAdmin();
       allow update: if isOwner(userId) &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['displayName', 'photoURL', 'username', 'updatedAt']);
-      allow create, delete: if false; // User docs are created via server bootstrap
+      allow create, delete: if false;
     }
 
     // 2. Classes collection:
-    // - Any authenticated user can read published classes (metadata & join options)
-    // - Teacher owner, admins, or enrolled students can read all classes
-    // - All writes happen strictly via server route handlers
     match /classes/{classId} {
       allow read: if isAuthenticated() && (
         resource.data.status == 'published' ||
-        resource.data.teacherId == request.auth.uid ||
-        request.auth.token.role == 'admin' ||
+        isClassTeacher(resource.data) ||
         isEnrolled(classId)
       );
       allow write: if false;
 
-      // Knowledge Components subcollection: public or enrolled access
+      // Knowledge Components: students only read published KCs; teachers/admins read all
       match /kcs/{kcId} {
         allow read: if isAuthenticated() && (
-          (get(/databases/$(database)/documents/classes/$(classId)).data.visibility == 'public' &&
-           get(/databases/$(database)/documents/classes/$(classId)).data.status == 'published') ||
-          get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid ||
-          request.auth.token.role == 'admin' ||
-          isEnrolled(classId)
+          isClassTeacher(get(/databases/$(database)/documents/classes/$(classId)).data) ||
+          (resource.data.status == 'published' && (
+            get(/databases/$(database)/documents/classes/$(classId)).data.visibility == 'public' ||
+            isEnrolled(classId)
+          ))
         );
         allow write: if false;
       }
@@ -61,70 +68,92 @@ service cloud.firestore {
       // Assignments subcollection: published visible to students, drafts to teacher/admin
       match /assignments/{assignmentId} {
         allow read: if isAuthenticated() && (
-          resource.data.status == 'published' ||
-          get(/databases/$(database)/documents/classes/$(classId)).data.teacherId == request.auth.uid ||
-          request.auth.token.role == 'admin'
+          isClassTeacher(get(/databases/$(database)/documents/classes/$(classId)).data) ||
+          (resource.data.status == 'published' && isEnrolled(classId))
         );
+        allow write: if false;
+      }
+
+      // Materials: teacher/admin only
+      match /materials/{materialId} {
+        allow read: if isAuthenticated() && isClassTeacher(get(/databases/$(database)/documents/classes/$(classId)).data);
+        allow write: if false;
+
+        match /chunks/{chunkId} {
+          allow read: if isAuthenticated() && isClassTeacher(get(/databases/$(database)/documents/classes/$(classId)).data);
+          allow write: if false;
+        }
+      }
+
+      // Map Proposals: teacher/admin only
+      match /mapProposals/{proposalId} {
+        allow read: if isAuthenticated() && isClassTeacher(get(/databases/$(database)/documents/classes/$(classId)).data);
+        allow write: if false;
+      }
+
+      // Build Jobs: teacher/admin only
+      match /buildJobs/{jobId} {
+        allow read: if isAuthenticated() && isClassTeacher(get(/databases/$(database)/documents/classes/$(classId)).data);
         allow write: if false;
       }
     }
 
     // 3. Enrollments: client can only read their own enrollments, no client writes
     match /enrollments/{enrollmentId} {
-      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
       allow write: if false;
     }
 
     // 4. Mastery: client can read their own mastery doc only, no client writes
     match /mastery/{masteryId} {
-      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
       allow write: if false;
     }
 
     // 5. Evidence: client can read their own evidence logs only, no client writes
     match /evidence/{evidenceId} {
-      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
       allow write: if false;
     }
 
     // 6. Sources: user can read their own uploaded sources and chunks
     match /sources/{sourceId} {
-      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
       allow write: if false;
 
       match /chunks/{chunkId} {
-        allow read: if isAuthenticated() &&
-          get(/databases/$(database)/documents/sources/$(sourceId)).data.ownerId == request.auth.uid;
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/sources/$(sourceId)).data.ownerId == request.auth.uid ||
+          isAdmin()
+        );
         allow write: if false;
       }
     }
 
     // 7. Artifacts: owner read only, writes via server
     match /artifacts/{artifactId} {
-      allow read: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.ownerId == request.auth.uid || isAdmin());
       allow write: if false;
     }
 
     // 8. Usage: user can read own usage records only
     match /usage/{usageId} {
-      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
       allow write: if false;
     }
 
-    // 9. Peer Lounge Rooms:
-    // Members can read room details, messages, and presence.
-    // Client can write messages and update presence/scratchpad if in memberIds.
+    // 9. Peer Lounge Rooms
     match /rooms/{roomCode} {
       allow read: if isAuthenticated() && (
         resource.data.memberIds.hasAny([request.auth.uid]) ||
-        resource.data.hostId == request.auth.uid
+        resource.data.hostId == request.auth.uid ||
+        isAdmin()
       );
-      // Debounced scratchpad edits allowed for room members
       allow update: if isAuthenticated() && (
         resource.data.memberIds.hasAny([request.auth.uid]) ||
         resource.data.hostId == request.auth.uid
       ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scratchpad', 'updatedAt']);
-      allow create, delete: if false; // Room creation managed via server
+      allow create, delete: if false;
 
       match /messages/{messageId} {
         allow read: if isAuthenticated() &&
@@ -147,13 +176,13 @@ service cloud.firestore {
 
     // 10. AI Teacher Engine: Learner Profiles (owner read, server-written only)
     match /learnerProfiles/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId) || isAdmin();
       allow write: if false;
     }
 
     // 11. Misconceptions (owner read, server-written only)
     match /misconceptions/{misconceptionId} {
-      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow read: if isAuthenticated() && (resource.data.uid == request.auth.uid || isAdmin());
       allow write: if false;
     }
 
@@ -163,7 +192,38 @@ service cloud.firestore {
       allow write: if isAuthenticated() && request.auth.token.role in ['teacher', 'admin'];
     }
 
-    // 13. Diagnostic Sessions & Server-side evaluations (server-only via admin SDK)
+    // 13. Signal Documents (Realtime Provider)
+    match /userSignals/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow write: if false;
+    }
+
+    match /classSignals/{classId} {
+      allow read: if isAuthenticated() && (
+        isEnrolled(classId) ||
+        isClassTeacher(get(/databases/$(database)/documents/classes/$(classId)).data)
+      );
+      allow write: if false;
+    }
+
+    // 14. Bug Reports & Feedback
+    match /bugReports/{reportId} {
+      allow read: if isAuthenticated() && (resource.data.reporterUid == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    // 15. Audit Logs & Error Logs (Admin only read, server only write)
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /errorLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // 16. Diagnostic Sessions (server-only via admin SDK)
     match /diagnosticSessions/{sessionId} {
       allow read, write: if false;
     }

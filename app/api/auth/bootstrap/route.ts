@@ -3,6 +3,7 @@ import { adminAuth, adminDb, Timestamp } from "@/lib/firebase/admin";
 import { getServerEnv } from "@/lib/env";
 import { UserRole } from "@/lib/store/use-user-store";
 import { z } from "zod";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,13 @@ function sanitizeUsername(input?: string): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitRes = await checkRateLimit(req, {
+      keyPrefix: "bootstrap",
+      limit: 30,
+      windowMs: 60_000,
+    });
+    if (rateLimitRes) return rateLimitRes;
+
     const authHeader = req.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json(
@@ -57,13 +65,11 @@ export async function POST(req: NextRequest) {
 
     const isEmailVerified = !!decoded.email_verified;
     const isWhitelistedAdminEmail =
-      !!normalizedEmail &&
-      (adminEmails.includes(normalizedEmail) ||
-        normalizedEmail === "shamzypre14@gmail.com");
+      !!normalizedEmail && adminEmails.includes(normalizedEmail);
 
-    // Unconditionally grant admin role to whitelisted owner emails
-    const grantAdmin = isWhitelistedAdminEmail;
-    const adminPendingVerification = false;
+    // Unconditionally grant admin role to whitelisted owner emails only if email is verified
+    const grantAdmin = isWhitelistedAdminEmail && isEmailVerified;
+    const adminPendingVerification = isWhitelistedAdminEmail && !isEmailVerified;
 
     const userRef = adminDb().collection("users").doc(uid);
     const userDoc = await userRef.get();

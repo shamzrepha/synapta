@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 
+import { checkRateLimit } from "@/lib/rateLimit";
+
 export const runtime = "nodejs";
 
 export async function POST(
@@ -11,6 +13,14 @@ export async function POST(
   try {
     const { id } = await params;
     const caller = await requireUser(req);
+
+    const rateLimitRes = await checkRateLimit(req, {
+      keyPrefix: "class_join",
+      limit: 10,
+      windowMs: 60_000,
+      uid: caller.uid,
+    });
+    if (rateLimitRes) return rateLimitRes;
 
     const classRef = adminDb().collection("classes").doc(id);
     const enrollmentDocId = `${id}_${caller.uid}`;
@@ -26,6 +36,14 @@ export async function POST(
       }
 
       const classData = classDoc.data()!;
+      const isCoTeacher = Array.isArray(classData.coTeacherIds) && classData.coTeacherIds.includes(caller.uid);
+      if (classData.teacherId === caller.uid || isCoTeacher || caller.role === "admin") {
+        const err = new Error("Teachers and administrators cannot enroll as students in their own classes.");
+        (err as { code?: string; status?: number }).code = "OWNER_CANNOT_ENROLL";
+        (err as { code?: string; status?: number }).status = 403;
+        throw err;
+      }
+
       const enrollmentDoc = await t.get(enrollmentRef);
 
       if (enrollmentDoc.exists) {

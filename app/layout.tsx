@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { ClientErrorListener } from "@/components/providers/client-error-listener";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,6 +16,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+import { RealtimeProvider } from "@/components/providers/realtime-provider";
 
 export const metadata: Metadata = {
   title: "Synapta — AI-Native Adaptive Learning Platform",
@@ -39,9 +42,14 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-sans">
         <QueryProvider>
           <AuthProvider>
-            <ThemeProvider>
-              <ToastProvider>{children}</ToastProvider>
-            </ThemeProvider>
+            <RealtimeProvider>
+              <ThemeProvider>
+                <ToastProvider>
+                  <ClientErrorListener />
+                  {children}
+                </ToastProvider>
+              </ThemeProvider>
+            </RealtimeProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

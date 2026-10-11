@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { asArray } from "@/lib/api/client";
 import {
   ShieldAlert,
   Users,
@@ -25,6 +26,15 @@ import {
   GraduationCap,
   CheckCircle,
   XCircle,
+  BookOpen,
+  Trash2,
+  AlertTriangle,
+  FileText,
+  Clock,
+  Layers,
+  Activity,
+  Globe,
+  Lock,
 } from "lucide-react";
 
 interface AdminUserItem {
@@ -40,6 +50,45 @@ interface AdminUserItem {
   monthlyTokenLimit: number;
   createdAt: string | null;
   lastActiveDate: string | null;
+}
+
+interface AdminClassItem {
+  id: string;
+  title: string;
+  subject: string;
+  teacherId: string;
+  teacherName?: string;
+  visibility: "public" | "private";
+  status: "draft" | "published" | "archived";
+  studentCount?: number;
+  joinCode?: string;
+  createdAt?: string;
+}
+
+interface AdminReportItem {
+  id: string;
+  reporterUid: string;
+  reporterName: string;
+  targetType: "bug" | "class" | "kc" | "ai_content" | "user";
+  targetId: string | null;
+  classId: string | null;
+  kcId: string | null;
+  reason: string;
+  description: string;
+  status: "pending" | "investigating" | "resolved" | "dismissed";
+  adminNotes: string | null;
+  createdAt: string | null;
+}
+
+interface AdminAuditItem {
+  id: string;
+  actorUid: string;
+  actorName: string | null;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  details: Record<string, unknown> | null;
+  createdAt: string | null;
 }
 
 interface PlatformUsageData {
@@ -67,62 +116,86 @@ interface PlatformUsageData {
   };
 }
 
+type AdminTab = "overview" | "users" | "requests" | "classes" | "reports" | "usage" | "audit";
+
 export default function AdminConsolePage() {
   const { user } = useUserStore();
   const { toast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<"users" | "requests" | "usage">("users");
+  const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [users, setUsers] = useState<AdminUserItem[]>([]);
+  const [classes, setClasses] = useState<AdminClassItem[]>([]);
+  const [reports, setReports] = useState<AdminReportItem[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AdminAuditItem[]>([]);
   const [usageData, setUsageData] = useState<PlatformUsageData | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [reportFilter, setReportFilter] = useState<string>("all");
   const [updatingUid, setUpdatingUid] = useState<string | null>(null);
+  const [deletingClassId, setDeletingClassId] = useState<string | null>(null);
 
   const fetchAdminData = useCallback(async () => {
     try {
       setLoading(true);
-      const [usersRes, usageRes] = await Promise.all([
+      const [usersRes, usageRes, classesRes, reportsRes, auditRes] = await Promise.all([
         fetch("/api/admin/users"),
         fetch("/api/admin/usage"),
+        fetch("/api/classes?scope=explore"),
+        fetch("/api/admin/reports"),
+        fetch("/api/admin/audit"),
       ]);
 
-      const usersJson = await usersRes.json();
-      const usageJson = await usageRes.json();
+      const [usersJson, usageJson, classesJson, reportsJson, auditJson] = await Promise.all([
+        usersRes.json().catch(() => ({})),
+        usageRes.json().catch(() => ({})),
+        classesRes.json().catch(() => ({})),
+        reportsRes.json().catch(() => ({})),
+        auditRes.json().catch(() => ({})),
+      ]);
 
-      if (usersJson.ok) {
-        setUsers(usersJson.data.users || []);
-      }
-      if (usageJson.ok) {
-        setUsageData(usageJson.data);
-      }
+      if (usersJson.ok) setUsers(asArray<AdminUserItem>(usersJson.data?.users));
+      if (usageJson.ok) setUsageData(usageJson.data || null);
+      if (classesJson.ok) setClasses(asArray<AdminClassItem>(classesJson.data));
+      if (reportsJson.ok) setReports(asArray<AdminReportItem>(reportsJson.data?.reports));
+      if (auditJson.ok) setAuditLogs(asArray<AdminAuditItem>(auditJson.data?.logs));
     } catch {
-      setUsers([]);
-      setUsageData(null);
+      toast({ title: "Failed to load telemetry", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     let ignore = false;
     async function initData() {
       try {
-        const [usersRes, usageRes] = await Promise.all([
+        const [usersRes, usageRes, classesRes, reportsRes, auditRes] = await Promise.all([
           fetch("/api/admin/users"),
           fetch("/api/admin/usage"),
+          fetch("/api/classes?scope=explore"),
+          fetch("/api/admin/reports"),
+          fetch("/api/admin/audit"),
         ]);
-        const usersJson = await usersRes.json();
-        const usageJson = await usageRes.json();
+        const [usersJson, usageJson, classesJson, reportsJson, auditJson] = await Promise.all([
+          usersRes.json().catch(() => ({})),
+          usageRes.json().catch(() => ({})),
+          classesRes.json().catch(() => ({})),
+          reportsRes.json().catch(() => ({})),
+          auditRes.json().catch(() => ({})),
+        ]);
 
         if (!ignore) {
-          if (usersJson.ok) setUsers(usersJson.data.users || []);
-          if (usageJson.ok) setUsageData(usageJson.data);
+          if (usersJson.ok) setUsers(asArray<AdminUserItem>(usersJson.data?.users));
+          if (usageJson.ok) setUsageData(usageJson.data || null);
+          if (classesJson.ok) setClasses(asArray<AdminClassItem>(classesJson.data));
+          if (reportsJson.ok) setReports(asArray<AdminReportItem>(reportsJson.data?.reports));
+          if (auditJson.ok) setAuditLogs(asArray<AdminAuditItem>(auditJson.data?.logs));
         }
       } catch {
-        // Fallback demo data
+        // Fail gracefully without mock data
       } finally {
         if (!ignore) setLoading(false);
       }
@@ -208,22 +281,26 @@ export default function AdminConsolePage() {
       const res = await fetch(`/api/admin/users/${targetUid}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: "teacher" }),
+        body: JSON.stringify({ role: "teacher", roleRequest: "approved" }),
       });
       const json = await res.json();
       if (json.ok) {
         setUsers((prev) =>
-          prev.map((u) => (u.uid === targetUid ? { ...u, role: "teacher", roleRequest: "approved" } : u))
+          prev.map((u) =>
+            u.uid === targetUid
+              ? { ...u, role: "teacher", roleRequest: "approved", monthlyTokenLimit: 200000 }
+              : u
+          )
         );
         toast({
           title: "Teacher Approved",
-          description: "User promoted to teacher successfully.",
+          description: "Elevated to verified teacher with 200,000 monthly token cap.",
           variant: "success",
         });
       } else {
         toast({
-          title: "Approval Failed",
-          description: json.error?.message || "Could not approve teacher request.",
+          title: "Action Failed",
+          description: json.error?.message || "Could not approve request.",
           variant: "destructive",
         });
       }
@@ -267,6 +344,67 @@ export default function AdminConsolePage() {
     }
   };
 
+  // Toggle Class Status
+  const handleToggleClassStatus = async (classId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === "published" ? "draft" : "published";
+    try {
+      const res = await fetch(`/api/classes/${classId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setClasses((prev) =>
+          prev.map((c) => (c.id === classId ? { ...c, status: nextStatus } : c))
+        );
+        toast({ title: "Class Status Updated", description: `Course set to ${nextStatus}.`, variant: "success" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to update class status.", variant: "destructive" });
+    }
+  };
+
+  // Delete Class
+  const handleDeleteClass = async (classId: string) => {
+    if (!confirm("Are you sure you want to permanently delete this course?")) return;
+    setDeletingClassId(classId);
+    try {
+      const res = await fetch(`/api/classes/${classId}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.ok) {
+        setClasses((prev) => prev.filter((c) => c.id !== classId));
+        toast({ title: "Course Deleted", description: "Class removed from platform.", variant: "success" });
+      } else {
+        toast({ title: "Deletion Failed", description: json.error?.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error deleting class.", variant: "destructive" });
+    } finally {
+      setDeletingClassId(null);
+    }
+  };
+
+  // Update Bug Report Status
+  const handleUpdateReport = async (reportId: string, status: "investigating" | "resolved" | "dismissed") => {
+    try {
+      const res = await fetch(`/api/admin/reports/${reportId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const json = await res.json();
+      if (json.ok) {
+        setReports((prev) =>
+          prev.map((r) => (r.id === reportId ? { ...r, status } : r))
+        );
+        toast({ title: "Report Updated", description: `Marked as ${status}.`, variant: "success" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Failed to update report.", variant: "destructive" });
+    }
+  };
+
   // Non-Admin Permission Guard
   if (user && user.role !== "admin") {
     return (
@@ -303,7 +441,7 @@ export default function AdminConsolePage() {
   }
 
   // Filter users
-  const filteredUsers = users.filter((u) => {
+  const filteredUsers = asArray(users).filter((u) => {
     const matchQuery =
       u.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -313,6 +451,15 @@ export default function AdminConsolePage() {
     if (roleFilter !== "all" && u.role !== roleFilter) return false;
     return true;
   });
+
+  // Filter reports
+  const filteredReports = asArray(reports).filter((r) => {
+    if (reportFilter !== "all" && r.status !== reportFilter) return false;
+    return true;
+  });
+
+  const pendingTeacherCount = asArray(users).filter((u) => u.roleRequest === "pending").length;
+  const pendingReportCount = asArray(reports).filter((r) => r.status === "pending").length;
 
   return (
     <div className="space-y-6">
@@ -327,7 +474,7 @@ export default function AdminConsolePage() {
             Platform Operations Console
           </h1>
           <p className="text-xs text-slate-500">
-            User directory, permission elevation, AI token usage metrics, and infrastructure billing oversight.
+            User directory, permission elevation, AI token usage metrics, content moderation, and audit logs.
           </p>
         </div>
 
@@ -349,41 +496,41 @@ export default function AdminConsolePage() {
         <Card className="p-4 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-              Registered Accounts
+              Registered Users
             </span>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-2xl font-black text-slate-900 dark:text-slate-100">
-                {usageData?.counts.totalUsers ?? users.length}
+                {usageData?.counts.totalUsers ?? asArray(users).length}
               </span>
-              <span className="text-[10px] text-slate-400">
-                ({usageData?.counts.students ?? 0} St &bull; {usageData?.counts.teachers ?? 0} Te)
+              <span className="text-[10px] text-teal-600 font-semibold">
+                {usageData?.counts.teachers ?? asArray(users).filter((u) => u.role === "teacher").length} Teachers
               </span>
             </div>
           </div>
-          <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
             <Users className="h-5 w-5" />
           </div>
         </Card>
 
-        {/* Card 2: AI Token Consumption */}
+        {/* Card 2: AI Token Invocations */}
         <Card className="p-4 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-              AI Tokens Consumed
+              Tokens Consumed
             </span>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-black text-teal-600 dark:text-teal-400">
-                {(usageData?.summary.totalTokens ?? 0).toLocaleString()}
+              <span className="text-2xl font-black text-slate-900 dark:text-slate-100">
+                {((usageData?.summary.totalTokens ?? 0) / 1000).toFixed(1)}k
               </span>
               <span className="text-[10px] text-slate-400">Tokens</span>
             </div>
           </div>
-          <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
             <Cpu className="h-5 w-5" />
           </div>
         </Card>
 
-        {/* Card 3: Estimated Infrastructure Cost */}
+        {/* Card 3: Est. Gemini API Cost */}
         <Card className="p-4 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
@@ -405,63 +552,160 @@ export default function AdminConsolePage() {
         <Card className="p-4 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block">
-              BKT Evidence Logs
+              Active Courses
             </span>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-2xl font-black text-amber-500">
-                {usageData?.counts.evidenceLogs ?? 0}
+                {asArray(classes).length}
               </span>
-              <span className="text-[10px] text-slate-400">Submissions</span>
+              <span className="text-[10px] text-slate-400">Classes</span>
             </div>
           </div>
           <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-            <Flame className="h-5 w-5" />
+            <BookOpen className="h-5 w-5" />
           </div>
         </Card>
       </div>
 
       {/* CONSOLE TAB NAVIGATION */}
-      <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-1">
+      <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-1 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
+            activeTab === "overview"
+              ? "bg-teal-600 text-white shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+          }`}
+        >
+          <Activity className="h-4 w-4" /> Overview
+        </button>
+
         <button
           onClick={() => setActiveTab("users")}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "users"
               ? "bg-teal-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
-          <Users className="h-4 w-4" /> User Management ({users.length})
+          <Users className="h-4 w-4" /> Users ({asArray(users).length})
         </button>
 
         <button
           onClick={() => setActiveTab("requests")}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "requests"
               ? "bg-teal-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
           <GraduationCap className="h-4 w-4" /> Teacher Requests
-          {users.filter((u) => u.roleRequest === "pending").length > 0 && (
+          {pendingTeacherCount > 0 && (
             <Badge variant="amber" className="ml-1 text-[10px] px-1.5 py-0">
-              {users.filter((u) => u.roleRequest === "pending").length}
+              {pendingTeacherCount}
+            </Badge>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab("classes")}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
+            activeTab === "classes"
+              ? "bg-teal-600 text-white shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+          }`}
+        >
+          <BookOpen className="h-4 w-4" /> Courses ({asArray(classes).length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab("reports")}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
+            activeTab === "reports"
+              ? "bg-teal-600 text-white shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+          }`}
+        >
+          <AlertTriangle className="h-4 w-4" /> Bug & Safety Reports
+          {pendingReportCount > 0 && (
+            <Badge variant="destructive" className="ml-1 text-[10px] px-1.5 py-0">
+              {pendingReportCount}
             </Badge>
           )}
         </button>
 
         <button
           onClick={() => setActiveTab("usage")}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all ${
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "usage"
               ? "bg-teal-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
-          <BarChart3 className="h-4 w-4" /> AI Token Quotas & Usage Analytics
+          <BarChart3 className="h-4 w-4" /> AI Costs
+        </button>
+
+        <button
+          onClick={() => setActiveTab("audit")}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
+            activeTab === "audit"
+              ? "bg-teal-600 text-white shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+          }`}
+        >
+          <FileText className="h-4 w-4" /> Audit Log
         </button>
       </div>
 
-      {/* TAB 1: USER MANAGEMENT DIRECTORY */}
+      {/* TAB: OVERVIEW */}
+      {activeTab === "overview" && (
+        <div className="space-y-4">
+          <Card className="p-6 space-y-4">
+            <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+              Platform Health & Invariants Status
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-300">
+                  Authentication & Permissions
+                </span>
+                <p className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
+                  Strict Server RBAC Active
+                </p>
+                <p className="text-xs text-emerald-700 dark:text-emerald-300">
+                  Privileged client Firestore writes blocked with rules lockdown.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900/50 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-teal-700 dark:text-teal-300">
+                  Model Routing & Fallbacks
+                </span>
+                <p className="text-sm font-bold text-teal-950 dark:text-teal-100">
+                  Dynamic Task Router Engaged
+                </p>
+                <p className="text-xs text-teal-700 dark:text-teal-300">
+                  Tutor, Structured, Grading, and Voice mapped to active Gemini versions.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-blue-700 dark:text-blue-300">
+                  Data Persistence & Integrity
+                </span>
+                <p className="text-sm font-bold text-blue-950 dark:text-blue-100">
+                  Zero Enrollment Ownership
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Teachers own classes implicitly without duplicate enrollment records.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB: USER MANAGEMENT DIRECTORY */}
       {activeTab === "users" && (
         <div className="space-y-4">
           {/* Search & Role Filter Bar */}
@@ -500,146 +744,129 @@ export default function AdminConsolePage() {
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
                     <th className="p-3.5 font-bold">User Identity</th>
-                    <th className="p-3 font-semibold text-center">Platform Role</th>
-                    <th className="p-3 font-semibold text-center">Status</th>
-                    <th className="p-3 font-semibold text-center">XP / Streak</th>
+                    <th className="p-3 font-semibold">System Role</th>
+                    <th className="p-3 font-semibold text-center">XP & Streak</th>
                     <th className="p-3 font-semibold text-center">Monthly AI Quota</th>
-                    <th className="p-3 font-semibold text-right">Admin Actions</th>
+                    <th className="p-3 font-semibold">Registered</th>
+                    <th className="p-3 font-semibold text-right">Administrative Controls</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredUsers.map((u) => {
-                    const isSelf = u.uid === user?.uid;
-                    const isPendingAction = updatingUid === u.uid;
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-400 italic">
+                        No registered users match your query filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((u) => {
+                      const quotaPercent = Math.min(
+                        100,
+                        Math.round((u.monthlyTokensUsed / (u.monthlyTokenLimit || 1)) * 100)
+                      );
 
-                    return (
-                      <tr
-                        key={u.uid}
-                        className={`hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors ${
-                          u.disabled ? "opacity-60 bg-slate-50/40 dark:bg-slate-950/40" : ""
-                        }`}
-                      >
-                        {/* User Identity Cell */}
-                        <td className="p-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold flex items-center justify-center text-xs shrink-0">
-                              {u.displayName[0]?.toUpperCase() || "U"}
+                      return (
+                        <tr
+                          key={u.uid}
+                          className={`hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors ${
+                            u.disabled ? "opacity-60 bg-red-50/10" : ""
+                          }`}
+                        >
+                          <td className="p-3.5">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold flex items-center justify-center shrink-0">
+                                {u.displayName[0]?.toUpperCase() || "U"}
+                              </div>
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-900 dark:text-slate-100">
+                                    {u.displayName}
+                                  </span>
+                                  {u.disabled && (
+                                    <Badge variant="destructive" className="text-[9px] px-1.5 py-0">
+                                      Frozen
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-slate-500 font-mono">{u.email}</p>
+                                <span className="text-[10px] text-slate-400 font-mono">UID: {u.uid}</span>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="font-bold text-slate-900 dark:text-slate-100 truncate flex items-center gap-1.5">
-                                {u.displayName}
-                                {isSelf && (
-                                  <Badge variant="outline" className="text-[9px]">
-                                    You
-                                  </Badge>
-                                )}
-                                {u.roleRequest === "pending" && (
-                                  <Badge variant="amber" className="text-[9px]">
-                                    Teacher Req
-                                  </Badge>
-                                )}
-                              </p>
-                              <p className="text-[11px] text-slate-400 truncate">{u.email}</p>
-                            </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Role Cell */}
-                        <td className="p-3 text-center">
-                          <Badge
-                            variant={
-                              u.role === "admin"
-                                ? "destructive"
-                                : u.role === "teacher"
-                                ? "amber"
-                                : "secondary"
-                            }
-                            className="text-[10px] capitalize font-bold"
-                          >
-                            {u.role}
-                          </Badge>
-                        </td>
-
-                        {/* Status Cell */}
-                        <td className="p-3 text-center">
-                          {u.disabled ? (
-                            <Badge variant="destructive" className="text-[10px]">
-                              Disabled
-                            </Badge>
-                          ) : (
-                            <Badge variant="emerald" className="text-[10px]">
-                              Active
-                            </Badge>
-                          )}
-                        </td>
-
-                        {/* XP / Streak Cell */}
-                        <td className="p-3 text-center font-mono">
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
-                            {u.xp} XP
-                          </span>
-                          <span className="block text-[10px] text-slate-400">
-                            {u.streakDays}d streak
-                          </span>
-                        </td>
-
-                        {/* Monthly AI Quota Cell */}
-                        <td className="p-3 text-center">
-                          <span className="font-mono text-[11px] font-bold text-teal-600 dark:text-teal-400 block">
-                            {u.monthlyTokensUsed.toLocaleString()}
-                          </span>
-                          <span className="text-[10px] text-slate-400">
-                            / {u.monthlyTokenLimit.toLocaleString()} limit
-                          </span>
-                        </td>
-
-                        {/* Actions Cell */}
-                        <td className="p-3 text-right">
-                          <div className="inline-flex items-center gap-2">
-                            {/* Role Switcher Selector */}
+                          <td className="p-3">
                             <select
                               value={u.role}
-                              disabled={isSelf || isPendingAction}
+                              disabled={updatingUid === u.uid}
                               onChange={(e) =>
-                                handleRoleChange(
-                                  u.uid,
-                                  e.target.value as "student" | "teacher" | "admin"
-                                )
+                                handleRoleChange(u.uid, e.target.value as "student" | "teacher" | "admin")
                               }
-                              className="h-7 px-2 text-[11px] rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-50 cursor-pointer"
+                              className="h-8 px-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-semibold"
                             >
                               <option value="student">Student</option>
                               <option value="teacher">Teacher</option>
-                              <option value="admin">Admin</option>
+                              <option value="admin">Administrator</option>
                             </select>
+                          </td>
 
-                            {/* Toggle Account Disabled */}
+                          <td className="p-3 text-center">
+                            <div className="inline-flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300">
+                              <Flame className="h-3.5 w-3.5 text-amber-500" />
+                              <span>{u.xp} XP</span>
+                              <span className="text-[10px] text-slate-400 font-normal">
+                                ({u.streakDays}d streak)
+                              </span>
+                            </div>
+                          </td>
+
+                          <td className="p-3 text-center">
+                            <div className="space-y-1">
+                              <span className="font-mono text-[11px] text-slate-700 dark:text-slate-300">
+                                {(u.monthlyTokensUsed / 1000).toFixed(1)}k /{" "}
+                                {(u.monthlyTokenLimit / 1000).toFixed(0)}k
+                              </span>
+                              <div className="w-24 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 mx-auto overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    quotaPercent > 90
+                                      ? "bg-rose-500"
+                                      : quotaPercent > 70
+                                      ? "bg-amber-500"
+                                      : "bg-teal-500"
+                                  }`}
+                                  style={{ width: `${quotaPercent}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+
+                          <td className="p-3 text-slate-500 text-[11px] font-mono">
+                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "Unknown"}
+                          </td>
+
+                          <td className="p-3 text-right">
                             <Button
-                              variant="outline"
                               size="sm"
-                              disabled={isSelf || isPendingAction}
+                              variant={u.disabled ? "default" : "outline"}
+                              disabled={updatingUid === u.uid}
                               onClick={() => handleToggleDisabled(u.uid, u.disabled)}
-                              className={`h-7 px-2 text-[11px] ${
-                                u.disabled
-                                  ? "text-emerald-600 hover:bg-emerald-50 border-emerald-300"
-                                  : "text-rose-600 hover:bg-rose-50 border-rose-300"
-                              }`}
+                              className="text-xs h-8"
                             >
                               {u.disabled ? (
                                 <>
-                                  <UserCheck className="h-3 w-3 mr-1" /> Enable
+                                  <UserCheck className="h-3.5 w-3.5 mr-1 text-emerald-400" /> Restore
                                 </>
                               ) : (
                                 <>
-                                  <UserX className="h-3 w-3 mr-1" /> Disable
+                                  <UserX className="h-3.5 w-3.5 mr-1 text-rose-500" /> Freeze
                                 </>
                               )}
                             </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -647,109 +874,282 @@ export default function AdminConsolePage() {
         </div>
       )}
 
-      {/* TAB: TEACHER PRIVILEGE REQUESTS */}
+      {/* TAB: TEACHER REQUESTS */}
       {activeTab === "requests" && (
         <div className="space-y-4">
-          <Card className="p-4">
-            <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
-              Pending Teacher Elevation Requests
-            </h3>
-            <p className="text-xs text-slate-500">
-              Users requesting educator privileges to create classrooms, publish syllabi, and invite students.
-            </p>
+          <Card className="p-6 space-y-4">
+            <div>
+              <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                Pending Teacher Accreditation Requests
+              </h3>
+              <p className="text-xs text-slate-500">
+                Review and approve educators applying to create and publish curriculum courses.
+              </p>
+            </div>
+
+            {asArray(users).filter((u) => u.roleRequest === "pending").length === 0 ? (
+              <div className="text-center py-12 space-y-2 border border-dashed rounded-2xl border-slate-200 dark:border-slate-800">
+                <CheckCircle className="h-8 w-8 text-emerald-500 mx-auto" />
+                <p className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                  No pending educator requests
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  All applicant verification tickets have been processed.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {asArray(users)
+                  .filter((u) => u.roleRequest === "pending")
+                  .map((u) => (
+                    <Card
+                      key={u.uid}
+                      className="p-5 border-amber-500/30 bg-amber-50/20 dark:bg-amber-950/10 flex flex-col justify-between space-y-4"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm text-slate-900 dark:text-slate-100">
+                            {u.displayName}
+                          </span>
+                          <Badge variant="amber" className="text-[10px]">
+                            Application Pending
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-slate-500 font-mono">{u.email}</p>
+                        <p className="text-[11px] text-slate-400">UID: {u.uid}</p>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2 border-t border-amber-200/40 dark:border-amber-900/40">
+                        <Button
+                          size="sm"
+                          disabled={updatingUid === u.uid}
+                          onClick={() => handleApproveTeacher(u.uid)}
+                          className="text-xs flex-1 bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve Teacher
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={updatingUid === u.uid}
+                          onClick={() => handleRejectTeacher(u.uid)}
+                          className="text-xs flex-1"
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-1 text-rose-500" /> Reject
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* TAB: COURSES & CLASSES */}
+      {activeTab === "classes" && (
+        <div className="space-y-4">
+          <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="font-bold text-sm">Course Directory ({asArray(classes).length})</h3>
+              <span className="text-xs text-slate-500">Manage courses and visibility</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                    <th className="p-3.5 font-bold">Course Title</th>
+                    <th className="p-3 font-semibold">Subject</th>
+                    <th className="p-3 font-semibold text-center">Status</th>
+                    <th className="p-3 font-semibold text-center">Enrollment</th>
+                    <th className="p-3 font-semibold text-center">Join Code</th>
+                    <th className="p-3 font-semibold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {asArray(classes).length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-400 italic">
+                        No courses registered on platform.
+                      </td>
+                    </tr>
+                  ) : (
+                    asArray(classes).map((cls) => (
+                      <tr key={cls.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
+                        <td className="p-3.5">
+                          <Link href={`/classes/${cls.id}`} className="font-bold hover:text-teal-600 transition-colors">
+                            {cls.title}
+                          </Link>
+                          <p className="text-[10px] text-slate-400 font-mono">ID: {cls.id}</p>
+                        </td>
+
+                        <td className="p-3">
+                          <Badge variant="outline" className="text-[10px] uppercase">{cls.subject}</Badge>
+                        </td>
+
+                        <td className="p-3 text-center">
+                          <button
+                            onClick={() => handleToggleClassStatus(cls.id, cls.status)}
+                            className="cursor-pointer"
+                          >
+                            <Badge variant={cls.status === "published" ? "emerald" : "amber"} className="text-[10px]">
+                              {cls.status}
+                            </Badge>
+                          </button>
+                        </td>
+
+                        <td className="p-3 text-center font-mono">
+                          {cls.studentCount ?? 0} students
+                        </td>
+
+                        <td className="p-3 text-center font-mono font-bold text-teal-600 dark:text-teal-400">
+                          {cls.joinCode || "None"}
+                        </td>
+
+                        <td className="p-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Link href={`/classes/${cls.id}/manage/content`}>
+                              <Button size="sm" variant="outline" className="text-xs h-7 px-2">
+                                Studio
+                              </Button>
+                            </Link>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={deletingClassId === cls.id}
+                              onClick={() => handleDeleteClass(cls.id)}
+                              className="text-xs h-7 px-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB: BUG REPORTS & SAFETY TRIAGE */}
+      {activeTab === "reports" && (
+        <div className="space-y-4">
+          <Card className="p-4 flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-sm">Bug Reports & Safety Triage ({asArray(reports).length})</h3>
+              <p className="text-xs text-slate-500">Review flagged user content and reported application issues</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Filter className="h-3.5 w-3.5 text-slate-400" />
+              <select
+                value={reportFilter}
+                onChange={(e) => setReportFilter(e.target.value)}
+                className="h-8 px-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending Only</option>
+                <option value="investigating">Investigating</option>
+                <option value="resolved">Resolved</option>
+                <option value="dismissed">Dismissed</option>
+              </select>
+            </div>
           </Card>
 
-          {users.filter((u) => u.roleRequest === "pending").length === 0 ? (
-            <Card className="p-12 text-center border-dashed">
-              <GraduationCap className="h-10 w-10 text-slate-400 mx-auto mb-3" />
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                No Pending Teacher Requests
-              </p>
-              <p className="text-xs text-slate-400 mt-1">
-                When students request teacher privileges from their settings or profile, they will appear here for review.
-              </p>
+          {filteredReports.length === 0 ? (
+            <Card className="p-12 text-center text-slate-400 border-dashed">
+              <CheckCircle className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
+              <p className="text-sm font-semibold">Triage queue empty</p>
+              <p className="text-xs text-slate-500">No active reports match your filter criteria.</p>
             </Card>
           ) : (
-            <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
-                      <th className="p-3.5 font-bold">Applicant Identity</th>
-                      <th className="p-3 font-semibold text-center">Current Role</th>
-                      <th className="p-3 font-semibold text-center">Account Status</th>
-                      <th className="p-3 font-semibold text-center">Joined Date</th>
-                      <th className="p-3 font-semibold text-right">Review Decision</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {users
-                      .filter((u) => u.roleRequest === "pending")
-                      .map((u) => {
-                        const isPendingAction = updatingUid === u.uid;
-                        return (
-                          <tr key={u.uid} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40 transition-colors">
-                            <td className="p-3.5">
-                              <div className="flex items-center gap-2.5">
-                                <div className="h-8 w-8 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold flex items-center justify-center text-xs shrink-0">
-                                  {u.displayName[0]?.toUpperCase() || "U"}
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-bold text-slate-900 dark:text-slate-100 truncate">
-                                    {u.displayName}
-                                  </p>
-                                  <p className="text-[11px] text-slate-400 truncate">{u.email}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="p-3 text-center">
-                              <Badge variant="secondary" className="text-[10px] capitalize font-bold">
-                                {u.role}
-                              </Badge>
-                            </td>
-                            <td className="p-3 text-center">
-                              {u.disabled ? (
-                                <Badge variant="destructive" className="text-[10px]">Disabled</Badge>
-                              ) : (
-                                <Badge variant="emerald" className="text-[10px]">Active</Badge>
-                              )}
-                            </td>
-                            <td className="p-3 text-center text-slate-500 font-mono text-[11px]">
-                              {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : "—"}
-                            </td>
-                            <td className="p-3 text-right">
-                              <div className="inline-flex items-center gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={isPendingAction}
-                                  onClick={() => handleRejectTeacher(u.uid)}
-                                  className="h-7 px-2.5 text-[11px] text-rose-600 hover:bg-rose-50 border-rose-300"
-                                >
-                                  <XCircle className="h-3.5 w-3.5 mr-1" /> Reject
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  disabled={isPendingAction}
-                                  onClick={() => handleApproveTeacher(u.uid)}
-                                  className="h-7 px-2.5 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white"
-                                >
-                                  <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve Teacher
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
+            <div className="space-y-3">
+              {filteredReports.map((report) => (
+                <Card key={report.id} className="p-4 space-y-3 border-slate-200 dark:border-slate-800">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            report.status === "pending"
+                              ? "destructive"
+                              : report.status === "investigating"
+                              ? "amber"
+                              : "secondary"
+                          }
+                          className="text-[10px]"
+                        >
+                          {report.status}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                          {report.targetType}
+                        </Badge>
+                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                          {report.reason}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                        {report.description}
+                      </p>
+                    </div>
+
+                    <div className="text-right text-[11px] text-slate-400 shrink-0">
+                      <span>Reporter: {report.reporterName}</span>
+                      <p className="font-mono text-[10px]">
+                        {report.createdAt ? new Date(report.createdAt).toLocaleDateString() : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div className="text-[11px] text-slate-500">
+                      {report.targetId && <span>Target Ref: <code className="font-mono">{report.targetId}</code></span>}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {report.status !== "investigating" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUpdateReport(report.id, "investigating")}
+                          className="text-xs h-7"
+                        >
+                          Investigate
+                        </Button>
+                      )}
+                      {report.status !== "resolved" && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleUpdateReport(report.id, "resolved")}
+                          className="text-xs h-7 bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          Resolve
+                        </Button>
+                      )}
+                      {report.status !== "dismissed" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleUpdateReport(report.id, "dismissed")}
+                          className="text-xs h-7 text-slate-500"
+                        >
+                          Dismiss
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
           )}
         </div>
       )}
 
-      {/* TAB 2: AI TOKEN QUOTAS & USAGE ANALYTICS */}
+      {/* TAB: AI TOKEN QUOTAS & USAGE ANALYTICS */}
       {activeTab === "usage" && (
         <div className="space-y-4">
           <Card className="p-6 space-y-4">
@@ -785,7 +1185,7 @@ export default function AdminConsolePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {usageData.monthlyBreakdown.map((row, i) => (
+                    {asArray(usageData.monthlyBreakdown).map((row, i) => (
                       <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
                         <td className="p-3.5 font-mono font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                           <Calendar className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
@@ -820,6 +1220,66 @@ export default function AdminConsolePage() {
               <li><strong>Teacher Monthly Quota:</strong> 200,000 tokens / month for syllabus synthesis and classroom tools.</li>
               <li><strong>Superusers (Admins):</strong> Exempt from monthly token caps.</li>
             </ul>
+          </Card>
+        </div>
+      )}
+
+      {/* TAB: AUDIT LOG */}
+      {activeTab === "audit" && (
+        <div className="space-y-4">
+          <Card className="overflow-hidden border border-slate-200 dark:border-slate-800">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+              <h3 className="font-bold text-sm">Security & Administrative Audit Logs ({asArray(auditLogs).length})</h3>
+              <span className="text-xs text-slate-500">Immutable record of high-privilege operations</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
+                    <th className="p-3.5 font-bold">Timestamp</th>
+                    <th className="p-3 font-semibold">Action</th>
+                    <th className="p-3 font-semibold">Actor UID</th>
+                    <th className="p-3 font-semibold">Target Type</th>
+                    <th className="p-3 font-semibold text-right">Target Ref</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {asArray(auditLogs).length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-slate-400 italic">
+                        No audit events recorded yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    asArray(auditLogs).map((log) => (
+                      <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
+                        <td className="p-3.5 font-mono text-[11px] text-slate-500 flex items-center gap-1.5">
+                          <Clock className="h-3 w-3 text-slate-400" />
+                          {log.createdAt ? new Date(log.createdAt).toLocaleString() : "Unknown"}
+                        </td>
+                        <td className="p-3">
+                          <Badge variant="outline" className="text-[10px] font-mono font-bold">
+                            {log.action}
+                          </Badge>
+                        </td>
+                        <td className="p-3 font-mono text-[11px] text-slate-600 dark:text-slate-400">
+                          {log.actorName ? `${log.actorName} (${log.actorUid.slice(0, 6)}...)` : log.actorUid}
+                        </td>
+                        <td className="p-3">
+                          <span className="capitalize text-slate-700 dark:text-slate-300">
+                            {log.targetType || "System"}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-mono text-[10px] text-slate-500">
+                          {log.targetId || "—"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </Card>
         </div>
       )}

@@ -35,8 +35,7 @@ export async function POST(req: NextRequest) {
 
     const isWhitelisted =
       !!caller.email &&
-      (adminEmails.includes(caller.email.toLowerCase()) ||
-        caller.email.toLowerCase() === "shamzypre14@gmail.com");
+      adminEmails.includes(caller.email.toLowerCase());
 
     // Auto-approve only when email_verified is true and whitelisted
     if (isWhitelisted && authUser.emailVerified) {

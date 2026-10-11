@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
-import { createClassSchema } from "@/lib/validation/classes";
+import { createClassSchema, generateSecureJoinCode } from "@/lib/validation/classes";
 
-export const runtime = "nodejs";
-
-function generateJoinCode(): string {
-  const num = Math.floor(1000 + Math.random() * 9000);
-  return `SYN-${num}`;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,9 +17,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { title, subject, description, visibility, status } = parsed.data;
+    const {
+      title,
+      subject,
+      description,
+      level,
+      audienceTags,
+      durationWeeks,
+      visibility,
+      status,
+      buildState,
+    } = parsed.data;
 
-    // Fetch teacher name
+    // Fetch teacher display name
     let teacherName = "Teacher";
     const userDoc = await adminDb().collection("users").doc(caller.uid).get();
     if (userDoc.exists) {
@@ -33,47 +37,42 @@ export async function POST(req: NextRequest) {
     }
 
     const classRef = adminDb().collection("classes").doc();
-    const resolvedVisibility = visibility || "public";
-    const resolvedStatus = status || "published";
 
     const newClass = {
       id: classRef.id,
       title: title.trim(),
       subject: subject.trim(),
       description: description.trim(),
+      level: level || "undergrad",
+      audienceTags: audienceTags || [],
+      durationWeeks: durationWeeks || 4,
       teacherId: caller.uid,
+      coTeacherIds: [] as string[],
       teacherName,
-      visibility: resolvedVisibility,
-      status: resolvedStatus,
-      joinCode: generateJoinCode(),
+      visibility: visibility || "public",
+      status: status || (buildState === "drafting" ? "draft" : "published"),
+      buildState: buildState || "empty",
+      joinCode: await (async () => {
+        let code = generateSecureJoinCode();
+        for (let attempts = 0; attempts < 3; attempts++) {
+          const existing = await adminDb().collection("classes").where("joinCode", "==", code).limit(1).get();
+          if (existing.empty) break;
+          code = generateSecureJoinCode();
+        }
+        return code;
+      })(),
       studentCount: 0,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     };
 
-    // Atomic batch: write class document AND teacher active enrollment
-    const batch = adminDb().batch();
-    batch.set(classRef, newClass);
+    // Ownership is implicit: teacher owns the class. NO teacher enrollment document is created.
+    await classRef.set(newClass);
 
-    const teacherEnrollmentRef = adminDb()
-      .collection("enrollments")
-      .doc(`${classRef.id}_${caller.uid}`);
-
-    batch.set(teacherEnrollmentRef, {
-      classId: classRef.id,
-      uid: caller.uid,
-      userEmail: caller.email,
-      role: "teacher",
-      status: "active",
-      joinedAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
-
-    await batch.commit();
-
+    // Returns single created class object
     return NextResponse.json({
       ok: true,
-      data: { class: newClass },
+      data: newClass,
     });
   } catch (error) {
     return handleAuthError(error);
@@ -85,7 +84,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const scope = searchParams.get("scope") || "explore";
 
-    // Caller is optional on explore, but required on mine
     let caller = null;
     try {
       caller = await requireUser(req);
@@ -102,47 +100,84 @@ export async function GET(req: NextRequest) {
       }
 
       if (caller.role === "teacher" || caller.role === "admin") {
-        // Teacher view: get classes they created
-        const snap = await adminDb()
-          .collection("classes")
-          .where("teacherId", "==", caller.uid)
-          .get();
+        // Teacher view: get classes they created or co-teach, PLUS any classes they are actively enrolled in
+        const [ownedSnap, coSnap, enrollmentsSnap] = await Promise.all([
+          adminDb().collection("classes").where("teacherId", "==", caller.uid).get(),
+          adminDb().collection("classes").where("coTeacherIds", "array-contains", caller.uid).get(),
+          adminDb().collection("enrollments").where("uid", "==", caller.uid).where("status", "==", "active").get(),
+        ]);
 
-        const classes = snap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a: any, b: any) => {
-            const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-            const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
-            return tB - tA;
-          });
+        const classMap = new Map<string, Record<string, unknown>>();
+        for (const doc of ownedSnap.docs) {
+          classMap.set(doc.id, { id: doc.id, ...doc.data(), isOwner: true, userEnrollmentStatus: "none" });
+        }
+        for (const doc of coSnap.docs) {
+          classMap.set(doc.id, { id: doc.id, ...doc.data(), isOwner: true, userEnrollmentStatus: "none" });
+        }
 
-        return NextResponse.json({ ok: true, data: { classes } });
+        // Include any active student enrollments so teacher role change preserves previous student enrollments
+        const enrolledClassIds = enrollmentsSnap.docs
+          .map((d) => d.data().classId as string)
+          .filter((cid) => cid && !classMap.has(cid));
+
+        if (enrolledClassIds.length > 0) {
+          const enrolledRefs = enrolledClassIds.map((cid) => adminDb().collection("classes").doc(cid));
+          const enrolledDocs = await adminDb().getAll(...enrolledRefs);
+          for (const d of enrolledDocs) {
+            if (d.exists) {
+              classMap.set(d.id, {
+                id: d.id,
+                ...d.data(),
+                isOwner: false,
+                userEnrollmentStatus: "active",
+              });
+            }
+          }
+        }
+
+        const classes = Array.from(classMap.values()).sort((a, b) => {
+          const tA = (a.createdAt as { toDate?: () => Date })?.toDate?.()?.getTime() || 0;
+          const tB = (b.createdAt as { toDate?: () => Date })?.toDate?.()?.getTime() || 0;
+          return tB - tA;
+        });
+
+        // Always returns a direct array under data
+        return NextResponse.json({ ok: true, data: classes });
       } else {
-        // Student view: get classes where enrollment is active
+        // Student view: get classes where enrollment is active (excluding legacy teacher enrollments)
         const enrollmentsSnap = await adminDb()
           .collection("enrollments")
           .where("uid", "==", caller.uid)
           .where("status", "==", "active")
           .get();
 
-        const classIds = enrollmentsSnap.docs.map((d) => d.data().classId);
+        const studentEnrollments = enrollmentsSnap.docs.filter(
+          (d) => d.data().role !== "teacher"
+        );
+
+        const classIds = studentEnrollments.map((d) => d.data().classId as string);
         if (classIds.length === 0) {
-          return NextResponse.json({ ok: true, data: { classes: [] } });
+          return NextResponse.json({ ok: true, data: [] });
         }
 
-        const classes = [];
-        for (const cid of classIds) {
-          const cDoc = await adminDb().collection("classes").doc(cid).get();
-          if (cDoc.exists) {
-            classes.push({ id: cDoc.id, ...cDoc.data(), userEnrollmentStatus: "active" });
-          }
-        }
-        return NextResponse.json({ ok: true, data: { classes } });
+        const classRefs = classIds.map((cid) => adminDb().collection("classes").doc(cid));
+        const classDocs = await adminDb().getAll(...classRefs);
+
+        const classes = classDocs
+          .filter((d) => d.exists)
+          .map((d) => ({
+            id: d.id,
+            ...d.data(),
+            userEnrollmentStatus: "active",
+          }));
+
+        // Always returns a direct array under data
+        return NextResponse.json({ ok: true, data: classes });
       }
     }
 
-    // Default: explore scope (retrieves published classes without failing on missing composite index)
-    const snap = await adminDb().collection("classes").get();
+    // Default: explore scope (retrieves published classes with limit 50)
+    const snap = await adminDb().collection("classes").limit(50).get();
 
     // Map user enrollment status if signed in
     const userEnrollments: Record<string, string> = {};
@@ -153,34 +188,39 @@ export async function GET(req: NextRequest) {
         .get();
       eSnap.forEach((d) => {
         const data = d.data();
-        userEnrollments[data.classId] = data.status;
+        if (data.role !== "teacher") {
+          userEnrollments[data.classId] = data.status;
+        }
       });
     }
 
     const classes = snap.docs
       .map((d) => {
-        const data = d.data();
+        const data = d.data() as Record<string, unknown>;
+        const coTeacherIds = Array.isArray(data.coTeacherIds) ? (data.coTeacherIds as string[]) : [];
+        const isCoTeacher = caller ? coTeacherIds.includes(caller.uid) : false;
+        const isOwner = caller ? (data.teacherId === caller.uid || isCoTeacher) : false;
         return {
           id: d.id,
           ...data,
           userEnrollmentStatus: userEnrollments[d.id] || "none",
-          isOwner: caller ? data.teacherId === caller.uid : false,
+          isOwner,
         };
       })
-      .filter((c: any) => {
-        // Show if published (both public & private so students can view & request to join),
-        // or if caller is the creator teacher / admin
+      .filter((c: Record<string, unknown>) => {
+        // Show if published, or if caller is owner or admin
         if (c.status === "published") return true;
-        if (caller && (c.teacherId === caller.uid || caller.role === "admin")) return true;
+        if (caller && (c.isOwner || caller.role === "admin")) return true;
         return false;
       })
-      .sort((a: any, b: any) => {
-        const tA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-        const tB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+        const tA = (a.createdAt as { toDate?: () => Date })?.toDate?.()?.getTime() || 0;
+        const tB = (b.createdAt as { toDate?: () => Date })?.toDate?.()?.getTime() || 0;
         return tB - tA;
       });
 
-    return NextResponse.json({ ok: true, data: { classes } });
+    // Always returns a direct array under data
+    return NextResponse.json({ ok: true, data: classes });
   } catch (error) {
     return handleAuthError(error);
   }

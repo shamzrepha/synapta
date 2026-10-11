@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use, useCallback } from "react";
+import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -88,42 +88,54 @@ export default function TeacherContentStudioPage({
   const [editText, setEditText] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
-  const loadContent = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [contentRes, classRes] = await Promise.all([
-        fetch(`/api/classes/${classId}/content`),
-        fetch(`/api/classes/${classId}`),
-      ]);
-
-      const contentJson = await contentRes.json();
-      const classJson = await classRes.json();
-
-      if (contentJson.ok) {
-        setItems(contentJson.data.items || []);
-        setMetrics(contentJson.data.metrics || null);
-      }
-
-      if (classJson.ok && Array.isArray(classJson.data?.kcs)) {
-        setKcs(classJson.data.kcs);
-        if (classJson.data.kcs.length > 0 && !genKcId) {
-          setGenKcId(classJson.data.kcs[0].id);
-        }
-      }
-    } catch {
-      toast({
-        title: "Connection Error",
-        description: "Failed to load content studio data.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [classId, genKcId, toast]);
+  const [reloadTick, setReloadTick] = useState(0);
+  const triggerReload = () => setReloadTick((t) => t + 1);
 
   useEffect(() => {
-    loadContent();
-  }, [loadContent]);
+    let ignore = false;
+    async function fetchContent() {
+      try {
+        const [contentRes, classRes] = await Promise.all([
+          fetch(`/api/classes/${classId}/content`),
+          fetch(`/api/classes/${classId}`),
+        ]);
+
+        const contentJson = await contentRes.json();
+        const classJson = await classRes.json();
+
+        if (!ignore) {
+          if (contentJson.ok) {
+            setItems(contentJson.data.items || []);
+            setMetrics(contentJson.data.metrics || null);
+          }
+
+          if (classJson.ok && Array.isArray(classJson.data?.kcs)) {
+            setKcs(classJson.data.kcs);
+            if (classJson.data.kcs.length > 0) {
+              setGenKcId((prev) => prev || classJson.data.kcs[0].id);
+            }
+          }
+        }
+      } catch {
+        if (!ignore) {
+          toast({
+            title: "Connection Error",
+            description: "Failed to load content studio data.",
+            variant: "destructive",
+          });
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchContent();
+    return () => {
+      ignore = true;
+    };
+  }, [classId, reloadTick, toast]);
 
   const handleUpdateStatus = async (hash: string, newStatus: "approved" | "rejected") => {
     try {
@@ -139,7 +151,7 @@ export default function TeacherContentStudioPage({
           description: newStatus === "approved" ? "This module is now live and served to all enrolled students." : "Draft rejected.",
           variant: newStatus === "approved" ? "success" : "default",
         });
-        loadContent();
+        triggerReload();
       } else {
         toast({
           title: "Update failed",
@@ -179,7 +191,7 @@ export default function TeacherContentStudioPage({
           variant: "success",
         });
         setGenerateModalOpen(false);
-        loadContent();
+        triggerReload();
       } else {
         toast({
           title: "Generation Failed",
@@ -230,7 +242,7 @@ export default function TeacherContentStudioPage({
           variant: "success",
         });
         setEditItem(null);
-        loadContent();
+        triggerReload();
       }
     } catch {
       toast({

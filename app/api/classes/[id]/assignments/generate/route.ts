@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { runMultiAgentAssignmentGenerator } from "@/lib/teacher/assignmentAgent";
 import { z } from "zod";
@@ -33,22 +34,8 @@ export async function POST(
 
     const { kind, selectedKcIds, difficulty, numItems, specialInstructions } = parsed.data;
 
-    // Fetch class
-    const classDoc = await adminDb().collection("classes").doc(id).get();
-    if (!classDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Class not found" } },
-        { status: 404 }
-      );
-    }
-
-    const classData = classDoc.data()!;
-    if (classData.teacherId !== caller.uid && caller.role !== "admin") {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Only class teacher or admin can generate assignments" } },
-        { status: 403 }
-      );
-    }
+    const access = await assertClassAccess(caller, id, "mutate");
+    const classData = access.classData;
 
     // Fetch Knowledge Components
     const kcsSubSnap = await adminDb()

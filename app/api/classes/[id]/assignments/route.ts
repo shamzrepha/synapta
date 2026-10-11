@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
@@ -11,34 +12,8 @@ export async function GET(
   try {
     const { id } = await params;
     const caller = await requireUser(req);
-
-    // Fetch class
-    const classDoc = await adminDb().collection("classes").doc(id).get();
-    if (!classDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Class not found" } },
-        { status: 404 }
-      );
-    }
-
-    const classData = classDoc.data()!;
-    const isOwner = classData.teacherId === caller.uid;
-    const isAdmin = caller.role === "admin";
-
-    // Check enrollment
-    const enrollmentDoc = await adminDb()
-      .collection("enrollments")
-      .doc(`${id}_${caller.uid}`)
-      .get();
-
-    const isEnrolled = enrollmentDoc.exists && enrollmentDoc.data()?.status === "active";
-
-    if (!isOwner && !isAdmin && !isEnrolled) {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Access forbidden" } },
-        { status: 403 }
-      );
-    }
+    const access = await assertClassAccess(caller, id, "view");
+    const isOwnerOrAdmin = access.isOwner || access.isAdmin;
 
     const snap = await adminDb()
       .collection("classes")
@@ -48,23 +23,23 @@ export async function GET(
 
     const assignments = snap.docs
       .map((d) => {
-        const data = d.data() as Record<string, any>;
+        const data = d.data() as Record<string, unknown>;
         return {
           id: d.id,
           ...data,
           status: (data.status as string) || "draft",
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : null,
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : null,
+          createdAt: (data.createdAt as { toDate?: () => Date })?.toDate ? (data.createdAt as { toDate: () => Date }).toDate().toISOString() : null,
+          updatedAt: (data.updatedAt as { toDate?: () => Date })?.toDate ? (data.updatedAt as { toDate: () => Date }).toDate().toISOString() : null,
         };
       })
       .filter((a) => {
         // Students can only see published assignments
-        if (isOwner || isAdmin) return true;
+        if (isOwnerOrAdmin) return true;
         return a.status === "published";
       })
-      .sort((a: any, b: any) => {
-        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+        const tA = typeof a.createdAt === "string" ? new Date(a.createdAt).getTime() : 0;
+        const tB = typeof b.createdAt === "string" ? new Date(b.createdAt).getTime() : 0;
         return tB - tA;
       });
 
@@ -72,7 +47,7 @@ export async function GET(
       ok: true,
       data: {
         assignments,
-        isTeacher: isOwner || isAdmin,
+        isTeacher: isOwnerOrAdmin,
       },
     });
   } catch (error) {

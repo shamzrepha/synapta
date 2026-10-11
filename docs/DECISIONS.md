@@ -16,7 +16,7 @@ This log records architectural and design decisions, trade-offs, and deviations 
 
 ## Decision 3: Server-Side AI SDK & Model Configuration
 - **Context:** Google Gemini models evolve, and server credentials must never leak.
-- **Decision:** Use the official `@google/genai` SDK strictly inside server route handlers (`runtime = "nodejs"`). Model identifier is resolved dynamically from `process.env.GEMINI_MODEL` (e.g., `gemini-2.5-flash` or `gemini-1.5-flash`).
+- **Decision:** Use the official `@google/genai` SDK strictly inside server route handlers (`runtime = "nodejs"`). Model identifier is resolved dynamically from `process.env.GEMINI_MODEL` (e.g., `gemini-3.8-flash`), with automated fallback and sanitization for legacy identifiers.
 - **Rationale:** Guarantees zero client bundle leakage of API keys, and allows model upgrades without code changes.
 
 ## Decision 4: Rate Limiting & Token Quota

@@ -22,6 +22,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { asArray } from "@/lib/api/client";
 
 interface ClassItem {
   id: string;
@@ -47,11 +48,17 @@ export default function ExplorePage() {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"explore" | "mine">("explore");
 
-  // Create class modal state
+  // Create class wizard state (A4.1)
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [createTitle, setCreateTitle] = useState("");
   const [createSubject, setCreateSubject] = useState("");
   const [createDescription, setCreateDescription] = useState("");
+  const [createLevel, setCreateLevel] = useState<"school" | "undergrad" | "professional">("undergrad");
+  const [createWeeks, setCreateWeeks] = useState(4);
+  const [createAudienceTags, setCreateAudienceTags] = useState<string[]>([]);
+  const [seedText, setSeedText] = useState("");
+  const [buildWithAi, setBuildWithAi] = useState(true);
   const [createVisibility, setCreateVisibility] = useState<"public" | "private">("public");
   const [isCreating, setIsCreating] = useState(false);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -63,8 +70,8 @@ export default function ExplorePage() {
       try {
         const res = await fetch(`/api/classes?scope=${activeTab}`);
         const data = await res.json();
-        if (!ignore && data.ok && Array.isArray(data.data?.classes)) {
-          setClasses(data.data.classes);
+        if (!ignore && data.ok) {
+          setClasses(asArray<ClassItem>(data.data));
         } else if (!ignore) {
           setClasses([]);
         }
@@ -149,22 +156,51 @@ export default function ExplorePage() {
           title: createTitle,
           subject: createSubject,
           description: createDescription,
+          level: createLevel,
+          durationWeeks: createWeeks,
+          audienceTags: createAudienceTags,
           visibility: createVisibility,
-          status: "published",
+          status: buildWithAi ? "draft" : "published",
+          buildState: buildWithAi ? "drafting" : "empty",
         }),
       });
       const data = await res.json();
 
-      if (data.ok && data.data?.class) {
+      if (data.ok && data.data) {
+        const createdClass = data.data.class || data.data;
+
         toast({
           title: "Class Created!",
-          description: `"${data.data.class.title}" has been created and published.`,
+          description: buildWithAi
+            ? `"${createdClass.title}" created. AI Co-Teacher is drafting your curriculum...`
+            : `"${createdClass.title}" published and ready for students!`,
           variant: "success",
         });
+
+        if (buildWithAi) {
+          // Trigger asynchronous AI Co-Teacher build
+          fetch(`/api/classes/${createdClass.id}/build`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: createTitle,
+              subject: createSubject,
+              description: createDescription,
+              level: createLevel,
+              durationWeeks: createWeeks,
+              audienceTags: createAudienceTags,
+              seedMaterialText: seedText,
+            }),
+          }).catch((err) => console.error("Background build trigger error:", err));
+        }
+
         setIsModalOpen(false);
         setCreateTitle("");
         setCreateSubject("");
-        setClasses((prev) => [data.data.class, ...prev]);
+        setCreateDescription("");
+        setSeedText("");
+        setWizardStep(1);
+        setClasses((prev) => [{ ...createdClass, isOwner: true, userEnrollmentStatus: "none" }, ...prev]);
       } else {
         toast({
           title: "Creation Error",
@@ -183,9 +219,9 @@ export default function ExplorePage() {
     }
   };
 
-  const subjects = Array.from(new Set(classes.map((c) => c.subject).filter(Boolean)));
+  const subjects = Array.from(new Set(asArray(classes).map((c) => c.subject).filter(Boolean)));
 
-  const filtered = classes.filter((c) => {
+  const filtered = asArray(classes).filter((c) => {
     const matchesSearch =
       c.title.toLowerCase().includes(search.toLowerCase()) ||
       c.subject.toLowerCase().includes(search.toLowerCase()) ||
@@ -364,14 +400,14 @@ export default function ExplorePage() {
         </div>
       )}
 
-      {/* Create Class Modal */}
+      {/* Create Class Multi-Step Wizard (A4.1) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                <h3 className="font-bold text-lg">Create New Class</h3>
+                <h3 className="font-bold text-lg">AI Co-Teacher: Create Class</h3>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -381,89 +417,216 @@ export default function ExplorePage() {
               </button>
             </div>
 
+            {/* Stepper indicator */}
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pb-2">
+              <span className={wizardStep === 1 ? "text-teal-600 font-bold" : ""}>1. Basics</span>
+              <span>→</span>
+              <span className={wizardStep === 2 ? "text-teal-600 font-bold" : ""}>2. Seed Material</span>
+              <span>→</span>
+              <span className={wizardStep === 3 ? "text-teal-600 font-bold" : ""}>3. AI Build</span>
+            </div>
+
             <form onSubmit={handleCreateClass} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Class Title
-                </label>
-                <Input
-                  type="text"
-                  placeholder="e.g. Introduction to Analog Circuit Analysis"
-                  value={createTitle}
-                  onChange={(e) => setCreateTitle(e.target.value)}
-                  required
-                />
-              </div>
+              {wizardStep === 1 && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Class Title *
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. Linear Control Systems & State-Space"
+                      value={createTitle}
+                      onChange={(e) => setCreateTitle(e.target.value)}
+                      required
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Subject Category
-                </label>
-                <Input
-                  type="text"
-                  placeholder="e.g. Electrical Engineering, Physics, Computer Science"
-                  value={createSubject}
-                  onChange={(e) => setCreateSubject(e.target.value)}
-                  required
-                />
-              </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Subject Category *
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. Electrical Engineering, Robotics"
+                      value={createSubject}
+                      onChange={(e) => setCreateSubject(e.target.value)}
+                      required
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Class Description
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Provide an overview of the curriculum and target learning objectives..."
-                  value={createDescription}
-                  onChange={(e) => setCreateDescription(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                  required
-                />
-              </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      What should students be able to do after this class? *
+                    </label>
+                    <textarea
+                      rows={3}
+                      placeholder="e.g. Model dynamical systems, design PID controllers, and evaluate closed-loop stability using Bode and Nyquist plots."
+                      value={createDescription}
+                      onChange={(e) => setCreateDescription(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                      required
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Access Visibility
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setCreateVisibility("public")}
-                    className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 ${
-                      createVisibility === "public"
-                        ? "border-teal-500 bg-teal-500/10 text-teal-900 dark:text-teal-200 ring-2 ring-teal-500/30"
-                        : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
-                    }`}
-                  >
-                    <Globe className="h-4 w-4" /> Public (Instant Join)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCreateVisibility("private")}
-                    className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 ${
-                      createVisibility === "private"
-                        ? "border-amber-500 bg-amber-500/10 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/30"
-                        : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
-                    }`}
-                  >
-                    <Lock className="h-4 w-4" /> Private (Approval Required)
-                  </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Level</label>
+                      <select
+                        value={createLevel}
+                        onChange={(e) => setCreateLevel(e.target.value as "school" | "undergrad" | "professional")}
+                        className="w-full rounded-xl border border-slate-300 bg-white p-2 text-xs text-slate-900 focus:border-teal-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                      >
+                        <option value="school">School / K-12</option>
+                        <option value="undergrad">Undergraduate</option>
+                        <option value="professional">Professional / Mastery</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Duration (Weeks)</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={24}
+                        value={createWeeks}
+                        onChange={(e) => setCreateWeeks(Number(e.target.value))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Audience Adaptation Tags
+                    </label>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {[
+                        { id: "engineering_rigor", label: "Engineers (Rigorous)" },
+                        { id: "kids", label: "Kids (Teach-The-Bot)" },
+                        { id: "adhd_friendly", label: "ADHD-Friendly (Micro-Steps)" },
+                        { id: "literal_mode", label: "Literal (Autism-Friendly)" },
+                      ].map((tag) => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() =>
+                            setCreateAudienceTags((prev) =>
+                              prev.includes(tag.id) ? prev.filter((t) => t !== tag.id) : [...prev, tag.id]
+                            )
+                          }
+                          className={`px-2.5 py-1 rounded-lg border transition-all ${
+                            createAudienceTags.includes(tag.id)
+                              ? "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-300 font-semibold"
+                              : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
+                          }`}
+                        >
+                          {tag.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <Button
+                      type="button"
+                      disabled={!createTitle || !createSubject || !createDescription}
+                      onClick={() => setWizardStep(2)}
+                    >
+                      Next: Seed Material →
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" isLoading={isCreating}>
-                  Publish Class
-                </Button>
-              </div>
+              {wizardStep === 2 && (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Optional Seed Material / Syllabus Notes
+                    </label>
+                    <textarea
+                      rows={6}
+                      placeholder="Paste textbook excerpts, course outline, or lecture notes here. The AI Co-Teacher will align KCs with this text. (Or click skip below)."
+                      value={seedText}
+                      onChange={(e) => setSeedText(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <Button type="button" variant="ghost" onClick={() => setWizardStep(1)}>
+                      ← Back
+                    </Button>
+                    <Button type="button" onClick={() => setWizardStep(3)}>
+                      Next: AI Build →
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {wizardStep === 3 && (
+                <div className="space-y-4">
+                  <div className="p-3.5 rounded-xl border border-teal-500/30 bg-teal-500/10 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                      <span className="text-xs font-bold text-teal-900 dark:text-teal-100">
+                        Autonomous AI Co-Teacher
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                      Synapta will draft a DAG concept map, resolve prerequisites, calculate BKT difficulty priors, and generate starter lessons in the background. Nothing will be visible to students until you review and click <strong>Publish</strong>.
+                    </p>
+                    <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer pt-1">
+                      <input
+                        type="checkbox"
+                        checked={buildWithAi}
+                        onChange={(e) => setBuildWithAi(e.target.checked)}
+                        className="rounded text-teal-600 focus:ring-teal-500"
+                      />
+                      <span>Build my class with AI automatically</span>
+                    </label>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Access Visibility
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setCreateVisibility("public")}
+                        className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 ${
+                          createVisibility === "public"
+                            ? "border-teal-500 bg-teal-500/10 text-teal-900 dark:text-teal-200 ring-2 ring-teal-500/30"
+                            : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
+                        }`}
+                      >
+                        <Globe className="h-4 w-4" /> Public (Instant Join)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCreateVisibility("private")}
+                        className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-2 ${
+                          createVisibility === "private"
+                            ? "border-amber-500 bg-amber-500/10 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/30"
+                            : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
+                        }`}
+                      >
+                        <Lock className="h-4 w-4" /> Private (Approval Required)
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <Button type="button" variant="ghost" onClick={() => setWizardStep(2)}>
+                      ← Back
+                    </Button>
+                    <Button type="submit" isLoading={isCreating}>
+                      Create Class & Launch Studio
+                    </Button>
+                  </div>
+                </div>
+              )}
             </form>
           </div>
         </div>

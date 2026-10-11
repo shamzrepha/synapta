@@ -57,7 +57,7 @@ In your Vercel Project Dashboard (**Settings > Environment Variables**), add the
 | `FIREBASE_ADMIN_CLIENT_EMAIL` | Firebase Service Account Email | Production, Preview, Dev |
 | `FIREBASE_ADMIN_PRIVATE_KEY` | Private key with `\n` characters | Production, Preview, Dev |
 | `GEMINI_API_KEY` | Google AI Studio Gemini API Key | Production, Preview, Dev |
-| `GEMINI_MODEL` | Gemini Model ID (e.g. `gemini-2.5-flash` or `gemini-1.5-flash`) | Production, Preview, Dev |
+| `GEMINI_MODEL` | Gemini Model ID (e.g. `gemini-3.8-flash`) | Production, Preview, Dev |
 | `ADMIN_EMAILS` | Comma-separated admin emails (e.g. `admin@synapta.edu`) | Production, Preview, Dev |
 | `STUDENT_TOKEN_LIMIT` | Monthly token allowance for students (e.g. `50000`) | Production, Preview, Dev |
 | `TEACHER_TOKEN_LIMIT` | Monthly token allowance for teachers (e.g. `200000`) | Production, Preview, Dev |

@@ -7,7 +7,7 @@ import { z } from "zod";
 export const runtime = "nodejs";
 
 const updateContentSchema = z.object({
-  status: z.enum(["draft", "approved", "rejected"]).optional(),
+  status: z.enum(["draft", "approved", "rejected", "hidden"]).optional(),
   content: z.unknown().optional(),
 });
 

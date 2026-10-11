@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38bdf8?logo=tailwindcss)](https://tailwindcss.com/)
 [![Firebase](https://img.shields.io/badge/Firebase-Auth_%26_Firestore-ffca28?logo=firebase)](https://firebase.google.com/)
-[![Gemini](https://img.shields.io/badge/Google_Gemini-2.5_Flash-8e75ff?logo=google)](https://deepmind.google/technologies/gemini/)
+[![Gemini](https://img.shields.io/badge/Google_Gemini-3.8_Flash-8e75ff?logo=google)](https://deepmind.google/technologies/gemini/)
 [![Vitest](https://img.shields.io/badge/Vitest-12%2F12_Passed-729b1b?logo=vitest)](https://vitest.dev/)
 
 ---
@@ -97,7 +97,7 @@ Where $\Omega_{\text{peer}} = 2.0$, $\Omega_{\text{lab}} = 1.5$, $\Omega_{\text{
 - **Framework**: Next.js 16.4.0 (Turbopack, App Router, React 19)
 - **Styling**: Tailwind CSS v4, Lucide React Icons
 - **Database & Auth**: Firebase Authentication & Cloud Firestore (Client SDK + `firebase-admin` Server SDK)
-- **AI Engine**: `@google/genai` Official SDK (`gemini-2.5-flash`)
+- **AI Engine**: `@google/genai` Official SDK (`gemini-3.8-flash`)
 - **Mathematics & Visualizations**: Recharts, KaTeX (`rehype-katex`, `remark-math`), React Markdown
 - **Testing**: Vitest 5.0 with TypeScript strict mode
 
@@ -148,7 +148,7 @@ FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgk...-----
 
 # Gemini AI Model Configuration
 GEMINI_API_KEY=AIzaSy...
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.8-flash
 
 # Platform Governance
 ADMIN_EMAILS=admin@synapta.edu,superuser@synapta.edu

@@ -82,8 +82,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await bootstrapRes.json().catch(() => ({}));
         if (data.ok && data.data?.user) {
           setUser(data.data.user);
-          if (data.data.user.role === "admin") {
-            await user.getIdToken(true).catch(() => {});
+          try {
+            const tokenResult = await user.getIdTokenResult();
+            if (tokenResult.claims.role !== data.data.user.role) {
+              const freshToken = await user.getIdToken(true);
+              await establishSessionCookie(freshToken);
+            }
+          } catch {
+            // ignore token check error
           }
         } else if (!bootstrapRes.ok && data.error?.message) {
           console.warn("Bootstrap notice:", data.error.message);

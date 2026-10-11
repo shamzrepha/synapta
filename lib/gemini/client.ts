@@ -17,12 +17,14 @@ export function getGeminiClient(): GoogleGenAI {
   return genAIClient;
 }
 
-export function getGeminiModel(): string {
-  const env = getServerEnv();
-  return env.GEMINI_MODEL || "gemini-2.5-flash";
+import { modelFor, fallbackModel, type AiTask } from "@/lib/ai/router";
+
+export function getGeminiModel(task?: AiTask): string {
+  return modelFor(task || "structured_spec");
 }
 
 interface GenerateStructuredOptions<T> {
+  task?: AiTask;
   systemInstruction?: string;
   userPrompt: string;
   schema: z.ZodType<T>;
@@ -32,9 +34,10 @@ interface GenerateStructuredOptions<T> {
 /**
  * Invokes Gemini with JSON output mode, validating the output against the specified Zod schema.
  * Employs exponential backoff with jitter on rate limits (429) or transient server errors (503).
- * Throws clean, actionable errors if the API is unavailable or unconfigured.
+ * Falls back to fallback model on model-rot/deprecated/404 errors.
  */
 export async function generateStructuredJson<T>({
+  task = "structured_spec",
   systemInstruction,
   userPrompt,
   schema,
@@ -49,16 +52,18 @@ export async function generateStructuredJson<T>({
     );
   }
 
-  const modelName = getGeminiModel();
+  let activeModel = getGeminiModel(task);
+  const fallback = fallbackModel();
   const ai = getGeminiClient();
 
   let attempt = 0;
   let lastError: unknown = null;
+  let fallbackAttempted = false;
 
   while (attempt <= maxRetries) {
     try {
       const response = await ai.models.generateContent({
-        model: modelName,
+        model: activeModel,
         contents: userPrompt,
         config: {
           systemInstruction,
@@ -98,6 +103,24 @@ export async function generateStructuredJson<T>({
     } catch (err: unknown) {
       lastError = err;
       attempt++;
+
+      const errString = (err instanceof Error ? err.message : String(err)).toLowerCase();
+      const isRecoverableOrRot =
+        errString.includes("not found") ||
+        errString.includes("404") ||
+        errString.includes("deprecated") ||
+        errString.includes("not supported") ||
+        errString.includes("429");
+
+      if (!fallbackAttempted && activeModel !== fallback && isRecoverableOrRot) {
+        console.warn(
+          `[model_fallback] Primary model "${activeModel}" failed. Falling back to "${fallback}".`
+        );
+        activeModel = fallback;
+        fallbackAttempted = true;
+        continue;
+      }
+
       if (attempt > maxRetries) break;
 
       const backoffMs = Math.pow(2, attempt) * 1000 + Math.random() * 500;

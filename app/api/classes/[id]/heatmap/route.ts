@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { MASTERY_THRESHOLD } from "@/lib/bkt/engine";
 
@@ -44,22 +45,8 @@ export async function GET(
     const { id } = await params;
     const caller = await requireUser(req, ["teacher", "admin"]);
 
-    // 1. Fetch Class
-    const classDoc = await adminDb().collection("classes").doc(id).get();
-    if (!classDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Class not found" } },
-        { status: 404 }
-      );
-    }
-
-    const classData = classDoc.data()!;
-    if (classData.teacherId !== caller.uid && caller.role !== "admin") {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Unauthorized to view class heatmap" } },
-        { status: 403 }
-      );
-    }
+    const access = await assertClassAccess(caller, id, "mutate");
+    const classData = access.classData;
 
     // 2. Fetch KCs
     const kcsSubSnap = await adminDb()
@@ -81,7 +68,13 @@ export async function GET(
 
     rawKcs.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
-    // 3. Fetch Enrolled Active Students
+    // 3. Fetch Enrolled Active Students (excluding teachers)
+    const teacherUids = new Set<string>();
+    if (classData.teacherId) teacherUids.add(classData.teacherId);
+    if (Array.isArray(classData.coTeacherIds)) {
+      classData.coTeacherIds.forEach((tId: string) => teacherUids.add(tId));
+    }
+
     const enrollmentsSnap = await adminDb()
       .collection("enrollments")
       .where("classId", "==", id)
@@ -93,16 +86,17 @@ export async function GET(
 
     for (const doc of enrollmentsSnap.docs) {
       const data = doc.data();
+      if (data.role === "teacher" || teacherUids.has(data.uid)) continue;
       studentUids.push(data.uid);
       studentEnrollmentMap.set(data.uid, {
         joinedAt: data.joinedAt?.toDate ? data.joinedAt.toDate().toISOString() : undefined,
       });
     }
 
-    // 4. Fetch Users data
-    const userDocs = await Promise.all(
-      studentUids.map((uid) => adminDb().collection("users").doc(uid).get())
-    );
+    // 4. Batch-fetch Users data (kill N+1)
+    const userDocs = studentUids.length > 0
+      ? await adminDb().getAll(...studentUids.map((uid) => adminDb().collection("users").doc(uid)))
+      : [];
 
     const usersMap = new Map<
       string,

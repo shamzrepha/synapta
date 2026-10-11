@@ -8,6 +8,7 @@ export interface ClassAccessResult {
   isAdmin: boolean;
   isEnrolled: boolean;
   enrollmentStatus: "active" | "pending" | "rejected" | "none";
+  role: "owner" | "admin" | "student" | "visitor";
   canView: boolean;
   canMutate: boolean;
 }
@@ -36,15 +37,27 @@ export async function getClassAccess(
   }
 
   const classData = classDoc.data()!;
-  const isOwner = classData.teacherId === user.uid;
+  const isCoTeacher = Array.isArray(classData.coTeacherIds) && classData.coTeacherIds.includes(user.uid);
+  const isOwner = classData.teacherId === user.uid || isCoTeacher;
   const isAdmin = user.role === "admin";
 
   const enrollmentDocId = `${classId}_${user.uid}`;
   const enrollmentDoc = await adminDb().collection("enrollments").doc(enrollmentDocId).get();
-  const enrollmentStatus = enrollmentDoc.exists
-    ? (enrollmentDoc.data()?.status as "active" | "pending" | "rejected")
+  const enrollmentData = enrollmentDoc.exists ? enrollmentDoc.data() : null;
+  // If the user is the owner/admin, ignore any legacy enrollment doc
+  const enrollmentStatus = !isOwner && enrollmentData
+    ? (enrollmentData.status as "active" | "pending" | "rejected")
     : "none";
   const isEnrolled = enrollmentStatus === "active";
+
+  let role: "owner" | "admin" | "student" | "visitor" = "visitor";
+  if (isOwner) {
+    role = "owner";
+  } else if (isAdmin) {
+    role = "admin";
+  } else if (isEnrolled) {
+    role = "student";
+  }
 
   const isPublicAndPublished =
     classData.visibility === "public" && classData.status === "published";
@@ -59,6 +72,7 @@ export async function getClassAccess(
     isAdmin,
     isEnrolled,
     enrollmentStatus,
+    role,
     canView,
     canMutate,
   };

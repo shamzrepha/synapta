@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { z } from "zod";
 
@@ -29,6 +30,8 @@ export async function PATCH(
       );
     }
 
+    await assertClassAccess(caller, id, "mutate");
+
     const docRef = adminDb()
       .collection("classes")
       .doc(id)
@@ -44,12 +47,6 @@ export async function PATCH(
     }
 
     const data = docSnap.data()!;
-    if (data.teacherId !== caller.uid && caller.role !== "admin") {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Not authorized to update this assignment" } },
-        { status: 403 }
-      );
-    }
 
     const updates = {
       ...parsed.data,
@@ -77,6 +74,8 @@ export async function DELETE(
     const { id, assignmentId } = await params;
     const caller = await requireUser(req, ["teacher", "admin"]);
 
+    await assertClassAccess(caller, id, "mutate");
+
     const docRef = adminDb()
       .collection("classes")
       .doc(id)
@@ -88,14 +87,6 @@ export async function DELETE(
       return NextResponse.json(
         { ok: false, error: { code: "NOT_FOUND", message: "Assignment not found" } },
         { status: 404 }
-      );
-    }
-
-    const data = docSnap.data()!;
-    if (data.teacherId !== caller.uid && caller.role !== "admin") {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Not authorized to delete this assignment" } },
-        { status: 403 }
       );
     }
 

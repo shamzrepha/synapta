@@ -21,33 +21,25 @@ import {
   Search,
   Flame,
 } from "lucide-react";
-import { PeerMatch } from "@/app/api/lounge/match/route";
-
-interface RoomSummary {
-  roomCode: string;
-  title: string;
-  classId: string;
-  kcId?: string | null;
-  kcTitle?: string | null;
-  hostId: string;
-  hostName: string;
-  participantCount: number;
-  isMember: boolean;
-  updatedAt: string | null;
-}
-
-interface ClassOption {
-  id: string;
-  title: string;
-  kcs?: { id: string; title: string }[];
-}
+import { PeerMatch, RoomSummary, ClassOption } from "@/lib/types/lounge";
+import { asArray } from "@/lib/api/client";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 export default function LoungeHubPage() {
+  return (
+    <ErrorBoundary fallbackTitle="Study Lounge temporarily unavailable" fallbackMessage="An unexpected error occurred while rendering the study lounge.">
+      <LoungeHubContent />
+    </ErrorBoundary>
+  );
+}
+
+function LoungeHubContent() {
   const router = useRouter();
   const { toast } = useToast();
 
   const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [classes, setClasses] = useState<ClassOption[]>([]);
 
   // Join by code state
@@ -73,7 +65,7 @@ export default function LoungeHubPage() {
   // Load Rooms & Enrolled Classes
   useEffect(() => {
     let ignore = false;
-    async function loadData() {
+    async function loadLoungeData() {
       try {
         const [roomsRes, classesRes] = await Promise.all([
           fetch("/api/lounge/rooms"),
@@ -84,19 +76,32 @@ export default function LoungeHubPage() {
         const classesJson = await classesRes.json();
 
         if (!ignore) {
-          if (roomsJson.ok) setRooms(roomsJson.data || []);
-          if (classesJson.ok) setClasses(classesJson.data || []);
+          if (roomsJson.ok) {
+            setRooms(asArray<RoomSummary>(roomsJson.data));
+          } else {
+            setRooms([]);
+          }
+
+          if (classesJson.ok) {
+            setClasses(asArray<ClassOption>(classesJson.data));
+          } else {
+            setClasses([]);
+          }
         }
       } catch {
         if (!ignore) {
           setRooms([]);
+          setClasses([]);
+          setLoadError(true);
         }
       } finally {
-        if (!ignore) setLoading(false);
+        if (!ignore) {
+          setLoading(false);
+        }
       }
     }
 
-    loadData();
+    loadLoungeData();
     return () => {
       ignore = true;
     };
@@ -112,10 +117,11 @@ export default function LoungeHubPage() {
     try {
       const res = await fetch(`/api/classes/${classId}`);
       const json = await res.json();
-      if (json.ok && Array.isArray(json.data.kcs)) {
-        setClassKcs(json.data.kcs);
-        if (json.data.kcs.length > 0) {
-          setSelectedKcId(json.data.kcs[0].id);
+      if (json.ok) {
+        const kcs = asArray<{ id: string; title: string }>(json.data?.kcs);
+        setClassKcs(kcs);
+        if (kcs.length > 0) {
+          setSelectedKcId(kcs[0].id);
         }
       }
     } catch {
@@ -139,9 +145,10 @@ export default function LoungeHubPage() {
       });
       const json = await res.json();
       if (json.ok) {
-        setMatchedPeers(json.data.matches || []);
-        setMatchKcTitle(json.data.kcTitle || "Topic");
-        if ((json.data.matches || []).length === 0) {
+        const matches = asArray<PeerMatch>(json.data?.matches);
+        setMatchedPeers(matches);
+        setMatchKcTitle(json.data?.kcTitle || "Topic");
+        if (matches.length === 0) {
           toast({
             title: "No Available Peers",
             description: "No other students enrolled in this class yet. You can still create an open room!",
@@ -365,7 +372,7 @@ export default function LoungeHubPage() {
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-teal-600 dark:text-teal-400" />
             <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
-              Active Study Rooms ({rooms.length})
+              Active Study Rooms ({asArray(rooms).length})
             </h2>
           </div>
           <span className="text-xs text-slate-500">
@@ -373,7 +380,7 @@ export default function LoungeHubPage() {
           </span>
         </div>
 
-        {rooms.length === 0 ? (
+        {asArray(rooms).length === 0 ? (
           <Card className="p-12 text-center space-y-3 border border-dashed">
             <Users className="h-8 w-8 text-slate-400 mx-auto" />
             <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">
@@ -388,7 +395,7 @@ export default function LoungeHubPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {rooms.map((room) => (
+            {asArray(rooms).map((room) => (
               <Card
                 key={room.roomCode}
                 className="hover:border-teal-500 transition-all group flex flex-col justify-between"
@@ -468,7 +475,7 @@ export default function LoungeHubPage() {
                   className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-teal-500"
                 >
                   <option value="">Select enrolled class...</option>
-                  {classes.map((c) => (
+                  {asArray(classes).map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.title}
                     </option>
@@ -483,10 +490,10 @@ export default function LoungeHubPage() {
                 <select
                   value={selectedKcId}
                   onChange={(e) => setSelectedKcId(e.target.value)}
-                  disabled={classKcs.length === 0}
+                  disabled={asArray(classKcs).length === 0}
                   className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-teal-500"
                 >
-                  {classKcs.map((k) => (
+                  {asArray(classKcs).map((k) => (
                     <option key={k.id} value={k.id}>
                       {k.title}
                     </option>
@@ -506,14 +513,14 @@ export default function LoungeHubPage() {
             </Button>
 
             {/* Match Results */}
-            {matchedPeers.length > 0 && (
+            {asArray(matchedPeers).length > 0 && (
               <div className="space-y-3 pt-2">
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
                   Matched Peer Mentors & Study Partners:
                 </span>
 
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {matchedPeers.map((peer) => (
+                  {asArray(matchedPeers).map((peer) => (
                     <div
                       key={peer.uid}
                       className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-teal-500 transition-all bg-slate-50/50 dark:bg-slate-900/50"
@@ -593,7 +600,7 @@ export default function LoungeHubPage() {
                   className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-teal-500"
                 >
                   <option value="">Select course...</option>
-                  {classes.map((c) => (
+                  {asArray(classes).map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.title}
                     </option>

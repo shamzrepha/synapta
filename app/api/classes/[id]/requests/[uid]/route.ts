@@ -39,7 +39,9 @@ export async function POST(
       }
 
       const classData = classDoc.data()!;
-      if (classData.teacherId !== caller.uid && caller.role !== "admin") {
+      const isCoTeacher = Array.isArray(classData.coTeacherIds) && classData.coTeacherIds.includes(caller.uid);
+      const isAuthorized = classData.teacherId === caller.uid || isCoTeacher || caller.role === "admin";
+      if (!isAuthorized) {
         const err = new Error("Not authorized to manage this class");
         (err as { code?: string; status?: number }).code = "FORBIDDEN";
         (err as { code?: string; status?: number }).status = 403;

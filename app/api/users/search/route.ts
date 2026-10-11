@@ -2,11 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb } from "@/lib/firebase/admin";
 
+import { checkRateLimit } from "@/lib/rateLimit";
+
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   try {
     const caller = await requireUser(req);
+
+    const rateLimitRes = await checkRateLimit(req, {
+      keyPrefix: "user_search",
+      limit: 20,
+      windowMs: 60_000,
+      uid: caller.uid,
+    });
+    if (rateLimitRes) return rateLimitRes;
+
     const { searchParams } = new URL(req.url);
     const query = (searchParams.get("q") || "").trim().toLowerCase();
 
@@ -53,9 +64,10 @@ export async function GET(req: NextRequest) {
       uid: string;
       displayName: string;
       username: string;
-      email: string;
       photoURL: string | null;
       role: string;
+      xp: number;
+      streakDays: number;
       friendshipStatus: "friends" | "request_sent" | "request_received" | "none";
       requestId?: string;
     }> = [];
@@ -65,12 +77,9 @@ export async function GET(req: NextRequest) {
       const data = doc.data();
       const uName = (data.username || "").toLowerCase();
       const dName = (data.displayName || "").toLowerCase();
-      const uEmail = (data.email || "").toLowerCase();
 
-      const matches =
-        uName.includes(cleanQuery) ||
-        dName.includes(cleanQuery) ||
-        uEmail.includes(cleanQuery);
+      // Search strictly by username or display name prefix/substring — NEVER search by email
+      const matches = uName.startsWith(cleanQuery) || uName.includes(cleanQuery) || dName.includes(cleanQuery);
 
       if (matches) {
         let friendshipStatus: "friends" | "request_sent" | "request_received" | "none" = "none";
@@ -89,9 +98,10 @@ export async function GET(req: NextRequest) {
           uid: doc.id,
           displayName: data.displayName || "Learner",
           username: data.username || data.displayName?.toLowerCase().replace(/\s+/g, "_") || doc.id.slice(0, 8),
-          email: data.email || "",
           photoURL: data.photoURL || null,
           role: data.role || "student",
+          xp: typeof data.xp === "number" ? data.xp : 0,
+          streakDays: typeof data.streakDays === "number" ? data.streakDays : 1,
           friendshipStatus,
           requestId,
         });

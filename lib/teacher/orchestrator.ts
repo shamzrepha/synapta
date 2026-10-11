@@ -234,7 +234,7 @@ export async function runTeacherAgent({
 
     const response = await ai.models.generateContent({
       model: getServerEnv().GEMINI_MODEL,
-      contents: conversationTurns as any,
+      contents: conversationTurns as unknown as Parameters<typeof ai.models.generateContent>[0]["contents"],
       config: {
         systemInstruction,
         temperature: 0.3,

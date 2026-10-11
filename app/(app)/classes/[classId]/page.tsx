@@ -7,6 +7,7 @@ import { useToast } from "@/components/ui/toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Users,
@@ -44,7 +45,9 @@ interface ClassDetail {
   teacherName: string;
   visibility: "public" | "private";
   studentCount: number;
-  status: "draft" | "published";
+  status: "draft" | "published" | "archived";
+  buildState?: "empty" | "drafting" | "ready" | "needs_review";
+  joinCode?: string;
 }
 
 export default function ClassOverviewPage({
@@ -60,9 +63,16 @@ export default function ClassOverviewPage({
   const [kcs, setKcs] = useState<KCItem[]>([]);
   const [masteryMap, setMasteryMap] = useState<Record<string, number>>({});
   const [enrollmentStatus, setEnrollmentStatus] = useState<string>("none");
+  const [role, setRole] = useState<"owner" | "admin" | "student" | "visitor">("visitor");
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [materialTitle, setMaterialTitle] = useState("");
+  const [materialText, setMaterialText] = useState("");
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -75,7 +85,8 @@ export default function ClassOverviewPage({
           setKcs(data.data.kcs || []);
           setMasteryMap(data.data.masteryMap || {});
           setEnrollmentStatus(data.data.enrollmentStatus || "none");
-          setIsOwner(data.data.isOwner || false);
+          setRole(data.data.role || (data.data.isOwner ? "owner" : "visitor"));
+          setIsOwner(data.data.isOwner || data.data.role === "owner" || data.data.role === "admin");
         } else {
           setClassData(null);
         }
@@ -88,6 +99,96 @@ export default function ClassOverviewPage({
 
     loadData();
   }, [classId]);
+
+  const handlePublish = async () => {
+    setIsPublishing(true);
+    try {
+      const res = await fetch(`/api/classes/${classId}/publish`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        toast({
+          title: "Class Published!",
+          description: `All topics are now live and visible to students.`,
+          variant: "success",
+        });
+        setClassData((prev) => prev ? { ...prev, status: "published", buildState: "ready" } : prev);
+      } else {
+        toast({
+          title: "Publish Failed",
+          description: data.error?.message || "Could not publish class.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Publish Error", description: "Network error publishing class.", variant: "destructive" });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleBuildWithAi = async () => {
+    setIsBuilding(true);
+    try {
+      const res = await fetch(`/api/classes/${classId}/build`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast({
+          title: "AI Co-Teacher Started",
+          description: "Synthesizing concept map and learning objectives...",
+          variant: "success",
+        });
+        setClassData((prev) => prev ? { ...prev, buildState: "drafting" } : prev);
+      } else {
+        toast({
+          title: "AI Build Error",
+          description: data.error?.message || "Could not start AI build.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "AI Build Error", description: "Network error starting build.", variant: "destructive" });
+    } finally {
+      setIsBuilding(false);
+    }
+  };
+
+  const handleUploadMaterial = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!materialTitle || !materialText) return;
+    setIsUploading(true);
+    try {
+      const res = await fetch(`/api/classes/${classId}/materials`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: materialTitle, contentText: materialText }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        toast({
+          title: "Material Uploaded & Analyzed",
+          description: "AI topic router generated new proposals for review.",
+          variant: "success",
+        });
+        setShowMaterialModal(false);
+        setMaterialTitle("");
+        setMaterialText("");
+      } else {
+        toast({
+          title: "Upload Error",
+          description: data.error?.message || "Failed to process document.",
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({ title: "Upload Error", description: "Network error uploading document.", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleJoin = async () => {
     setIsJoining(true);
@@ -152,8 +253,17 @@ export default function ClassOverviewPage({
               <Badge variant="outline" className="text-xs font-bold uppercase tracking-wider">
                 {classData.subject}
               </Badge>
-              {classData.visibility === "private" ? (
+              {classData.status === "draft" ? (
                 <Badge variant="amber" className="text-xs flex items-center gap-1">
+                  Draft Mode
+                </Badge>
+              ) : (
+                <Badge variant="emerald" className="text-xs flex items-center gap-1">
+                  Published
+                </Badge>
+              )}
+              {classData.visibility === "private" ? (
+                <Badge variant="outline" className="text-xs flex items-center gap-1">
                   <Lock className="h-3 w-3" /> Private Access
                 </Badge>
               ) : (
@@ -163,7 +273,7 @@ export default function ClassOverviewPage({
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Link href={`/classes/${classId}/map`}>
                 <Button variant="default" size="sm" className="text-xs">
                   <Compass className="h-3.5 w-3.5 mr-1" /> Quest Map
@@ -176,12 +286,42 @@ export default function ClassOverviewPage({
                 </Button>
               </Link>
 
-              {/* Teacher management buttons */}
+              {/* Teacher Studio management buttons */}
               {(isOwner || user?.role === "admin") && (
                 <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={handleBuildWithAi}
+                    isLoading={isBuilding}
+                  >
+                    <Zap className="h-3.5 w-3.5 mr-1 text-amber-500" /> Build with AI
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setShowMaterialModal(true)}
+                  >
+                    <Layers className="h-3.5 w-3.5 mr-1 text-indigo-500" /> Upload Material
+                  </Button>
+
+                  {classData.status === "draft" && (
+                    <Button
+                      size="sm"
+                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={handlePublish}
+                      isLoading={isPublishing}
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Publish Class
+                    </Button>
+                  )}
+
                   <Link href={`/classes/${classId}/heatmap`}>
                     <Button variant="outline" size="sm" className="text-xs">
-                      <Activity className="h-3.5 w-3.5 mr-1 text-teal-500" /> Class Heatmap
+                      <Activity className="h-3.5 w-3.5 mr-1 text-teal-500" /> Heatmap
                     </Button>
                   </Link>
                   <Link href={`/classes/${classId}/manage`}>
@@ -193,6 +333,13 @@ export default function ClassOverviewPage({
               )}
             </div>
           </div>
+
+          {classData.buildState === "drafting" && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-800 dark:text-teal-200 text-xs font-semibold animate-pulse">
+              <Zap className="h-4 w-4 text-teal-600" />
+              <span>AI Co-Teacher is actively synthesizing concept map, prerequisites, and starter lessons...</span>
+            </div>
+          )}
 
           <div className="space-y-2">
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
@@ -214,9 +361,15 @@ export default function ClassOverviewPage({
               <span className="flex items-center gap-1">
                 <Layers className="h-3.5 w-3.5" /> {kcs.length} Knowledge Components
               </span>
+              {classData.joinCode && (isOwner || user?.role === "admin") && (
+                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-mono font-semibold">
+                  Code: {classData.joinCode}
+                </span>
+              )}
             </div>
 
-            {enrollmentStatus !== "active" && (
+            {/* Ownership is implicit: owners and admins never see 'Enroll' */}
+            {!isOwner && user?.role !== "admin" && enrollmentStatus !== "active" && (
               <Button
                 size="sm"
                 onClick={handleJoin}
@@ -229,6 +382,42 @@ export default function ClassOverviewPage({
           </div>
         </CardContent>
       </Card>
+
+      {/* Upload Material Modal */}
+      {showMaterialModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4">
+            <h3 className="font-bold text-lg">Upload & Route Course Document</h3>
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              Paste textbook content, notes, or lab guidelines. The AI topic router will automatically analyze and propose attaching to existing KCs or creating new ones.
+            </p>
+            <form onSubmit={handleUploadMaterial} className="space-y-3">
+              <Input
+                placeholder="Document Title (e.g. Chapter 4: Nyquist Stability)"
+                value={materialTitle}
+                onChange={(e) => setMaterialTitle(e.target.value)}
+                required
+              />
+              <textarea
+                rows={6}
+                placeholder="Paste document text here..."
+                value={materialText}
+                onChange={(e) => setMaterialText(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                required
+              />
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="ghost" onClick={() => setShowMaterialModal(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" isLoading={isUploading}>
+                  Analyze & Generate Proposals
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Progress & Twin Status Metric */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

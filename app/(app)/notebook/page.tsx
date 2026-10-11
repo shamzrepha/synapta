@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { extractTextFromFile } from "@/lib/pdf/extractor";
+import { cn } from "@/lib/utils";
 import {
   BookOpen,
   FileText,
@@ -81,6 +82,9 @@ interface QuizItem {
 
 export default function NotebookPage() {
   const { toast } = useToast();
+
+  // Mobile Segmented Tab State
+  const [mobileTab, setMobileTab] = useState<"chat" | "sources" | "studio">("chat");
 
   // Sources State
   const [sources, setSources] = useState<SourceItem[]>([]);
@@ -465,10 +469,55 @@ export default function NotebookPage() {
         </div>
       </div>
 
+      {/* MOBILE SEGMENTED TAB BAR (Below lg) */}
+      <div className="lg:hidden sticky top-0 z-30 bg-background/95 backdrop-blur-md pb-2 pt-1 border-b border-slate-200 dark:border-slate-800">
+        <div className="grid grid-cols-3 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setMobileTab("chat")}
+            className={cn(
+              "py-2 rounded-lg transition-all text-center min-h-[44px] flex items-center justify-center gap-1.5",
+              mobileTab === "chat"
+                ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+            )}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span>Chat</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("sources")}
+            className={cn(
+              "py-2 rounded-lg transition-all text-center min-h-[44px] flex items-center justify-center gap-1.5",
+              mobileTab === "sources"
+                ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+            )}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            <span>Sources ({sources.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("studio")}
+            className={cn(
+              "py-2 rounded-lg transition-all text-center min-h-[44px] flex items-center justify-center gap-1.5",
+              mobileTab === "studio"
+                ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+            )}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            <span>Studio</span>
+          </button>
+        </div>
+      </div>
+
       {/* 3-PANE NOTEBOOK WORKSPACE LAYOUT */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* LEFT PANE: SOURCES LIBRARY (3 Cols) */}
-        <div className="lg:col-span-3 space-y-3">
+        <div className={cn("lg:col-span-3 space-y-3", mobileTab !== "sources" && "hidden lg:block")}>
           <Card className="p-4 border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
               <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-slate-100">
@@ -546,8 +595,8 @@ export default function NotebookPage() {
         </div>
 
         {/* CENTER PANE: GROUNDED CHAT & CITATIONS (5 Cols) */}
-        <div className="lg:col-span-5 space-y-3">
-          <Card className="flex flex-col h-[680px] border-slate-200 dark:border-slate-800">
+        <div className={cn("lg:col-span-5 space-y-3", mobileTab !== "chat" && "hidden lg:block")}>
+          <Card className="flex flex-col h-[calc(100dvh-13rem)] lg:h-[680px] border-slate-200 dark:border-slate-800">
             {/* Grounding Header */}
             <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-2">
@@ -638,7 +687,7 @@ export default function NotebookPage() {
                 value={inputQuery}
                 onChange={(e) => setInputQuery(e.target.value)}
                 disabled={isChatLoading || activeSources.length === 0}
-                className="h-10 text-xs"
+                className="h-11 text-base md:text-xs"
               />
               <Button
                 type="submit"
@@ -653,8 +702,8 @@ export default function NotebookPage() {
         </div>
 
         {/* RIGHT PANE: STUDIO & ARTIFACTS (4 Cols) */}
-        <div className="lg:col-span-4 space-y-3">
-          <Card className="h-[680px] flex flex-col border-slate-200 dark:border-slate-800">
+        <div className={cn("lg:col-span-4 space-y-3", mobileTab !== "studio" && "hidden lg:block")}>
+          <Card className="min-h-[500px] lg:h-[680px] flex flex-col border-slate-200 dark:border-slate-800">
             {/* Studio Navigation Tabs */}
             <div className="p-2 border-b border-slate-100 dark:border-slate-800 flex items-center gap-1 overflow-x-auto bg-slate-50/50 dark:bg-slate-900/50">
               <button

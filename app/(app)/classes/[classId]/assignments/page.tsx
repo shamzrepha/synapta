@@ -118,7 +118,7 @@ export default function ClassAssignmentsPage({
         if (!ignore && classJson.ok) {
           setClassTitle(classJson.data.class?.title || "Course");
           if (Array.isArray(classJson.data.kcs)) {
-            setKcs(classJson.data.kcs.map((k: any) => ({ id: k.id, title: k.title })));
+            setKcs(classJson.data.kcs.map((k: Record<string, unknown>) => ({ id: String(k.id), title: String(k.title) })));
             if (classJson.data.kcs.length > 0) {
               setSelectedKcIds([classJson.data.kcs[0].id]);
             }
@@ -546,7 +546,7 @@ export default function ClassAssignmentsPage({
                   </label>
                   <select
                     value={difficulty}
-                    onChange={(e) => setDifficulty(e.target.value as any)}
+                    onChange={(e) => setDifficulty(e.target.value as "introductory" | "intermediate" | "advanced" | "olympiad")}
                     className="w-full h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs px-2.5"
                   >
                     <option value="introductory">Introductory</option>

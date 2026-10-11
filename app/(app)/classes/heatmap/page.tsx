@@ -15,6 +15,8 @@ interface ClassItem {
   studentCount?: number;
 }
 
+import { asArray } from "@/lib/api/client";
+
 export default function ClassHeatmapIndexPage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,7 @@ export default function ClassHeatmapIndexPage() {
         const res = await fetch("/api/classes?scope=mine");
         const json = await res.json();
         if (!ignore && json.ok) {
-          setClasses(json.data.classes || json.data || []);
+          setClasses(asArray<ClassItem>(json.data));
         } else if (!ignore) {
           setClasses([]);
         }
@@ -86,7 +88,7 @@ export default function ClassHeatmapIndexPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {classes.map((c) => (
+          {asArray(classes).map((c) => (
             <Card key={c.id} className="hover:border-teal-500 transition-all group">
               <CardContent className="p-6 flex flex-col justify-between h-full space-y-4">
                 <div className="space-y-1.5">

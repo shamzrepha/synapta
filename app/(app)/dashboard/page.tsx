@@ -17,6 +17,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import Link from "next/link";
+import { asArray } from "@/lib/api/client";
 
 interface EnrolledClass {
   id: string;
@@ -218,7 +219,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <GraduationCap className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-              Your Active Courses ({classes.length})
+              Your Active Courses ({asArray(classes).length})
             </h2>
             <Link href="/explore">
               <Button size="sm" variant="ghost" className="text-xs">
@@ -228,7 +229,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {classes.map((cls) => (
+            {asArray(classes).map((cls) => (
               <Card key={cls.id} className="flex flex-col justify-between hover:shadow-md transition-shadow">
                 <CardHeader>
                   <div className="flex items-center justify-between gap-2 mb-1">

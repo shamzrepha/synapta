@@ -132,11 +132,27 @@ export async function PATCH(
       // Atomic update preserves UID, enrollments, classes, XP, streak, and creation dates
       t.update(userRef, updates);
 
+      // Record atomic audit log within the same transaction
+      const auditRef = adminDb().collection("auditLogs").doc();
+      t.set(auditRef, {
+        actorUid: caller.uid,
+        action: "user.role_updated",
+        targetType: "user",
+        targetId: targetUid,
+        details: {
+          previousRole: existingData.role,
+          newRole: role ?? existingData.role,
+          roleRequest: updates.roleRequest ?? existingData.roleRequest,
+          disabled: updates.disabled !== undefined ? updates.disabled : existingData.disabled,
+        },
+        createdAt: Timestamp.now(),
+      });
+
       return {
         ...existingData,
         ...updates,
         uid: targetUid,
-      } as Record<string, any>;
+      } as Record<string, unknown>;
     });
 
     // Synchronize custom user claims in Firebase Auth without revoking refresh tokens

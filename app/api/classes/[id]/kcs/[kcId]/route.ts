@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { z } from "zod";
 
@@ -31,22 +32,8 @@ export async function PUT(
     const { id, kcId } = await params;
     const caller = await requireUser(req, ["teacher", "admin"]);
 
+    await assertClassAccess(caller, id, "mutate");
     const classRef = adminDb().collection("classes").doc(id);
-    const classDoc = await classRef.get();
-    if (!classDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Class not found" } },
-        { status: 404 }
-      );
-    }
-
-    const classData = classDoc.data()!;
-    if (classData.teacherId !== caller.uid && caller.role !== "admin") {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Not authorized to edit this KC" } },
-        { status: 403 }
-      );
-    }
 
     const body = await req.json();
     const parsed = updateKcSchema.safeParse(body);
@@ -90,22 +77,8 @@ export async function DELETE(
     const { id, kcId } = await params;
     const caller = await requireUser(req, ["teacher", "admin"]);
 
+    await assertClassAccess(caller, id, "mutate");
     const classRef = adminDb().collection("classes").doc(id);
-    const classDoc = await classRef.get();
-    if (!classDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Class not found" } },
-        { status: 404 }
-      );
-    }
-
-    const classData = classDoc.data()!;
-    if (classData.teacherId !== caller.uid && caller.role !== "admin") {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Not authorized to delete this KC" } },
-        { status: 403 }
-      );
-    }
 
     const kcRef = classRef.collection("kcs").doc(kcId);
     await kcRef.delete();
