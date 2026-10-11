@@ -119,10 +119,7 @@ export default function LoungeHubPage() {
         }
       }
     } catch {
-      setClassKcs([
-        { id: "kc-ohms-law", title: "Ohm's Law: Voltage, Current, and Power Dissipation" },
-        { id: "kc-rc-filter", title: "RC Low-Pass Filter: Cutoff Frequency & Attenuation" },
-      ]);
+      setClassKcs([]);
     }
   };
 

@@ -39,6 +39,8 @@ function LoginForm() {
         msg.includes("auth/user-not-found")
       ) {
         setError("Invalid email or password. Please check your credentials.");
+      } else if (msg.includes("Cloud Firestore API") || msg.includes("FIRESTORE_DISABLED")) {
+        setError("Cloud Firestore is not initialized yet in your Firebase Console. Please go to https://console.firebase.google.com/project/synapta-learning/firestore and click 'Create database'.");
       } else {
         setError(msg);
       }
@@ -55,7 +57,11 @@ function LoginForm() {
       window.location.assign(redirectPath);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
-      setError(msg);
+      if (msg.includes("Cloud Firestore API") || msg.includes("FIRESTORE_DISABLED")) {
+        setError("Cloud Firestore is not initialized yet in your Firebase Console. Please go to https://console.firebase.google.com/project/synapta-learning/firestore and click 'Create database'.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setSubmitting(false);
     }

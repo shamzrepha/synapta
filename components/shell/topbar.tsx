@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Search, Flame, Zap, Sun, Moon, LogOut } from "lucide-react";
+import Link from "next/link";
+import { Search, Flame, Zap, Sun, Moon, LogOut, MessageSquare } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useTheme } from "@/components/providers/theme-provider";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -28,6 +29,16 @@ export function Topbar() {
 
       {/* Right Controls */}
       <div className="flex items-center gap-2 md:gap-3">
+        {/* Friends & Direct Messages Quick Link */}
+        <Link
+          href="/friends"
+          title="Friends & Messages"
+          className="flex h-9 items-center gap-1.5 px-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-teal-600 hover:border-teal-500/30 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-teal-400 transition-colors text-xs font-semibold shadow-sm"
+        >
+          <MessageSquare className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+          <span className="hidden sm:inline">Friends</span>
+        </Link>
+
         {/* Streak Chip */}
         {user && (
           <div

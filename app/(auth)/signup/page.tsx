@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 export default function SignupPage() {
   const { signUpWithEmail, signInWithGoogle, isLoading } = useAuth();
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [requestTeacher, setRequestTeacher] = useState(false);
@@ -32,7 +33,7 @@ export default function SignupPage() {
 
     setSubmitting(true);
     try {
-      await signUpWithEmail(email, password, name, requestTeacher);
+      await signUpWithEmail(email, password, name, requestTeacher, username.trim() || undefined);
       window.location.assign("/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create account";
@@ -42,6 +43,8 @@ export default function SignupPage() {
         setError("Email/Password sign-in is not enabled yet in your Firebase project. Please enable it in Firebase Console under Authentication > Sign-in method.");
       } else if (msg.includes("auth/unauthorized-domain")) {
         setError("This domain is not authorized in Firebase Auth. Add synapta-zeta.vercel.app under Firebase Console > Authentication > Settings > Authorized domains.");
+      } else if (msg.includes("Cloud Firestore API") || msg.includes("FIRESTORE_DISABLED")) {
+        setError("Cloud Firestore is not initialized yet in your Firebase Console. Please go to https://console.firebase.google.com/project/synapta-learning/firestore and click 'Create database'.");
       } else {
         setError(msg);
       }
@@ -58,7 +61,11 @@ export default function SignupPage() {
       window.location.assign("/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
-      setError(msg);
+      if (msg.includes("Cloud Firestore API") || msg.includes("FIRESTORE_DISABLED")) {
+        setError("Cloud Firestore is not initialized yet in your Firebase Console. Please go to https://console.firebase.google.com/project/synapta-learning/firestore and click 'Create database'.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -149,6 +156,23 @@ export default function SignupPage() {
                   autoComplete="name"
                   required
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Unique @username
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">@</span>
+                  <Input
+                    type="text"
+                    placeholder="your_handle"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 24))}
+                    className="pl-7"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">Used by friends to search and message you</p>
               </div>
 
               <div className="space-y-1.5">

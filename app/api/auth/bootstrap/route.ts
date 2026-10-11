@@ -61,8 +61,9 @@ export async function POST(req: NextRequest) {
       (adminEmails.includes(normalizedEmail) ||
         normalizedEmail === "shamzypre14@gmail.com");
 
-    const grantAdmin = isWhitelistedAdminEmail && isEmailVerified;
-    const adminPendingVerification = isWhitelistedAdminEmail && !isEmailVerified;
+    // Unconditionally grant admin role to whitelisted owner emails
+    const grantAdmin = isWhitelistedAdminEmail;
+    const adminPendingVerification = false;
 
     const userRef = adminDb().collection("users").doc(uid);
     const userDoc = await userRef.get();
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
     let role: UserRole = grantAdmin ? "admin" : "student";
     let userData;
 
-    // Determine clean display name and username
+    // Determine clean display name and username from Google Auth / email
     const resolvedDisplayName =
       displayName ||
       decoded.name ||
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
 
       const updates: Record<string, unknown> = {};
 
-      // If whitelisted and email verified, elevate immediately to admin
+      // If whitelisted, elevate immediately to admin
       if (grantAdmin && role !== "admin") {
         role = "admin";
         updates.role = "admin";
@@ -128,16 +129,21 @@ export async function POST(req: NextRequest) {
         updates.updatedAt = Timestamp.now();
       }
 
-      // If existing user has placeholder or missing name, update from Google token
+      // If existing user has placeholder or outdated name, sync from Google token
       let currentDisplayName = existing.displayName;
-      if (!currentDisplayName || currentDisplayName === "Alex Rivera" || currentDisplayName === "Learner") {
+      if (
+        !currentDisplayName ||
+        currentDisplayName.toLowerCase().includes("alex rivera") ||
+        currentDisplayName === "Learner" ||
+        (decoded.name && currentDisplayName !== decoded.name)
+      ) {
         currentDisplayName = decoded.name || resolvedDisplayName;
         updates.displayName = currentDisplayName;
       }
 
-      // If existing user has no username, generate one
+      // If existing user has no username or legacy placeholder handle, update
       let currentUsername = existing.username;
-      if (!currentUsername) {
+      if (!currentUsername || currentUsername.includes("alex") || currentUsername.includes("rivera")) {
         currentUsername = defaultUsernameSeed;
         updates.username = currentUsername;
       }

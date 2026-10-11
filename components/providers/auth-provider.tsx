@@ -23,7 +23,8 @@ interface AuthContextType {
     email: string,
     pass: string,
     name: string,
-    requestTeacher: boolean
+    requestTeacher: boolean,
+    username?: string
   ) => Promise<void>;
   signInWithGoogle: (requestTeacher?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
@@ -55,9 +56,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const bootstrapUser = useCallback(
-    async (user: FirebaseUser, roleRequest: "none" | "pending" = "none") => {
+    async (
+      user: FirebaseUser,
+      roleRequest: "none" | "pending" = "none",
+      customUsername?: string,
+      customDisplayName?: string
+    ) => {
       try {
         const idToken = await user.getIdToken();
+        const effectiveName = customDisplayName || user.displayName || user.email?.split("@")[0] || "Learner";
         const bootstrapRes = await fetch("/api/auth/bootstrap", {
           method: "POST",
           headers: {
@@ -66,7 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
           body: JSON.stringify({
             roleRequest,
-            displayName: user.displayName || user.email?.split("@")[0] || "Learner",
+            displayName: effectiveName,
+            username: customUsername || undefined,
             photoURL: user.photoURL || null,
           }),
         });
@@ -79,9 +87,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else if (!bootstrapRes.ok && data.error?.message) {
           console.warn("Bootstrap notice:", data.error.message);
+          throw new Error(data.error.message);
         }
       } catch (err) {
         console.error("Bootstrap error:", err);
+        throw err;
       }
     },
     [setUser]
@@ -95,6 +105,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setFirebaseUser(user);
         try {
           if (user) {
+            // Optimistically set real Google profile name while server bootstrap syncs
+            const current = useUserStore.getState().user;
+            if (!current) {
+              setUser({
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName || user.email?.split("@")[0] || "Learner",
+                username: user.email?.split("@")[0] || `user_${user.uid.slice(0, 6)}`,
+                photoURL: user.photoURL,
+                role: "student",
+                roleRequest: "none",
+                xp: 0,
+                streakDays: 1,
+                lastActiveDate: new Date().toISOString().split("T")[0],
+                monthlyTokenLimit: 50000,
+                monthlyTokensUsed: 0,
+                disabled: false,
+              });
+            }
             await bootstrapUser(user);
           } else {
             setUser(null);
@@ -133,7 +162,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     email: string,
     pass: string,
     name: string,
-    requestTeacher: boolean
+    requestTeacher: boolean,
+    username?: string
   ) => {
     setIsLoading(true);
     try {
@@ -144,7 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const idToken = await cred.user.getIdToken(true);
       await establishSessionCookie(idToken);
-      await bootstrapUser(cred.user, requestTeacher ? "pending" : "none");
+      await bootstrapUser(cred.user, requestTeacher ? "pending" : "none", username, name);
     } finally {
       setIsLoading(false);
     }

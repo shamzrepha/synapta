@@ -75,6 +75,25 @@ export default function TeacherClassesListPage() {
           <Skeleton className="h-44 w-full rounded-2xl" />
           <Skeleton className="h-44 w-full rounded-2xl" />
         </div>
+      ) : classes.length === 0 ? (
+        <Card className="p-12 text-center space-y-4">
+          <div className="h-12 w-12 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+            <GraduationCap className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="font-bold text-base text-slate-800 dark:text-slate-200">
+              No managed classes yet
+            </h3>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+              Create your first class in the course explore catalog to start enrolling students, generating syllabus DAGs, and tracking cognitive heatmaps.
+            </p>
+          </div>
+          <Link href="/explore">
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-1.5" /> Create Your First Class
+            </Button>
+          </Link>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {classes.map((c) => (

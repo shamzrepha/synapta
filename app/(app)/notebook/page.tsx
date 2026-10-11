@@ -79,46 +79,11 @@ interface QuizItem {
   explanation: string;
 }
 
-const DEFAULT_SAMPLE_NOTES = `Foundations of Electric Circuits & Filter Networks
-
-1. Ohm's Law and Linear Conduction
-Electric current I flowing through an ideal ohmic resistor is directly proportional to the applied potential difference V and inversely proportional to electrical resistance R:
-I = V / R
-
-Power dissipation in an ohmic resistor is converted to thermal energy (Joule heating):
-P = V * I = I^2 * R = V^2 / R
-
-When current traverses a component beyond its maximum wattage rating (e.g. 0.5 W or 1.5 W), catastrophic thermal degradation occurs.
-
-2. RC Low-Pass Filter Frequency Response
-A first-order passive RC low-pass filter comprises a series resistor R and a parallel capacitor C. At low frequencies, capacitive reactance X_c = 1 / (2*pi*f*C) is extremely large, permitting signal transmission with minimal loss.
-
-At high frequencies, capacitive reactance approaches zero, shunting alternating current to ground. The characteristic -3dB cutoff frequency f_c is defined where output power drops by 50%:
-f_c = 1 / (2 * pi * R * C)
-
-At f = f_c, the output voltage magnitude equals 1 / sqrt(2) approx 0.707 of the input amplitude, with an associated phase lag of -45 degrees.
-
-3. Combinational Logic & Binary Adders
-Digital logic networks process discrete binary states (0 and 1). A half-adder computes the sum of two single-bit inputs A and B:
-Sum = A XOR B
-Carry = A AND B
-The XOR gate produces binary 1 when inputs differ, while the AND gate produces a carry bit only when both inputs are simultaneously high.`;
-
 export default function NotebookPage() {
   const { toast } = useToast();
 
   // Sources State
-  const [sources, setSources] = useState<SourceItem[]>([
-    {
-      id: "source-default-circuits",
-      title: "Lecture Notes: Circuit Networks & Filters",
-      content: DEFAULT_SAMPLE_NOTES,
-      type: "note",
-      wordCount: DEFAULT_SAMPLE_NOTES.split(/\s+/).length,
-      active: true,
-      createdAt: new Date().toLocaleDateString(),
-    },
-  ]);
+  const [sources, setSources] = useState<SourceItem[]>([]);
 
   const [activeAddModal, setActiveAddModal] = useState(false);
   const [modalTab, setModalTab] = useState<"paste" | "upload">("paste");

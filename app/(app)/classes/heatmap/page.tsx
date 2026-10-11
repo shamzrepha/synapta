@@ -26,18 +26,13 @@ export default function ClassHeatmapIndexPage() {
         const res = await fetch("/api/classes?scope=mine");
         const json = await res.json();
         if (!ignore && json.ok) {
-          setClasses(json.data || []);
+          setClasses(json.data.classes || json.data || []);
+        } else if (!ignore) {
+          setClasses([]);
         }
       } catch {
         if (!ignore) {
-          setClasses([
-            {
-              id: "demo-circuits",
-              title: "Foundations of Electrical Circuits & Signals",
-              subject: "Electrical Engineering",
-              studentCount: 38,
-            },
-          ]);
+          setClasses([]);
         }
       } finally {
         if (!ignore) setLoading(false);

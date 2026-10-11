@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import {
   User,
+  Users,
   Mail,
   Shield,
   Zap,
@@ -228,9 +230,16 @@ export default function ProfilePage() {
                     <p className="text-[10px] text-slate-400">Lowercase letters, numbers, and underscores only</p>
                   </div>
                 </div>
-                <Button type="submit" size="sm" isLoading={savingProfile} className="text-xs">
-                  Save Profile Changes
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button type="submit" size="sm" isLoading={savingProfile} className="text-xs">
+                    Save Profile Changes
+                  </Button>
+                  <Link href="/friends">
+                    <Button type="button" variant="outline" size="sm" className="text-xs">
+                      <Users className="h-3.5 w-3.5 mr-1 text-teal-600 dark:text-teal-400" /> Go to Friends & Chat
+                    </Button>
+                  </Link>
+                </div>
               </form>
             </CardContent>
           </Card>
