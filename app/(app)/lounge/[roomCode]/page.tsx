@@ -24,6 +24,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
+import { clientDb } from "@/lib/firebase/client";
+import { doc, collection, onSnapshot, orderBy, query } from "firebase/firestore";
 
 interface Message {
   id: string;
@@ -107,26 +109,80 @@ export default function LoungeRoomPage({
     };
   }, [roomCode, user?.displayName, user?.uid]);
 
-  // Polling for new messages and scratchpad updates
-  const pollRoomData = useCallback(async () => {
+  // Real-time Firestore onSnapshot listeners for room metadata and chat messages
+  useEffect(() => {
+    if (!roomCode) return;
+    let unsubRoom = () => {};
+    let unsubMessages = () => {};
+
+    try {
+      const db = clientDb();
+      const roomRef = doc(db, "rooms", roomCode);
+      const messagesRef = collection(db, "rooms", roomCode, "messages");
+      const messagesQuery = query(messagesRef, orderBy("createdAt", "asc"));
+
+      // 1. Real-time room metadata & scratchpad listener
+      unsubRoom = onSnapshot(
+        roomRef,
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            setRoom((prev) => (prev ? { ...prev, ...data } : (data as RoomData)));
+            if (data.scratchpad !== undefined && saveStatus !== "saving") {
+              setScratchpadText(data.scratchpad);
+            }
+          }
+        },
+        (err) => {
+          console.warn("Room listener notice:", err.message);
+        }
+      );
+
+      // 2. Real-time messages listener
+      unsubMessages = onSnapshot(
+        messagesQuery,
+        (snap) => {
+          const loaded: Message[] = snap.docs.map((d) => {
+            const data = d.data();
+            return {
+              id: d.id,
+              uid: data.uid,
+              displayName: data.displayName || "Peer",
+              text: data.text,
+              createdAt: data.createdAt?.toDate
+                ? data.createdAt.toDate().toISOString()
+                : data.createdAt || new Date().toISOString(),
+            };
+          });
+          setMessages(loaded);
+          setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+        },
+        (err) => {
+          console.warn("Messages listener notice:", err.message);
+        }
+      );
+    } catch (err) {
+      console.warn("Realtime Firestore setup notice:", err);
+    }
+
+    return () => {
+      unsubRoom();
+      unsubMessages();
+    };
+  }, [roomCode, saveStatus]);
+
+  const handleManualRefresh = async () => {
     try {
       const res = await fetch(`/api/lounge/rooms/${roomCode}`);
       const json = await res.json();
       if (json.ok) {
         setRoom(json.data);
-        setMessages(json.data.messages || []);
+        if (json.data.messages) setMessages(json.data.messages);
       }
     } catch {
-      // Ignore background poll errors
+      // Ignore background refresh errors
     }
-  }, [roomCode]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      pollRoomData();
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [pollRoomData]);
+  };
 
   // Copy Room Code Helper
   const copyRoomCode = () => {
@@ -245,7 +301,6 @@ export default function LoungeRoomPage({
             text: `🎯 Recorded peer explanation evidence session! +40 XP awarded with Omega = 2.0 mastery acceleration.`,
           }),
         });
-        pollRoomData();
       } else {
         toast({
           title: "Submission Notice",
@@ -407,7 +462,7 @@ export default function LoungeRoomPage({
                 <span>Room Discussion</span>
               </div>
               <button
-                onClick={() => pollRoomData()}
+                onClick={() => handleManualRefresh()}
                 title="Refresh messages"
                 className="text-slate-400 hover:text-slate-600"
               >

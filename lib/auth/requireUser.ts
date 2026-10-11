@@ -9,6 +9,8 @@ export interface AuthenticatedUser {
   emailVerified?: boolean;
 }
 
+export type AuthUser = AuthenticatedUser;
+
 export class AuthError extends Error {
   code: "UNAUTHENTICATED" | "FORBIDDEN";
   status: number;

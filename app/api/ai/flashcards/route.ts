@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { checkRateLimitAndQuota, recordTokenUsage } from "@/lib/quota/guard";
 import { generateStructuredJson } from "@/lib/gemini/client";
@@ -29,6 +30,9 @@ export async function POST(req: NextRequest) {
     }
 
     const { classId, kcId, count } = parsed.data;
+
+    // Verify caller has permission to view this class
+    await assertClassAccess(caller, classId, "view");
 
     // Load KC from Firestore
     const kcRef = adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId);

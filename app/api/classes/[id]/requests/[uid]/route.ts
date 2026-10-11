@@ -24,52 +24,57 @@ export async function POST(
 
     const { decision } = parsed.data;
 
-    // Verify ownership of class
+    // References for transaction
     const classRef = adminDb().collection("classes").doc(id);
-    const classDoc = await classRef.get();
-    if (!classDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Class not found" } },
-        { status: 404 }
-      );
-    }
-
-    const classData = classDoc.data()!;
-    if (classData.teacherId !== caller.uid && caller.role !== "admin") {
-      return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Not authorized to manage this class" } },
-        { status: 403 }
-      );
-    }
-
     const enrollmentDocId = `${id}_${uid}`;
     const enrollmentRef = adminDb().collection("enrollments").doc(enrollmentDocId);
-    const enrollmentDoc = await enrollmentRef.get();
 
-    if (!enrollmentDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Enrollment request not found" } },
-        { status: 404 }
-      );
-    }
+    const result = await adminDb().runTransaction(async (t) => {
+      const classDoc = await t.get(classRef);
+      if (!classDoc.exists) {
+        const err = new Error("Class not found");
+        (err as { code?: string; status?: number }).code = "NOT_FOUND";
+        (err as { code?: string; status?: number }).status = 404;
+        throw err;
+      }
 
-    const newStatus = decision === "approve" ? "active" : "rejected";
+      const classData = classDoc.data()!;
+      if (classData.teacherId !== caller.uid && caller.role !== "admin") {
+        const err = new Error("Not authorized to manage this class");
+        (err as { code?: string; status?: number }).code = "FORBIDDEN";
+        (err as { code?: string; status?: number }).status = 403;
+        throw err;
+      }
 
-    await enrollmentRef.update({
-      status: newStatus,
-      updatedAt: Timestamp.now(),
-    });
+      const enrollmentDoc = await t.get(enrollmentRef);
+      if (!enrollmentDoc.exists) {
+        const err = new Error("Enrollment request not found");
+        (err as { code?: string; status?: number }).code = "NOT_FOUND";
+        (err as { code?: string; status?: number }).status = 404;
+        throw err;
+      }
 
-    if (decision === "approve") {
-      await classRef.update({
-        studentCount: FieldValue.increment(1),
+      const currentStatus = enrollmentDoc.data()?.status;
+      const newStatus = decision === "approve" ? "active" : "rejected";
+
+      t.update(enrollmentRef, {
+        status: newStatus,
         updatedAt: Timestamp.now(),
       });
-    }
+
+      if (decision === "approve" && currentStatus !== "active") {
+        t.update(classRef, {
+          studentCount: FieldValue.increment(1),
+          updatedAt: Timestamp.now(),
+        });
+      }
+
+      return { status: newStatus, decision };
+    });
 
     return NextResponse.json({
       ok: true,
-      data: { status: newStatus, decision },
+      data: result,
     });
   } catch (error) {
     return handleAuthError(error);

@@ -13,63 +13,65 @@ export async function POST(
     const caller = await requireUser(req);
 
     const classRef = adminDb().collection("classes").doc(id);
-    const classDoc = await classRef.get();
-
-    if (!classDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Class not found" } },
-        { status: 404 }
-      );
-    }
-
-    const classData = classDoc.data()!;
     const enrollmentDocId = `${id}_${caller.uid}`;
     const enrollmentRef = adminDb().collection("enrollments").doc(enrollmentDocId);
-    const enrollmentDoc = await enrollmentRef.get();
 
-    if (enrollmentDoc.exists) {
-      const currentStatus = enrollmentDoc.data()?.status;
-      if (currentStatus === "active") {
-        return NextResponse.json({
-          ok: true,
-          data: { status: "active", message: "Already enrolled" },
+    const result = await adminDb().runTransaction(async (t) => {
+      const classDoc = await t.get(classRef);
+      if (!classDoc.exists) {
+        const err = new Error("Class not found");
+        (err as { code?: string; status?: number }).code = "NOT_FOUND";
+        (err as { code?: string; status?: number }).status = 404;
+        throw err;
+      }
+
+      const classData = classDoc.data()!;
+      const enrollmentDoc = await t.get(enrollmentRef);
+
+      if (enrollmentDoc.exists) {
+        const currentStatus = enrollmentDoc.data()?.status;
+        if (currentStatus === "active") {
+          return { status: "active", message: "Already enrolled" };
+        }
+        if (currentStatus === "pending") {
+          return { status: "pending", message: "Join request is pending teacher approval" };
+        }
+      }
+
+      const isPublic = classData.visibility === "public";
+      const newStatus = isPublic ? "active" : "pending";
+
+      t.set(
+        enrollmentRef,
+        {
+          classId: id,
+          uid: caller.uid,
+          userEmail: caller.email,
+          status: newStatus,
+          joinedAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        },
+        { merge: true }
+      );
+
+      if (isPublic) {
+        t.update(classRef, {
+          studentCount: FieldValue.increment(1),
+          updatedAt: Timestamp.now(),
         });
       }
-      if (currentStatus === "pending") {
-        return NextResponse.json({
-          ok: true,
-          data: { status: "pending", message: "Join request is pending teacher approval" },
-        });
-      }
-    }
 
-    const isPublic = classData.visibility === "public";
-    const newStatus = isPublic ? "active" : "pending";
-
-    await enrollmentRef.set({
-      classId: id,
-      uid: caller.uid,
-      userEmail: caller.email,
-      status: newStatus,
-      joinedAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
-
-    if (isPublic) {
-      await classRef.update({
-        studentCount: FieldValue.increment(1),
-        updatedAt: Timestamp.now(),
-      });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      data: {
+      return {
         status: newStatus,
         message: isPublic
           ? "Successfully enrolled!"
           : "Join request sent. Awaiting teacher approval.",
-      },
+      };
+    });
+
+    return NextResponse.json({
+      ok: true,
+      data: result,
     });
   } catch (error) {
     return handleAuthError(error);
