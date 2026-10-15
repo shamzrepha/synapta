@@ -5,6 +5,7 @@ import { Send, Sparkles, Volume2, Square, Trash2, Loader2, GraduationCap } from 
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { asArray } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
+import { ExplainLevelToggle, useExplainLevel } from "@/components/study/explain-level-toggle";
 
 interface Msg {
   id: string;
@@ -94,6 +95,7 @@ export function TutorChat({
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const [level, setLevel] = useExplainLevel();
   const bottomRef = useRef<HTMLDivElement>(null);
   const key = storageKey(classId, kcId);
 
@@ -136,7 +138,7 @@ export function TutorChat({
       const res = await fetch("/api/ai/tutor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId: classId || null, kcId: kcId || null, message: text, history }),
+        body: JSON.stringify({ classId: classId || null, kcId: kcId || null, message: text, level, history }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => null);
@@ -213,8 +215,9 @@ export function TutorChat({
             ))}
           </select>
         )}
+        <ExplainLevelToggle value={level} onChange={setLevel} className="ml-auto" />
         {messages.length > 0 && (
-          <button type="button" onClick={clear} className="ml-auto h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600" aria-label="Clear conversation" title="Clear conversation">
+          <button type="button" onClick={clear} className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600" aria-label="Clear conversation" title="Clear conversation">
             <Trash2 className="h-4 w-4" />
           </button>
         )}
