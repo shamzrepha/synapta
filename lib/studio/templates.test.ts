@@ -26,3 +26,25 @@ describe("pre-saved templates", () => {
     expect(runBehaviorTest(start.circuit!, start.code || "", start.tests[0]).pass).toBe(false);
   });
 });
+
+import { repairSpec } from "./design-ai";
+import { parseSpec } from "./spec";
+
+describe("AI output repair", () => {
+  it("drops unknown parts and dangling wires, adds a missing board, dedupes ids", () => {
+    const fixed = parseSpec(
+      repairSpec({
+        kind: "circuit",
+        circuit: {
+          parts: [{ id: "led", type: "led", x: 10, y: 10 }, { id: "led", type: "led" }, { id: "x", type: "flux_capacitor" }],
+          wires: [{ from: "board.D13", to: "led.anode" }, { from: "led.cathode", to: "x.pin" }, { from: "led.nope", to: "board.GND" }],
+        },
+      })
+    );
+    const ids = fixed.circuit!.parts.map((p) => p.id);
+    expect(ids).toContain("board");
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).not.toContain("x");
+    expect(fixed.circuit!.wires).toHaveLength(1);
+  });
+});
