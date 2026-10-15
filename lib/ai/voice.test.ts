@@ -76,7 +76,7 @@ describe("lib/ai/voice (Google Voice Lab Synthesis)", () => {
     });
 
     expect(alexResult).not.toBeNull();
-    expect(alexResult?.voiceName).toBe("Puck");
+    expect(alexResult?.voiceName).toBe("Kore");
     expect(alexResult?.mimeType).toBe("audio/wav");
     expect(alexResult?.audioBase64).toBeDefined();
 
@@ -85,7 +85,7 @@ describe("lib/ai/voice (Google Voice Lab Synthesis)", () => {
       speaker: "Sam",
     });
 
-    expect(samResult?.voiceName).toBe("Fenrir");
+    expect(samResult?.voiceName).toBe("Puck");
   });
 
   it("gracefully returns null when voice generation fails or text is empty", async () => {
@@ -114,5 +114,37 @@ describe("voice timeouts", () => {
     const models = geminiTtsModels();
     expect(models).toContain("gemini-3.8-flash-lite-tts");
     expect(models.every((m) => m.includes("tts") && !m.includes("2.5"))).toBe(true);
+  });
+});
+
+describe("two distinct podcast hosts", () => {
+  it("gives a female and a male voice in every engine", async () => {
+    const { HOSTS, hostFor } = await import("./voice");
+    expect(hostFor("Alex")).toBe(HOSTS.alex);
+    expect(hostFor("Sam")).toBe(HOSTS.sam);
+    expect(HOSTS.alex.gender).toBe("female");
+    expect(HOSTS.sam.gender).toBe("male");
+    expect(HOSTS.alex.edge).not.toBe(HOSTS.sam.edge);
+    expect(HOSTS.alex.gemini).not.toBe(HOSTS.sam.gemini);
+    expect(HOSTS.alex.slot).not.toBe(HOSTS.sam.slot);
+  });
+
+  it("Gemini fallback speaks Alex and Sam with different voices", async () => {
+    const { generateGeminiVoice, resetVoiceBreakers } = await import("./voice");
+    resetVoiceBreakers();
+    const a = await generateGeminiVoice({ text: "Hello there, welcome.", speaker: "Alex" });
+    const sam = await generateGeminiVoice({ text: "Thanks Alex, glad to be here.", speaker: "Sam" });
+    expect(a?.voiceName).toBe("Kore");
+    expect(sam?.voiceName).toBe("Puck");
+  });
+
+  it("stops waiting on a blocked Edge service after repeated failures", async () => {
+    const { synthesizeEdgeVoice, edgeAvailable, resetVoiceBreakers } = await import("./voice");
+    resetVoiceBreakers();
+    expect(edgeAvailable()).toBe(true);
+    await synthesizeEdgeVoice("one", "en-US-JennyNeural", 50);
+    await synthesizeEdgeVoice("two", "en-US-JennyNeural", 50);
+    expect(edgeAvailable()).toBe(false);
+    resetVoiceBreakers();
   });
 });

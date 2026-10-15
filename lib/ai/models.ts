@@ -157,6 +157,63 @@ export const KNOWN_MODELS: Record<string, ModelMeta> = {
   },
 };
 
+/**
+ * Which model "group" each task runs on. Groups map to the DEFAULT_MODEL_CONFIG slots (and their
+ * GEMINI_MODEL_* env overrides); admins can still pin any single task in Admin → System.
+ *
+ *  tutor      fast, conversational (chat, explanations)            → light model
+ *  structured JSON that is verified/normalised afterwards (quizzes,
+ *             flashcards, routing, study sets, mind maps)          → light model
+ *  longdoc    long context / long-form writing (lesson notes, study
+ *             guides, papers, podcast scripts, research answers)   → light model (1M context)
+ *  build      long, precise output where mistakes are costly (class
+ *             builds, simulations, Maker Studio designs, assignments) → strongest model
+ *  grading    high-stakes evaluation                                → strongest model
+ *  voice      speech synthesis                                      → TTS model
+ */
+export type TaskGroup = "tutor" | "structured" | "longdoc" | "build" | "grading" | "voice" | "other";
+
+export const TASK_GROUPS: Record<string, TaskGroup> = {
+  tutor_chat: "tutor",
+  notebook_chat: "tutor",
+  explain_selection: "tutor",
+  structured_spec: "structured",
+  quiz_gen: "structured",
+  flashcard_gen: "structured",
+  card_gen: "structured",
+  material_route: "structured",
+  notebook_artifacts: "structured",
+  notebook_mindmap: "structured",
+  source_guide: "structured",
+  research_plan: "structured",
+  long_document: "longdoc",
+  lesson_notes: "longdoc",
+  study_guide: "longdoc",
+  class_study_guide: "longdoc",
+  paper_analysis: "longdoc",
+  discussion_script: "longdoc",
+  research_answer: "longdoc",
+  class_build: "build",
+  sim_build: "build",
+  studio_build: "build",
+  assignment_architect: "build",
+  assignment_author: "build",
+  assignment_reviewer: "build",
+  grading_high_stakes: "grading",
+  voice: "voice",
+  voice_tts: "voice",
+};
+
+export function taskGroup(task: string): TaskGroup {
+  return TASK_GROUPS[task] || "other";
+}
+
+/** Strong-model tasks walk the heavy chain first; everything else stays on light models to protect heavy quota. */
+export function isHeavyTask(task: string): boolean {
+  const g = taskGroup(task);
+  return g === "build" || g === "grading";
+}
+
 export const DEFAULT_MODEL_CONFIG = {
   // gemini-3.5-flash-lite is Google's current Flash-Lite; 3.1-flash-lite is scheduled for retirement
   tutor: "gemini-3.5-flash-lite",

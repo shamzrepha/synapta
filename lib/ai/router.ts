@@ -5,6 +5,8 @@ import { z } from "zod";
 import {
   DEFAULT_MODEL_CONFIG,
   isRetiredModel,
+  taskGroup,
+  isHeavyTask,
   parseModelChain,
   sanitizeModelId,
 } from "./models";
@@ -165,17 +167,16 @@ export function modelFor(task: AiTask): string {
 }
 
 function defaultModelFor(task: AiTask): string {
-  switch (task) {
-    case "tutor_chat":
+  switch (taskGroup(task)) {
+    case "tutor":
       return DEFAULT_MODEL_CONFIG.tutor;
-    case "structured_spec":
+    case "structured":
       return DEFAULT_MODEL_CONFIG.structured;
-    case "long_document":
+    case "longdoc":
       return DEFAULT_MODEL_CONFIG.longdoc;
-    case "class_build":
-    case "sim_build":
+    case "build":
       return DEFAULT_MODEL_CONFIG.build;
-    case "grading_high_stakes":
+    case "grading":
       return DEFAULT_MODEL_CONFIG.grading;
     case "voice":
       return DEFAULT_MODEL_CONFIG.voice;
@@ -185,20 +186,19 @@ function defaultModelFor(task: AiTask): string {
 }
 
 function configuredModelFor(task: AiTask): string {
-
+  const group = taskGroup(task);
   try {
     const env = getServerEnv();
-    switch (task) {
-      case "tutor_chat":
+    switch (group) {
+      case "tutor":
         return env.GEMINI_MODEL_TUTOR;
-      case "structured_spec":
+      case "structured":
         return env.GEMINI_MODEL_STRUCTURED;
-      case "long_document":
+      case "longdoc":
         return env.GEMINI_MODEL_LONGDOC;
-      case "class_build":
-      case "sim_build":
+      case "build":
         return env.GEMINI_MODEL_BUILD;
-      case "grading_high_stakes":
+      case "grading":
         return env.GEMINI_MODEL_GRADING;
       case "voice":
         return env.GEMINI_MODEL_VOICE;
@@ -206,17 +206,16 @@ function configuredModelFor(task: AiTask): string {
         return env.GEMINI_MODEL_FALLBACK;
     }
   } catch {
-    switch (task) {
-      case "tutor_chat":
+    switch (group) {
+      case "tutor":
         return process.env.GEMINI_MODEL_TUTOR || DEFAULT_MODEL_CONFIG.tutor;
-      case "structured_spec":
+      case "structured":
         return process.env.GEMINI_MODEL_STRUCTURED || DEFAULT_MODEL_CONFIG.structured;
-      case "long_document":
+      case "longdoc":
         return process.env.GEMINI_MODEL_LONGDOC || DEFAULT_MODEL_CONFIG.longdoc;
-      case "class_build":
-      case "sim_build":
+      case "build":
         return process.env.GEMINI_MODEL_BUILD || DEFAULT_MODEL_CONFIG.build;
-      case "grading_high_stakes":
+      case "grading":
         return process.env.GEMINI_MODEL_GRADING || DEFAULT_MODEL_CONFIG.grading;
       case "voice":
         return process.env.GEMINI_MODEL_VOICE || DEFAULT_MODEL_CONFIG.voice;
@@ -277,8 +276,8 @@ export function getChainForTask(task: AiTask): string[] {
     return live([primary, ...customFallbackChain, ...safetyNet]);
   }
 
-  if (task === "tutor_chat" || task === "structured_spec" || task === "long_document") {
-    // Light tasks stay strictly within light models
+  if (!isHeavyTask(task)) {
+    // Everything that isn't a build/grading job stays within light models (keeps the small heavy quota for where it matters)
     return live([primary, ...lightChain, ...safetyNet]);
   }
 
@@ -589,7 +588,7 @@ export async function generateWithFallback<T>({
           }).catch(() => {});
         }
 
-        const reducedQuality = activeModel.includes("lite") && (task === "class_build" || task === "grading_high_stakes");
+        const reducedQuality = activeModel.includes("lite") && isHeavyTask(task);
 
         return {
           text: responseText,

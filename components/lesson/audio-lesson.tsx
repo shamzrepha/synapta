@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { ClipQueue, type ClipStatus } from "@/lib/audio/clip-queue";
+import { GaplessPlayer, type ClipState } from "@/lib/audio/gapless";
+import { speakDevice, cancelDevice } from "@/lib/audio/device-voice";
 
 interface Turn {
   speaker: "teacher" | "student";
@@ -34,109 +35,6 @@ interface Payload {
 
 const SPEEDS = [1, 1.25, 1.5, 0.85];
 
-/** 44-byte silent WAV, played inside the Play tap so later (async) clip playback isn't blocked on iOS */
-const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
-
-/**
- * Plays a lesson turn by turn. Clips come from a ClipQueue that keeps voicing the following lines
- * in the background, so the next line is usually ready before the current one ends. A line that
- * can't be voiced is read by the device voice. Kept outside React so the play-next chain isn't
- * fighting render cycles.
- */
-class Narrator {
-  private audio: HTMLAudioElement | null = null;
-  private active = false;
-  private token = 0;
-  speed = 1;
-  constructor(
-    private queue: ClipQueue,
-    private onIndex: (i: number) => void,
-    private onStop: () => void,
-    private onBuffering: (b: boolean) => void
-  ) {}
-
-  play(turns: Turn[], from: number) {
-    this.active = true;
-    if (!this.audio) this.audio = new Audio();
-    // Unlock audio playback while we're still inside the user's tap
-    this.audio.src = SILENT_WAV;
-    this.audio.play().catch(() => null);
-    void this.playTurn(turns, from);
-  }
-
-  stop() {
-    this.active = false;
-    this.token++;
-    this.audio?.pause();
-    this.onBuffering(false);
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
-  }
-
-  setSpeed(s: number) {
-    this.speed = s;
-    if (this.audio) this.audio.playbackRate = s;
-  }
-
-  private async playTurn(turns: Turn[], i: number) {
-    const my = ++this.token;
-    this.audio?.pause();
-    window.speechSynthesis?.cancel();
-    if (!this.active) return;
-    if (i >= turns.length) {
-      this.active = false;
-      this.onIndex(0);
-      this.onStop();
-      return;
-    }
-    this.onIndex(i);
-    // Voice this line and everything after it, one by one, in the background
-    this.queue.startFrom(i);
-    const turn = turns[i];
-    let done = false;
-    const next = () => {
-      if (done) return;
-      done = true;
-      if (this.active && this.token === my) void this.playTurn(turns, i + 1);
-    };
-
-    let url: string | null = null;
-    if (turn.hasAudio) {
-      if (this.queue.status(i) !== "ready") this.onBuffering(true);
-      url = await this.queue.get(i);
-      if (this.token === my) this.onBuffering(false);
-    }
-    if (!this.active || this.token !== my) return;
-
-    if (url && this.audio) {
-      const a = this.audio;
-      const fallback = () => {
-        if (done || this.token !== my) return;
-        a.pause();
-        this.speak(turn, next);
-      };
-      a.src = url;
-      a.playbackRate = this.speed;
-      a.onended = next;
-      a.onerror = fallback;
-      a.play().catch(fallback);
-    } else {
-      this.speak(turn, next);
-    }
-  }
-
-  private speak(turn: Turn, onEnd: () => void) {
-    const synth = window.speechSynthesis;
-    if (!synth) return onEnd();
-    const u = new SpeechSynthesisUtterance(turn.text);
-    u.rate = this.speed;
-    const voices = synth.getVoices().filter((v) => v.lang.startsWith("en"));
-    if (voices.length > 1) u.voice = turn.speaker === "teacher" ? voices[0] : voices[1];
-    u.onend = onEnd;
-    u.onerror = onEnd;
-    synth.speak(u);
-  }
-}
-
 async function fetchAudio(base: string): Promise<Payload | null> {
   try {
     const res = await fetch(base);
@@ -157,7 +55,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [expanded, setExpanded] = useState(false);
-  const narratorRef = useRef<Narrator | null>(null);
+  const playerRef = useRef<GaplessPlayer | null>(null);
   const transcriptRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
@@ -168,34 +66,56 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
   const version = lesson?.version || 0;
 
   const [buffering, setBuffering] = useState(false);
-  const [clipStatus, setClipStatus] = useState<ClipStatus[]>([]);
+  const [clipStatus, setClipStatus] = useState<ClipState[]>([]);
   const turnsKey = lesson ? lesson.turns.map((t) => (t.hasAudio ? 1 : 0)).join("") : "";
+  const turnsRef = useRef<Turn[]>([]);
+  const styleRef = useRef<"female" | "male">("female");
+  useEffect(() => {
+    turnsRef.current = lesson?.turns || [];
+    styleRef.current = lesson?.voiceStyle || "female";
+  });
 
   useEffect(() => {
     if (!turnsKey) return;
-    const queue = new ClipQueue(turnsKey.length, async (i) => {
-      if (turnsKey[i] !== "1") return null;
-      const res = await fetch(`${base}/${i}?v=${version}`);
-      return res.ok ? await res.blob() : null;
+    const player = new GaplessPlayer({
+      count: turnsKey.length,
+      fetchClip: async (i) => {
+        if (turnsKey[i] !== "1") return null;
+        try {
+          const res = await fetch(`${base}/${i}?v=${version}`);
+          return res.ok ? await res.arrayBuffer() : null;
+        } catch {
+          return null;
+        }
+      },
+      speakFallback: (i, rate, done) => {
+        const t = turnsRef.current[i];
+        if (!t) return done();
+        // In the "female" style the teacher is female; in the "male" style the teacher is male
+        const teacherFemale = styleRef.current === "female";
+        const female = t.speaker === "teacher" ? teacherFemale : !teacherFemale;
+        speakDevice(t.text, female ? "female" : "male", rate, done);
+      },
+      cancelFallback: cancelDevice,
+      onIndex: (i) => setIndex(i),
+      onBuffering: setBuffering,
+      onEnd: () => {
+        setPlaying(false);
+        setIndex(0);
+      },
+      onStatus: () => setClipStatus(Array.from({ length: turnsKey.length }, (_, i) => player.statusOf(i))),
     });
-    // Warm the first line so Play starts right away
-    queue.startFrom(0, 1);
-    const unsubscribe = queue.subscribe(() => setClipStatus(Array.from({ length: queue.size }, (_, i) => queue.status(i))));
-    const n = new Narrator(
-      queue,
-      (i) => setIndex(i),
-      () => setPlaying(false),
-      (b) => setBuffering(b)
-    );
-    narratorRef.current = n;
+    // Start fetching every line in the background right away, so Play starts instantly
+    player.preload(0);
+    playerRef.current = player;
     return () => {
-      n.stop();
-      unsubscribe();
-      queue.dispose();
+      player.dispose();
+      playerRef.current = null;
+      cancelDevice();
     };
   }, [base, version, turnsKey]);
 
-  const stopAll = () => narratorRef.current?.stop();
+  const stopAll = () => playerRef.current?.stop();
 
   // Keep the active line visible in the transcript
   useEffect(() => {
@@ -207,11 +127,13 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
     if (!lesson) return;
     if (playing) {
       setPlaying(false);
-      stopAll();
+      playerRef.current?.pause();
     } else {
       setPlaying(true);
       setExpanded(true);
-      narratorRef.current?.play(lesson.turns, index);
+      const p = playerRef.current;
+      if (p?.isPaused) p.resume();
+      else p?.play(index);
     }
   };
 
@@ -219,7 +141,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
     if (!lesson) return;
     const clamped = Math.max(0, Math.min(lesson.turns.length - 1, i));
     setPlaying(true);
-    narratorRef.current?.play(lesson.turns, clamped);
+    playerRef.current?.jump(clamped);
   };
 
   const generate = async (regenerate = false) => {
@@ -337,7 +259,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
               onClick={() => {
                 const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
                 setSpeed(next);
-                narratorRef.current?.setSpeed(next);
+                playerRef.current?.setRate(next);
               }}
               className="text-xs font-bold px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 tabular-nums"
               aria-label="Playback speed"

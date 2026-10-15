@@ -1,83 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
-import { generateGeminiVoice, generateFullDiscussionAudio } from "@/lib/ai/voice";
-import { checkRateLimitAndQuota } from "@/lib/quota/guard";
+import { getOrSynthesizeHostLine } from "@/lib/ai/host-voice";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const singleTurnSchema = z.object({
+const schema = z.object({
   text: z.string().min(1).max(3000),
   speaker: z.string().default("Alex"),
+  /** return raw audio bytes instead of base64 JSON (smaller and faster for the streaming player) */
+  binary: z.boolean().default(false),
 });
 
-const fullScriptSchema = z.object({
-  dialogue: z.array(
-    z.object({
-      speaker: z.string(),
-      text: z.string(),
-    })
-  ).min(1).max(50),
-});
-
+/**
+ * One spoken line of a podcast. Lines are cached for everyone, so a script is voiced once no matter
+ * how many learners play it. A male and a female voice are used for the two hosts in every engine.
+ */
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const body = await req.json().catch(() => ({}));
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "voice_line", limit: 90, windowMs: 60_000 });
+    if (limited) return limited;
+    const parsed = schema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) {
+      return NextResponse.json({ ok: false, error: { code: "VALIDATION", message: "Provide text and a speaker." } }, { status: 400 });
+    }
+    const { text, speaker, binary } = parsed.data;
+    const line = await getOrSynthesizeHostLine(text, speaker);
 
-    // Path 1: Full episode batch script audio synthesis
-    const fullParsed = fullScriptSchema.safeParse(body);
-    if (fullParsed.success) {
-      await checkRateLimitAndQuota(caller.uid, 500);
-      const batchResult = await generateFullDiscussionAudio(fullParsed.data.dialogue);
-
-      return NextResponse.json({
-        ok: true,
-        data: {
-          turns: batchResult.turns,
-          totalGenerated: batchResult.turns.length,
-          fallbackToBrowser: batchResult.turns.length === 0,
-        },
+    if (binary) {
+      if (!line) return NextResponse.json({ ok: false, error: { code: "NO_AUDIO", message: "Studio voice unavailable; use the device voice." } }, { status: 503 });
+      return new NextResponse(new Uint8Array(line.bytes), {
+        headers: { "Content-Type": line.mimeType, "Cache-Control": "private, max-age=86400", "X-Voice": line.voiceName, "X-Voice-Cached": line.cached ? "1" : "0" },
       });
     }
-
-    // Path 2: Single-turn audio synthesis
-    const singleParsed = singleTurnSchema.safeParse(body);
-    if (!singleParsed.success) {
-      return NextResponse.json(
-        { ok: false, error: { code: "VALIDATION", message: "Invalid payload. Provide text & speaker or dialogue array." } },
-        { status: 400 }
-      );
+    if (!line) {
+      return NextResponse.json({ ok: true, data: { audioBase64: null, fallbackToBrowser: true, message: "Studio voice audio unavailable; using the device voice." } });
     }
-
-    await checkRateLimitAndQuota(caller.uid, 500);
-
-    const result = await generateGeminiVoice({
-      text: singleParsed.data.text,
-      speaker: singleParsed.data.speaker,
-    });
-
-    if (!result) {
-      return NextResponse.json({
-        ok: true,
-        data: {
-          audioBase64: null,
-          fallbackToBrowser: true,
-          message: "Studio voice audio unavailable; using browser voice synthesis fallback.",
-        },
-      });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      data: {
-        audioBase64: result.audioBase64,
-        mimeType: result.mimeType,
-        voiceName: result.voiceName,
-        fallbackToBrowser: false,
-      },
-    });
+    return NextResponse.json({ ok: true, data: { audioBase64: line.bytes.toString("base64"), mimeType: line.mimeType, voiceName: line.voiceName, fallbackToBrowser: false, cached: line.cached } });
   } catch (error) {
     return handleAuthError(error);
   }

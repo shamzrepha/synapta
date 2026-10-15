@@ -129,3 +129,16 @@ built-in simulators. Redeploy indexes after pulling (`designs` collection) — o
   that API). Set `YOUTUBE_API_KEY` in Vercel and redeploy. Without it, steps show a "Watch on
   YouTube" search link instead of embedded videos. Results are cached for 30 days to stay within the
   free quota (~100 searches/day).
+
+## 9. Voices and AI models
+
+- **Podcast / lesson voices** use two different hosts everywhere: Alex (female) and Sam (male) — free
+  Edge neural voices first, then Gemini TTS (Kore / Puck), then the device's own voices (a female and a
+  male voice, told apart by pitch when needed). If the free Edge service is blocked from your host it is
+  skipped for 10 minutes after two failures so playback doesn't stall. Set `VOICE_ENGINE=gemini` to skip
+  Edge entirely (default `auto`).
+- Spoken lines are cached in Firestore (`ttsCache`) and shared: a podcast script is voiced once, however
+  many learners play it. Playback is gapless (Web Audio) and every remaining line loads in the background.
+- **Which model does what** is defined in `lib/ai/models.ts` (`TASK_GROUPS`): tutor, quizzes, flashcards,
+  study guides, podcast scripts and research run on the fast model; class builds, simulations, Maker Studio
+  designs, assignments and grading run on the strongest model. Admins can still pin any single task.

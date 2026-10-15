@@ -249,3 +249,20 @@ describe("lib/ai/router & models (Fix Pack C1 & C2)", () => {
     });
   });
 });
+
+describe("task → model matching", () => {
+  it("runs build-type work on the strong model and everything else on the fast one", () => {
+    for (const t of ["class_build", "sim_build", "studio_build", "assignment_author", "assignment_architect", "assignment_reviewer", "grading_high_stakes"]) {
+      expect(modelFor(t), t).toBe(DEFAULT_MODEL_CONFIG.build);
+      expect(getChainForTask(t)[0], t).toBe(DEFAULT_MODEL_CONFIG.build);
+    }
+    for (const t of ["tutor_chat", "notebook_chat", "quiz_gen", "flashcard_gen", "discussion_script", "study_guide", "lesson_notes"]) {
+      expect(modelFor(t), t).toMatch(/lite/);
+    }
+  });
+
+  it("keeps light tasks off the heavy chain and voice on a TTS model", () => {
+    expect(getChainForTask("discussion_script").some((m) => DEFAULT_MODEL_CONFIG.chainHeavy.includes(m))).toBe(false);
+    expect(modelFor("voice_tts")).toMatch(/tts/);
+  });
+});

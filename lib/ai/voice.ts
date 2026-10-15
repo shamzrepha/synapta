@@ -32,6 +32,32 @@ export function pcmToWav(
   return Buffer.concat([wavHeader, pcmBuffer]);
 }
 
+/**
+ * The two podcast hosts. Every engine gets one female (Alex) and one male (Sam) voice so the
+ * conversation is easy to follow, whichever engine ends up speaking.
+ */
+export const HOSTS = {
+  alex: { gender: "female", edge: "en-US-JennyNeural", edgeName: "Jenny (Studio Neural)", gemini: "Kore", eleven: "21m00Tcm4TlvDq8ikWAM", elevenName: "Rachel (ElevenLabs)", slot: "A" },
+  sam: { gender: "male", edge: "en-US-GuyNeural", edgeName: "Guy (Studio Neural)", gemini: "Puck", eleven: "pNInz6obpgDQGcFmaJgB", elevenName: "Adam (ElevenLabs)", slot: "B" },
+} as const;
+
+export function hostFor(speaker: string) {
+  return /alex/i.test(speaker) ? HOSTS.alex : HOSTS.sam;
+}
+
+// Edge TTS can be blocked from some datacenters (it then times out on every line). After repeated
+// failures skip it for a while instead of making every line wait for a timeout.
+const edgeState = { failures: 0, downUntil: 0 };
+export function resetVoiceBreakers() {
+  edgeState.failures = 0;
+  edgeState.downUntil = 0;
+}
+export function edgeAvailable(): boolean {
+  const engine = (process.env.VOICE_ENGINE || "auto").toLowerCase();
+  if (engine === "gemini") return false;
+  return Date.now() >= edgeState.downUntil;
+}
+
 export interface VoiceGenerationResult {
   audioBase64: string;
   mimeType: string;
@@ -69,12 +95,9 @@ export async function generateEdgeVoice({
 }): Promise<VoiceGenerationResult | null> {
   if (!text || text.trim().length === 0) return null;
 
-  const isAlex = speaker.toLowerCase().includes("alex");
-  const voice = isAlex ? "en-US-JennyNeural" : "en-US-GuyNeural";
-  const voiceName = isAlex ? "Jenny (Studio Neural)" : "Guy (Studio Neural)";
-
-  const mp3 = await synthesizeEdgeVoice(text, voice);
-  return mp3 ? { audioBase64: mp3.toString("base64"), mimeType: "audio/mpeg", voiceName } : null;
+  const host = hostFor(speaker);
+  const mp3 = await synthesizeEdgeVoice(text, host.edge);
+  return mp3 ? { audioBase64: mp3.toString("base64"), mimeType: "audio/mpeg", voiceName: host.edgeName } : null;
 }
 
 /**
@@ -133,14 +156,15 @@ export async function generateGeminiVoice({
     return edgeResult;
   }
 
-  const isAlex = speaker.toLowerCase().includes("alex");
-  const voiceName = isAlex ? "Puck" : "Fenrir";
+  const host = hostFor(speaker);
+  const isAlex = host.slot === "A";
+  const voiceName: string = host.gemini;
 
   // Tier 2: ElevenLabs API (if ELEVENLABS_API_KEY configured)
   const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
   if (elevenLabsKey) {
     try {
-      const voiceId = isAlex ? "21m00Tcm4TlvDq8ikWAM" : "pNInz6obpgDQGcFmaJgB";
+      const voiceId = host.eleven;
       const elRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
         method: "POST",
         headers: {
@@ -159,7 +183,7 @@ export async function generateGeminiVoice({
         return {
           audioBase64: audioBuffer.toString("base64"),
           mimeType: "audio/mpeg",
-          voiceName: isAlex ? "Rachel (ElevenLabs)" : "Adam (ElevenLabs)",
+          voiceName: host.elevenName,
         };
       }
     } catch (elErr) {
@@ -262,10 +286,14 @@ export async function synthesizeGeminiTts(text: string, voiceName: string, timeo
 }
 
 /** Synthesises text with a specific Edge neural voice (free, no API key). Returns MP3 bytes. */
-export async function synthesizeEdgeVoice(text: string, voice: string, timeoutMs = 9_000): Promise<Buffer | null> {
+export async function synthesizeEdgeVoice(text: string, voice: string, timeoutMs = 6_000): Promise<Buffer | null> {
   if (!text || !text.trim()) return null;
+  if (!edgeAvailable()) return null;
   // The Edge websocket can stall without erroring (blocked egress, throttling); never wait forever.
-  return withVoiceTimeout(edgeStream(text, voice), timeoutMs);
+  const out = await withVoiceTimeout(edgeStream(text, voice), timeoutMs);
+  if (out) edgeState.failures = 0;
+  else if (++edgeState.failures >= 2) edgeState.downUntil = Date.now() + 10 * 60_000;
+  return out;
 }
 
 async function edgeStream(text: string, voice: string): Promise<Buffer | null> {

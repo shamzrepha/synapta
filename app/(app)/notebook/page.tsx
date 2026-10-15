@@ -11,7 +11,8 @@ import { extractTextFromFile } from "@/lib/pdf/extractor";
 import { cn } from "@/lib/utils";
 import { useLiveChannel } from "@/lib/live/client";
 import { NotebookBar, type NotebookMeta } from "@/components/notebook/notebook-bar";
-import { ClipQueue, type ClipStatus } from "@/lib/audio/clip-queue";
+import { GaplessPlayer, type ClipState } from "@/lib/audio/gapless";
+import { speakDevice, cancelDevice } from "@/lib/audio/device-voice";
 import {
   BookOpen,
   FileText,
@@ -151,11 +152,8 @@ export default function NotebookPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
   const [studioVoiceEnabled, setStudioVoiceEnabled] = useState(true);
   const [loadingTurnAudio, setLoadingTurnAudio] = useState(false);
-  const [podcastClips, setPodcastClips] = useState<ClipStatus[]>([]);
-  const podcastQueueRef = useRef<ClipQueue | null>(null);
-  const playTokenRef = useRef(0);
-  const isSpeakingRef = useRef(false);
-  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  const [podcastClips, setPodcastClips] = useState<ClipState[]>([]);
+  const podcastPlayerRef = useRef<GaplessPlayer | null>(null);
 
   // Study Guide, Flashcards, Quiz Artifacts State
   const [studyGuideMarkdown, setStudyGuideMarkdown] = useState<string | null>(null);
@@ -481,183 +479,88 @@ export default function NotebookPage() {
     }
   };
 
-  // Studio voice: lines are voiced one after another in the background (starting from the line
-  // being played), so while one line plays the next ones are already loading — like a stream.
+  // Podcast audio: every line is fetched in the background (3 at a time) as soon as the script exists,
+  // then played gaplessly like a live stream. Lines are cached on the server, so other learners
+  // playing the same script get them instantly.
   const episodeKey = deepDiveEpisode ? `${deepDiveEpisode.title}:${deepDiveEpisode.dialogue.length}:${deepDiveEpisode.dialogue[0]?.text.slice(0, 30)}` : "";
+  const dialogueRef = useRef<DialogueTurn[]>([]);
   useEffect(() => {
-    if (!deepDiveEpisode || !studioVoiceEnabled) return;
+    dialogueRef.current = deepDiveEpisode?.dialogue || [];
+  });
+  useEffect(() => {
+    if (!deepDiveEpisode) return;
     const dialogue = deepDiveEpisode.dialogue;
-    const queue = new ClipQueue(dialogue.length, async (i) => {
-      const res = await fetch("/api/notebook/voice", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: dialogue[i].text, speaker: dialogue[i].speaker }),
-      });
-      const json = await res.json();
-      if (!json.ok || !json.data?.audioBase64) return null;
-      const bytes = Uint8Array.from(atob(json.data.audioBase64), (c) => c.charCodeAt(0));
-      return new Blob([bytes], { type: json.data.mimeType || "audio/mpeg" });
+    const player = new GaplessPlayer({
+      count: dialogue.length,
+      fetchClip: async (i) => {
+        if (!studioVoiceEnabled) return null; // "Browser TTS" mode: every line is read by the device voices
+        try {
+          const res = await fetch("/api/notebook/voice", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: dialogue[i].text, speaker: dialogue[i].speaker, binary: true }),
+          });
+          return res.ok ? await res.arrayBuffer() : null;
+        } catch {
+          return null;
+        }
+      },
+      // Device voice: Alex is the female host, Sam the male host
+      speakFallback: (i, rate, done) => {
+        const t = dialogueRef.current[i];
+        if (!t) return done();
+        speakDevice(t.text, t.speaker === "Alex" ? "female" : "male", rate, done);
+      },
+      cancelFallback: cancelDevice,
+      onIndex: setCurrentTurnIndex,
+      onBuffering: setLoadingTurnAudio,
+      onEnd: () => {
+        setIsPlayingAudio(false);
+        setCurrentTurnIndex(0);
+      },
+      onStatus: () => setPodcastClips(Array.from({ length: dialogue.length }, (_, i) => player.statusOf(i))),
     });
-    const unsubscribe = queue.subscribe(() => setPodcastClips(Array.from({ length: queue.size }, (_, i) => queue.status(i))));
-    podcastQueueRef.current = queue;
-    // Start voicing the opening lines as soon as the script exists
-    queue.startFrom(0, 2);
+    podcastPlayerRef.current = player;
+    player.preload(0);
     return () => {
-      unsubscribe();
-      queue.dispose();
-      if (podcastQueueRef.current === queue) podcastQueueRef.current = null;
+      player.dispose();
+      if (podcastPlayerRef.current === player) podcastPlayerRef.current = null;
+      cancelDevice();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [episodeKey, studioVoiceEnabled]);
 
-  /** Starts playback from a line; called from a tap so audio is unlocked for later async plays (iOS). */
   const startPlaybackAt = (index: number) => {
-    if (!audioElementRef.current) audioElementRef.current = new Audio();
-    const a = audioElementRef.current;
-    a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
-    a.play().catch(() => null);
-    void playTurn(index);
-  };
-
-  // SpeechSynthesis Fallback Audio
-  const playWithBrowserTts = (turn: { speaker: string; text: string }, index: number) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      toast({ title: "Audio Unsupported", description: "Browser does not support audio synthesis.", variant: "destructive" });
-      setIsPlayingAudio(false);
-      isSpeakingRef.current = false;
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(turn.text);
-    utterance.rate = playbackSpeed;
-    if (turn.speaker === "Alex") {
-      utterance.pitch = 1.08;
-    } else {
-      utterance.pitch = 0.90;
-    }
-
-    utterance.onend = () => {
-      if (isSpeakingRef.current) {
-        playTurn(index + 1);
-      }
-    };
-
-    utterance.onerror = () => {
-      setIsPlayingAudio(false);
-      isSpeakingRef.current = false;
-    };
-
-    window.speechSynthesis.speak(utterance);
-  };
-
-  // 2-Host Deep Dive Audio Engine (Google Voice Lab Primary)
-  const playTurn = async (index: number) => {
-    if (!deepDiveEpisode || index >= deepDiveEpisode.dialogue.length) {
-      setIsPlayingAudio(false);
-      isSpeakingRef.current = false;
-      return;
-    }
-
-    const my = ++playTokenRef.current;
-    if (audioElementRef.current) {
-      audioElementRef.current.pause();
-    }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
-
-    setCurrentTurnIndex(index);
-    isSpeakingRef.current = true;
+    const p = podcastPlayerRef.current;
+    if (!p) return;
+    p.setRate(playbackSpeed);
     setIsPlayingAudio(true);
-
-    const turn = deepDiveEpisode.dialogue[index];
-    const queue = podcastQueueRef.current;
-
-    if (studioVoiceEnabled && queue) {
-      // Keep voicing this line and the ones after it, one by one, in the background
-      queue.startFrom(index);
-      let audioUrl: string | null = null;
-      if (queue.status(index) !== "ready") setLoadingTurnAudio(true);
-      try {
-        audioUrl = await queue.get(index);
-      } finally {
-        if (playTokenRef.current === my) setLoadingTurnAudio(false);
-      }
-      if (playTokenRef.current !== my || !isSpeakingRef.current) return;
-
-      if (audioUrl) {
-        if (!audioElementRef.current) audioElementRef.current = new Audio();
-        const audio = audioElementRef.current;
-        let done = false;
-        const fallback = () => {
-          if (done || playTokenRef.current !== my) return;
-          done = true;
-          playWithBrowserTts(turn, index);
-        };
-        audio.src = audioUrl;
-        audio.playbackRate = playbackSpeed;
-        audio.onended = () => {
-          if (done) return;
-          done = true;
-          if (isSpeakingRef.current && playTokenRef.current === my) playTurn(index + 1);
-        };
-        audio.onerror = fallback;
-        audio.play().catch(fallback);
-        return;
-      }
-    }
-
-    // Priority 2: Browser SpeechSynthesis Fallback
-    playWithBrowserTts(turn, index);
+    p.jump(index);
   };
 
   const togglePlayAudio = () => {
+    const p = podcastPlayerRef.current;
+    if (!p) return;
     if (isPlayingAudio) {
-      if (audioElementRef.current) {
-        audioElementRef.current.pause();
-      }
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.pause();
-      }
+      p.pause();
       setIsPlayingAudio(false);
-      isSpeakingRef.current = false;
+    } else if (p.isPaused) {
+      p.resume();
+      setIsPlayingAudio(true);
     } else {
-      if (audioElementRef.current && audioElementRef.current.paused && audioElementRef.current.currentTime > 0) {
-        audioElementRef.current.play();
-        setIsPlayingAudio(true);
-        isSpeakingRef.current = true;
-      } else if (typeof window !== "undefined" && "speechSynthesis" in window && window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-        setIsPlayingAudio(true);
-        isSpeakingRef.current = true;
-      } else {
-        startPlaybackAt(currentTurnIndex);
-      }
+      startPlaybackAt(currentTurnIndex);
     }
   };
 
   const stopAudio = () => {
-    if (audioElementRef.current) {
-      audioElementRef.current.pause();
-      audioElementRef.current.currentTime = 0;
-    }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    podcastPlayerRef.current?.stop();
+    cancelDevice();
     setIsPlayingAudio(false);
-    isSpeakingRef.current = false;
     setCurrentTurnIndex(0);
   };
 
   useEffect(() => {
-    return () => {
-      if (audioElementRef.current) {
-        audioElementRef.current.pause();
-      }
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
+    return () => cancelDevice();
   }, []);
 
   // Studio Artifacts Generation
@@ -1163,7 +1066,10 @@ export default function NotebookPage() {
                             {[1.0, 1.25, 1.5].map((speed) => (
                               <button
                                 key={speed}
-                                onClick={() => setPlaybackSpeed(speed)}
+                                onClick={() => {
+                                  setPlaybackSpeed(speed);
+                                  podcastPlayerRef.current?.setRate(speed);
+                                }}
                                 className={`px-1.5 py-0.5 rounded ${
                                   playbackSpeed === speed
                                     ? "bg-teal-600 text-white font-bold"
