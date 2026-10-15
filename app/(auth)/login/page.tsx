@@ -187,7 +187,7 @@ export default function LoginPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 font-bold shadow-sm">
               <BrainCircuit className="h-6 w-6" />
             </div>
-            <span className="font-bold text-2xl tracking-tight">Synapta</span>
+            <span className="font-bold text-2xl tracking-tight">Sunroot</span>
           </Link>
           <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">

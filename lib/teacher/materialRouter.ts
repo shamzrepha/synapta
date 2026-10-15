@@ -82,7 +82,7 @@ export async function analyzeMaterialAndRoute({
     order: (d.data().order as number) || 1,
   }));
 
-  const systemInstruction = `You are Synapta's AI Curriculum Router.
+  const systemInstruction = `You are Sunroot's AI Curriculum Router.
 Compare new uploaded learning material against the course's current Knowledge Component (KC) map.
 
 Decision Options:

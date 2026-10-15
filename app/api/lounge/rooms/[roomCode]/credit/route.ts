@@ -100,7 +100,7 @@ export async function POST(
     // Post celebration system message to room chat
     await roomRef.collection("messages").add({
       uid: "system",
-      displayName: "Synapta Lounge",
+      displayName: "Sunroot Lounge",
       text: `🎉 Peer Explanation Credited! +40 XP awarded to peer with Omega = 2.0 mastery acceleration.`,
       createdAt: Timestamp.now(),
     });

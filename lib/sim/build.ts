@@ -22,12 +22,15 @@ export const SIM_CSP =
 export const SIM_BRIDGE_SCRIPT = `<script>
 (function () {
   function send(type, detail) {
+    try { parent.postMessage({ source: "sunroot-sim", type: type, detail: detail || null }, "*"); } catch (e) {}
     try { parent.postMessage({ source: "synapta-sim", type: type, detail: detail || null }, "*"); } catch (e) {}
   }
-  window.synapta = {
+  var bridge = {
     complete: function (detail) { send("goal_complete", detail); },
     progress: function (detail) { send("progress", detail); }
   };
+  window.sunroot = bridge;
+  window.synapta = bridge;
   window.addEventListener("error", function (e) { send("runtime_error", { message: String((e && e.message) || "Script error") }); });
   // Sandboxed (opaque-origin) frames throw on storage access; give generated code a harmless stand-in.
   try { window.localStorage.getItem("x"); } catch (e) {
@@ -105,7 +108,7 @@ LEARNING & GAME DESIGN RULES:
 7. Scientifically/mathematically CORRECT model. Use real equations and units; show live numeric readouts with units and the governing formula as text (e.g. "I = V / R").
 8. Controls: sliders/buttons/drag handles for the key variables, each clearly labelled with its value and unit.
 9. A game layer: a clear challenge/goal shown on screen (e.g. "Hit the target", "Balance the circuit to 0.2 A", "Reach 3 stars"), live feedback, a score or stars, and 2-3 levels of increasing difficulty when it fits the topic.
-10. When the learner achieves the main goal, call window.synapta.complete({ score: <number>, level: <number> }) once per level (the function is provided by the host page; guard with "if (window.synapta)").
+10. When the learner achieves the main goal, call window.sunroot.complete({ score: <number>, level: <number> }) or window.synapta.complete({ score: <number>, level: <number> }) once per level (the function is provided by the host page; guard with "if (window.sunroot || window.synapta)").
 11. Include a short "What to notice" hint panel that explains the cause→effect relationship the learner should discover.
 12. Visual style: modern, clean, high-contrast, dark-friendly (background #0b0f14 or similar with teal #14b8a6 and amber #f59e0b accents), large readable text (>=14px), rounded controls.
 13. If the topic is not naturally physical (e.g. history, biology processes, algorithms, economics), build an interactive model, sorting/matching game, timeline, step-through visualiser or "what-if" explorer instead — still with a goal and feedback.`;

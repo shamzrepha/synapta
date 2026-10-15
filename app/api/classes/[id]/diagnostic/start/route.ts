@@ -84,7 +84,7 @@ export async function POST(
       .map((k, i) => `${i + 1}. [KC_ID: ${k.id}] ${k.title}: ${(k.lessonMarkdown || k.description || "").slice(0, 300)}`)
       .join("\n\n");
 
-    const systemInstruction = `You are Synapta's diagnostic assessment designer.
+    const systemInstruction = `You are Sunroot's diagnostic assessment designer.
 Generate an adaptive placement diagnostic assessment across the following Knowledge Components.
 For each specified KC, generate exactly ONE high-yield conceptual multiple-choice question testing understanding rather than simple recall.
 

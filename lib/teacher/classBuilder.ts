@@ -244,7 +244,7 @@ export async function buildClassWithAi(input: ClassBuildInput, jobId?: string): 
 
   const outlineHeadings = extractOutlineHeadings(input.seedMaterialText);
 
-  const systemInstruction = `You are Synapta's Senior AI Co-Teacher and Curriculum Architect.
+  const systemInstruction = `You are Sunroot's Senior AI Co-Teacher and Curriculum Architect.
 Your task is to structure a master Knowledge Component (KC) graph for a course.
 
 Rules:

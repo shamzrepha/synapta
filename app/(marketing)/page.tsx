@@ -28,7 +28,7 @@ export default function LandingPage() {
               <BrainCircuit className="h-6 w-6" />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-lg tracking-tight">Synapta</span>
+              <span className="font-bold text-lg tracking-tight">Sunroot</span>
               <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">
                 Cognitive Twin LMS
               </span>
@@ -79,7 +79,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Synapta builds a real-time <strong>Cognitive Digital Twin</strong> for every learner using Bayesian Knowledge Tracing. Seamlessly unified with in-situ simulation labs, source-grounded AI, and peer study lounges.
+            Sunroot builds a real-time <strong>Cognitive Digital Twin</strong> for every learner using Bayesian Knowledge Tracing. Seamlessly unified with in-situ simulation labs, source-grounded AI, and peer study lounges.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -162,7 +162,7 @@ export default function LandingPage() {
       <section id="features" className="py-20 px-4 max-w-[1200px] mx-auto w-full">
         <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
           <Badge variant="outline" className="text-xs">Architecture Pillars</Badge>
-          <h2 className="text-3xl font-bold tracking-tight">The Three Foundations of Synapta</h2>
+          <h2 className="text-3xl font-bold tracking-tight">The Three Foundations of Sunroot</h2>
           <p className="text-slate-600 dark:text-slate-400 text-sm">
             Moving beyond passive video consumption into dynamic mastery learning and rigorous classroom intelligence.
           </p>
@@ -343,7 +343,7 @@ export default function LandingPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 font-bold">
               <BrainCircuit className="h-5 w-5" />
             </div>
-            <span className="font-bold text-sm">Synapta</span>
+            <span className="font-bold text-sm">Sunroot</span>
             <span className="text-xs text-slate-500">© 2026. All rights reserved.</span>
           </div>
 

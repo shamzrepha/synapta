@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
       .collection("messages")
       .add({
         uid: "system",
-        displayName: "Synapta Lounge Bot",
+        displayName: "Sunroot Lounge Bot",
         text: `Welcome to Study Room ${roomCode}! Collaborate in the scratchpad, explain concepts to each other, and record peer evidence.`,
         createdAt: Timestamp.now(),
       });

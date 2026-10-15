@@ -59,7 +59,7 @@ export async function POST(
 
     let prompt = "";
     if (kind === "explanation" || kind === "worked_example") {
-      prompt = `You are Synapta's Master Curriculum Author. Write a high-yield, comprehensive learning piece for:
+      prompt = `You are Sunroot's Master Curriculum Author. Write a high-yield, comprehensive learning piece for:
 Topic: "${kcTitle}"
 Academic Level: ${level}
 Pedagogical Format: ${repMeta.label}

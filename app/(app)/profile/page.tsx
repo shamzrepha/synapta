@@ -200,7 +200,7 @@ export default function ProfilePage() {
                 <CardTitle className="text-base">Profile & Handle Settings</CardTitle>
               </div>
               <CardDescription>
-                Customize how you appear to peers and search for friends across Synapta.
+                Customize how you appear to peers and search for friends across Sunroot.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -255,7 +255,7 @@ export default function ProfilePage() {
                 <CardTitle className="text-base">Role Privileges & Authorization</CardTitle>
               </div>
               <CardDescription>
-                Synapta enforces strict server-side authorization through Firebase custom claims.
+                Sunroot enforces strict server-side authorization through Firebase custom claims.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

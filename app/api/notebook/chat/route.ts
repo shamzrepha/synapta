@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       .map((r) => `${r.citationTag} (Source: "${r.chunk.sourceTitle}"):\n${r.chunk.text}`)
       .join("\n\n");
 
-    const systemPrompt = `You are Synapta's Source-Grounded Cognitive Synthesizer (NotebookLM style).
+    const systemPrompt = `You are Sunroot's Source-Grounded Cognitive Synthesizer (NotebookLM style).
 Your task is to answer the user's question STRICTLY and SOLELY using the Source Excerpts provided below.
 
 RULES:

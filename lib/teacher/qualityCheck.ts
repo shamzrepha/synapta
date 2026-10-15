@@ -23,7 +23,7 @@ export async function runPedagogicalQualityCheck({
   kind: string;
 }): Promise<QualityReport> {
   try {
-    const systemInstruction = `You are Synapta's Automated Pedagogical Quality Reviewer.
+    const systemInstruction = `You are Sunroot's Automated Pedagogical Quality Reviewer.
 Evaluate the drafted learning content for accuracy and curriculum alignment.
 
 Quality Criteria:

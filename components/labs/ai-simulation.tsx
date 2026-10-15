@@ -186,7 +186,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
     const onMessage = (e: MessageEvent) => {
       if (!frameRef.current || e.source !== frameRef.current.contentWindow) return;
       const msg = e.data as { source?: string; type?: string; detail?: Record<string, unknown> | null };
-      if (!msg || msg.source !== "synapta-sim") return;
+      if (!msg || (msg.source !== "sunroot-sim" && msg.source !== "synapta-sim")) return;
       if (msg.type === "goal_complete") {
         const detail = (msg.detail || {}) as { score?: number; level?: number };
         setGoalReached(detail);

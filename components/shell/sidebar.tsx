@@ -35,7 +35,7 @@ export function Sidebar() {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm">
             <BrainCircuit className="h-6 w-6" />
           </div>
-          <span className={cn("font-bold text-lg tracking-tight", label)}>Synapta</span>
+          <span className={cn("font-bold text-lg tracking-tight", label)}>Sunroot</span>
         </Link>
         <button
           onClick={toggleSidebar}

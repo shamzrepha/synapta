@@ -11,7 +11,7 @@ export default function Loading() {
       </div>
       <div className="space-y-1">
         <p className="text-xs font-semibold tracking-wider uppercase text-slate-500 dark:text-slate-400">
-          Loading Synapta
+          Loading Sunroot
         </p>
         <p className="text-[11px] text-slate-400 dark:text-slate-500">
           Syncing cognitive twin state...

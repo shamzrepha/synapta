@@ -49,7 +49,7 @@ export function getAiTutorSystemPrompt(params: {
       ? `Student's current Bayesian mastery probability P(L) = ${(params.studentPL * 100).toFixed(1)}%.`
       : "";
 
-  return `You are Synapta's grounded Socratic AI Tutor for the Knowledge Component: "${params.kcTitle}".
+  return `You are Sunroot's grounded Socratic AI Tutor for the Knowledge Component: "${params.kcTitle}".
 
 CORE PEDAGOGICAL RULES:
 1. SOCRATIC METHOD FIRST: Never simply give away answers to problems or quizzes. Offer targeted conceptual hints, analogies, and guiding questions.
@@ -124,7 +124,7 @@ export function getNotebookGroundedPrompt(params: {
   query: string;
   sources: Array<{ id: string; title: string; text: string }>;
 }): { systemInstruction: string; userPrompt: string } {
-  const systemInstruction = `You are Synapta's grounded research assistant (NotebookLM style).
+  const systemInstruction = `You are Sunroot's grounded research assistant (NotebookLM style).
 Your answers must be grounded STRICTLY and EXCLUSIVELY in the provided source excerpts.
 
 STRICT CITATION RULES:
@@ -153,7 +153,7 @@ Answer the query grounded strictly in the source excerpts with bracketed citatio
 export function getDeepDivePrompt(params: {
   sourceTexts: Array<{ title: string; text: string }>;
 }): { systemInstruction: string; userPrompt: string } {
-  const systemInstruction = `You are the lead producer for Synapta's "Deep Dive" two-host audio discussion show.
+  const systemInstruction = `You are the lead producer for Sunroot's "Deep Dive" two-host audio discussion show.
 Hosts:
 - "Alex": An enthusiastic, curious host who asks the right questions, introduces concepts, and seeks analogies.
 - "Sam": A knowledgeable, articulate expert who explains principles clearly, connects dots, and illuminates key insights.

@@ -1,9 +1,9 @@
 /**
- * Pedagogical Representation Formats for Synapta AI Teacher Engine.
+ * Pedagogical Representation Formats for Sunroot AI Teacher Engine.
  *
  * NOTE: As grounded in 2025 educational psychology research (Springer / Educ Psychol Rev),
  * these are pedagogical EXPLANATION FORMATS, NOT student "learning styles" (visual/auditory/kinesthetic).
- * Synapta adapts based on measured learning gains per format and explicit user choice,
+ * Sunroot adapts based on measured learning gains per format and explicit user choice,
  * never by labeling learners.
  */
 

@@ -200,7 +200,7 @@ export async function GET(
     } else if (recommendedPath.length > 0) {
       try {
         const topKc = recommendedPath[0];
-        const systemInstruction = `You are Synapta's empathetic, encouraging AI Teacher.
+        const systemInstruction = `You are Sunroot's empathetic, encouraging AI Teacher.
 Write a concise, 2-3 sentence personalized pedagogical daily note to the learner based on their structured study plan.
 Guidelines:
 - Mention the target concept to focus on today ("${topKc.kc.title}").

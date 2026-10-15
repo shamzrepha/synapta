@@ -73,7 +73,7 @@ export default function ErrorBoundary({
             <LifeBuoy className="w-3.5 h-3.5" />
             Need assistance? Check the{" "}
             <Link href="/" className="underline text-primary hover:text-primary/80">
-              Synapta platform guide
+              Sunroot platform guide
             </Link>
           </span>
         </div>

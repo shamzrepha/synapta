@@ -31,7 +31,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Synapta — AI-Native Adaptive Learning Platform",
+  title: "Sunroot — AI-Native Adaptive Learning Platform",
   description:
     "Adaptive 1-on-1 tutoring powered by Cognitive Digital Twins, Bayesian Knowledge Tracing, in-situ labs, and grounded AI.",
   icons: {

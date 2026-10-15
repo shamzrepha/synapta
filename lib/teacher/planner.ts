@@ -1,5 +1,5 @@
 /**
- * Learning Map Planner for Synapta AI Teacher Engine.
+ * Learning Map Planner for Sunroot AI Teacher Engine.
  *
  * Pure algorithmic functions for DAG topological path planning,
  * pacing against target exam/course deadlines, and next best activity selection.

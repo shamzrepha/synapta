@@ -691,7 +691,7 @@ export default function ExplorePage() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                      Synapta drafts your topics, their order and learning objectives in under a minute. Full lessons, quizzes, flashcards and an interactive simulation are generated for each topic the first time it&apos;s opened. Nothing is visible to students until you click <strong>Publish</strong>.
+                      Sunroot drafts your topics, their order and learning objectives in under a minute. Full lessons, quizzes, flashcards and an interactive simulation are generated for each topic the first time it&apos;s opened. Nothing is visible to students until you click <strong>Publish</strong>.
                     </p>
                     <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer pt-1">
                       <input

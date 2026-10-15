@@ -24,7 +24,7 @@ function subscribe(callback: () => void) {
 
 function getSnapshot(): Theme {
   if (typeof window === "undefined") return "dark";
-  const stored = localStorage.getItem("synapta-theme") as Theme | null;
+  const stored = (localStorage.getItem("sunroot-theme") || localStorage.getItem("synapta-theme")) as Theme | null;
   if (stored === "light" || stored === "dark") {
     return stored;
   }
@@ -39,6 +39,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const setTheme = useCallback((newTheme: Theme) => {
+    localStorage.setItem("sunroot-theme", newTheme);
     localStorage.setItem("synapta-theme", newTheme);
     document.documentElement.classList.toggle("dark", newTheme === "dark");
     window.dispatchEvent(new Event("storage"));

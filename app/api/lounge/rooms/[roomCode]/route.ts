@@ -52,7 +52,7 @@ export async function GET(
       // Post join notification message
       await roomRef.collection("messages").add({
         uid: "system",
-        displayName: "Synapta Lounge",
+        displayName: "Sunroot Lounge",
         text: `${displayName} joined the study session.`,
         createdAt: Timestamp.now(),
       });
