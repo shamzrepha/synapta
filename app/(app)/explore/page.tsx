@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -42,6 +43,7 @@ interface ClassItem {
 export default function ExplorePage() {
   const { user } = useUserStore();
   const { toast } = useToast();
+  const router = useRouter();
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -50,6 +52,13 @@ export default function ExplorePage() {
 
   // Create class wizard state (A4.1)
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // /explore?create=1 (from "Create class" buttons elsewhere) opens the wizard directly
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("create")) return;
+    const t = setTimeout(() => setIsModalOpen(true), 0);
+    return () => clearTimeout(t);
+  }, []);
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [createTitle, setCreateTitle] = useState("");
   const [createSubject, setCreateSubject] = useState("");
@@ -170,10 +179,10 @@ export default function ExplorePage() {
         const createdClass = data.data.class || data.data;
 
         toast({
-          title: "Class Created!",
+          title: "Class created!",
           description: buildWithAi
-            ? `"${createdClass.title}" created. AI Co-Teacher is drafting your curriculum...`
-            : `"${createdClass.title}" published and ready for students!`,
+            ? "Your AI co-teacher is drafting the curriculum — watch it build live."
+            : `"${createdClass.title}" is published and ready for students.`,
           variant: "success",
         });
 
@@ -201,6 +210,8 @@ export default function ExplorePage() {
         setSeedText("");
         setWizardStep(1);
         setClasses((prev) => [{ ...createdClass, isOwner: true, userEnrollmentStatus: "none" }, ...prev]);
+        // Take the teacher straight to the new class so they can follow the build and publish
+        router.push(`/classes/${createdClass.id}`);
       } else {
         toast({
           title: "Creation Error",
@@ -605,7 +616,7 @@ export default function ExplorePage() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                      Synapta will draft a DAG concept map, resolve prerequisites, calculate BKT difficulty priors, and generate starter lessons in the background. Nothing will be visible to students until you review and click <strong>Publish</strong>.
+                      Synapta drafts your topics, their order and learning objectives in under a minute. Full lessons, quizzes, flashcards and an interactive simulation are generated for each topic the first time it&apos;s opened. Nothing is visible to students until you click <strong>Publish</strong>.
                     </p>
                     <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer pt-1">
                       <input

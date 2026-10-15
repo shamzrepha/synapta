@@ -1,6 +1,7 @@
 import { executeStructuredAiTask, AiQuotaExhaustedError } from "@/lib/ai/router";
 import { sanitizeUntrustedPromptText } from "@/lib/ai/scrub";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { ApiError } from "@/lib/api/errors";
 import { z } from "zod";
 
 export function extractOutlineHeadings(text?: string): string[] {
@@ -197,17 +198,16 @@ export async function buildClassWithAi(input: ClassBuildInput, jobId?: string): 
     .collection("buildJobs")
     .doc(effectiveJobId);
 
-  // Initialize or update build job
-  await jobRef.set(
-    {
-      id: effectiveJobId,
-      step: "scoping",
-      pct: 10,
-      status: "running",
-      updatedAt: Timestamp.now(),
-    },
-    { merge: true }
-  );
+  const classRef = adminDb().collection("classes").doc(input.classId);
+  // Mirror progress on the class doc so the class page can show a live progress bar
+  const reportProgress = async (step: string, pct: number) => {
+    await Promise.all([
+      jobRef.set({ id: effectiveJobId, step, pct, status: "running", updatedAt: Timestamp.now() }, { merge: true }),
+      classRef.update({ buildState: "drafting", buildStep: step, buildPct: pct, buildError: null, updatedAt: Timestamp.now() }),
+    ]);
+  };
+
+  await reportProgress("scoping", 10);
 
   const cleanDescription = sanitizeUntrustedPromptText(input.description, 4000);
 
@@ -281,7 +281,7 @@ ${cleanSeed ? `Seed Uploaded Material Reference:\n${cleanSeed}\n` : ""}
 
 Synthesize the concept map.`;
 
-  await jobRef.update({ step: "drafting_map", pct: 35, updatedAt: Timestamp.now() });
+  await reportProgress("drafting_map", 35);
 
   let aiResult: { data: ClassPlan; modelUsed: string; tokensIn: number; tokensOut: number; latencyMs: number; fallbackTriggered: boolean };
   try {
@@ -304,7 +304,7 @@ Synthesize the concept map.`;
         input,
         updatedAt: Timestamp.now(),
       });
-      await adminDb().collection("classes").doc(input.classId).update({
+      await classRef.update({
         buildState: "waiting_quota",
         resumeAt: err.resumeAt,
         updatedAt: Timestamp.now(),
@@ -321,9 +321,11 @@ Synthesize the concept map.`;
       error: err instanceof Error ? err.message : String(err),
       updatedAt: Timestamp.now(),
     });
-    await adminDb().collection("classes").doc(input.classId).update({
+    await classRef.update({
       buildState: "failed",
-      buildError: err instanceof Error ? err.message : "Failed to structure class with AI. Please retry.",
+      // Friendly ApiError messages are safe to show; raw errors are not
+      buildError:
+        err instanceof ApiError ? err.message : "The AI couldn't structure this class. Please retry — adding an outline or uploading material helps.",
       updatedAt: Timestamp.now(),
     }).catch(() => null);
     throw err;
@@ -381,7 +383,7 @@ Synthesize the concept map.`;
   // 3. Cycle Detection & Pruning
   const { hasCycle } = validateAndPruneCycles(nodesForDag);
 
-  await jobRef.update({ step: "writing_initial_lessons", pct: 70, updatedAt: Timestamp.now() });
+  await reportProgress("saving_topics", 80);
 
   // 4. Batch commit to Firestore (Idempotent: uses stable slug IDs so re-running never duplicates)
   const kcsCollection = adminDb()
@@ -424,9 +426,14 @@ Synthesize the concept map.`;
 
   // Update Class buildState
   const finalBuildState = hasCycle || (clarifications && clarifications.length > 0) ? "needs_review" : "ready";
-  const classRef = adminDb().collection("classes").doc(input.classId);
   batch.update(classRef, {
     buildState: finalBuildState,
+    buildStep: "completed",
+    buildPct: 100,
+    buildError: null,
+    buildClarifications: clarifications || [],
+    lastBuildKcCount: nodesForDag.length,
+    buildCompletedAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   });
 

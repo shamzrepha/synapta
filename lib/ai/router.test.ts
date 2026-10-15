@@ -5,8 +5,11 @@ import {
   getChainForTask,
   classifyProviderError,
   AiQuotaExhaustedError,
+  AiGenerationError,
   generateWithFallback,
+  extractJsonPayload,
 } from "./router";
+import { z } from "zod";
 import { sanitizeModelId, parseModelChain, DEFAULT_MODEL_CONFIG } from "./models";
 import { markModelExhausted, isModelAvailable } from "./health";
 import { handleAuthError } from "@/lib/auth/requireUser";
@@ -196,6 +199,32 @@ describe("lib/ai/router & models (Fix Pack C1 & C2)", () => {
 
       // In NextResponse.json, check headers and status
       expect(response.headers.get("content-type")).toContain("application/json");
+    });
+  });
+
+  describe("robust output handling", () => {
+    it("extracts JSON wrapped in fences or prose", () => {
+      expect(extractJsonPayload('```json\n{"a":1}\n```')).toEqual({ a: 1 });
+      expect(extractJsonPayload('Sure! Here it is: {"a":[1,2]} Hope that helps.')).toEqual({ a: [1, 2] });
+      expect(extractJsonPayload("[1,2,3]")).toEqual([1, 2, 3]);
+      expect(() => extractJsonPayload("no json here")).toThrow();
+    });
+
+    it("classifies invalid API keys as auth errors", () => {
+      expect(classifyProviderError(new Error("API key not valid. Please pass a valid API key.")).type).toBe("auth");
+    });
+
+    it("reports a generation error (not a quota error) when output never matches the schema", async () => {
+      mockGenerateContent.mockResolvedValue({ text: "not json at all", usageMetadata: {} });
+      await expect(
+        generateWithFallback({
+          task: "notebook_chat",
+          userPrompt: "x",
+          schema: z.object({ ok: z.boolean() }),
+          maxRetriesPerModel: 0,
+          isPrivileged: true,
+        })
+      ).rejects.toThrowError(AiGenerationError);
     });
   });
 });

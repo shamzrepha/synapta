@@ -2,18 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
-import { checkRateLimitAndQuota, recordTokenUsage } from "@/lib/quota/guard";
-import { generateStructuredJson } from "@/lib/gemini/client";
-import { getQuizPrompt } from "@/lib/gemini/prompts";
-import { quizResponseSchema } from "@/lib/gemini/schemas";
+import { executeStructuredAiTask, AiGenerationError } from "@/lib/ai/router";
+import { loadKcGroundingContext } from "@/lib/kc/context";
+import { buildQuizPrompt, normalizeQuizQuestions, rawQuizResponseSchema } from "@/lib/quiz/normalize";
 import { z } from "zod";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const quizInputSchema = z.object({
   classId: z.string().min(1),
   kcId: z.string().min(1),
-  count: z.number().int().min(1).max(10).default(5),
+  count: z.number().int().min(3).max(20).default(10),
+  focus: z.enum(["mixed", "conceptual", "calculation", "application"]).default("mixed"),
 });
 
 export async function POST(req: NextRequest) {
@@ -29,89 +30,49 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { classId, kcId, count } = parsed.data;
+    const { classId, kcId, count, focus } = parsed.data;
 
-    // Verify caller has permission to view this class
     await assertClassAccess(caller, classId, "view");
 
-    // Load KC from Firestore
-    const kcRef = adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId);
-    const kcDoc = await kcRef.get();
-    if (!kcDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Knowledge Component not found" } },
-        { status: 404 }
-      );
-    }
+    const ctx = await loadKcGroundingContext(classId, kcId);
 
-    const kcData = kcDoc.data()!;
-    const kcTitle = kcData.title || "Topic";
-    const objectivesText = Array.isArray(kcData.objectives) && kcData.objectives.length > 0
-      ? `\nKey Objectives:\n${kcData.objectives.map((o: string) => `- ${o}`).join("\n")}`
-      : "";
-    let lessonMarkdown = kcData.lessonMarkdown || kcData.description || "";
-    
-    // If lesson is short or empty, pull excerpt from uploaded class materials to give Gemini deep context
-    if (lessonMarkdown.length < 200) {
-      const matSnap = await adminDb()
-        .collection("classes")
-        .doc(classId)
-        .collection("materials")
-        .limit(3)
-        .get()
-        .catch(() => null);
-      
-      const excerpts = (matSnap?.docs || [])
-        .map((d) => (d.data() as { extractedText?: string })?.extractedText)
-        .filter((t): t is string => typeof t === "string" && t.length > 0)
-        .map((t) => t.slice(0, 1500))
-        .join("\n\n---\n\n");
-
-      lessonMarkdown = [
-        `Topic: ${kcTitle}`,
-        kcData.description ? `Description: ${kcData.description}` : "",
-        objectivesText,
-        excerpts ? `Reference Notes from Uploaded Materials:\n${excerpts}` : "",
-        lessonMarkdown ? `Lesson Notes:\n${lessonMarkdown}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n\n");
-    } else if (objectivesText) {
-      lessonMarkdown = `${lessonMarkdown}\n${objectivesText}`;
-    }
-
-    // Rate limit and token quota check
-    await checkRateLimitAndQuota(caller.uid, 1500);
-
-    const { systemInstruction, userPrompt } = getQuizPrompt({
-      kcTitle,
-      lessonMarkdown,
-      count,
+    // Ask for a small buffer: questions that fail answer verification are dropped, not shown.
+    const requested = Math.min(20, count + Math.max(2, Math.ceil(count * 0.25)));
+    const { systemInstruction, userPrompt } = buildQuizPrompt({
+      kcTitle: ctx.kcTitle,
+      contextText: ctx.contextText,
+      count: requested,
+      level: ctx.level,
+      focus,
     });
 
-    const { data, tokensIn, tokensOut } = await generateStructuredJson({
+    const result = await executeStructuredAiTask({
+      task: "structured_spec",
       systemInstruction,
       userPrompt,
-      schema: quizResponseSchema,
+      schema: rawQuizResponseSchema,
+      userId: caller.uid,
+      estimatedTokens: 400 * requested,
     });
 
-    // Record token usage
-    await recordTokenUsage(caller.uid, tokensIn, tokensOut);
+    const questions = normalizeQuizQuestions(result.data.questions, { maxQuestions: count });
+    if (questions.length < 3) {
+      throw new AiGenerationError("The AI's quiz didn't pass our answer checks. Please try generating again.");
+    }
 
-    // Create secure server-side quiz session
+    // Server-side session holds the answers; the client only ever sees questions + options.
     const sessionRef = adminDb().collection("quizSessions").doc();
     await sessionRef.set({
       sessionId: sessionRef.id,
       uid: caller.uid,
       classId,
       kcId,
-      questions: data.questions, // contains question, options, correctIndex, explanation, difficulty
+      questions,
       answered: {},
-      createdAt: adminDb() ? new Date() : null,
+      createdAt: new Date(),
     });
 
-    // Strip answers from client payload for server-side evaluation
-    const clientQuestions = data.questions.map((q, idx) => ({
+    const clientQuestions = questions.map((q, idx) => ({
       id: idx,
       question: q.question,
       options: q.options,
@@ -123,7 +84,7 @@ export async function POST(req: NextRequest) {
       data: {
         sessionId: sessionRef.id,
         questions: clientQuestions,
-        tokensUsed: tokensIn + tokensOut,
+        tokensUsed: result.tokensIn + result.tokensOut,
       },
     });
   } catch (error) {

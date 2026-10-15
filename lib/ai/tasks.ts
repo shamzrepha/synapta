@@ -109,6 +109,11 @@ export const AI_TASK_DEFINITIONS = {
     label: "Research Synthesizer",
     description: "Web-grounded research answers with rigorous cited web references.",
   },
+  sim_build: {
+    key: "sim_build",
+    label: "HTML5 Simulation Builder",
+    description: "Interactive, game-like HTML5 simulations generated per topic (long code output; use your strongest model).",
+  },
   lesson_notes: {
     key: "lesson_notes",
     label: "Lesson Notes Synthesizer",

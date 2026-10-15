@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useCallback } from "react";
 import Link from "next/link";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useToast } from "@/components/ui/toast";
@@ -47,9 +47,41 @@ interface ClassDetail {
   visibility: "public" | "private";
   studentCount: number;
   status: "draft" | "published" | "archived";
-  buildState?: "empty" | "drafting" | "ready" | "needs_review";
+  buildState?: "empty" | "drafting" | "ready" | "needs_review" | "failed" | "waiting_quota";
+  buildStep?: string;
+  buildPct?: number;
+  buildError?: string | null;
+  buildClarifications?: string[];
+  resumeAt?: string;
   joinCode?: string;
 }
+
+interface ClassPayload {
+  class: ClassDetail;
+  kcs: KCItem[];
+  masteryMap?: Record<string, number>;
+  attemptsMap?: Record<string, number>;
+  enrollmentStatus?: string;
+  role?: string;
+  isOwner?: boolean;
+}
+
+async function fetchClassPayload(classId: string): Promise<ClassPayload | null> {
+  try {
+    const res = await fetch(`/api/classes/${classId}`);
+    const data = await res.json();
+    return data.ok && data.data?.class ? (data.data as ClassPayload) : null;
+  } catch {
+    return null;
+  }
+}
+
+const BUILD_STEP_LABELS: Record<string, string> = {
+  scoping: "Reading your course description and materials…",
+  drafting_map: "Designing topics, prerequisites and learning objectives…",
+  saving_topics: "Saving your curriculum…",
+  completed: "Done",
+};
 
 export default function ClassOverviewPage({
   params,
@@ -65,7 +97,6 @@ export default function ClassOverviewPage({
   const [masteryMap, setMasteryMap] = useState<Record<string, number>>({});
   const [attemptsMap, setAttemptsMap] = useState<Record<string, number>>({});
   const [enrollmentStatus, setEnrollmentStatus] = useState<string>("none");
-  const [role, setRole] = useState<"owner" | "admin" | "student" | "visitor">("visitor");
   const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isJoining, setIsJoining] = useState(false);
@@ -73,32 +104,44 @@ export default function ClassOverviewPage({
   const [isBuilding, setIsBuilding] = useState(false);
   const [showMaterialModal, setShowMaterialModal] = useState(false);
 
-  useEffect(() => {
-    async function loadData() {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/classes/${classId}`);
-        const data = await res.json();
-        if (data.ok && data.data?.class) {
-          setClassData(data.data.class);
-          setKcs(data.data.kcs || []);
-          setMasteryMap(data.data.masteryMap || {});
-          setAttemptsMap(data.data.attemptsMap || {});
-          setEnrollmentStatus(data.data.enrollmentStatus || "none");
-          setRole(data.data.role || (data.data.isOwner ? "owner" : "visitor"));
-          setIsOwner(data.data.isOwner || data.data.role === "owner" || data.data.role === "admin");
-        } else {
-          setClassData(null);
-        }
-      } catch {
-        setClassData(null);
-      } finally {
-        setLoading(false);
-      }
+  const applyClassPayload = useCallback((payload: ClassPayload | null, opts: { silent?: boolean } = {}) => {
+    setLoading(false);
+    if (!payload) {
+      if (!opts.silent) setClassData(null);
+      return null;
     }
+    setClassData(payload.class);
+    setKcs(payload.kcs || []);
+    setMasteryMap(payload.masteryMap || {});
+    setAttemptsMap(payload.attemptsMap || {});
+    setEnrollmentStatus(payload.enrollmentStatus || "none");
+    setIsOwner(!!payload.isOwner || payload.role === "owner" || payload.role === "admin");
+    return payload.class;
+  }, []);
 
-    loadData();
-  }, [classId]);
+  const loadData = useCallback(
+    async (opts: { silent?: boolean } = {}) => applyClassPayload(await fetchClassPayload(classId), opts),
+    [classId, applyClassPayload]
+  );
+
+  useEffect(() => {
+    fetchClassPayload(classId).then((payload) => applyClassPayload(payload));
+  }, [classId, applyClassPayload]);
+
+  // While the AI is drafting the curriculum, refresh every few seconds so progress and topics appear live
+  const buildState = classData?.buildState;
+  useEffect(() => {
+    if (buildState !== "drafting") return;
+    const t = setInterval(async () => {
+      const updated = await loadData({ silent: true });
+      if (updated && updated.buildState !== "drafting") {
+        if (updated.buildState === "ready" || updated.buildState === "needs_review") {
+          toast({ title: "Curriculum ready", description: "Review the topics below, then publish when you're happy.", variant: "success" });
+        }
+      }
+    }, 4000);
+    return () => clearInterval(t);
+  }, [buildState, loadData, toast]);
 
   const handlePublish = async () => {
     setIsPublishing(true);
@@ -128,31 +171,27 @@ export default function ClassOverviewPage({
 
   const handleBuildWithAi = async () => {
     setIsBuilding(true);
+    // Show progress immediately; the request below runs for the whole build
+    setClassData((prev) => (prev ? { ...prev, buildState: "drafting", buildStep: "scoping", buildPct: 5, buildError: null } : prev));
     try {
       const res = await fetch(`/api/classes/${classId}/build`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      const data = await res.json();
-      if (data.ok) {
+      const data = await res.json().catch(() => null);
+      if (data && !data.ok) {
         toast({
-          title: "AI Co-Teacher Started",
-          description: "Synthesizing concept map and learning objectives...",
-          variant: "success",
-        });
-        setClassData((prev) => prev ? { ...prev, buildState: "drafting" } : prev);
-      } else {
-        toast({
-          title: "AI Build Error",
-          description: data.error?.message || "Could not start AI build.",
+          title: "AI build didn't finish",
+          description: data.error?.message || "Please try again.",
           variant: "destructive",
         });
       }
     } catch {
-      toast({ title: "AI Build Error", description: "Network error starting build.", variant: "destructive" });
+      // The build may still be running server-side; polling picks up the result
     } finally {
       setIsBuilding(false);
+      loadData({ silent: true });
     }
   };
 
@@ -300,12 +339,70 @@ export default function ClassOverviewPage({
             </div>
           </div>
 
-          {classData.buildState === "drafting" && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-800 dark:text-teal-200 text-xs font-semibold animate-pulse">
-              <Zap className="h-4 w-4 text-teal-600" />
-              <span>AI Co-Teacher is actively synthesizing concept map, prerequisites, and starter lessons...</span>
+          {classData.buildState === "drafting" && (isOwner || user?.role === "admin") && (
+            <div className="p-4 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-900 dark:text-teal-100 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Zap className="h-4 w-4 text-teal-600 animate-pulse" />
+                <span>{BUILD_STEP_LABELS[classData.buildStep || "scoping"] || "Building your class…"}</span>
+              </div>
+              <div className="h-2 rounded-full bg-teal-500/20 overflow-hidden">
+                <div
+                  className="h-full bg-teal-500 transition-all duration-700"
+                  style={{ width: `${Math.max(5, classData.buildPct ?? 10)}%` }}
+                />
+              </div>
+              <p className="text-xs opacity-80">Usually under a minute. You can leave this page — the build keeps going.</p>
             </div>
           )}
+
+          {classData.buildState === "failed" && (isOwner || user?.role === "admin") && (
+            <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-sm">
+              <span className="flex-1 min-w-0">
+                <strong>The AI build didn&apos;t finish.</strong> {classData.buildError || "Please try again."}
+              </span>
+              <Button size="sm" onClick={handleBuildWithAi} isLoading={isBuilding}>
+                <Zap className="h-3.5 w-3.5 mr-1" /> Retry build
+              </Button>
+            </div>
+          )}
+
+          {classData.buildState === "waiting_quota" && (isOwner || user?.role === "admin") && (
+            <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm">
+              <strong>AI daily limit reached.</strong> Your class build is saved and will resume automatically
+              {classData.resumeAt ? ` after ${classData.resumeAt}` : " later"}. You can also add topics manually in the syllabus editor.
+            </div>
+          )}
+
+          {classData.status === "draft" &&
+            kcs.length > 0 &&
+            classData.buildState !== "drafting" &&
+            (isOwner || user?.role === "admin") && (
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
+                <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+                  Your curriculum is drafted — {kcs.length} topics. Students can&apos;t see it until you publish.
+                </p>
+                {classData.buildClarifications && classData.buildClarifications.length > 0 && (
+                  <ul className="text-xs list-disc list-inside text-emerald-900/80 dark:text-emerald-100/80 space-y-0.5">
+                    {classData.buildClarifications.slice(0, 4).map((c, i) => (
+                      <li key={i}>{c}</li>
+                    ))}
+                  </ul>
+                )}
+                <ol className="text-xs space-y-1 text-emerald-900/80 dark:text-emerald-100/80 list-decimal list-inside">
+                  <li>Open any topic below to preview it — lessons and simulations are generated on first open.</li>
+                  <li>Adjust topics in the syllabus editor or upload more material if something is missing.</li>
+                  <li>Publish when you&apos;re happy.</li>
+                </ol>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handlePublish} isLoading={isPublishing}>
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Publish class
+                  </Button>
+                  <Link href={`/classes/${classId}/syllabus`}>
+                    <Button size="sm" variant="outline">Edit syllabus</Button>
+                  </Link>
+                </div>
+              </div>
+            )}
 
           <div className="space-y-2">
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
@@ -355,15 +452,7 @@ export default function ClassOverviewPage({
         isOpen={showMaterialModal}
         onClose={() => setShowMaterialModal(false)}
         onSuccess={() => {
-          fetch(`/api/classes/${classId}`)
-            .then((res) => res.json())
-            .then((data) => {
-              if (data.ok && data.data?.class) {
-                setClassData(data.data.class);
-                setKcs(data.data.kcs || []);
-              }
-            })
-            .catch(() => {});
+          loadData({ silent: true });
         }}
       />
 

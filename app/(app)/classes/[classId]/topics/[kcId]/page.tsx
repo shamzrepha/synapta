@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use, useRef } from "react";
+import React, { useState, useEffect, use, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useToast } from "@/components/ui/toast";
@@ -8,12 +8,13 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import confetti from "canvas-confetti";
 import {
   BookOpen,
-  Cpu,
+  Gamepad2,
   Layers,
   HelpCircle,
   MessageSquare,
@@ -24,10 +25,14 @@ import {
   Zap,
   Users,
   Send,
+  Sparkles,
+  Wand2,
+  Cpu,
 } from "lucide-react";
-import { formatPL, getMasteryStatus } from "@/lib/utils";
-import { updateMastery } from "@/lib/bkt/engine";
-import { LAB_REGISTRY, NoneLab } from "@/components/labs";
+import { formatPL, getMasteryStatus, cn } from "@/lib/utils";
+import { LAB_REGISTRY } from "@/components/labs";
+import { AiSimulation } from "@/components/labs/ai-simulation";
+import { QuizPlayer } from "@/components/quiz/quiz-player";
 
 interface KcDetails {
   id: string;
@@ -39,15 +44,6 @@ interface KcDetails {
   lab?: { type: string; config?: Record<string, unknown> };
 }
 
-interface QuizItem {
-  id?: number;
-  question: string;
-  options: string[];
-  correctIndex?: number;
-  explanation?: string;
-  difficulty?: string;
-}
-
 interface FlashcardItem {
   front: string;
   back: string;
@@ -57,7 +53,18 @@ interface ChatMessage {
   id: string;
   role: "user" | "model";
   text: string;
+  isError?: boolean;
 }
+
+type Tab = "learn" | "simulate" | "flashcards" | "quiz" | "tutor";
+
+const THIN_LESSON_CHARS = 600;
+const TUTOR_STARTERS = [
+  "Explain this topic like I'm new to it",
+  "Give me a real-world example",
+  "What's the most common mistake here?",
+  "Quiz me with one question",
+];
 
 export default function TopicPage({
   params,
@@ -72,20 +79,27 @@ export default function TopicPage({
   const [currentPL, setCurrentPL] = useState<number>(0.2);
   const [attempts, setAttempts] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"learn" | "lab" | "flashcards" | "quiz" | "tutor">("learn");
+  const [canManage, setCanManage] = useState(false);
+  const [isEnrolled, setIsEnrolled] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("learn");
 
-  // Quiz state
-  const [quizQuestions, setQuizQuestions] = useState<QuizItem[]>([]);
-  const [quizSessionId, setQuizSessionId] = useState<string | null>(null);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
-  const [submittedAnswers, setSubmittedAnswers] = useState<Record<number, boolean>>({});
-  const [loadingQuiz, setLoadingQuiz] = useState(false);
+  // Lesson generation
+  const [lessonBusy, setLessonBusy] = useState(false);
+  const [lessonError, setLessonError] = useState<string | null>(null);
+  const [lessonInstructions, setLessonInstructions] = useState("");
+  const [showLessonEditor, setShowLessonEditor] = useState(false);
+  const autoLessonTried = useRef(false);
+
+  // Classic built-in lab toggle
+  const [showClassicLab, setShowClassicLab] = useState(false);
 
   // Flashcards state
   const [flashcards, setFlashcards] = useState<FlashcardItem[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [loadingCards, setLoadingCards] = useState(false);
+  const [cardsError, setCardsError] = useState<string | null>(null);
+  const [deckDone, setDeckDone] = useState(false);
 
   // Tutor chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -93,299 +107,194 @@ export default function TopicPage({
   const [isStreamingTutor, setIsStreamingTutor] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    let ignore = false;
-    async function loadTopicData() {
-      try {
-        const res = await fetch(`/api/classes/${classId}`);
-        const data = await res.json();
-        if (!ignore && data.ok) {
-          const found = (data.data.kcs as KcDetails[])?.find((k) => k.id === kcId);
-          if (found) {
-            setKc(found);
-          }
-          if (data.data.masteryMap?.[kcId] !== undefined) {
-            setCurrentPL(data.data.masteryMap[kcId]);
-          }
-          if (data.data.attemptsMap?.[kcId] !== undefined) {
-            setAttempts(data.data.attemptsMap[kcId]);
-          }
-        }
-      } catch {
-        // Fail gracefully without injecting fake mock data
-      } finally {
-        if (!ignore) setLoading(false);
+  const applyEvidenceUpdate = useCallback(
+    (update: { pLAfter?: number; totalXp?: number }) => {
+      if (typeof update.pLAfter === "number") {
+        setCurrentPL(update.pLAfter);
+        setAttempts((a) => a + 1);
       }
-    }
+      if (user && typeof update.totalXp === "number") updateUser({ xp: update.totalXp });
+    },
+    [user, updateUser]
+  );
 
-    loadTopicData();
-    return () => {
-      ignore = true;
-    };
-  }, [classId, kcId]);
-
-  // Load Quiz
-  const handleLoadQuiz = async () => {
-    setLoadingQuiz(true);
+  const loadTopicData = useCallback(async () => {
     try {
-      const res = await fetch("/api/ai/quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId, kcId, count: 4 }),
-      });
-      const data = await res.json();
-      if (data.ok && Array.isArray(data.data?.questions)) {
-        setQuizQuestions(data.data.questions);
-        setQuizSessionId(data.data.sessionId || null);
-        setSelectedAnswers({});
-        setSubmittedAnswers({});
-      } else {
-        toast({
-          title: "Quiz Generation Error",
-          description: data.error?.message || "Failed to generate AI quiz for this lesson.",
-          variant: "destructive",
-        });
-      }
-    } catch {
-      toast({
-        title: "Connection Error",
-        description: "Failed to connect to quiz generation service.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingQuiz(false);
-    }
-  };
-
-  // Submit Quiz Question for Server-Side Grading
-  const handleSubmitQuizAnswer = async (qIndex: number) => {
-    const chosen = selectedAnswers[qIndex];
-    if (chosen === undefined || !quizSessionId) return;
-
-    try {
-      const res = await fetch(`/api/quiz/${quizSessionId}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          questionIndex: qIndex,
-          selectedOptionIndex: chosen,
-        }),
-      });
+      const res = await fetch(`/api/classes/${classId}`);
       const data = await res.json();
       if (data.ok) {
-        const {
-          correct,
-          correctIndex,
-          explanation,
-          pLAfter,
-          xpGained,
-          totalXp,
-          crossedMasteryFirstTime,
-        } = data.data;
-
-        // Reveal the question's correct index and explanation
-        setQuizQuestions((prev) =>
-          prev.map((q, idx) =>
-            idx === qIndex ? { ...q, correctIndex, explanation } : q
-          )
-        );
-        setSubmittedAnswers((prev) => ({ ...prev, [qIndex]: correct }));
-
-        if (typeof pLAfter === "number") setCurrentPL(pLAfter);
-        if (user && typeof totalXp === "number") updateUser({ xp: totalXp });
-
-        if (crossedMasteryFirstTime) {
-          confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
-          toast({
-            title: "🎉 MASTERY ACHIEVED!",
-            description: "You crossed 95% mastery on this concept! +100 Bonus XP awarded!",
-            variant: "success",
-          });
-        } else {
-          toast({
-            title: correct ? `Correct! (+${xpGained} XP)` : "Incorrect (+1 XP)",
-            description: `Cognitive Twin mastery updated to ${(pLAfter * 100).toFixed(1)}%.`,
-            variant: correct ? "success" : "destructive",
-          });
-        }
-      } else {
-        toast({
-          title: "Grading Notice",
-          description: data.error?.message || "Failed to grade quiz answer.",
-          variant: "destructive",
-        });
+        const found = (data.data.kcs as KcDetails[])?.find((k) => k.id === kcId);
+        if (found) setKc(found);
+        if (data.data.masteryMap?.[kcId] !== undefined) setCurrentPL(data.data.masteryMap[kcId]);
+        if (data.data.attemptsMap?.[kcId] !== undefined) setAttempts(data.data.attemptsMap[kcId]);
+        setCanManage(!!data.data.isOwner || data.data.role === "owner" || data.data.role === "admin");
+        setIsEnrolled(data.data.enrollmentStatus === "active");
+        return found as KcDetails | undefined;
       }
     } catch {
-      toast({
-        title: "Submission Error",
-        description: "Network error submitting answer to server.",
-        variant: "destructive",
-      });
+      // empty state handles it
+    } finally {
+      setLoading(false);
     }
-  };
+    return undefined;
+  }, [classId, kcId]);
 
-  // Load Flashcards
+  useEffect(() => {
+    loadTopicData();
+  }, [loadTopicData]);
+
+  // Write (or rewrite) the full lesson. Topics fresh out of the class builder only have a stub.
+  const generateLesson = useCallback(
+    async (opts: { regenerate?: boolean } = {}) => {
+      setLessonBusy(true);
+      setLessonError(null);
+      try {
+        const res = await fetch(`/api/classes/${classId}/kcs/${kcId}/lesson`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            regenerate: !!opts.regenerate,
+            instructions: lessonInstructions.trim() || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          setKc((prev) => (prev ? { ...prev, lessonMarkdown: data.data.lessonMarkdown } : prev));
+          setShowLessonEditor(false);
+        } else if (data.error?.code === "LESSON_GENERATING" || data.error?.code === "LESSON_EXISTS") {
+          // Another learner triggered it a moment ago: wait for it to land
+          for (let i = 0; i < 30; i++) {
+            await new Promise((r) => setTimeout(r, 6000));
+            const updated = await loadTopicData();
+            if (updated && (updated.lessonMarkdown || "").length >= THIN_LESSON_CHARS) break;
+          }
+        } else {
+          setLessonError(data.error?.message || "Couldn't write the lesson right now.");
+        }
+      } catch {
+        setLessonError("Network error while writing the lesson.");
+      } finally {
+        setLessonBusy(false);
+      }
+    },
+    [classId, kcId, lessonInstructions, loadTopicData]
+  );
+
+  const lessonIsThin = !kc?.lessonMarkdown || kc.lessonMarkdown.trim().length < THIN_LESSON_CHARS;
+
+  useEffect(() => {
+    if (!kc || autoLessonTried.current) return;
+    if (lessonIsThin && (isEnrolled || canManage)) {
+      autoLessonTried.current = true;
+      generateLesson();
+    }
+  }, [kc, lessonIsThin, isEnrolled, canManage, generateLesson]);
+
+  // Flashcards
   const handleLoadFlashcards = async () => {
     setLoadingCards(true);
+    setCardsError(null);
     try {
       const res = await fetch("/api/ai/flashcards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId, kcId, count: 6 }),
+        body: JSON.stringify({ classId, kcId, count: 10 }),
       });
       const data = await res.json();
-      if (data.ok && Array.isArray(data.data?.cards)) {
+      if (data.ok && Array.isArray(data.data?.cards) && data.data.cards.length > 0) {
         setFlashcards(data.data.cards);
         setCurrentCardIndex(0);
         setIsFlipped(false);
+        setDeckDone(false);
       } else {
-        loadFallbackCards();
+        setCardsError(data.error?.message || "Couldn't generate flashcards right now.");
       }
     } catch {
-      loadFallbackCards();
+      setCardsError("Network error while generating flashcards.");
     } finally {
       setLoadingCards(false);
     }
   };
 
-  function loadFallbackCards() {
-    const topicTitle = kc?.title || "This Concept";
-    const topicDesc = kc?.description || `Key fundamentals of ${topicTitle}`;
-    const objs = kc?.objectives && kc.objectives.length > 0 ? kc.objectives : [];
-
-    const dynamicCards: FlashcardItem[] = [
-      {
-        front: `What is the core definition and primary principle of ${topicTitle}?`,
-        back: topicDesc,
-      },
-    ];
-
-    if (objs.length > 0) {
-      objs.slice(0, 4).forEach((obj, idx) => {
-        dynamicCards.push({
-          front: `[Objective ${idx + 1}] How do you apply: ${obj}?`,
-          back: `Demonstrate understanding of "${obj}" by connecting its governing mechanisms directly to ${topicTitle}.`,
-        });
-      });
-    } else {
-      dynamicCards.push(
-        {
-          front: `Why is ${topicTitle} critical within this course syllabus?`,
-          back: `It provides the conceptual foundation for downstream mastery, prerequisite topics, and analytical problem solving.`,
-        },
-        {
-          front: `What key governing relationships or formulas define ${topicTitle}?`,
-          back: `Refer to the lesson notes and textbook excerpts above for the exact governing equations of ${topicTitle}.`,
-        },
-        {
-          front: `How do you verify your mastery of ${topicTitle}?`,
-          back: `Complete the diagnostic Quiz and In-Situ Lab to demonstrate predictive understanding to your Cognitive Twin.`,
-        }
-      );
-    }
-
-    setFlashcards(dynamicCards);
-    setCurrentCardIndex(0);
-    setIsFlipped(false);
-  }
-
-  // Submit Flashcard Evidence
   const handleFlashcardFeedback = async (known: boolean) => {
     try {
       const res = await fetch("/api/evidence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          classId,
-          kcId,
-          activity: "flashcard",
-          correct: known,
-        }),
+        body: JSON.stringify({ classId, kcId, activity: "flashcard", correct: known }),
       });
       const data = await res.json();
       if (data.ok) {
-        setCurrentPL(data.data.pLAfter);
-        if (user) updateUser({ xp: data.data.totalXp });
-        if (data.data.masteredFirstTime) {
-          confetti({ particleCount: 100, spread: 60 });
-        }
+        applyEvidenceUpdate({ pLAfter: data.data.pLAfter, totalXp: data.data.totalXp });
+        if (data.data.crossedMasteryFirstTime) confetti({ particleCount: 100, spread: 60 });
       }
     } catch {
-      const next = updateMastery(currentPL, known, { pT: 0.15, pG: 0.2, pS: 0.1 }, "flashcard");
-      setCurrentPL(next);
+      // Practice still continues; mastery just isn't recorded for this card
     }
 
-    // Move to next card
     setIsFlipped(false);
     if (currentCardIndex < flashcards.length - 1) {
       setCurrentCardIndex((prev) => prev + 1);
     } else {
-      toast({ title: "Deck Complete!", description: "You have reviewed all active flashcards.", variant: "success" });
+      setDeckDone(true);
     }
   };
 
-  // Streaming Socratic Tutor Send
-  const handleSendTutor = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || isStreamingTutor) return;
-
-    const userText = inputMessage.trim();
+  // Tutor (sends the conversation so far so follow-up questions make sense)
+  const sendTutor = async (text: string) => {
+    const userText = text.trim();
+    if (!userText || isStreamingTutor) return;
     setInputMessage("");
 
-    const newMsg: ChatMessage = { id: Math.random().toString(), role: "user", text: userText };
-    setMessages((prev) => [...prev, newMsg]);
+    const history = messages
+      .filter((m) => !m.isError && m.text)
+      .slice(-12)
+      .map((m) => ({ role: m.role, parts: m.text }));
 
-    const modelMsgId = Math.random().toString();
-    setMessages((prev) => [...prev, { id: modelMsgId, role: "model", text: "" }]);
+    const userMsg: ChatMessage = { id: crypto.randomUUID(), role: "user", text: userText };
+    const modelMsgId = crypto.randomUUID();
+    setMessages((prev) => [...prev, userMsg, { id: modelMsgId, role: "model", text: "" }]);
     setIsStreamingTutor(true);
 
     try {
       const response = await fetch("/api/ai/tutor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          classId,
-          kcId,
-          message: userText,
-        }),
+        body: JSON.stringify({ classId, kcId, message: userText, history }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to connect to AI Tutor");
+        const err = await response.json().catch(() => null);
+        throw new Error(err?.error?.message || "The tutor is unavailable right now.");
       }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-
       if (reader) {
         let accumulated = "";
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          accumulated += chunk;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === modelMsgId ? { ...m, text: accumulated } : m))
-          );
+          accumulated += decoder.decode(value, { stream: true });
+          setMessages((prev) => prev.map((m) => (m.id === modelMsgId ? { ...m, text: accumulated } : m)));
         }
       }
-    } catch {
-      const topic = kc?.title || "this topic";
+    } catch (err) {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === modelMsgId
-            ? {
-                ...m,
-                text: `To explore ${topic} deeply: Consider its core definition and what fundamental governing variables change when an external force or input is applied. What first comes to mind?`,
-              }
+            ? { ...m, isError: true, text: err instanceof Error ? err.message : "The tutor is unavailable right now." }
             : m
         )
       );
     } finally {
       setIsStreamingTutor(false);
-      chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   };
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages]);
 
   if (loading) {
     return (
@@ -399,428 +308,380 @@ export default function TopicPage({
   if (!kc) {
     return (
       <div className="text-center py-20 space-y-4">
-        <h2 className="text-2xl font-bold">Knowledge Component Not Found</h2>
+        <h2 className="text-2xl font-bold">Topic not found</h2>
         <Link href={`/classes/${classId}`}>
-          <Button>Back to Syllabus</Button>
+          <Button>Back to class</Button>
         </Link>
       </div>
     );
   }
 
   const masteryStatus = getMasteryStatus(currentPL, attempts);
+  const ClassicLab = kc.lab && kc.lab.type !== "none" ? LAB_REGISTRY[kc.lab.type] : undefined;
+
+  const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode; onOpen?: () => void }> = [
+    { key: "learn", label: "Learn", icon: <BookOpen className="h-4 w-4" /> },
+    { key: "simulate", label: "Simulate", icon: <Gamepad2 className="h-4 w-4" /> },
+    {
+      key: "flashcards",
+      label: "Flashcards",
+      icon: <Layers className="h-4 w-4" />,
+      onOpen: () => {
+        if (flashcards.length === 0 && !loadingCards) handleLoadFlashcards();
+      },
+    },
+    { key: "quiz", label: "Quiz", icon: <HelpCircle className="h-4 w-4" /> },
+    { key: "tutor", label: "AI Tutor", icon: <MessageSquare className="h-4 w-4" /> },
+  ];
 
   return (
     <div className="space-y-6">
-      {/* Back button */}
-      <Link href={`/classes/${classId}`} className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-slate-100">
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to Class Syllabus
+      <Link
+        href={`/classes/${classId}`}
+        className="inline-flex items-center text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+      >
+        <ArrowLeft className="h-4 w-4 mr-1" /> Back to class
       </Link>
 
-      {/* Main Two-Column Layout: Left Tools (Tabs) & Right Sticky Cognitive Twin Card */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        {/* Left Column: Interactive Tools (Learn, Lab, Cards, Quiz, AI) */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Header Info */}
+        <div className="lg:col-span-3 space-y-4 min-w-0">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Badge variant="outline" className="text-xs">Knowledge Component</Badge>
-              {kc.lab && kc.lab.type !== "none" && (
-                <Badge variant="amber" className="text-xs">
-                  In-Situ Simulation Lab Included
-                </Badge>
-              )}
-            </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
               {kc.title}
             </h1>
-            <p className="text-xs text-slate-500 mt-1">{kc.description}</p>
+            {kc.description && <p className="text-sm text-slate-500 mt-1">{kc.description}</p>}
           </div>
 
-          {/* Tool Tabs */}
-          <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-1 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab("learn")}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all ${
-                activeTab === "learn"
-                  ? "bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
-              }`}
-            >
-              <BookOpen className="h-4 w-4" /> Learn
-            </button>
-
-            <button
-              onClick={() => setActiveTab("lab")}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all ${
-                activeTab === "lab"
-                  ? "bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
-              }`}
-            >
-              <Cpu className="h-4 w-4" /> In-Situ Lab
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("flashcards");
-                if (flashcards.length === 0) handleLoadFlashcards();
-              }}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all ${
-                activeTab === "flashcards"
-                  ? "bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
-              }`}
-            >
-              <Layers className="h-4 w-4" /> Flashcards
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveTab("quiz");
-                if (quizQuestions.length === 0) handleLoadQuiz();
-              }}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all ${
-                activeTab === "quiz"
-                  ? "bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
-              }`}
-            >
-              <HelpCircle className="h-4 w-4" /> Quiz
-            </button>
-
-            <button
-              onClick={() => setActiveTab("tutor")}
-              className={`flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all ${
-                activeTab === "tutor"
-                  ? "bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
-              }`}
-            >
-              <MessageSquare className="h-4 w-4" /> Ask AI Tutor
-            </button>
+          {/* Tabs: scrollable on phones */}
+          <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-1 overflow-x-auto -mx-1 px-1">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => {
+                  setActiveTab(t.key);
+                  t.onOpen?.();
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all whitespace-nowrap",
+                  activeTab === t.key
+                    ? "bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+                )}
+              >
+                {t.icon} {t.label}
+              </button>
+            ))}
           </div>
 
-          {/* TAB 1: LEARN (Markdown + LaTeX) */}
+          {/* LEARN */}
           {activeTab === "learn" && (
             <div className="space-y-4">
               <Card className="p-6 md:p-8">
-                <MarkdownRenderer content={kc.lessonMarkdown || kc.description} />
+                {lessonBusy && lessonIsThin ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-teal-700 dark:text-teal-300">
+                      <Sparkles className="h-4 w-4 animate-pulse" /> Writing the full lesson for this topic…
+                    </div>
+                    <Skeleton className="h-6 w-2/3" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                    <Skeleton className="h-24 w-full rounded-xl" />
+                  </div>
+                ) : (
+                  <MarkdownRenderer content={kc.lessonMarkdown || kc.description} />
+                )}
+                {lessonError && (
+                  <div className="mt-4 flex flex-wrap items-center gap-3 p-3 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs">
+                    <span className="flex-1">{lessonError}</span>
+                    <Button size="sm" variant="outline" onClick={() => generateLesson()}>
+                      <RotateCw className="h-3.5 w-3.5 mr-1" /> Try again
+                    </Button>
+                  </div>
+                )}
               </Card>
+
+              {canManage && (
+                <Card className="p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold flex items-center gap-2">
+                      <Wand2 className="h-4 w-4 text-indigo-500" /> Teacher tools
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => setShowLessonEditor((v) => !v)}>
+                      Rewrite lesson with AI
+                    </Button>
+                  </div>
+                  {showLessonEditor && (
+                    <div className="space-y-2">
+                      <Textarea
+                        rows={3}
+                        value={lessonInstructions}
+                        onChange={(e) => setLessonInstructions(e.target.value)}
+                        placeholder='Optional: "Simpler language for year 10", "Add two more worked examples", "Focus on AC circuits"…'
+                        className="text-sm"
+                      />
+                      <Button size="sm" onClick={() => generateLesson({ regenerate: true })} isLoading={lessonBusy}>
+                        <Sparkles className="h-4 w-4 mr-1.5" /> Rewrite
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              )}
 
               {kc.objectives && kc.objectives.length > 0 && (
                 <Card className="p-5">
-                  <h3 className="font-bold text-sm mb-2 text-slate-900 dark:text-slate-100">
-                    Target Mastery Objectives
-                  </h3>
-                  <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
+                  <h3 className="font-bold text-sm mb-2 text-slate-900 dark:text-slate-100">What you&apos;ll be able to do</h3>
+                  <ul className="space-y-1.5 text-sm text-slate-600 dark:text-slate-400">
                     {kc.objectives.map((obj, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0" />
+                      <li key={i} className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0 mt-0.5" />
                         <span>{obj}</span>
                       </li>
                     ))}
                   </ul>
                 </Card>
               )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <button
+                  onClick={() => setActiveTab("simulate")}
+                  className="text-left p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-amber-500/60 transition-all"
+                >
+                  <Gamepad2 className="h-5 w-5 text-amber-500 mb-2" />
+                  <p className="font-semibold text-sm">Play the simulation</p>
+                  <p className="text-xs text-slate-500">Experiment and beat the challenge</p>
+                </button>
+                <button
+                  onClick={() => setActiveTab("quiz")}
+                  className="text-left p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-teal-500/60 transition-all"
+                >
+                  <HelpCircle className="h-5 w-5 text-teal-500 mb-2" />
+                  <p className="font-semibold text-sm">Take a quiz</p>
+                  <p className="text-xs text-slate-500">5–15 questions, instant feedback</p>
+                </button>
+                <button
+                  onClick={() => setActiveTab("tutor")}
+                  className="text-left p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500/60 transition-all"
+                >
+                  <MessageSquare className="h-5 w-5 text-indigo-500 mb-2" />
+                  <p className="font-semibold text-sm">Ask the tutor</p>
+                  <p className="text-xs text-slate-500">Stuck? Get guided hints</p>
+                </button>
+              </div>
             </div>
           )}
 
-          {/* TAB 2: LAB (Virtual Simulation Container) */}
-          {activeTab === "lab" && (
-            <Card className="p-6">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-6">
-                <div className="flex items-center gap-2">
-                  <Cpu className="h-5 w-5 text-amber-500" />
-                  <div>
-                    <h3 className="font-bold text-base">In-Situ Interactive Apparatus</h3>
-                    <p className="text-xs text-slate-500">
-                      Simulation Type:{" "}
-                      <span className="font-mono text-teal-600 dark:text-teal-400">
-                        {kc.lab?.type || "none"}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              </div>
+          {/* SIMULATE */}
+          {activeTab === "simulate" && (
+            <Card className="p-4 md:p-6 space-y-4">
+              <AiSimulation classId={classId} kcId={kcId} topicTitle={kc.title} onEvidence={applyEvidenceUpdate} />
 
-              {(() => {
-                const labType = kc.lab?.type || "none";
-                const LabComponent = LAB_REGISTRY[labType] || NoneLab;
-
-                return (
-                  <LabComponent
-                    config={kc.lab?.config as Record<string, string | number> | undefined}
-                    onComplete={async (result) => {
-                      try {
-                        const res = await fetch("/api/labs/verify", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            classId,
-                            kcId,
-                            labType,
-                            parameters: result.parameters || {},
-                          }),
-                        });
-                        const data = await res.json();
-                        if (data.ok) {
-                          setCurrentPL(data.data.pLAfter);
-                          if (user) updateUser({ xp: data.data.totalXp });
-                          toast({
-                            title: "🎉 Lab Completed! (+30 XP)",
-                            description: `Mastery jumped to ${(data.data.pLAfter * 100).toFixed(1)}%! ${result.detail}`,
-                            variant: "success",
-                          });
-                          if (data.data.crossedMasteryFirstTime) {
-                            confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+              {ClassicLab && (
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowClassicLab((v) => !v)}
+                    className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                  >
+                    <Cpu className="h-4 w-4 text-amber-500" />
+                    {showClassicLab ? "Hide" : "Show"} the guided lab bench for this topic
+                  </button>
+                  {showClassicLab && (
+                    <div className="mt-4">
+                      <ClassicLab
+                        config={kc.lab?.config as Record<string, string | number> | undefined}
+                        onComplete={async (result) => {
+                          try {
+                            const res = await fetch("/api/labs/verify", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ classId, kcId, labType: kc.lab?.type, parameters: result.parameters || {} }),
+                            });
+                            const data = await res.json();
+                            if (data.ok) {
+                              applyEvidenceUpdate({ pLAfter: data.data.pLAfter, totalXp: data.data.totalXp });
+                              toast({ title: "Lab completed! +30 XP", description: result.detail, variant: "success" });
+                              if (data.data.crossedMasteryFirstTime) confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+                            } else {
+                              toast({
+                                title: data.error?.code === "LAB_RATE_LIMITED" ? "Slow down" : "Not quite",
+                                description: data.error?.message || "Lab parameters did not meet the target.",
+                                variant: "destructive",
+                              });
+                            }
+                          } catch {
+                            toast({ title: "Connection error", description: "Could not reach lab verification.", variant: "destructive" });
                           }
-                        } else if (data.error?.code === "LAB_RATE_LIMITED") {
-                          toast({
-                            title: "⏳ Rate-Limited",
-                            description: data.error.message,
-                            variant: "destructive",
-                          });
-                        } else {
-                          toast({
-                            title: "Verification Failed",
-                            description: data.error?.message || "Lab parameters did not meet requirements.",
-                            variant: "destructive",
-                          });
-                        }
-                      } catch {
-                        toast({
-                          title: "Connection Error",
-                          description: "Could not reach lab verification service.",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                  />
-                );
-              })()}
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </Card>
           )}
 
-          {/* TAB 3: FLASHCARDS */}
+          {/* FLASHCARDS */}
           {activeTab === "flashcards" && (
             <Card className="p-6 space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <Layers className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                  <h3 className="font-bold text-base">Active Recall Flashcards</h3>
+                  <h3 className="font-bold text-base">Flashcards</h3>
                 </div>
                 <Button size="sm" variant="outline" onClick={handleLoadFlashcards} isLoading={loadingCards} className="text-xs">
-                  <RotateCw className="h-3.5 w-3.5 mr-1" /> New AI Deck
+                  <RotateCw className="h-3.5 w-3.5 mr-1" /> New deck
                 </Button>
               </div>
 
               {loadingCards ? (
-                <Skeleton className="h-48 w-full rounded-2xl" />
+                <Skeleton className="h-56 w-full rounded-2xl" />
+              ) : cardsError ? (
+                <div className="text-center py-10 space-y-3">
+                  <p className="text-sm text-rose-600 dark:text-rose-400">{cardsError}</p>
+                  <Button size="sm" onClick={handleLoadFlashcards}>Try again</Button>
+                </div>
               ) : flashcards.length === 0 ? (
                 <div className="text-center py-12 space-y-3">
-                  <p className="text-xs text-slate-500">No flashcards loaded yet.</p>
-                  <Button size="sm" onClick={handleLoadFlashcards}>Generate AI Flashcards</Button>
+                  <Button size="sm" onClick={handleLoadFlashcards}>Generate flashcards</Button>
+                </div>
+              ) : deckDone ? (
+                <div className="text-center py-10 space-y-3">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto" />
+                  <p className="font-bold">Deck complete!</p>
+                  <div className="flex justify-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => { setCurrentCardIndex(0); setDeckDone(false); setIsFlipped(false); }}>
+                      Review again
+                    </Button>
+                    <Button size="sm" onClick={handleLoadFlashcards}>New deck</Button>
+                  </div>
                 </div>
               ) : (
-                <div className="max-w-md mx-auto space-y-4">
+                <div className="max-w-lg mx-auto space-y-4">
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>Card {currentCardIndex + 1} of {flashcards.length}</span>
-                    <span>Click card to flip</span>
-                  </div>
-
-                  {/* Flip Card Container */}
-                  <div
-                    onClick={() => setIsFlipped(!isFlipped)}
-                    className="cursor-pointer min-h-[200px] rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 flex flex-col justify-center items-center text-center shadow-md hover:border-teal-500 transition-all select-none"
-                  >
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                      {isFlipped ? "Answer (Back)" : "Prompt (Front)"}
+                    <span>
+                      Card {currentCardIndex + 1} of {flashcards.length}
                     </span>
-                    <p className="text-base font-semibold text-slate-900 dark:text-slate-100 leading-relaxed">
-                      {isFlipped ? flashcards[currentCardIndex].back : flashcards[currentCardIndex].front}
-                    </p>
+                    <span>Tap the card to flip</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                    <div className="h-full bg-teal-500 transition-all" style={{ width: `${((currentCardIndex + 1) / flashcards.length) * 100}%` }} />
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <Button
-                      variant="outline"
-                      className="text-rose-600 border-rose-300 hover:bg-rose-50 dark:border-rose-900 text-xs"
-                      onClick={() => handleFlashcardFeedback(false)}
-                    >
-                      <XCircle className="h-4 w-4 mr-1.5" /> Still Learning (Incorrect)
-                    </Button>
-                    <Button
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
-                      onClick={() => handleFlashcardFeedback(true)}
-                    >
-                      <CheckCircle2 className="h-4 w-4 mr-1.5" /> I Knew It (+5 XP)
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </Card>
-          )}
+                  <button
+                    type="button"
+                    onClick={() => setIsFlipped(!isFlipped)}
+                    className={cn(
+                      "w-full min-h-[220px] rounded-2xl border-2 p-6 flex flex-col justify-center items-center text-center shadow-md transition-all",
+                      isFlipped
+                        ? "border-teal-500 bg-teal-500/5"
+                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-teal-500"
+                    )}
+                  >
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-3">
+                      {isFlipped ? "Answer" : "Question"}
+                    </span>
+                    <MarkdownRenderer
+                      content={isFlipped ? flashcards[currentCardIndex].back : flashcards[currentCardIndex].front}
+                      className="text-base font-semibold prose-p:my-1 text-center"
+                    />
+                  </button>
 
-          {/* TAB 4: QUIZ */}
-          {activeTab === "quiz" && (
-            <Card className="p-6 space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div className="flex items-center gap-2">
-                  <HelpCircle className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                  <h3 className="font-bold text-base">Concept Quiz & Assessment</h3>
-                </div>
-                <Button size="sm" variant="outline" onClick={handleLoadQuiz} isLoading={loadingQuiz} className="text-xs">
-                  <RotateCw className="h-3.5 w-3.5 mr-1" /> New AI Quiz
-                </Button>
-              </div>
-
-              {loadingQuiz ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-28 w-full" />
-                  <Skeleton className="h-28 w-full" />
-                </div>
-              ) : quizQuestions.length === 0 ? (
-                <div className="text-center py-12 space-y-3">
-                  <p className="text-xs text-slate-500">No quiz questions generated yet.</p>
-                  <Button size="sm" onClick={handleLoadQuiz}>Generate Quiz</Button>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {quizQuestions.map((q, qIndex) => {
-                    const isSubmitted = submittedAnswers[qIndex] !== undefined;
-                    const isCorrect = submittedAnswers[qIndex] === true;
-
-                    return (
-                      <div
-                        key={qIndex}
-                        className={`p-5 rounded-2xl border transition-all ${
-                          isSubmitted
-                            ? isCorrect
-                              ? "border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20"
-                              : "border-rose-500/40 bg-rose-50/50 dark:bg-rose-950/20"
-                            : "border-slate-200 dark:border-slate-800"
-                        }`}
+                  {isFlipped ? (
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <Button
+                        variant="outline"
+                        className="text-rose-600 border-rose-300 hover:bg-rose-50 dark:border-rose-900 text-xs"
+                        onClick={() => handleFlashcardFeedback(false)}
                       >
-                        <div className="flex items-start justify-between gap-2 mb-3">
-                          <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-                            {qIndex + 1}. {q.question}
-                          </h4>
-                          {q.difficulty && (
-                            <Badge variant="outline" className="text-[10px] capitalize">
-                              {q.difficulty}
-                            </Badge>
-                          )}
-                        </div>
-
-                        <div className="space-y-2 mb-4">
-                          {q.options.map((opt, optIndex) => {
-                            const selected = selectedAnswers[qIndex] === optIndex;
-                            const isTheRightAnswer = optIndex === q.correctIndex;
-
-                            return (
-                              <button
-                                key={optIndex}
-                                type="button"
-                                disabled={isSubmitted}
-                                onClick={() => setSelectedAnswers((prev) => ({ ...prev, [qIndex]: optIndex }))}
-                                className={`w-full text-left p-3 rounded-xl border text-xs transition-all flex items-center justify-between ${
-                                  isSubmitted
-                                    ? isTheRightAnswer
-                                      ? "border-emerald-500 bg-emerald-500/10 text-emerald-950 dark:text-emerald-200 font-semibold"
-                                      : selected
-                                      ? "border-rose-500 bg-rose-500/10 text-rose-950 dark:text-rose-200"
-                                      : "border-slate-200 dark:border-slate-800 opacity-60"
-                                    : selected
-                                    ? "border-teal-500 bg-teal-500/10 text-teal-950 dark:text-teal-200 ring-2 ring-teal-500/20 font-semibold"
-                                    : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900"
-                                }`}
-                              >
-                                <span>{opt}</span>
-                                {isSubmitted && isTheRightAnswer && (
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 ml-2" />
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {!isSubmitted ? (
-                          <Button
-                            size="sm"
-                            className="text-xs"
-                            disabled={selectedAnswers[qIndex] === undefined}
-                            onClick={() => handleSubmitQuizAnswer(qIndex)}
-                          >
-                            Submit Answer
-                          </Button>
-                        ) : (
-                          <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 text-xs">
-                            <span className="font-bold block mb-1">
-                              {isCorrect ? "✓ Correct!" : "✗ Incorrect"}
-                            </span>
-                            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                              {q.explanation}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                        <XCircle className="h-4 w-4 mr-1.5" /> Still learning
+                      </Button>
+                      <Button className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs" onClick={() => handleFlashcardFeedback(true)}>
+                        <CheckCircle2 className="h-4 w-4 mr-1.5" /> I knew it
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" className="w-full text-xs" onClick={() => setIsFlipped(true)}>
+                      Show answer
+                    </Button>
+                  )}
                 </div>
               )}
             </Card>
           )}
 
-          {/* TAB 5: ASK AI TUTOR (Grounded Socratic Chat Stream) */}
+          {/* QUIZ */}
+          {activeTab === "quiz" && (
+            <Card className="p-4 md:p-6">
+              <QuizPlayer classId={classId} kcId={kcId} onEvidence={applyEvidenceUpdate} />
+            </Card>
+          )}
+
+          {/* TUTOR */}
           {activeTab === "tutor" && (
-            <Card className="flex flex-col h-[560px]">
+            <Card className="flex flex-col h-[min(75vh,620px)]">
               <CardHeader className="py-3 px-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-xs">
-                      AI
-                    </div>
+                    <div className="h-8 w-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-xs">AI</div>
                     <div>
-                      <h3 className="font-bold text-sm">Socratic AI Tutor</h3>
-                      <p className="text-[10px] text-slate-500">
-                        Grounded strictly in: {kc.title}
-                      </p>
+                      <h3 className="font-bold text-sm">AI Tutor</h3>
+                      <p className="text-[10px] text-slate-500">Focused on: {kc.title}</p>
                     </div>
                   </div>
-                  <Badge variant="default" className="text-[10px]">
-                    Adaptive to P(L) = {formatPL(currentPL)}
-                  </Badge>
+                  {messages.length > 0 && (
+                    <Button size="sm" variant="ghost" className="text-xs" onClick={() => setMessages([])} disabled={isStreamingTutor}>
+                      New chat
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
 
-              {/* Chat Message Scroll */}
               <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length === 0 && (
-                  <div className="text-center py-12 space-y-3">
+                  <div className="text-center py-8 space-y-4">
                     <MessageSquare className="h-10 w-10 text-teal-500/40 mx-auto" />
-                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                      Ask any question about this lesson. I will guide you Socratically with conceptual hints and physical intuition!
+                    <p className="text-sm text-slate-500 max-w-sm mx-auto">
+                      Ask anything about this topic. I&apos;ll guide you with hints rather than just handing over answers.
                     </p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {TUTOR_STARTERS.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => sendTutor(s)}
+                          className="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 text-xs hover:border-teal-500 hover:text-teal-700 dark:hover:text-teal-300 transition-all"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
                 {messages.map((m) => (
-                  <div
-                    key={m.id}
-                    className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-                  >
+                  <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div
-                      className={`max-w-[85%] rounded-2xl p-4 text-xs leading-relaxed ${
+                      className={cn(
+                        "max-w-[88%] rounded-2xl p-3.5 text-sm leading-relaxed",
                         m.role === "user"
                           ? "bg-teal-600 text-white rounded-br-sm"
+                          : m.isError
+                          ? "bg-rose-500/10 text-rose-800 dark:text-rose-200 border border-rose-500/30 rounded-bl-sm"
                           : "bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 rounded-bl-sm border border-slate-200 dark:border-slate-800"
-                      }`}
+                      )}
                     >
-                      {m.role === "model" ? (
-                        <MarkdownRenderer content={m.text || "Thinking..."} />
+                      {m.role === "model" && !m.isError ? (
+                        m.text ? (
+                          <MarkdownRenderer content={m.text} />
+                        ) : (
+                          <span className="inline-flex gap-1 py-1">
+                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" />
+                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:120ms]" />
+                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:240ms]" />
+                          </span>
+                        )
                       ) : (
-                        <p>{m.text}</p>
+                        <p className="whitespace-pre-wrap">{m.text}</p>
                       )}
                     </div>
                   </div>
@@ -828,20 +689,22 @@ export default function TopicPage({
                 <div ref={chatBottomRef} />
               </CardContent>
 
-              {/* Message Input Form */}
               <form
-                onSubmit={handleSendTutor}
-                className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 shrink-0 bg-white dark:bg-slate-950"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  sendTutor(inputMessage);
+                }}
+                className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 shrink-0"
               >
                 <Input
                   type="text"
-                  placeholder="Ask a question about this topic..."
+                  placeholder="Ask a question about this topic…"
                   value={inputMessage}
                   onChange={(e) => setInputMessage(e.target.value)}
                   disabled={isStreamingTutor}
-                  className="text-xs"
+                  className="text-sm"
                 />
-                <Button type="submit" size="icon" disabled={!inputMessage.trim() || isStreamingTutor}>
+                <Button type="submit" size="icon" disabled={!inputMessage.trim() || isStreamingTutor} aria-label="Send">
                   <Send className="h-4 w-4" />
                 </Button>
               </form>
@@ -849,26 +712,25 @@ export default function TopicPage({
           )}
         </div>
 
-        {/* Right Column: Sticky Cognitive Twin Live Card */}
-        <div className="lg:col-span-1 sticky top-20 space-y-4">
+        {/* Mastery card */}
+        <div className="lg:col-span-1 lg:sticky lg:top-20 space-y-4">
           <Card className="border-teal-500/30 shadow-lg">
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold uppercase tracking-wider block">
-                Cognitive Digital Twin
-              </span>
-              <CardTitle className="text-base font-bold">Concept Mastery State</CardTitle>
+              <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold uppercase tracking-wider block">Your progress</span>
+              <CardTitle className="text-base font-bold">Topic mastery</CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
               <div>
                 <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-xs text-slate-500">Bayesian Posterior P(L):</span>
+                  <span className="text-xs text-slate-500">Mastery</span>
                   <Badge className={`text-xs ${masteryStatus.colorClass}`}>
-                    {masteryStatus.label} {attempts > 0 ? `(${formatPL(currentPL)})` : "(Prior Baseline)"}
+                    {masteryStatus.label} {attempts > 0 ? `(${formatPL(currentPL)})` : ""}
                   </Badge>
                 </div>
                 <div className="w-full h-3 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                   <div
-                    className={`h-full transition-all duration-500 rounded-full ${
+                    className={cn(
+                      "h-full transition-all duration-500 rounded-full",
                       attempts === 0
                         ? "bg-slate-300 dark:bg-slate-700"
                         : currentPL >= 0.95
@@ -876,36 +738,38 @@ export default function TopicPage({
                         : currentPL >= 0.4
                         ? "bg-amber-500"
                         : "bg-rose-500"
-                    }`}
+                    )}
                     style={{ width: `${attempts === 0 ? 0 : Math.min(100, currentPL * 100)}%` }}
                   />
                 </div>
+                {attempts === 0 && (
+                  <p className="text-[11px] text-slate-500 mt-2">Take a quiz or play the simulation to start tracking.</p>
+                )}
               </div>
 
               <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
                 <div className="flex justify-between">
-                  <span className="flex items-center gap-1"><Zap className="h-3.5 w-3.5 text-teal-500" /> Topic XP Earned:</span>
-                  <strong className="text-slate-900 dark:text-slate-100">{user?.xp ?? 450} XP</strong>
+                  <span className="flex items-center gap-1">
+                    <Zap className="h-3.5 w-3.5 text-teal-500" /> Total XP
+                  </span>
+                  <strong className="text-slate-900 dark:text-slate-100">{user?.xp ?? 0} XP</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span>Mastery Threshold:</span>
-                  <strong className="text-emerald-600 dark:text-emerald-400">95.0%</strong>
+                  <span>Mastered at</span>
+                  <strong className="text-emerald-600 dark:text-emerald-400">95%</strong>
                 </div>
               </div>
 
-              {/* Intervention recommendation if struggling after attempts */}
-              {attempts > 0 && currentPL < 0.40 && (
+              {attempts > 0 && currentPL < 0.4 && (
                 <div className="p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-950 dark:text-rose-200 text-xs space-y-2">
                   <p className="font-semibold flex items-center gap-1.5">
-                    <Users className="h-4 w-4 text-rose-500" /> Peer Study Recommended
+                    <Users className="h-4 w-4 text-rose-500" /> Study with a peer?
                   </p>
                   <p className="text-[11px] opacity-90 leading-relaxed">
-                    Your mastery is below 40%. Join a Peer Lounge to study with a student who has mastered this concept.
+                    A classmate who has mastered this topic can help. Try the AI tutor or join a study lounge.
                   </p>
                   <Link href="/lounge" className="block pt-1">
-                    <Button size="sm" variant="outline" className="w-full text-xs">
-                      Find Peer Study Match
-                    </Button>
+                    <Button size="sm" variant="outline" className="w-full text-xs">Find a study partner</Button>
                   </Link>
                 </div>
               )}

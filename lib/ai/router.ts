@@ -44,6 +44,64 @@ export class AiQuotaExhaustedError extends ApiError {
   }
 }
 
+/**
+ * Raised when the AI produced output we could not use (bad JSON, schema mismatch, safety block,
+ * unexpected provider error) WITHOUT any quota exhaustion. Kept distinct from AiQuotaExhaustedError
+ * so users are never told "the AI is at its daily limit" when the real problem is a bad response.
+ */
+export class AiGenerationError extends ApiError {
+  constructor(message = "The AI couldn't produce a usable answer this time. Please try again in a moment.") {
+    super(502, "AI_GENERATION_FAILED", message);
+    this.name = "AiGenerationError";
+  }
+}
+
+/** Raised when the Gemini API key is missing, invalid or lacks permission. */
+export class AiNotConfiguredError extends ApiError {
+  constructor() {
+    super(
+      503,
+      "AI_NOT_CONFIGURED",
+      "The AI service isn't configured correctly (missing or invalid GEMINI_API_KEY). Ask an admin to check the server settings."
+    );
+    this.name = "AiNotConfiguredError";
+  }
+}
+
+/**
+ * Extracts a JSON value from model output. Models frequently wrap JSON in ```json fences or add a
+ * sentence before/after it even in JSON mode; this recovers the payload instead of failing the call.
+ */
+export function extractJsonPayload(text: string): unknown {
+  const trimmed = (text || "").trim();
+  if (!trimmed) throw new Error("Empty AI response");
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // fall through to recovery strategies
+  }
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) {
+    try {
+      return JSON.parse(fenced[1].trim());
+    } catch {
+      // fall through
+    }
+  }
+  const firstObj = trimmed.indexOf("{");
+  const firstArr = trimmed.indexOf("[");
+  const starts = [firstObj, firstArr].filter((i) => i >= 0);
+  if (starts.length > 0) {
+    const start = Math.min(...starts);
+    const closer = trimmed[start] === "{" ? "}" : "]";
+    const end = trimmed.lastIndexOf(closer);
+    if (end > start) {
+      return JSON.parse(trimmed.slice(start, end + 1));
+    }
+  }
+  throw new Error("AI response did not contain JSON");
+}
+
 export interface CallBudget {
   maxCalls: number;
   usedCalls: number;
@@ -111,6 +169,7 @@ export function modelFor(task: AiTask): string {
       case "long_document":
         return env.GEMINI_MODEL_LONGDOC;
       case "class_build":
+      case "sim_build":
         return env.GEMINI_MODEL_BUILD;
       case "grading_high_stakes":
         return env.GEMINI_MODEL_GRADING;
@@ -128,6 +187,7 @@ export function modelFor(task: AiTask): string {
       case "long_document":
         return process.env.GEMINI_MODEL_LONGDOC || DEFAULT_MODEL_CONFIG.longdoc;
       case "class_build":
+      case "sim_build":
         return process.env.GEMINI_MODEL_BUILD || DEFAULT_MODEL_CONFIG.build;
       case "grading_high_stakes":
         return process.env.GEMINI_MODEL_GRADING || DEFAULT_MODEL_CONFIG.grading;
@@ -196,7 +256,7 @@ export function getChainForTask(task: AiTask): string[] {
 }
 
 export interface ClassifiedError {
-  type: "daily_exhaustion" | "rate_limit_minute" | "invalid_model" | "transient" | "unrecoverable";
+  type: "daily_exhaustion" | "rate_limit_minute" | "invalid_model" | "transient" | "auth" | "unrecoverable";
   retryDelaySeconds?: number;
   message: string;
 }
@@ -260,6 +320,17 @@ export function classifyProviderError(err: unknown): ClassifiedError {
       retryDelaySeconds: retryDelay || 5,
       message: "Per-minute rate limit reached",
     };
+  }
+
+  // Invalid / missing API key or permission problems: no model in the chain will work
+  if (
+    msg.includes("api_key_invalid") ||
+    msg.includes("api key not valid") ||
+    msg.includes("permission_denied") ||
+    msg.includes("unauthenticated") ||
+    msg.includes("gemini_api_key is not configured")
+  ) {
+    return { type: "auth", message: "Gemini API key invalid or missing" };
   }
 
   // Invalid or deprecated model (404)
@@ -365,7 +436,12 @@ export async function generateWithFallback<T>({
     } catch {}
   }
 
-  const ai = getGeminiClient();
+  let ai: ReturnType<typeof getGeminiClient>;
+  try {
+    ai = getGeminiClient();
+  } catch {
+    throw new AiNotConfiguredError();
+  }
   // Always load admin-assigned models BEFORE resolving the chain (serverless cold starts
   // otherwise ignore admin configuration and fall back to env/default models).
   await getDynamicModelConfig();
@@ -375,6 +451,8 @@ export async function generateWithFallback<T>({
   let fallbackTriggered = false;
   let lastError: unknown = null;
   let attemptedAny = false;
+  // True once any model was skipped or failed for quota reasons. Only then do we report quota exhaustion.
+  let sawQuotaProblem = false;
 
   for (let i = 0; i < chain.length; i++) {
     const activeModel = chain[i];
@@ -385,6 +463,7 @@ export async function generateWithFallback<T>({
       const available = await isModelAvailable(activeModel);
       if (!available) {
         fallbackTriggered = true;
+        sawQuotaProblem = true;
         continue;
       }
 
@@ -392,6 +471,7 @@ export async function generateWithFallback<T>({
       if (!withinReserve) {
         console.warn(`[lib/ai/router] Model "${activeModel}" is at or above 90% reserve. Skipping to next candidate.`);
         fallbackTriggered = true;
+        sawQuotaProblem = true;
         continue;
       }
     }
@@ -444,7 +524,7 @@ export async function generateWithFallback<T>({
         if (schema) {
           let rawJson: unknown;
           try {
-            rawJson = JSON.parse(responseText);
+            rawJson = extractJsonPayload(responseText);
           } catch (jsonErr) {
             throw new Error(`Failed to parse AI output as JSON: ${jsonErr instanceof Error ? jsonErr.message : String(jsonErr)}`);
           }
@@ -495,7 +575,12 @@ export async function generateWithFallback<T>({
         lastError = err;
         const classified = classifyProviderError(err);
 
+        if (classified.type === "auth") {
+          throw new AiNotConfiguredError();
+        }
+
         if (classified.type === "daily_exhaustion") {
+          sawQuotaProblem = true;
           console.warn(`[model_fallback] Model "${activeModel}" daily quota exhausted for task "${task}". Marking exhausted until reset.`);
           await markModelExhausted(activeModel, classified.retryDelaySeconds);
           fallbackTriggered = true;
@@ -510,6 +595,7 @@ export async function generateWithFallback<T>({
         }
 
         if (classified.type === "rate_limit_minute") {
+          sawQuotaProblem = true;
           const waitSec = Math.min(20, classified.retryDelaySeconds || 5);
           console.warn(`[model_pacer] Rate limited on "${activeModel}". Waiting ${waitSec}s...`);
           await new Promise((r) => setTimeout(r, waitSec * 1000));
@@ -558,7 +644,7 @@ export async function generateWithFallback<T>({
       if (schema) {
         let rawJson: unknown;
         try {
-          rawJson = JSON.parse(responseText);
+          rawJson = extractJsonPayload(responseText);
         } catch (jsonErr) {
           throw new Error(`Failed to parse AI output as JSON: ${jsonErr instanceof Error ? jsonErr.message : String(jsonErr)}`);
         }
@@ -589,15 +675,21 @@ export async function generateWithFallback<T>({
     } catch (probeErr) {
       lastError = probeErr;
       const classified = classifyProviderError(probeErr);
+      if (classified.type === "auth") {
+        throw new AiNotConfiguredError();
+      }
       if (classified.type === "daily_exhaustion") {
         await markModelExhausted(probeModel, classified.retryDelaySeconds);
       }
     }
   }
 
-  // If we reach here, all candidate models in the chain were exhausted
   if (lastError) {
-    console.warn(`[lib/ai/router] All models exhausted in chain. Last error:`, lastError instanceof Error ? lastError.message : String(lastError));
+    console.warn(`[lib/ai/router] All models failed for task "${task}". Last error:`, lastError instanceof Error ? lastError.message : String(lastError));
+  }
+  // Only blame quota when quota was actually the problem; otherwise surface a retryable generation error.
+  if (!sawQuotaProblem) {
+    throw new AiGenerationError();
   }
   const reset = calculatePacificMidnightReset();
   throw new AiQuotaExhaustedError(reset.display, reset.timestampMs);

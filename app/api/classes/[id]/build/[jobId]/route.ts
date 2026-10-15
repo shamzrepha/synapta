@@ -5,7 +5,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { buildClassWithAi, ClassBuildInput } from "@/lib/teacher/classBuilder";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function GET(
   req: NextRequest,

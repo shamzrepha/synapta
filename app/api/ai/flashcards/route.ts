@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
-import { adminDb } from "@/lib/firebase/admin";
+import { loadKcGroundingContext } from "@/lib/kc/context";
 import { checkRateLimitAndQuota, recordTokenUsage } from "@/lib/quota/guard";
 import { generateStructuredJson } from "@/lib/gemini/client";
 import { getFlashcardsPrompt } from "@/lib/gemini/prompts";
-import { flashcardsResponseSchema } from "@/lib/gemini/schemas";
+import { flashcardSchema, type Flashcard } from "@/lib/gemini/schemas";
 import { z } from "zod";
 
 export const runtime = "nodejs";
+
+// Accept whatever number of valid cards the model returns instead of failing the whole deck
+const lenientFlashcardsSchema = z.preprocess(
+  (val) => (Array.isArray(val) ? { cards: val } : val),
+  z.object({ cards: z.array(flashcardSchema).min(1).max(30) })
+);
 
 const flashcardsInputSchema = z.object({
   classId: z.string().min(1),
@@ -34,51 +40,10 @@ export async function POST(req: NextRequest) {
     // Verify caller has permission to view this class
     await assertClassAccess(caller, classId, "view");
 
-    // Load KC from Firestore
-    const kcRef = adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId);
-    const kcDoc = await kcRef.get();
-    if (!kcDoc.exists) {
-      return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Knowledge Component not found" } },
-        { status: 404 }
-      );
-    }
-
-    const kcData = kcDoc.data()!;
-    const kcTitle = kcData.title || "Topic";
-    const objectivesText = Array.isArray(kcData.objectives) && kcData.objectives.length > 0
-      ? `\nKey Objectives:\n${kcData.objectives.map((o: string) => `- ${o}`).join("\n")}`
-      : "";
-    let lessonMarkdown = kcData.lessonMarkdown || kcData.description || "";
-    
-    // If lesson is short or empty, pull excerpt from uploaded class materials to give Gemini deep context
-    if (lessonMarkdown.length < 200) {
-      const matSnap = await adminDb()
-        .collection("classes")
-        .doc(classId)
-        .collection("materials")
-        .limit(3)
-        .get()
-        .catch(() => null);
-      
-      const excerpts = (matSnap?.docs || [])
-        .map((d) => (d.data() as { extractedText?: string })?.extractedText)
-        .filter((t): t is string => typeof t === "string" && t.length > 0)
-        .map((t) => t.slice(0, 1500))
-        .join("\n\n---\n\n");
-
-      lessonMarkdown = [
-        `Topic: ${kcTitle}`,
-        kcData.description ? `Description: ${kcData.description}` : "",
-        objectivesText,
-        excerpts ? `Reference Notes from Uploaded Materials:\n${excerpts}` : "",
-        lessonMarkdown ? `Lesson Notes:\n${lessonMarkdown}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n\n");
-    } else if (objectivesText) {
-      lessonMarkdown = `${lessonMarkdown}\n${objectivesText}`;
-    }
+    // Ground cards in the lesson AND the most relevant parts of the teacher's materials
+    const ctx = await loadKcGroundingContext(classId, kcId);
+    const kcTitle = ctx.kcTitle;
+    const lessonMarkdown = ctx.contextText;
 
     // Rate limit and token quota check
     await checkRateLimitAndQuota(caller.uid, 1200);
@@ -92,7 +57,7 @@ export async function POST(req: NextRequest) {
     const { data, tokensIn, tokensOut } = await generateStructuredJson({
       systemInstruction,
       userPrompt,
-      schema: flashcardsResponseSchema,
+      schema: lenientFlashcardsSchema as unknown as z.ZodType<{ cards: Flashcard[] }>,
     });
 
     // Record token usage

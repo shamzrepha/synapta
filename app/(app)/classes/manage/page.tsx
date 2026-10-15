@@ -64,7 +64,7 @@ export default function TeacherClassesListPage() {
           </p>
         </div>
 
-        <Link href="/explore">
+        <Link href="/explore?create=1">
           <Button size="sm">
             <Plus className="h-4 w-4 mr-1.5" /> Create New Class
           </Button>
@@ -89,7 +89,7 @@ export default function TeacherClassesListPage() {
               Create your first class in the course explore catalog to start enrolling students, generating syllabus DAGs, and tracking cognitive heatmaps.
             </p>
           </div>
-          <Link href="/explore">
+          <Link href="/explore?create=1">
             <Button size="sm">
               <Plus className="h-4 w-4 mr-1.5" /> Create Your First Class
             </Button>

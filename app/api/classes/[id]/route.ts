@@ -62,11 +62,13 @@ export async function GET(
     const masteryMap: Record<string, number> = {};
     const attemptsMap: Record<string, number> = {};
     if (kcs.length > 0 && caller.uid) {
-      for (const kc of kcs) {
-        const mDoc = await adminDb()
-          .collection("mastery")
-          .doc(`${caller.uid}_${kc.id}`)
-          .get();
+      // One batched read instead of a round-trip per topic
+      const masteryDocs = await adminDb().getAll(
+        ...kcs.map((kc) => adminDb().collection("mastery").doc(`${caller.uid}_${kc.id}`))
+      );
+      for (let i = 0; i < kcs.length; i++) {
+        const kc = kcs[i];
+        const mDoc = masteryDocs[i];
         if (mDoc.exists) {
           const mData = mDoc.data();
           masteryMap[kc.id] = mData?.pL ?? 0.2;

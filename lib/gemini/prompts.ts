@@ -106,7 +106,8 @@ export function getFlashcardsPrompt(params: {
 Each flashcard has:
 - "front": A clear, concise question, definition prompt, or formula question.
 - "back": A clear, concise answer, principle, or formula.
-Return JSON conforming to the flashcards schema.`;
+Rules: each card tests ONE idea; the front must make sense on its own (no "according to the lesson"); write all maths in LaTeX using $...$; vary card types (definitions, formulas, cause→effect, worked mini-problems).
+Return JSON only: {"cards":[{"front":"...","back":"..."}]}`;
 
   const userPrompt = `Topic: ${params.kcTitle}
 Lesson Content:
