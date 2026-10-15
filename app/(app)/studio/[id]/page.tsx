@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { ShareSheet } from "@/components/social/share-sheet";
+import { ExportMenu } from "@/components/studio/export-menu";
+import { WallPublish } from "@/components/studio/wall-publish";
 import { useLiveChannel } from "@/lib/live/client";
 import { asArray } from "@/lib/api/client";
 import { Viewer3D } from "@/components/studio/viewer3d";
@@ -773,6 +775,10 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
         <Button size="sm" variant="outline" onClick={() => setSharing(true)}>
           <Share2 className="h-4 w-4" />
         </Button>
+        <ExportMenu designId={id} title={design.title} author={design.ownerName} spec={shown} />
+        <Link href={`/studio/${id}/guide`} className="hidden sm:inline-flex h-9 items-center rounded-md border border-slate-300 dark:border-slate-700 px-3 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800" title="Printable real-build guide">
+          Build guide
+        </Link>
         {canEdit && (
           <>
             <Button size="sm" variant="outline" onClick={undo} disabled={histCount.undo === 0} aria-label="Undo" title="Undo (Ctrl+Z)">
@@ -987,6 +993,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
                   </ul>
                   {data.isOwner && <CollaboratorPicker designId={id} members={data.members.map((m) => m.uid)} onChanged={() => load()} />}
                 </div>
+                <WallPublish designId={id} isOwner={!!data.isOwner} />
                 <Button onClick={() => setSharing(true)}>
                   <Share2 className="h-4 w-4 mr-1" /> Post or send it
                 </Button>
