@@ -2,7 +2,7 @@
 
 /** Resizes an image to fit `maxSide` and re-encodes it (JPEG; PNG kept for small graphics/GIFs as-is). */
 export async function compressImage(file: File, maxSide = 1600, quality = 0.82): Promise<string> {
-  if (file.type === "image/gif" && file.size < 1_400_000) return readAsDataUrl(file);
+  if (file.type === "image/gif" && file.size < 650_000) return readAsDataUrl(file);
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -36,7 +36,12 @@ function readAsDataUrl(file: File): Promise<string> {
 
 /** Compresses and uploads; returns the storage path to attach to a post. */
 export async function uploadPostImage(file: File): Promise<{ path: string; url: string }> {
-  const dataUrl = await compressImage(file);
+  // Stay under the server's 700 KB limit (≈ 930k base64 chars): step down size/quality until it fits
+  let dataUrl = await compressImage(file);
+  for (const [side, q] of [[1400, 0.75], [1200, 0.68], [1000, 0.6]] as const) {
+    if (dataUrl.length <= 900_000) break;
+    dataUrl = await compressImage(file, side, q);
+  }
   const res = await fetch("/api/uploads/image", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

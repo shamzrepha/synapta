@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
-import { adminBucket } from "@/lib/firebase/admin";
+import { loadMedia } from "@/lib/media/store";
 
 export const runtime = "nodejs";
 
@@ -13,13 +13,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ path
     if (!/^posts\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+$/.test(key)) {
       return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "Not found" } }, { status: 404 });
     }
-    const file = adminBucket().file(key);
-    const [exists] = await file.exists();
-    if (!exists) return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "Not found" } }, { status: 404 });
-    const [[buf], [meta]] = await Promise.all([file.download(), file.getMetadata()]);
-    return new NextResponse(new Uint8Array(buf), {
+    const media = await loadMedia(key);
+    if (!media) return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "Not found" } }, { status: 404 });
+    return new NextResponse(new Uint8Array(media.bytes), {
       headers: {
-        "Content-Type": String(meta.contentType || "application/octet-stream"),
+        "Content-Type": media.contentType,
         "Cache-Control": "private, max-age=31536000, immutable",
         "X-Content-Type-Options": "nosniff",
       },

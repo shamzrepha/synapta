@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
-import { adminBucket } from "@/lib/firebase/admin";
+import { saveMedia, FIRESTORE_MEDIA_MAX_BYTES } from "@/lib/media/store";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 
-const MAX_BYTES = 1_500_000;
+const MAX_BYTES = FIRESTORE_MEDIA_MAX_BYTES;
 const schema = z.object({
   // data:image/jpeg;base64,... (the client resizes/compresses before upload)
-  dataUrl: z.string().max(2_200_000),
+  dataUrl: z.string().max(1_000_000),
   scope: z.enum(["posts"]).default("posts"),
 });
 
@@ -31,12 +31,17 @@ export async function POST(req: NextRequest) {
     const m = dataUrl.match(/^data:image\/[a-z+.-]+;base64,([A-Za-z0-9+/=]+)$/);
     if (!m) throw new ApiError(400, "VALIDATION", "Unsupported image.");
     const bytes = Buffer.from(m[1], "base64");
-    if (bytes.length > MAX_BYTES) throw new ApiError(413, "TOO_LARGE", "Image is too large (max 1.5 MB after compression).");
+    if (bytes.length > MAX_BYTES) throw new ApiError(413, "TOO_LARGE", "Image is too large (max 700 KB after compression).");
     const kind = MAGIC.find((k) => k.test(bytes));
     if (!kind) throw new ApiError(400, "VALIDATION", "Only JPEG, PNG, WebP or GIF images are allowed.");
 
     const path = `${scope ?? "posts"}/${caller.uid}/${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}.${kind.ext}`;
-    await adminBucket().file(path).save(bytes, { contentType: kind.type, resumable: false, metadata: { cacheControl: "private, max-age=31536000" } });
+    try {
+      await saveMedia(path, bytes, kind.type, caller.uid);
+    } catch (e) {
+      if ((e as { code?: string }).code === "TOO_LARGE") throw new ApiError(413, "TOO_LARGE", (e as Error).message);
+      throw e;
+    }
     return NextResponse.json({ ok: true, data: { path, url: `/api/media/${path}` } });
   } catch (error) {
     return handleAuthError(error);
