@@ -7,6 +7,7 @@ const protectedPrefixes = [
   "/explore",
   "/classes",
   "/notebook",
+  "/studio",
   "/tutor",
   "/lounge",
   "/profile",

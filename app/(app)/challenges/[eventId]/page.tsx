@@ -11,6 +11,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { QuizSprintPlayer } from "@/components/events/quiz-sprint";
 import { HackathonPanel } from "@/components/events/hackathon";
+import { BuildChallengePanel } from "@/components/events/build-challenge";
 import { STATUS_STYLE, type EventDetail } from "@/components/events/types";
 import { ShareButton } from "@/components/social/share-button";
 import { formatCountdown, useNow } from "@/components/game/use-game";
@@ -119,6 +120,7 @@ export default function ChallengePage({ params }: { params: Promise<{ eventId: s
   const s = STATUS_STYLE[ev.status];
   const timerLabel = ev.status === "upcoming" ? "Starts in" : ev.status === "live" ? (ev.kind === "hackathon" ? "Submissions close in" : "Ends in") : "Voting ends in";
   const isQuiz = ev.kind === "quiz_sprint";
+  const isBuild = ev.kind === "build";
 
   return (
     <div className="space-y-5">
@@ -133,7 +135,7 @@ export default function ChallengePage({ params }: { params: Promise<{ eventId: s
               <span className={cn("text-[10px] font-extrabold tracking-wider px-2 py-1 rounded-full", s.className)}>{s.label}</span>
               <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
                 {isQuiz ? <Zap className="h-3.5 w-3.5 text-amber-500" /> : <Hammer className="h-3.5 w-3.5 text-indigo-500" />}
-                {isQuiz ? `Quiz sprint · ${ev.questionCount} questions · ${ev.secondsPerQuestion}s each` : "Hackathon"}
+                {isQuiz ? `Quiz sprint · ${ev.questionCount} questions · ${ev.secondsPerQuestion}s each` : isBuild ? `Build challenge · ${ev.build?.designKind === "circuit" ? "circuit + code" : "mechanism"}` : "Hackathon"}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">{ev.title}</h1>
@@ -161,7 +163,7 @@ export default function ChallengePage({ params }: { params: Promise<{ eventId: s
           <span className="ml-auto">
             <ShareButton
               label="Invite"
-              item={{ type: "event", id: ev.id, title: ev.title, subtitle: `${ev.kind === "hackathon" ? "Hackathon" : "Quiz sprint"} · ${ev.participantCount} joined`, href: `/challenges/${ev.id}`, emoji: ev.kind === "hackathon" ? "🛠️" : "⚡" }}
+              item={{ type: "event", id: ev.id, title: ev.title, subtitle: `${ev.kind === "hackathon" ? "Hackathon" : ev.kind === "build" ? "Build challenge" : "Quiz sprint"} · ${ev.participantCount} joined`, href: `/challenges/${ev.id}`, emoji: ev.kind === "hackathon" ? "🛠️" : "⚡" }}
             />
           </span>
         </div>
@@ -192,7 +194,7 @@ export default function ChallengePage({ params }: { params: Promise<{ eventId: s
               <p className="text-4xl">{isQuiz ? "⚡" : "🛠️"}</p>
               <p className="font-bold">{ev.status === "upcoming" ? "Join now and get notified when it starts" : "Jump in!"}</p>
               <Button size="lg" onClick={join} isLoading={joining}>
-                Join {isQuiz ? "the sprint" : "the hackathon"}
+                Join {isQuiz ? "the sprint" : isBuild ? "and start building" : "the hackathon"}
               </Button>
             </Card>
           )}
@@ -221,7 +223,8 @@ export default function ChallengePage({ params }: { params: Promise<{ eventId: s
             </Card>
           )}
 
-          {!isQuiz && <HackathonPanel detail={detail} onChanged={refresh} />}
+          {!isQuiz && !isBuild && <HackathonPanel detail={detail} onChanged={refresh} />}
+          {isBuild && <BuildChallengePanel detail={detail} onChanged={refresh} />}
 
           {ev.status === "ended" && ev.results && ev.results.length > 0 && (
             <Card className="p-5 space-y-3">
@@ -233,7 +236,7 @@ export default function ChallengePage({ params }: { params: Promise<{ eventId: s
                   <li key={r.uid} className="flex items-center gap-3">
                     <span className="text-2xl">{["🥇", "🥈", "🥉"][r.rank - 1]}</span>
                     <span className="font-semibold flex-1">{r.displayName}</span>
-                    <span className="text-sm font-bold">{r.score.toLocaleString()} {isQuiz ? "pts" : "votes"}</span>
+                    <span className="text-sm font-bold">{r.score.toLocaleString()} {isQuiz || isBuild ? "pts" : "votes"}</span>
                   </li>
                 ))}
               </ol>

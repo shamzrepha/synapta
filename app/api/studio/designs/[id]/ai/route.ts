@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
-import { parseJson } from "@/lib/api/errors";
+import { ApiError, parseJson } from "@/lib/api/errors";
+import { adminDb } from "@/lib/firebase/admin";
+import { statusOf } from "@/lib/events/store";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { commitDesign, loadDesign } from "@/lib/studio/store";
 import { editDesign } from "@/lib/studio/design-ai";
@@ -19,6 +21,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (limited) return limited;
     const { instruction } = await parseJson(req, z.object({ instruction: z.string().trim().min(3).max(1500) }));
     const { data } = await loadDesign(id, caller, "edit");
+    if (data.challengeId) {
+      const ev = await adminDb().collection("events").doc(data.challengeId).get();
+      if (ev.exists && statusOf(ev.data()!) !== "ended") {
+        throw new ApiError(403, "CHALLENGE_LIVE", "The AI can't build your challenge entry for you — design it yourself. The tutor can still give hints.");
+      }
+    }
     const out = await editDesign({ spec: parseSpec(data.spec), instruction, userId: caller.uid });
     const r = await commitDesign({ id, user: caller, spec: out.spec, parentId: data.headCommitId, message: `AI: ${out.message || instruction}`.slice(0, 200), source: "ai" });
     return NextResponse.json({ ok: true, data: r });

@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Bookmark,
   Sparkles,
+  Wrench,
 } from "lucide-react";
 
 export interface NavItem {
@@ -31,6 +32,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/dashboard", icon: Home, roles: ALL, group: "learn" },
   { label: "Classes", href: "/classes/manage", icon: GraduationCap, roles: ALL, group: "learn" },
   { label: "AI Tutor", href: "/tutor", icon: Sparkles, roles: ALL, group: "learn" },
+  { label: "Maker Studio", href: "/studio", icon: Wrench, roles: ALL, group: "learn" },
   { label: "Study Hub", href: "/notebook", icon: BookOpen, roles: ALL, group: "learn" },
   { label: "Review", href: "/classes/heatmap", icon: RotateCw, roles: ALL, group: "learn" },
   { label: "Explore", href: "/explore", icon: Compass, roles: ALL, group: "learn" },

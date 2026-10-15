@@ -1,6 +1,6 @@
 export interface EventSummary {
   id: string;
-  kind: "quiz_sprint" | "hackathon";
+  kind: "quiz_sprint" | "hackathon" | "build";
   title: string;
   description: string;
   topic: string;
@@ -20,6 +20,14 @@ export interface EventSummary {
   status: "upcoming" | "live" | "voting" | "ended";
   finalized: boolean;
   results: Array<{ uid: string; displayName: string; rank: number; score: number }> | null;
+  build?: {
+    designKind: "mechanism" | "circuit";
+    templateId: string;
+    loadMass?: number;
+    liftHeight?: number;
+    input?: { kind: "motor" | "crank"; stallTorque: number; freeRpm: number; crankRadius: number; force: number; crankRpm: number };
+    maxStages: number;
+  } | null;
 }
 
 export interface BoardRow {
@@ -37,6 +45,9 @@ export interface BoardRow {
   link: string | null;
   repoLink: string | null;
   submittedAt: string | null;
+  verdict?: string | null;
+  details?: Record<string, number | string | boolean | null> | null;
+  designId?: string | null;
   isMe: boolean;
 }
 
@@ -53,6 +64,9 @@ export interface EventDetail {
     currentIndex: number;
     finished: boolean;
     submission: { title: string; summary: string; link: string; repoLink: string | null } | null;
+    designId?: string | null;
+    verdict?: string | null;
+    submitted?: boolean;
   } | null;
   myVote: string | null;
   board: BoardRow[];

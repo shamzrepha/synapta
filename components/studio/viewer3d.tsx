@@ -308,7 +308,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
         const center = box.getCenter(new THREE.Vector3());
         const r = Math.max(size.x, size.y, size.z, 100);
         c.controls.target.copy(center);
-        c.camera.position.set(center.x + r * 1.1, center.y + r * 0.8, center.z + r * 1.3);
+        c.camera.position.set(center.x + r * 0.85, center.y + r * 0.6, center.z + r * 1.05);
         c.camera.near = r / 100;
         c.camera.far = r * 50;
         c.camera.updateProjectionMatrix();

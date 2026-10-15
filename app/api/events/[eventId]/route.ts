@@ -20,6 +20,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
     }
 
     const isHack = ev.kind === "hackathon";
+    const isBuild = ev.kind === "build";
+    const ended = statusOf(ev) === "ended";
     const [mineSnap, boardSnap, voteSnap] = await Promise.all([
       ref.collection("entries").doc(caller.uid).get(),
       isHack
@@ -30,7 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
 
     const board = boardSnap.docs
       .map((d) => d.data())
-      .filter((e) => (isHack ? !!e.submittedAt : true))
+      .filter((e) => (isHack || isBuild ? !!e.submittedAt : true))
       .map((e, i) => ({
         rank: i + 1,
         uid: e.uid,
@@ -47,6 +49,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
         link: e.link || null,
         repoLink: e.repoLink || null,
         submittedAt: e.submittedAt ? toDate(e.submittedAt).toISOString() : null,
+        // Build entries: designs stay private until the challenge ends (no copying mid-contest)
+        verdict: isBuild ? e.verdict || null : null,
+        details: isBuild ? e.details || null : null,
+        designId: isBuild && (ended || e.uid === caller.uid) ? e.designId || null : null,
         isMe: e.uid === caller.uid,
       }));
 
@@ -66,7 +72,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
               streak: mine.streak || 0,
               currentIndex: mine.currentIndex || 0,
               finished: !!mine.finishedAt,
-              submission: mine.submittedAt
+              designId: mine.designId || null,
+              verdict: mine.verdict || null,
+              submitted: !!mine.submittedAt,
+              submission: mine.submittedAt && isHack
                 ? { title: mine.title, summary: mine.summary, link: mine.link, repoLink: mine.repoLink || null }
                 : null,
             }

@@ -8,7 +8,7 @@ import { shareAchievement } from "@/lib/social/feed";
 import { trackProgress } from "@/lib/game/progress";
 import { eventStatus, rankEntries, type EventStatus } from "./scoring";
 
-export type EventKind = "quiz_sprint" | "hackathon";
+export type EventKind = "quiz_sprint" | "hackathon" | "build";
 
 export interface EventRewards {
   first: number;
@@ -52,6 +52,7 @@ export function serializeEvent(id: string, ev: FirebaseFirestore.DocumentData) {
     status: statusOf(ev),
     finalized: !!ev.finalized,
     results: ev.results || null,
+    build: ev.build || null,
   };
 }
 
@@ -100,7 +101,7 @@ export async function finalizeEvent(eventId: string): Promise<void> {
   const entriesSnap = await ref.collection("entries").get();
   const entries = entriesSnap.docs.map((d) => d.data());
   const eligible =
-    ev.kind === "hackathon"
+    ev.kind === "hackathon" || ev.kind === "build"
       ? entries.filter((e) => e.submittedAt)
       : entries.filter((e) => (e.answered || 0) > 0);
   const ranked = rankEntries(
@@ -108,13 +109,25 @@ export async function finalizeEvent(eventId: string): Promise<void> {
       uid: e.uid as string,
       displayName: (e.displayName as string) || "Learner",
       score: ev.kind === "hackathon" ? e.votes || 0 : e.score || 0,
-      tiebreak: toDate(ev.kind === "hackathon" ? e.submittedAt : e.finishedAt || e.lastAnswerAt || e.joinedAt).getTime(),
+      tiebreak: toDate(ev.kind === "hackathon" || ev.kind === "build" ? e.submittedAt : e.finishedAt || e.lastAnswerAt || e.joinedAt).getTime(),
     }))
   );
 
   const rewards: EventRewards = ev.rewards || { first: 200, second: 120, third: 80, participation: 20 };
   const results = ranked.slice(0, 10).map((r) => ({ uid: r.uid, displayName: r.displayName, rank: r.rank, score: r.score }));
   await ref.update({ finalized: true, finalizing: false, finalizedAt: Timestamp.now(), results });
+
+  // Build challenges: once it's over, every submitted design opens up so people can learn from (and fork) the winners
+  if (ev.kind === "build") {
+    for (const e of eligible) {
+      if (!e.designId) continue;
+      await adminDb()
+        .collection("designs")
+        .doc(e.designId as string)
+        .update({ visibility: ev.visibility === "public" ? "public" : "class" })
+        .catch(() => null);
+    }
+  }
 
   for (const r of ranked) {
     const xp = r.rank === 1 ? rewards.first : r.rank === 2 ? rewards.second : r.rank === 3 ? rewards.third : rewards.participation;

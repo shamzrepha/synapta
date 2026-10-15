@@ -6,6 +6,8 @@ import { loadEvent, statusOf, eventChannels } from "@/lib/events/store";
 import { getPublicProfiles } from "@/lib/social/profile";
 import { bumpChannels } from "@/lib/live/server";
 import { trackProgress } from "@/lib/game/progress";
+import { createDesign } from "@/lib/studio/store";
+import { buildRulesSchema, starterFor } from "@/lib/studio/challenge";
 
 export const runtime = "nodejs";
 
@@ -39,6 +41,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ eve
       t.update(ref, { participantCount: FieldValue.increment(1) });
       return true;
     });
+    // Build challenges: every entrant gets their own design, seeded from the brief
+    if (ev.kind === "build" && ev.build) {
+      const entry = (await entryRef.get()).data();
+      if (entry && !entry.designId) {
+        const rules = buildRulesSchema.parse(ev.build);
+        const designId = await createDesign({
+          user: caller,
+          title: `${ev.title} — my entry`.slice(0, 80),
+          spec: starterFor(rules),
+          source: "template",
+          message: `Entered “${ev.title}”`,
+          visibility: "private",
+          classId: ev.classId || null,
+          templateId: rules.templateId,
+          challengeId: eventId,
+        });
+        await entryRef.update({ designId });
+      }
+    }
     if (created) {
       await trackProgress({ uid: caller.uid, stats: { eventsJoined: 1 }, reason: "event_join" });
       await bumpChannels(eventChannels(eventId, ev));

@@ -40,7 +40,7 @@ function EventCard({ ev, now }: { ev: EventSummary; now: number }) {
         </div>
         <p className="font-bold mt-3 leading-snug">{ev.title}</p>
         <p className="text-xs text-slate-500 mt-0.5">
-          {ev.kind === "hackathon" ? "Hackathon" : `Quiz sprint · ${ev.questionCount} Qs · ${ev.secondsPerQuestion}s each`}
+          {ev.kind === "hackathon" ? "Hackathon" : ev.kind === "build" ? `Build challenge · ${ev.build?.designKind === "circuit" ? "circuit + code" : "mechanism"}` : `Quiz sprint · ${ev.questionCount} Qs · ${ev.secondsPerQuestion}s each`}
           {ev.classTitle ? ` · ${ev.classTitle}` : " · Open to all"}
         </p>
         <div className="flex items-center justify-between mt-4 text-xs">
@@ -108,7 +108,7 @@ export default function ChallengesPage() {
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
             <Swords className="h-7 w-7 text-rose-500" /> Challenges
           </h1>
-          <p className="text-sm text-slate-500">Timed quiz sprints and hackathons. Compete, build, win XP.</p>
+          <p className="text-sm text-slate-500">Quiz sprints, hackathons and simulated build challenges. Compete, build, win XP.</p>
         </div>
         {canCreate && (
           <Button onClick={() => setShowCreate(true)}>

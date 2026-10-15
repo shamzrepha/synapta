@@ -12,6 +12,7 @@ import { getActiveStudentUids, getMyClassIds } from "@/lib/classes/members";
 import { notifyMany } from "@/lib/notifications/server";
 import { bumpChannels } from "@/lib/live/server";
 import { serializeEvent, eventChannels } from "@/lib/events/store";
+import { buildRulesSchema, starterFor } from "@/lib/studio/challenge";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -46,7 +47,9 @@ export async function GET(req: NextRequest) {
 }
 
 const createSchema = z.object({
-  kind: z.enum(["quiz_sprint", "hackathon"]),
+  kind: z.enum(["quiz_sprint", "hackathon", "build"]),
+  /** build challenges: the brief every entrant designs against */
+  build: buildRulesSchema.optional(),
   title: z.string().trim().min(3).max(120),
   description: z.string().trim().max(4000).optional().default(""),
   topic: z.string().trim().max(500).optional().default(""),
@@ -90,6 +93,15 @@ export async function POST(req: NextRequest) {
     const endAt = new Date(startAt.getTime() + body.durationMinutes * 60 * 1000);
     const host = await adminDb().collection("users").doc(caller.uid).get();
     const ref = adminDb().collection("events").doc();
+
+    if (body.kind === "build") {
+      if (!body.build) throw new ApiError(400, "VALIDATION", "Describe the build brief.");
+      try {
+        starterFor(buildRulesSchema.parse(body.build));
+      } catch {
+        throw new ApiError(400, "VALIDATION", "Pick a starting project for the challenge.");
+      }
+    }
 
     let questionCount: number | null = null;
     if (body.kind === "quiz_sprint") {
@@ -138,6 +150,7 @@ export async function POST(req: NextRequest) {
       rewards: body.rewards || { first: 200, second: 120, third: 80, participation: 20 },
       participantCount: 0,
       submissionCount: 0,
+      build: body.kind === "build" && body.build ? buildRulesSchema.parse(body.build) : null,
       finalized: false,
       createdAt: Timestamp.now(),
     };
@@ -147,7 +160,7 @@ export async function POST(req: NextRequest) {
       const uids = await getActiveStudentUids(doc.classId);
       await notifyMany(uids, {
         type: "event_started",
-        title: `New ${doc.kind === "hackathon" ? "hackathon" : "quiz sprint"}: ${doc.title}`,
+        title: `New ${doc.kind === "hackathon" ? "hackathon" : doc.kind === "build" ? "build challenge" : "quiz sprint"}: ${doc.title}`,
         body: `Starts ${startAt.toUTCString().replace(":00 GMT", " UTC")}`,
         href: `/challenges/${ref.id}`,
         icon: doc.kind === "hackathon" ? "🛠️" : "⚡",
