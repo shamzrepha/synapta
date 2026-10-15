@@ -115,15 +115,25 @@ export const KNOWN_MODELS: Record<string, ModelMeta> = {
     supportsJson: false,
     notes: "Audio/Live session model",
   },
-  "gemini-2.5-flash-preview-tts": {
-    id: "gemini-2.5-flash-preview-tts",
+  "gemini-3.8-flash-lite-tts": {
+    id: "gemini-3.8-flash-lite-tts",
+    tier: "heavy",
+    rpd: 100,
+    rpm: 10,
+    tpm: 250000,
+    supportsSystemInstruction: false,
+    supportsJson: false,
+    notes: "Gemini TTS (fast, low cost); fallback narrator when free Edge voices are unavailable",
+  },
+  "gemini-3.8-flash-tts": {
+    id: "gemini-3.8-flash-tts",
     tier: "heavy",
     rpd: 50,
     rpm: 10,
     tpm: 250000,
-    supportsSystemInstruction: true,
+    supportsSystemInstruction: false,
     supportsJson: false,
-    notes: "Google Gemini Voice Lab TTS studio synthesis (Puck & Fenrir)",
+    notes: "Gemini TTS (higher quality)",
   },
   "gemma-4-26b-a4b-it": {
     id: "gemma-4-26b-a4b-it",
@@ -154,7 +164,7 @@ export const DEFAULT_MODEL_CONFIG = {
   longdoc: "gemini-3.5-flash-lite",
   build: "gemini-3.6-flash",
   grading: "gemini-3.6-flash",
-  voice: "gemini-2.5-flash-preview-tts",
+  voice: "gemini-3.8-flash-lite-tts",
   legacy: "gemini-3.5-flash-lite",
   chainLight: ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"],
   // gemini-3.5-flash now routes to 3.6-flash and 3.7-flash isn't in Google's current list, so both are dropped
@@ -168,10 +178,34 @@ export const DEFAULT_MODEL_CONFIG = {
  * - Rejects empty values (returns fallbackDefault)
  * - Emits a console warning if not in known registry, but NEVER silently rewrites it!
  */
+/**
+ * Model IDs Google has shut down (or that never existed in the public API). Stale env vars or
+ * admin settings that still name them are replaced with the current defaults instead of failing.
+ */
+export const RETIRED_MODELS = new Set([
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+  "gemini-1.5-pro",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash-exp",
+  "gemini-3-pro-preview",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-2.5-computer-use-preview-10-2025",
+]);
+
+export function isRetiredModel(model: string): boolean {
+  return RETIRED_MODELS.has(model.trim()) || /^gemini-(1\.|2\.0)/.test(model.trim());
+}
+
 export function sanitizeModelId(model?: string | null, fallbackDefault = DEFAULT_MODEL_CONFIG.tutor): string {
   if (!model || typeof model !== "string") return fallbackDefault;
   const trimmed = model.trim();
   if (!trimmed) return fallbackDefault;
+  if (isRetiredModel(trimmed)) {
+    console.warn(`[lib/ai/models] Model "${trimmed}" has been shut down by Google; using "${fallbackDefault}" instead.`);
+    return fallbackDefault;
+  }
 
   if (!KNOWN_MODELS[trimmed]) {
     console.warn(`[lib/ai/models] Warning: Model ID "${trimmed}" is not recognized in standard registry. Passing through without modification.`);

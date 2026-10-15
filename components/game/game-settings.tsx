@@ -58,8 +58,8 @@ export function GameSettings({ game }: { game: GameState }) {
       <Toggle
         checked={settings.autoShareAchievements}
         onChange={(v) => update({ autoShareAchievements: v })}
-        label="Share achievements to the community feed"
-        description="Level-ups, rare badges, mastered topics and wins are posted automatically."
+        label="Auto-post achievements to the community"
+        description="Off: you choose which level-ups, badges, mastered topics and wins to post. On: they're posted for you."
       />
     </Card>
   );

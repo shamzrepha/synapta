@@ -73,28 +73,8 @@ export async function generateEdgeVoice({
   const voice = isAlex ? "en-US-JennyNeural" : "en-US-GuyNeural";
   const voiceName = isAlex ? "Jenny (Studio Neural)" : "Guy (Studio Neural)";
 
-  try {
-    const communicate = new Communicate(text.trim(), { voice });
-    const audioChunks: Buffer[] = [];
-
-    for await (const chunk of communicate.stream()) {
-      if (chunk.type === "audio" && chunk.data) {
-        audioChunks.push(chunk.data);
-      }
-    }
-
-    if (audioChunks.length === 0) return null;
-
-    const audioBuffer = Buffer.concat(audioChunks);
-    return {
-      audioBase64: audioBuffer.toString("base64"),
-      mimeType: "audio/mpeg",
-      voiceName,
-    };
-  } catch (edgeErr) {
-    console.warn(`[voice] Edge TTS failed for speaker "${speaker}":`, edgeErr);
-    return null;
-  }
+  const mp3 = await synthesizeEdgeVoice(text, voice);
+  return mp3 ? { audioBase64: mp3.toString("base64"), mimeType: "audio/mpeg", voiceName } : null;
 }
 
 /**
@@ -136,7 +116,7 @@ export async function generateFullDiscussionAudio(
  * Universal voice generator:
  * 1. Default: Free Edge Neural Voices (Jenny & Guy)
  * 2. Secondary: ElevenLabs (if ELEVENLABS_API_KEY provided)
- * 3. Tertiary: Google Gemini Voice Lab (gemini-2.5-flash-preview-tts)
+ * 3. Tertiary: Google Gemini TTS (gemini-3.8-flash-lite-tts → gemini-3.8-flash-tts)
  */
 export async function generateGeminiVoice({
   text,
@@ -187,69 +167,110 @@ export async function generateGeminiVoice({
     }
   }
 
-  // Tier 3: Google Gemini Voice Lab
-  const configuredModel = modelFor("voice");
-  const model = (!configuredModel || configuredModel === "gemini-3.8-live")
-    ? "gemini-2.5-flash-preview-tts"
-    : configuredModel;
+  // Tier 3: Google Gemini TTS
+  return synthesizeGeminiTts(text, voiceName);
+}
 
-  try {
-    const ai = getGeminiClient();
-
-    const response = await ai.models.generateContent({
-      model,
-      contents: `Speak the following dialogue naturally as podcast host ${speaker}: "${text}"`,
-      config: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName,
-            },
-          },
-        },
+/** Resolves after `ms` with null so a hung provider can't stall a request. */
+export function withVoiceTimeout<T>(p: Promise<T | null>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const t = setTimeout(() => resolve(null), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
       },
-    });
-
-    const candidates = response.candidates || [];
-    if (candidates.length === 0) return null;
-
-    const parts = candidates[0].content?.parts || [];
-    for (const part of parts) {
-      if (part.inlineData && part.inlineData.data) {
-        const mimeType = part.inlineData.mimeType || "audio/pcm;rate=24000";
-        const rawBuffer = Buffer.from(part.inlineData.data, "base64");
-
-        if (mimeType.includes("pcm")) {
-          const sampleRate = mimeType.includes("24000") ? 24000 : 16000;
-          const wavBuffer = pcmToWav(rawBuffer, sampleRate);
-          return {
-            audioBase64: wavBuffer.toString("base64"),
-            mimeType: "audio/wav",
-            voiceName,
-          };
-        }
-
-        return {
-          audioBase64: rawBuffer.toString("base64"),
-          mimeType,
-          voiceName,
-        };
+      () => {
+        clearTimeout(t);
+        resolve(null);
       }
-    }
+    );
+  });
+}
 
-    return null;
-  } catch (err) {
-    console.warn(`[voice] Gemini voice synthesis fallback for "${speaker}":`, err);
+/** Current Gemini TTS models (2.5 preview TTS was retired); first one that answers wins. */
+export function geminiTtsModels(): string[] {
+  const configured = modelFor("voice");
+  const list = [configured, "gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts"].filter(
+    (m): m is string => !!m && m.includes("tts")
+  );
+  return Array.from(new Set(list));
+}
+
+function audioFromBase64(data: string, mimeType: string, voiceName: string): VoiceGenerationResult {
+  const raw = Buffer.from(data, "base64");
+  // Raw PCM (older models / audio/l16) needs a WAV header to play in browsers
+  if (/pcm|l16/i.test(mimeType)) {
+    const rate = Number(/rate=(\d+)/.exec(mimeType)?.[1]) || 24000;
+    return { audioBase64: pcmToWav(raw, rate).toString("base64"), mimeType: "audio/wav", voiceName };
+  }
+  return { audioBase64: raw.toString("base64"), mimeType: mimeType || "audio/wav", voiceName };
+}
+
+/**
+ * Speaks `text` with a Gemini prebuilt voice (e.g. Puck, Kore, Fenrir). Uses the Interactions API
+ * that the 3.8 TTS models expect, falling back to generateContent for older SDK/model combinations.
+ */
+export async function synthesizeGeminiTts(text: string, voiceName: string, timeoutMs = 20_000): Promise<VoiceGenerationResult | null> {
+  if (!text.trim()) return null;
+  let ai: ReturnType<typeof getGeminiClient>;
+  try {
+    ai = getGeminiClient();
+  } catch {
     return null;
   }
+  for (const model of geminiTtsModels()) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const interactions = (ai as any).interactions;
+    if (interactions?.create) {
+      const res = await withVoiceTimeout<VoiceGenerationResult>(
+        interactions
+          .create({
+            model,
+            input: [{ type: "user_input", content: [{ type: "text", text: text.trim() }] }],
+            response_format: { type: "audio" },
+            generation_config: { speech_config: [{ voice: voiceName }] },
+          })
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .then((r: any) => (r?.output_audio?.data ? audioFromBase64(r.output_audio.data, r.output_audio.mime_type || "audio/wav", voiceName) : null)),
+        timeoutMs
+      );
+      if (res) return res;
+    }
+    const legacy = await withVoiceTimeout<VoiceGenerationResult>(
+      ai.models
+        .generateContent({
+          model,
+          contents: text.trim(),
+          config: {
+            responseModalities: ["AUDIO"],
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
+          },
+        })
+        .then((response) => {
+          for (const part of response.candidates?.[0]?.content?.parts || []) {
+            if (part.inlineData?.data) return audioFromBase64(part.inlineData.data, part.inlineData.mimeType || "audio/pcm;rate=24000", voiceName);
+          }
+          return null;
+        }),
+      timeoutMs
+    );
+    if (legacy) return legacy;
+  }
+  console.warn("[voice] Gemini TTS unavailable for all models");
+  return null;
 }
 
 /** Synthesises text with a specific Edge neural voice (free, no API key). Returns MP3 bytes. */
-export async function synthesizeEdgeVoice(text: string, voice: string): Promise<Buffer | null> {
+export async function synthesizeEdgeVoice(text: string, voice: string, timeoutMs = 9_000): Promise<Buffer | null> {
   if (!text || !text.trim()) return null;
+  // The Edge websocket can stall without erroring (blocked egress, throttling); never wait forever.
+  return withVoiceTimeout(edgeStream(text, voice), timeoutMs);
+}
+
+async function edgeStream(text: string, voice: string): Promise<Buffer | null> {
   try {
-    const communicate = new Communicate(text.trim(), { voice });
+    const communicate = new Communicate(text.trim(), { voice, connectionTimeout: 8_000 });
     const chunks: Buffer[] = [];
     for await (const chunk of communicate.stream()) {
       if (chunk.type === "audio" && chunk.data) chunks.push(chunk.data);

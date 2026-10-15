@@ -96,3 +96,11 @@ composite indexes: `posts` (Following and #hashtag feeds), `chats` (Messages inb
   ```
 - **Audio lessons** now write the script first and voice each line on demand (cached after the first
   listen), so no extra setup is needed; a line that can't be voiced in time falls back to the device voice.
+
+## 6. Checking the AI after a deploy
+
+Sign in as an admin → **Admin → System → Run self-test**. It calls the tutor models, structured JSON
+generation, the heavy build models, the free Edge voices and Gemini TTS, and shows which model
+answered and how long it took. If a row fails, its message says why (missing/invalid
+`GEMINI_API_KEY`, quota, or a voice provider being unreachable). Old model IDs left in
+`GEMINI_MODEL_*` env vars are ignored automatically when Google has shut them down.

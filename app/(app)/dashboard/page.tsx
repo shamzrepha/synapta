@@ -20,6 +20,7 @@ import { asArray } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGameState } from "@/components/game/use-game";
 import { LevelCard, LeagueCard, QuestsCard } from "@/components/game/widgets";
+import { AchievementPrompts } from "@/components/feed/achievement-prompts";
 import { SessionsPanel } from "@/components/sessions/sessions-panel";
 import type { EventSummary } from "@/components/events/types";
 
@@ -113,6 +114,8 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      <AchievementPrompts max={2} />
 
       {/* Game loop: level, league, daily quests */}
       {game ? (

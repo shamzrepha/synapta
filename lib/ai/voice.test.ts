@@ -96,3 +96,23 @@ describe("lib/ai/voice (Google Voice Lab Synthesis)", () => {
     expect(failed).toBeNull();
   });
 });
+
+describe("voice timeouts", () => {
+  it("withVoiceTimeout resolves null when a provider hangs", async () => {
+    const { withVoiceTimeout } = await import("./voice");
+    const never = new Promise<string | null>(() => {});
+    await expect(withVoiceTimeout(never, 20)).resolves.toBeNull();
+  });
+
+  it("withVoiceTimeout turns rejections into null", async () => {
+    const { withVoiceTimeout } = await import("./voice");
+    await expect(withVoiceTimeout(Promise.reject(new Error("boom")), 1000)).resolves.toBeNull();
+  });
+
+  it("uses current Gemini TTS models only", async () => {
+    const { geminiTtsModels } = await import("./voice");
+    const models = geminiTtsModels();
+    expect(models).toContain("gemini-3.8-flash-lite-tts");
+    expect(models.every((m) => m.includes("tts") && !m.includes("2.5"))).toBe(true);
+  });
+});

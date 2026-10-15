@@ -2,6 +2,7 @@ import React from "react";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 import { MobileNav } from "@/components/shell/mobile-nav";
+import { TutorLauncher } from "@/components/tutor/tutor-launcher";
 
 export default function AppLayout({
   children,
@@ -18,6 +19,7 @@ export default function AppLayout({
         </main>
       </div>
       <MobileNav />
+      <TutorLauncher />
     </div>
   );
 }

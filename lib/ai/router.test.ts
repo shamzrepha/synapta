@@ -65,6 +65,23 @@ describe("lib/ai/router & models (Fix Pack C1 & C2)", () => {
     resetCachedEnv();
   });
 
+  describe("Retired models", () => {
+    it("replaces a shut-down model pinned in env with the current default", () => {
+      process.env.GEMINI_MODEL_TUTOR = "gemini-2.0-flash";
+      resetCachedEnv();
+      expect(modelFor("tutor_chat")).toBe(DEFAULT_MODEL_CONFIG.tutor);
+    });
+
+    it("drops retired models from a custom chain and keeps the default safety net", () => {
+      process.env.GEMINI_FALLBACK_CHAIN = "gemini-3.1-flash-lite-preview,gemini-1.5-flash";
+      resetCachedEnv();
+      const chain = getChainForTask("tutor_chat");
+      expect(chain).not.toContain("gemini-3.1-flash-lite-preview");
+      expect(chain).not.toContain("gemini-1.5-flash");
+      expect(chain).toEqual(expect.arrayContaining(DEFAULT_MODEL_CONFIG.chainLight));
+    });
+  });
+
   describe("C1: Model Registry and Defaults", () => {
     it("returns correct C1 defaults for each defined task", () => {
       expect(modelFor("tutor_chat")).toBe(DEFAULT_MODEL_CONFIG.tutor);

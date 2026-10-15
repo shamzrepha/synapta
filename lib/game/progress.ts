@@ -208,7 +208,7 @@ async function settleLeagueWeek(uid: string, weekId: string, tier: number): Prom
     icon: info.emoji,
   });
   if (outcome === "promoted") {
-    await shareAchievement(uid, `was promoted to the **${info.emoji} ${info.name} League** after finishing #${rank} last week!`, {
+    await shareAchievement(uid, `got promoted to the **${info.emoji} ${info.name} League** after finishing #${rank} last week!`, {
       type: "league",
       tier: newTier,
     });

@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Composer } from "@/components/feed/composer";
+import { AchievementPrompts } from "@/components/feed/achievement-prompts";
 import { PostCard, type FeedPost } from "@/components/feed/post-card";
 import { useLiveChannel } from "@/lib/live/client";
 import { asArray } from "@/lib/api/client";
@@ -223,6 +224,7 @@ export default function FeedPage() {
           </div>
         )}
 
+        {user && !tag && <AchievementPrompts onPosted={reloadTop} />}
         {user && !tag && scope !== "following" && <Composer key={scope} classes={classes} defaultClassId={currentClass ? scope : undefined} onPosted={reloadTop} />}
 
         {newCount > 0 && (

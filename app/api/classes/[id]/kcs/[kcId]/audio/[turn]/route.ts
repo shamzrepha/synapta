@@ -6,7 +6,7 @@ import { getOrSynthesizeTurn } from "@/lib/lesson/audio";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-/** Streams one narrated turn as MP3 (cached by the browser; same for every learner). */
+/** Streams one narrated turn (MP3, or WAV from Gemini TTS) (cached by the browser; same for every learner). */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string; kcId: string; turn: string }> }) {
   try {
     const { id: classId, kcId, turn } = await params;
@@ -16,12 +16,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!Number.isInteger(index) || index < 0 || index > 50) {
       return NextResponse.json({ ok: false, error: { code: "VALIDATION", message: "Bad turn" } }, { status: 400 });
     }
-    const audio = await getOrSynthesizeTurn(classId, kcId, index);
-    if (!audio) return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "No audio" } }, { status: 404 });
-    return new NextResponse(new Uint8Array(audio), {
+    const clip = await getOrSynthesizeTurn(classId, kcId, index);
+    if (!clip) return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "No audio" } }, { status: 404 });
+    return new NextResponse(new Uint8Array(clip.audio), {
       headers: {
-        "Content-Type": "audio/mpeg",
-        "Content-Length": String(audio.length),
+        "Content-Type": clip.mimeType,
+        "Content-Length": String(clip.audio.length),
         "Cache-Control": "private, max-age=86400",
       },
     });

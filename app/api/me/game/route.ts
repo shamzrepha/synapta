@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
         },
         settings: {
           showOnLeaderboard: u.settings?.showOnLeaderboard !== false,
-          autoShareAchievements: u.settings?.autoShareAchievements !== false,
+          autoShareAchievements: u.settings?.autoShareAchievements === true,
         },
       },
     });

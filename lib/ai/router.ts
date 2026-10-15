@@ -4,6 +4,7 @@ import { checkRateLimitAndQuota, recordTokenUsage } from "@/lib/quota/guard";
 import { z } from "zod";
 import {
   DEFAULT_MODEL_CONFIG,
+  isRetiredModel,
   parseModelChain,
   sanitizeModelId,
 } from "./models";
@@ -155,9 +156,35 @@ export async function resolveModelChain(task: AiTask): Promise<string[]> {
  * Honors dynamic admin configuration if set, falling back to server environment variables.
  */
 export function modelFor(task: AiTask): string {
-  if (cachedDynamicModels && cachedDynamicModels[task]) {
-    return cachedDynamicModels[task];
+  const adminModel = cachedDynamicModels?.[task];
+  if (adminModel && !isRetiredModel(adminModel)) {
+    return adminModel;
   }
+  const configured = configuredModelFor(task);
+  return isRetiredModel(configured) ? defaultModelFor(task) : configured;
+}
+
+function defaultModelFor(task: AiTask): string {
+  switch (task) {
+    case "tutor_chat":
+      return DEFAULT_MODEL_CONFIG.tutor;
+    case "structured_spec":
+      return DEFAULT_MODEL_CONFIG.structured;
+    case "long_document":
+      return DEFAULT_MODEL_CONFIG.longdoc;
+    case "class_build":
+    case "sim_build":
+      return DEFAULT_MODEL_CONFIG.build;
+    case "grading_high_stakes":
+      return DEFAULT_MODEL_CONFIG.grading;
+    case "voice":
+      return DEFAULT_MODEL_CONFIG.voice;
+    default:
+      return "gemini-3.5-flash-lite";
+  }
+}
+
+function configuredModelFor(task: AiTask): string {
 
   try {
     const env = getServerEnv();
@@ -242,17 +269,21 @@ export function getChainForTask(task: AiTask): string[] {
     customFallbackChain = parseModelChain(adminChainRaw, []);
   }
 
+  const live = (list: string[]) => Array.from(new Set(list.filter((m) => m && !isRetiredModel(m))));
+  // Safety net: current default light models go last, so a stale custom chain can't take every AI feature down
+  const safetyNet = DEFAULT_MODEL_CONFIG.chainLight;
+
   if (customFallbackChain.length > 0) {
-    return Array.from(new Set([primary, ...customFallbackChain]));
+    return live([primary, ...customFallbackChain, ...safetyNet]);
   }
 
   if (task === "tutor_chat" || task === "structured_spec" || task === "long_document") {
     // Light tasks stay strictly within light models
-    return Array.from(new Set([primary, ...lightChain]));
+    return live([primary, ...lightChain, ...safetyNet]);
   }
 
   // Heavy tasks walk heavy chain first, and as last resort drop to light chain
-  return Array.from(new Set([primary, ...heavyChain, ...lightChain]));
+  return live([primary, ...heavyChain, ...lightChain, ...safetyNet]);
 }
 
 export interface ClassifiedError {

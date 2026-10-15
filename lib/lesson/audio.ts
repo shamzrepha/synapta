@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api/errors";
 import { generateWithFallback, AiGenerationError } from "@/lib/ai/router";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
 import { loadKcGroundingContext } from "@/lib/kc/context";
-import { synthesizeEdgeVoice } from "@/lib/ai/voice";
+import { synthesizeEdgeVoice, synthesizeGeminiTts } from "@/lib/ai/voice";
 import { z } from "zod";
 
 /**
@@ -74,37 +74,55 @@ export async function getAudioLesson(classId: string, kcId: string): Promise<Aud
   };
 }
 
-const TTS_TIMEOUT_MS = 8000;
+const EDGE_TIMEOUT_MS = 7000;
+const GEMINI_TIMEOUT_MS = 12000;
 const FAILURE_COOLDOWN_MS = 10 * 60 * 1000;
+/** Gemini voices used when the free Edge voices are unreachable */
+const GEMINI_VOICES: Record<string, { teacher: string; student: string }> = {
+  female: { teacher: "Kore", student: "Puck" },
+  male: { teacher: "Charon", student: "Leda" },
+};
 
-function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
-  return Promise.race([p, new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
+export interface TurnAudio {
+  audio: Buffer;
+  mimeType: string;
 }
 
 /**
- * Returns a turn's MP3, recording it on first request and caching it for every later listener.
- * Voice synthesis is time-boxed; on failure we remember it briefly and the player instantly falls
- * back to the device's voice, so "Listen" never hangs.
+ * Returns a turn's audio, recording it on first request and caching it for every later listener.
+ * Free Edge neural voices first, then Gemini TTS; both are time-boxed. On failure we remember it
+ * briefly and the player falls back to the device's voice, so "Listen" never hangs.
  */
-export async function getOrSynthesizeTurn(classId: string, kcId: string, index: number): Promise<Buffer | null> {
+export async function getOrSynthesizeTurn(classId: string, kcId: string, index: number): Promise<TurnAudio | null> {
   const col = audioCol(classId, kcId);
   const ref = col.doc(`turn_${index}`);
   const snap = await ref.get();
   const d = snap.data();
-  if (typeof d?.audioBase64 === "string") return Buffer.from(d.audioBase64, "base64");
+  if (typeof d?.audioBase64 === "string") return { audio: Buffer.from(d.audioBase64, "base64"), mimeType: d.mimeType || "audio/mpeg" };
   if (d?.failedAt && Date.now() - d.failedAt.toMillis() < FAILURE_COOLDOWN_MS) return null;
 
   const meta = await getAudioLesson(classId, kcId);
   const turn = meta?.turns[index];
   if (!meta || !turn) return null;
+  const role = turn.speaker === "teacher" ? "teacher" : "student";
   const voices = VOICES[meta.voiceStyle] || VOICES.female;
-  const mp3 = await withTimeout(synthesizeEdgeVoice(turn.text, turn.speaker === "teacher" ? voices.teacher : voices.student), TTS_TIMEOUT_MS);
-  if (mp3 && mp3.length <= MAX_TURN_BYTES) {
-    await ref.set({ audioBase64: mp3.toString("base64"), mimeType: "audio/mpeg", bytes: mp3.length });
-    return mp3;
+
+  let result: TurnAudio | null = null;
+  const mp3 = await synthesizeEdgeVoice(turn.text, voices[role], EDGE_TIMEOUT_MS);
+  if (mp3) result = { audio: mp3, mimeType: "audio/mpeg" };
+  if (!result) {
+    const g = await synthesizeGeminiTts(turn.text, (GEMINI_VOICES[meta.voiceStyle] || GEMINI_VOICES.female)[role], GEMINI_TIMEOUT_MS);
+    if (g) result = { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType };
   }
-  await ref.set({ failedAt: Timestamp.now() }).catch(() => null);
-  return null;
+  if (!result) {
+    await ref.set({ failedAt: Timestamp.now() }).catch(() => null);
+    return null;
+  }
+  // Cache when it fits in a Firestore doc; larger clips are still served, just re-synthesised later
+  if (result.audio.length <= MAX_TURN_BYTES) {
+    await ref.set({ audioBase64: result.audio.toString("base64"), mimeType: result.mimeType, bytes: result.audio.length }).catch(() => null);
+  }
+  return result;
 }
 
 /** Strips Markdown/LaTeX so text reads naturally aloud and in the transcript. */

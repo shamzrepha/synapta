@@ -90,7 +90,7 @@ class Narrator {
         this.speak(turn, next);
       };
       // A clip is recorded on first play; if it doesn't start quickly, use the device voice instead
-      const timer = setTimeout(fallback, 10000);
+      const timer = setTimeout(fallback, 21000);
       a.src = this.urlFor(i);
       a.playbackRate = this.speed;
       a.onplaying = () => {

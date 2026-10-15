@@ -468,31 +468,9 @@ export default function NotebookPage() {
         saveStudio({ podcast: json.data });
         setCurrentTurnIndex(0);
         setTurnAudioCache({});
-        toast({ title: "Script Ready", description: "Converting the full two-host script to audio...", variant: "success" });
-
-        try {
-          const audioRes = await fetch("/api/notebook/voice", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              dialogue: (json.data.dialogue || []).map((t: { speaker: string; text: string }) => ({
-                speaker: t.speaker,
-                text: t.text,
-              })),
-            }),
-          });
-          const audioJson = await audioRes.json();
-          if (audioJson.ok && Array.isArray(audioJson.data?.turns)) {
-            const cache: Record<number, string> = {};
-            for (const t of audioJson.data.turns) {
-              cache[t.index] = `data:${t.mimeType || "audio/mpeg"};base64,${t.audioBase64}`;
-            }
-            setTurnAudioCache(cache);
-            toast({ title: "Podcast Ready", description: "Full 2-host audio generated. Press play.", variant: "success" });
-          }
-        } catch (audioErr) {
-          console.warn("Full-episode audio synthesis failed; will synthesize per turn:", audioErr);
-        }
+        turnAudioInflight.current.clear();
+        toast({ title: "Podcast ready", description: "Press play — each line is voiced as you listen.", variant: "success" });
+        prefetchTurnAudio(json.data.dialogue, 0);
       } else {
         toast({ title: "Error", description: json.error?.message || "Failed to generate podcast.", variant: "destructive" });
       }
@@ -501,6 +479,35 @@ export default function NotebookPage() {
     } finally {
       setGeneratingPodcast(false);
     }
+  };
+
+  // Studio voice per line, fetched just in time (and one line ahead) instead of the whole episode up front
+  const turnAudioInflight = useRef<Map<string, Promise<string | null>>>(new Map());
+  const fetchTurnAudio = (turn: { speaker: string; text: string }, index: number): Promise<string | null> => {
+    const key = `${index}:${turn.text.slice(0, 40)}`;
+    const existing = turnAudioInflight.current.get(key);
+    if (existing) return existing;
+    const p = fetch("/api/notebook/voice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: turn.text, speaker: turn.speaker }),
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.ok && json.data?.audioBase64) {
+          const url = `data:${json.data.mimeType || "audio/wav"};base64,${json.data.audioBase64}`;
+          setTurnAudioCache((prev) => ({ ...prev, [index]: url }));
+          return url;
+        }
+        return null;
+      })
+      .catch(() => null);
+    turnAudioInflight.current.set(key, p);
+    return p;
+  };
+  const prefetchTurnAudio = (dialogue: Array<{ speaker: string; text: string }> | undefined, index: number) => {
+    const turn = dialogue?.[index];
+    if (turn && studioVoiceEnabled && !turnAudioCache[index]) void fetchTurnAudio(turn, index);
   };
 
   // SpeechSynthesis Fallback Audio
@@ -558,25 +565,12 @@ export default function NotebookPage() {
 
     // Priority 1: High-fidelity Google Voice Lab
     if (studioVoiceEnabled) {
-      let audioUrl = turnAudioCache[index];
+      let audioUrl: string | null = turnAudioCache[index] || null;
+      prefetchTurnAudio(deepDiveEpisode.dialogue, index + 1);
       if (!audioUrl) {
         setLoadingTurnAudio(true);
         try {
-          const res = await fetch("/api/notebook/voice", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              text: turn.text,
-              speaker: turn.speaker,
-            }),
-          });
-          const json = await res.json();
-          if (json.ok && json.data?.audioBase64) {
-            audioUrl = `data:${json.data.mimeType || "audio/wav"};base64,${json.data.audioBase64}`;
-            setTurnAudioCache((prev) => ({ ...prev, [index]: audioUrl }));
-          }
-        } catch (err) {
-          console.warn("Studio voice synthesis failed, falling back to browser:", err);
+          audioUrl = await fetchTurnAudio(turn, index);
         } finally {
           setLoadingTurnAudio(false);
         }

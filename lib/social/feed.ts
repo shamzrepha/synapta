@@ -1,5 +1,5 @@
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
-import { bumpChannels } from "@/lib/live/server";
+import { bumpChannels, bumpUserSignal } from "@/lib/live/server";
 import { notifyMany } from "@/lib/notifications/server";
 import { getPublicProfiles } from "./profile";
 import { extractHashtags, extractMentions } from "./text";
@@ -131,12 +131,21 @@ export async function createPost(input: CreatePostInput): Promise<string> {
   return ref.id;
 }
 
-/** Auto-shares an achievement unless the user turned sharing off in settings. */
+/**
+ * Offers an achievement for sharing. It's only posted automatically when the learner explicitly
+ * turned on auto-posting; otherwise it waits in `users/{uid}/pendingShares` until they choose to
+ * post or dismiss it.
+ */
 export async function shareAchievement(uid: string, text: string, meta: Record<string, unknown>): Promise<void> {
   try {
-    const user = await adminDb().collection("users").doc(uid).get();
-    if (user.data()?.settings?.autoShareAchievements === false) return;
-    await createPost({ authorUid: uid, text, kind: "achievement", visibility: "public", meta });
+    const userRef = adminDb().collection("users").doc(uid);
+    const user = await userRef.get();
+    if (user.data()?.settings?.autoShareAchievements === true) {
+      await createPost({ authorUid: uid, text, kind: "achievement", visibility: "public", meta });
+      return;
+    }
+    await userRef.collection("pendingShares").add({ text, meta, createdAt: Timestamp.now() });
+    await bumpUserSignal(uid, { topic: "achievement" });
   } catch {
     // Sharing is a nice-to-have; never break the learning flow
   }

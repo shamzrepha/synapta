@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { asArray } from "@/lib/api/client";
+import { AiSelfTest } from "@/components/admin/ai-selftest";
 import { AI_TASK_DEFINITIONS } from "@/lib/ai/tasks";
 import {
   ShieldAlert,
@@ -1448,6 +1449,7 @@ export default function AdminConsolePage() {
       {/* TAB: SYSTEM & AI HEALTH */}
       {activeTab === "system" && (
         <div className="space-y-6">
+          <AiSelfTest />
           {/* Summary Row */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="p-4 flex items-center justify-between">
