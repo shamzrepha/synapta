@@ -10,8 +10,34 @@ export interface ClassAccessResult {
   isEnrolled: boolean;
   enrollmentStatus: "active" | "pending" | "rejected" | "none";
   role: "owner" | "admin" | "student" | "visitor";
+  /** Lessons, topics, quizzes, AI tools: members only (teacher, co-teacher, admin, enrolled student) */
   canView: boolean;
+  /** Landing page (title, description, topic titles) for public published classes */
+  canPreview: boolean;
   canMutate: boolean;
+}
+
+/**
+ * Pure access rules. A shared class link never grants access by itself: visitors only get the
+ * landing page (public classes) and must enroll — or use the teacher's invite code — to get in.
+ */
+export function computeClassAccess(params: {
+  classData: FirebaseFirestore.DocumentData;
+  uid: string;
+  userRole?: string;
+  enrollmentStatus: "active" | "pending" | "rejected" | "none";
+}) {
+  const { classData, uid, userRole } = params;
+  const isCoTeacher = Array.isArray(classData.coTeacherIds) && classData.coTeacherIds.includes(uid);
+  const isOwner = classData.teacherId === uid || isCoTeacher;
+  const isAdmin = userRole === "admin";
+  // If the user is the owner, ignore any legacy enrollment doc
+  const enrollmentStatus = isOwner ? "none" : params.enrollmentStatus;
+  const isEnrolled = enrollmentStatus === "active";
+  const role: ClassAccessResult["role"] = isOwner ? "owner" : isAdmin ? "admin" : isEnrolled ? "student" : "visitor";
+  const canView = isOwner || isAdmin || isEnrolled;
+  const canPreview = canView || (classData.visibility === "public" && classData.status === "published");
+  return { isOwner, isAdmin, isEnrolled, enrollmentStatus, role, canView, canPreview, canMutate: isOwner || isAdmin };
 }
 
 export class ClassAccessError extends ApiError {
@@ -34,45 +60,15 @@ export async function getClassAccess(
   }
 
   const classData = classDoc.data()!;
-  const isCoTeacher = Array.isArray(classData.coTeacherIds) && classData.coTeacherIds.includes(user.uid);
-  const isOwner = classData.teacherId === user.uid || isCoTeacher;
-  const isAdmin = user.role === "admin";
-
-  const enrollmentDocId = `${classId}_${user.uid}`;
-  const enrollmentDoc = await adminDb().collection("enrollments").doc(enrollmentDocId).get();
-  const enrollmentData = enrollmentDoc.exists ? enrollmentDoc.data() : null;
-  // If the user is the owner/admin, ignore any legacy enrollment doc
-  const enrollmentStatus = !isOwner && enrollmentData
-    ? (enrollmentData.status as "active" | "pending" | "rejected")
-    : "none";
-  const isEnrolled = enrollmentStatus === "active";
-
-  let role: "owner" | "admin" | "student" | "visitor" = "visitor";
-  if (isOwner) {
-    role = "owner";
-  } else if (isAdmin) {
-    role = "admin";
-  } else if (isEnrolled) {
-    role = "student";
-  }
-
-  const isPublicAndPublished =
-    classData.visibility === "public" && classData.status === "published";
-
-  const canView = isPublicAndPublished || isOwner || isAdmin || isEnrolled;
-  const canMutate = isOwner || isAdmin;
-
-  return {
-    classDoc,
+  const enrollmentDoc = await adminDb().collection("enrollments").doc(`${classId}_${user.uid}`).get();
+  const access = computeClassAccess({
     classData,
-    isOwner,
-    isAdmin,
-    isEnrolled,
-    enrollmentStatus,
-    role,
-    canView,
-    canMutate,
-  };
+    uid: user.uid,
+    userRole: user.role,
+    enrollmentStatus: enrollmentDoc.exists ? ((enrollmentDoc.data()?.status as "active" | "pending" | "rejected") || "none") : "none",
+  });
+
+  return { classDoc, classData, ...access };
 }
 
 /**
@@ -96,8 +92,10 @@ export async function assertClassAccess(
 
   if (mode === "view" && !access.canView) {
     throw new ClassAccessError(
-      "This classroom is private. You must be actively enrolled to access course materials.",
-      "FORBIDDEN",
+      access.enrollmentStatus === "pending"
+        ? "Your request to join this class is waiting for the teacher's approval."
+        : "Enroll in this class to open its lessons and activities.",
+      "NOT_ENROLLED",
       403
     );
   }

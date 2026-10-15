@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { safeRedirect } from "@/lib/auth/redirect";
 
 const protectedPrefixes = [
   "/dashboard",
@@ -35,15 +36,15 @@ export function proxy(req: NextRequest) {
     (page) => pathname === page || pathname.startsWith(`${page}/`)
   );
 
-  // If visiting an auth page while already authenticated, redirect to dashboard
+  // Already signed in on an auth page: continue to where they were headed (e.g. a shared class link)
   if (isAuthPage && sessionCookie) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(new URL(safeRedirect(req.nextUrl.searchParams.get("redirect")), req.url));
   }
 
-  // If visiting a protected page without a session cookie, redirect to login
+  // Protected page without a session: sign in first, then come back to the exact link (incl. ?code=)
   if (isProtected && !sessionCookie) {
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("redirect", pathname);
+    loginUrl.searchParams.set("redirect", `${pathname}${req.nextUrl.search}`);
     return NextResponse.redirect(loginUrl);
   }
 

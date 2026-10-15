@@ -1,4 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("@/lib/firebase/admin", () => ({ adminDb: vi.fn() }));
+
+import { computeClassAccess } from "./classAccess";
 
 describe("Firestore Security Rules Allowlist", () => {
   const allowedUserKeys = new Set(["displayName", "photoURL", "username", "updatedAt"]);
@@ -56,76 +60,44 @@ describe("Firestore Security Rules Allowlist", () => {
 });
 
 describe("Class Access Authorization Matrix", () => {
-  interface ClassDoc {
-    teacherId: string;
-    visibility: "public" | "private";
-    status: "draft" | "published";
-  }
+  const evaluate = (uid: string, role: string, cls: Record<string, unknown>, enrollmentStatus: "active" | "pending" | "rejected" | "none") =>
+    computeClassAccess({ classData: cls, uid, userRole: role, enrollmentStatus });
 
-  interface UserContext {
-    uid: string;
-    role: "student" | "teacher" | "admin";
-  }
-
-  function evaluateClassAccess(
-    user: UserContext,
-    cls: ClassDoc,
-    enrollmentStatus: "active" | "pending" | "rejected" | "none"
-  ) {
-    const isOwner = cls.teacherId === user.uid;
-    const isAdmin = user.role === "admin";
-    const isEnrolled = enrollmentStatus === "active";
-    const isPublicAndPublished = cls.visibility === "public" && cls.status === "published";
-
-    const canView = isPublicAndPublished || isOwner || isAdmin || isEnrolled;
-    const canMutate = isOwner || isAdmin;
-
-    return { canView, canMutate };
-  }
-
-  it("allows any user to view public published courses", () => {
-    const student: UserContext = { uid: "s1", role: "student" };
-    const publicClass: ClassDoc = { teacherId: "t1", visibility: "public", status: "published" };
-    const access = evaluateClassAccess(student, publicClass, "none");
-
-    expect(access.canView).toBe(true);
-    expect(access.canMutate).toBe(false);
-  });
-
-  it("blocks non-enrolled students from private classes", () => {
-    const student: UserContext = { uid: "s1", role: "student" };
-    const privateClass: ClassDoc = { teacherId: "t1", visibility: "private", status: "published" };
-    const access = evaluateClassAccess(student, privateClass, "none");
-
+  it("a shared link to a public class only previews it until the student enrolls", () => {
+    const access = evaluate("s1", "student", { teacherId: "t1", visibility: "public", status: "published" }, "none");
     expect(access.canView).toBe(false);
+    expect(access.canPreview).toBe(true);
     expect(access.canMutate).toBe(false);
   });
 
-  it("allows enrolled students to view private classes but not mutate", () => {
-    const student: UserContext = { uid: "s1", role: "student" };
-    const privateClass: ClassDoc = { teacherId: "t1", visibility: "private", status: "published" };
-    const access = evaluateClassAccess(student, privateClass, "active");
+  it("blocks non-enrolled students from private classes entirely", () => {
+    const access = evaluate("s1", "student", { teacherId: "t1", visibility: "private", status: "published" }, "none");
+    expect(access.canView).toBe(false);
+    expect(access.canPreview).toBe(false);
+  });
 
+  it("pending and rejected requests don't grant access", () => {
+    const cls = { teacherId: "t1", visibility: "private", status: "published" };
+    expect(evaluate("s1", "student", cls, "pending").canView).toBe(false);
+    expect(evaluate("s1", "student", cls, "rejected").canView).toBe(false);
+  });
+
+  it("allows enrolled students to view but not mutate", () => {
+    const access = evaluate("s1", "student", { teacherId: "t1", visibility: "private", status: "published" }, "active");
     expect(access.canView).toBe(true);
+    expect(access.role).toBe("student");
     expect(access.canMutate).toBe(false);
   });
 
-  it("allows teacher owner full view and mutate access", () => {
-    const teacher: UserContext = { uid: "t1", role: "teacher" };
-    const privateClass: ClassDoc = { teacherId: "t1", visibility: "private", status: "draft" };
-    const access = evaluateClassAccess(teacher, privateClass, "none");
-
-    expect(access.canView).toBe(true);
-    expect(access.canMutate).toBe(true);
+  it("allows the teacher and co-teachers full access", () => {
+    const cls = { teacherId: "t1", coTeacherIds: ["t2"], visibility: "private", status: "draft" };
+    expect(evaluate("t1", "teacher", cls, "none")).toMatchObject({ canView: true, canMutate: true, role: "owner" });
+    expect(evaluate("t2", "teacher", cls, "none")).toMatchObject({ canView: true, canMutate: true, role: "owner" });
   });
 
-  it("allows platform super admin full view and mutate access", () => {
-    const admin: UserContext = { uid: "a1", role: "admin" };
-    const draftClass: ClassDoc = { teacherId: "t1", visibility: "private", status: "draft" };
-    const access = evaluateClassAccess(admin, draftClass, "none");
-
-    expect(access.canView).toBe(true);
-    expect(access.canMutate).toBe(true);
+  it("allows platform admins full access", () => {
+    const access = evaluate("a1", "admin", { teacherId: "t1", visibility: "private", status: "draft" }, "none");
+    expect(access).toMatchObject({ canView: true, canMutate: true, role: "admin" });
   });
 });
 

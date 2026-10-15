@@ -124,6 +124,7 @@ export async function GET(req: NextRequest) {
               classMap.set(d.id, {
                 id: d.id,
                 ...d.data(),
+                joinCode: undefined,
                 isOwner: false,
                 userEnrollmentStatus: "active",
               });
@@ -164,6 +165,7 @@ export async function GET(req: NextRequest) {
           .map((d) => ({
             id: d.id,
             ...d.data(),
+            joinCode: undefined,
             userEnrollmentStatus: "active",
           }));
 
@@ -199,6 +201,8 @@ export async function GET(req: NextRequest) {
         return {
           id: d.id,
           ...data,
+          // The join code is an invite credential: only the class's teachers (and admins) see it
+          joinCode: isOwner || caller?.role === "admin" ? data.joinCode : undefined,
           userEnrollmentStatus: userEnrollments[d.id] || "none",
           isOwner,
         };

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { joinRequestDecisionSchema } from "@/lib/validation/classes";
+import { notify } from "@/lib/notifications/server";
 
 export const runtime = "nodejs";
 
@@ -71,8 +72,17 @@ export async function POST(
         });
       }
 
-      return { status: newStatus, decision };
+      return { status: newStatus, decision, title: String(classData.title || "the class") };
     });
+
+    await notify(uid, {
+      type: "system",
+      title: decision === "approve" ? `You're in! ${result.title} approved your request` : `Your request to join ${result.title} wasn't approved`,
+      body: decision === "approve" ? "Open the class to start learning." : "You can ask your teacher for an invite link.",
+      href: `/classes/${id}`,
+      icon: decision === "approve" ? "🎓" : "🙅",
+      actorUid: caller.uid,
+    }).catch(() => null);
 
     return NextResponse.json({
       ok: true,

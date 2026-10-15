@@ -3,6 +3,10 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { notify, notifyMany } from "@/lib/notifications/server";
+import { z } from "zod";
+
+const bodySchema = z.object({ code: z.string().trim().max(40).optional() }).default({});
 
 export const runtime = "nodejs";
 
@@ -13,6 +17,8 @@ export async function POST(
   try {
     const { id } = await params;
     const caller = await requireUser(req);
+    const parsedBody = bodySchema.safeParse(await req.json().catch(() => ({})));
+    const inviteCode = parsedBody.success ? parsedBody.data.code?.toUpperCase() || "" : "";
 
     const rateLimitRes = await checkRateLimit(req, {
       keyPrefix: "class_join",
@@ -63,7 +69,13 @@ export async function POST(
       }
 
       const isPublic = classData.visibility === "public";
-      const newStatus = isPublic ? "active" : "pending";
+      // The teacher's invite link/code admits students straight into private classes
+      const validInvite = !!inviteCode && typeof classData.joinCode === "string" && classData.joinCode.toUpperCase() === inviteCode;
+      if (inviteCode && !validInvite && !isPublic) {
+        throw new ApiError(400, "INVALID_CODE", "That invite code isn't valid for this class. Ask your teacher for a new link.");
+      }
+      const autoAdmit = isPublic || validInvite;
+      const newStatus = autoAdmit ? "active" : "pending";
 
       t.set(
         enrollmentRef,
@@ -78,7 +90,7 @@ export async function POST(
         { merge: true }
       );
 
-      if (isPublic) {
+      if (autoAdmit) {
         t.update(classRef, {
           studentCount: FieldValue.increment(1),
           updatedAt: Timestamp.now(),
@@ -87,15 +99,37 @@ export async function POST(
 
       return {
         status: newStatus,
-        message: isPublic
-          ? "Successfully enrolled!"
-          : "Join request sent. Awaiting teacher approval.",
+        message: autoAdmit ? "Successfully enrolled!" : "Join request sent. Awaiting teacher approval.",
+        isNew: true,
+        title: String(classData.title || "your class"),
+        teacherIds: [classData.teacherId, ...(Array.isArray(classData.coTeacherIds) ? classData.coTeacherIds : [])].filter(Boolean) as string[],
       };
     });
 
+    if ("isNew" in result && result.isNew) {
+      if (result.status === "pending") {
+        await notifyMany(result.teacherIds, {
+          type: "system",
+          title: "New request to join your class",
+          body: `${caller.email || "A student"} wants to join ${result.title}`,
+          href: `/classes/${id}/manage`,
+          icon: "🙋",
+          actorUid: caller.uid,
+        }).catch(() => null);
+      } else {
+        await notify(caller.uid, {
+          type: "system",
+          title: `You're in! Welcome to ${result.title}`,
+          body: "Open the class to start learning.",
+          href: `/classes/${id}`,
+          icon: "🎓",
+        }).catch(() => null);
+      }
+    }
+
     return NextResponse.json({
       ok: true,
-      data: result,
+      data: { status: result.status, message: result.message },
     });
   } catch (error) {
     return handleAuthError(error);

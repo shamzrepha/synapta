@@ -218,8 +218,7 @@ export default function ClassOverviewPage({
         });
       }
     } catch {
-      setEnrollmentStatus("active");
-      toast({ title: "Enrolled Successfully!", variant: "success" });
+      toast({ title: "Couldn't join", description: "Check your connection and try again.", variant: "destructive" });
     } finally {
       setIsJoining(false);
     }
@@ -434,9 +433,24 @@ export default function ClassOverviewPage({
                 <Layers className="h-3.5 w-3.5" /> {kcs.length} Knowledge Components
               </span>
               {classData.joinCode && (isOwner || user?.role === "admin") && (
-                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-mono font-semibold">
-                  Code: {classData.joinCode}
-                </span>
+                <>
+                  <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-mono font-semibold">
+                    Code: {classData.joinCode}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const link = `${window.location.origin}/classes/${classId}?code=${encodeURIComponent(classData.joinCode!)}`;
+                      navigator.clipboard?.writeText(link).then(
+                        () => toast({ title: "Invite link copied", description: "Anyone with this link can join straight away (even a private class).", variant: "success" }),
+                        () => toast({ title: "Invite link", description: link })
+                      );
+                    }}
+                    className="font-semibold text-teal-700 dark:text-teal-300 hover:underline"
+                  >
+                    Copy invite link
+                  </button>
+                </>
               )}
             </div>
 

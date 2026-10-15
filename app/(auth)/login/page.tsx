@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { BrainCircuit, AlertCircle, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { safeRedirect } from "@/lib/auth/redirect";
 
 function LoginForm() {
   const { signInWithEmail, signInWithGoogle, isLoading } = useAuth();
@@ -17,7 +18,8 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const searchParams = useSearchParams();
-  const redirectPath = searchParams.get("redirect") || "/dashboard";
+  const redirectPath = safeRedirect(searchParams.get("redirect"));
+  const invitedToClass = redirectPath.startsWith("/classes/");
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +76,14 @@ function LoginForm() {
         <CardDescription>Enter your email credentials or use Google</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {redirectPath !== "/dashboard" && (
+          <div className="rounded-xl border border-teal-500/30 bg-teal-500/10 p-3 text-xs text-teal-800 dark:text-teal-300">
+            {invitedToClass ? "Sign in — or create a free account — to open the class you were invited to." : "Sign in to continue to the page you opened."}{" "}
+            <Link href={`/signup?redirect=${encodeURIComponent(redirectPath)}`} className="font-semibold underline">
+              New here? Create an account
+            </Link>
+          </div>
+        )}
         {error && (
           <div
             role="alert"
@@ -166,7 +176,7 @@ function LoginForm() {
         <p className="text-xs text-slate-500">
           Don&apos;t have an account?{" "}
           <Link
-            href="/signup"
+            href={redirectPath !== "/dashboard" ? `/signup?redirect=${encodeURIComponent(redirectPath)}` : "/signup"}
             className="font-semibold text-teal-600 dark:text-teal-400 hover:underline"
           >
             Sign up

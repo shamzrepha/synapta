@@ -15,10 +15,16 @@ export async function GET(
     const caller = await requireUser(req);
 
     const access = await getClassAccess(caller, id);
-    const { classData, isOwner, isAdmin, isEnrolled, enrollmentStatus, role } = access;
+    const { classData, isOwner, isAdmin, enrollmentStatus, role } = access;
 
-    // Permission check for private classes
-    if (classData.visibility === "private" && !isOwner && !isAdmin && !isEnrolled) {
+    // Not a member: landing page only. Opening a shared link never unlocks lessons by itself.
+    if (!access.canView) {
+      const outline = access.canPreview
+        ? (await adminDb().collection("classes").doc(id).collection("kcs").orderBy("order", "asc").get()).docs
+            .map((d) => ({ id: d.id, ...(d.data() as { title?: string; status?: string; summary?: string; description?: string; order?: number }) }))
+            .filter((k) => k.status !== "draft" && k.status !== "archived")
+            .map((k) => ({ id: k.id, title: k.title || "Topic", summary: String(k.summary || k.description || "").slice(0, 160), order: k.order ?? 0, status: "published", locked: true }))
+        : [];
       return NextResponse.json({
         ok: true,
         data: {
@@ -26,7 +32,7 @@ export async function GET(
             id,
             title: classData.title,
             subject: classData.subject,
-            description: classData.description,
+            description: access.canPreview ? classData.description : "",
             teacherName: classData.teacherName,
             visibility: classData.visibility,
             studentCount: classData.studentCount || 0,
@@ -35,11 +41,14 @@ export async function GET(
             audienceTags: classData.audienceTags || [],
             buildState: classData.buildState || "empty",
           },
-          kcs: [],
+          kcs: outline,
+          masteryMap: {},
+          attemptsMap: {},
           role: "visitor",
           enrollmentStatus,
           isOwner: false,
           accessDenied: true,
+          preview: access.canPreview,
         },
       });
     }
@@ -83,7 +92,8 @@ export async function GET(
     return NextResponse.json({
       ok: true,
       data: {
-        class: { id, ...classData },
+        // The join code is an invite credential: only teachers/admins see it
+        class: isOwner || isAdmin ? { id, ...classData } : { id, ...classData, joinCode: undefined },
         kcs,
         masteryMap,
         attemptsMap,

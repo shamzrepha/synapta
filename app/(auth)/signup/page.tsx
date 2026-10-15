@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { BrainCircuit, AlertCircle, ArrowRight, GraduationCap, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { redirectFromLocation } from "@/lib/auth/redirect";
 
 export default function SignupPage() {
   const { signUpWithEmail, signInWithGoogle, isLoading } = useAuth();
@@ -18,6 +19,11 @@ export default function SignupPage() {
   const [requestTeacher, setRequestTeacher] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [redirectPath, setRedirectPath] = useState("/dashboard");
+  useEffect(() => {
+    const t = setTimeout(() => setRedirectPath(redirectFromLocation()), 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +40,8 @@ export default function SignupPage() {
     setSubmitting(true);
     try {
       await signUpWithEmail(email, password, name, requestTeacher, username.trim() || undefined);
-      window.location.assign("/dashboard");
+      // Back to the link they opened (e.g. a class invite), otherwise the dashboard
+      window.location.assign(redirectFromLocation());
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to create account";
       if (msg.includes("auth/email-already-in-use")) {
@@ -58,7 +65,7 @@ export default function SignupPage() {
     setSubmitting(true);
     try {
       await signInWithGoogle(requestTeacher);
-      window.location.assign("/dashboard");
+      window.location.assign(redirectFromLocation());
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
       if (msg.includes("Cloud Firestore API") || msg.includes("FIRESTORE_DISABLED")) {
@@ -95,6 +102,11 @@ export default function SignupPage() {
             <CardDescription>Choose your learning role and credentials</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {redirectPath.startsWith("/classes/") && (
+              <div className="rounded-xl border border-teal-500/30 bg-teal-500/10 p-3 text-xs text-teal-800 dark:text-teal-300">
+                Create your free account and we&apos;ll take you straight to the class you were invited to.
+              </div>
+            )}
             {error && (
               <div
                 role="alert"
@@ -253,7 +265,7 @@ export default function SignupPage() {
           <CardFooter className="justify-center border-t border-slate-100 dark:border-slate-800/60 pt-4">
             <p className="text-xs text-slate-500">
               Already have an account?{" "}
-              <Link href="/login" className="font-semibold text-teal-600 dark:text-teal-400 hover:underline">
+              <Link href={redirectPath !== "/dashboard" ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"} className="font-semibold text-teal-600 dark:text-teal-400 hover:underline">
                 Sign in
               </Link>
             </p>

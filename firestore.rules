@@ -46,21 +46,20 @@ service cloud.firestore {
 
     // 2. Classes collection:
     match /classes/{classId} {
+      // Private classes (and their join codes) are only readable by teachers and members
       allow read: if isAuthenticated() && (
-        resource.data.status == 'published' ||
+        (resource.data.status == 'published' && resource.data.visibility == 'public') ||
         isClassTeacher(resource.data) ||
         isEnrolled(classId)
       );
       allow write: if false;
 
-      // Knowledge Components: students only read published KCs; teachers/admins read all
+      // Knowledge Components: enrolled students read published KCs; teachers/admins read all.
+      // A shared link never unlocks lessons without enrollment, even for public classes.
       match /kcs/{kcId} {
         allow read: if isAuthenticated() && (
           isClassTeacher(get(/databases/$(database)/documents/classes/$(classId)).data) ||
-          (resource.data.status == 'published' && (
-            get(/databases/$(database)/documents/classes/$(classId)).data.visibility == 'public' ||
-            isEnrolled(classId)
-          ))
+          (resource.data.status == 'published' && isEnrolled(classId))
         );
         allow write: if false;
       }
