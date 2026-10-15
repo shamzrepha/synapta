@@ -1,7 +1,7 @@
 import Interpreter from "js-interpreter";
 import type { BehaviorTest } from "../spec";
-import { isButtonLike } from "./catalog";
-import { Netlist, emptyPinState, evaluateOutputs, readPin, type Circuit, type OutputState, type PinMode, type PinState } from "./netlist";
+import { boardPinName, isButtonLike } from "./catalog";
+import { Netlist, emptyPinState, evaluateOutputs, netPotential, readPin, term, type Circuit, type OutputState, type PinMode, type PinState } from "./netlist";
 
 /**
  * Runs an Arduino-style program (setup()/loop(), digitalWrite, delay…) inside a sandboxed ES5
@@ -56,6 +56,9 @@ export function toEs5(code: string): string {
   return out;
 }
 
+/** Answers pulseIn(): how long (µs) the pin stays HIGH, given the trigger pulses the program has sent. */
+export type PulseReader = (pin: number, pins: PinState, nowMs: number, trigs: Record<number, { widthUs: number; endMs: number }>) => number;
+
 export interface RuntimeEvent {
   atMs: number;
   text: string;
@@ -71,10 +74,12 @@ export class BoardRuntime {
   private waitUntil: number | null = null;
   private resume: (() => void) | null = null;
   private steps = 0;
+  /** the last HIGH pulse written to each pin (for ultrasonic triggers) */
+  private trigs: Record<number, { widthUs: number; endMs: number; riseMs: number }> = {};
 
   constructor(
     code: string,
-    private readonly read: (pin: number, analog: boolean, pins: PinState) => number
+    private readonly read: ((pin: number, analog: boolean, pins: PinState) => number) & { pulse?: PulseReader }
   ) {
     const program = PRELUDE + toEs5(code) + "\n;if(typeof setup==='function')setup();if(typeof loop==='function'){while(true){loop();}}";
     try {
@@ -85,8 +90,15 @@ export class BoardRuntime {
         }) as never);
         fn("digitalWrite", ((pin: number, v: number) => {
           const n = Number(pin);
+          const was = this.pins.level[n] === 1 && this.pins.pwm[n] === undefined;
           this.pins.level[n] = v ? 1 : 0;
           delete this.pins.pwm[n];
+          const t = (this.trigs[n] ||= { widthUs: 0, endMs: -1, riseMs: -1 });
+          if (v && !was) t.riseMs = this.now;
+          if (!v && was && t.riseMs >= 0) {
+            t.widthUs = (this.now - t.riseMs) * 1000;
+            t.endMs = this.now;
+          }
         }) as never);
         fn("analogWrite", ((pin: number, v: number) => {
           const n = Number(pin);
@@ -110,6 +122,29 @@ export class BoardRuntime {
         fn("__print", ((s: string) => {
           if (this.serial.length < 500) this.serial.push({ atMs: Math.round(this.now), text: String(s) });
         }) as never);
+        it.setProperty(
+          global,
+          "delayMicroseconds",
+          it.createAsyncFunction(((us: number, cb: () => void) => {
+            this.waitUntil = this.now + Math.max(0, Number(us) || 0) / 1000;
+            this.resume = cb;
+          }) as never)
+        );
+        // pulseIn(pin, HIGH): the echo time in µs, from the sensor model (0 = timed out)
+        it.setProperty(
+          global,
+          "pulseIn",
+          it.createAsyncFunction(((pin: number, _level: number, _timeout: number, cb?: (v: number) => void) => {
+            const done = (typeof _level === "function" ? _level : typeof _timeout === "function" ? _timeout : cb) as unknown as (v: number) => void;
+            const us = this.read.pulse?.(Number(pin), this.pins, this.now, this.trigs) ?? 0;
+            if (us > 0) {
+              const t = this.trigs;
+              for (const k of Object.keys(t)) if (t[Number(k)].endMs >= 0) t[Number(k)].endMs = -1; // one trigger → one echo
+            }
+            this.waitUntil = this.now + Math.max(us / 1000, 0.001);
+            this.resume = () => done(us);
+          }) as never)
+        );
         it.setProperty(
           global,
           "delay",
@@ -181,7 +216,7 @@ function formatError(e: unknown): string {
 export function circuitReader(circuit: Circuit, inputs: { pressed: Set<string>; values: Record<string, number> }) {
   let cacheKey = "";
   let nl = new Netlist(circuit, inputs.pressed);
-  return (pin: number, analog: boolean, pins: PinState) => {
+  const reader = (pin: number, analog: boolean, pins: PinState) => {
     const key = Array.from(inputs.pressed).sort().join(",");
     if (key !== cacheKey) {
       cacheKey = key;
@@ -189,6 +224,36 @@ export function circuitReader(circuit: Circuit, inputs: { pressed: Set<string>; 
     }
     return readPin(nl, pins, pin, analog, inputs.values);
   };
+  /** HC-SR04: needs power, a ≥10 µs HIGH trigger pulse, and answers with echo µs = cm × 58 (datasheet) */
+  reader.pulse = ((pin, pins, nowMs, trigs) => {
+    if (!nl.board) return 0;
+    const name = boardPinName(pin);
+    if (!name) return 0;
+    const net = nl.netOf(term(nl.board.id, name));
+    for (const sensor of circuit.parts) {
+      if (sensor.type !== "hc_sr04" || nl.netOf(term(sensor.id, "echo")) !== net) continue;
+      const powered = (netPotential(nl, nl.netOf(term(sensor.id, "vcc")), pins) ?? 0) >= 4.5 && netPotential(nl, nl.netOf(term(sensor.id, "gnd")), pins) === 0;
+      if (!powered) return 0;
+      const triggered = nl.boardPinsOn(nl.netOf(term(sensor.id, "trig"))).some((n) => {
+        const num = boardNumber(n);
+        const t = num === undefined ? undefined : trigs[num];
+        return !!t && t.widthUs >= 10 && nowMs - t.endMs <= 2 && t.endMs >= 0;
+      });
+      if (!triggered) return 0;
+      const cm = inputs.values[sensor.id] ?? Number(sensor.props?.value ?? 100);
+      if (cm < 2 || cm > 400) return 0; // outside the datasheet range there is no usable echo
+      return Math.round(cm * 58);
+    }
+    return 0;
+  }) as PulseReader;
+  return reader;
+}
+
+function boardNumber(pinName: string): number | undefined {
+  const m = /^D(\d+)$/.exec(pinName);
+  if (m) return Number(m[1]);
+  const a = /^A(\d)$/.exec(pinName);
+  return a ? 14 + Number(a[1]) : undefined;
 }
 
 export interface TestResult {

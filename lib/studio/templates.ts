@@ -88,7 +88,10 @@ const box = (id: string, name: string, size: [N, N, N], pos: [N, N, N], explode:
 
 
 const switchBlocks: BlockProgram = {
-  setup: [],
+  setup: [
+    { id: "s1", type: "write", pin: 7, value: "HIGH" },
+    { id: "s2", type: "write", pin: 8, value: "LOW" },
+  ],
   loop: [
     { id: "a1", type: "if", cond: { kind: "pressed", pin: 2 }, then: [{ id: "a2", type: "pwm", pin: 5, value: 200 }], else: [{ id: "a3", type: "pwm", pin: 5, value: 0 }] },
     { id: "a4", type: "wait", ms: 20 },
@@ -99,10 +102,10 @@ const switchBlocks: BlockProgram = {
 // ---------- line-following robot ----------
 const lineRobot = {
   wheelRadius: 21,
-  trackWidth: 112,
+  trackWidth: 130,
   length: 150,
   wheelWidth: 14,
-  maxRpm: 160,
+  maxRpm: 200,
   left: "mL",
   right: "mR",
   sensors: [{ id: "sL", x: -17, z: -78 }, { id: "sR", x: 17, z: -78 }],
@@ -112,12 +115,12 @@ function lineCircuit() {
   return {
     parts: [
       board,
+      { id: "bat", type: "battery", label: "Battery 6 V (4×AA)", x: 560, y: 200, props: { volts: 6 } },
       { id: "sL", type: "ir_sensor", label: "Left sensor", x: 80, y: 90 },
       { id: "sR", type: "ir_sensor", label: "Right sensor", x: 180, y: 90 },
-      { id: "drvL", type: "motor_driver", label: "Left driver", x: 330, y: 200 },
-      { id: "drvR", type: "motor_driver", label: "Right driver", x: 470, y: 200 },
-      { id: "mL", type: "dc_motor", label: "Left motor", x: 330, y: 70 },
-      { id: "mR", type: "dc_motor", label: "Right motor", x: 470, y: 70 },
+      { id: "drv", type: "l298n", label: "L298N driver", x: 330, y: 190, props: { jumperEnA: 0, jumperEnB: 0, jumper5v: 0 } },
+      { id: "mL", type: "dc_motor", label: "Left motor", x: 340, y: 40 },
+      { id: "mR", type: "dc_motor", label: "Right motor", x: 440, y: 40 },
     ],
     wires: [
       w("w1", "sL.vcc", "board.5V", "#ef4444"),
@@ -126,31 +129,44 @@ function lineCircuit() {
       w("w4", "sR.vcc", "board.5V", "#ef4444"),
       w("w5", "sR.gnd", "board.GND", "#111827"),
       w("w6", "sR.out", "board.D3", "#f59e0b"),
-      w("w7", "drvL.vcc", "board.5V", "#ef4444"),
-      w("w8", "drvL.gnd", "board.GND", "#111827"),
-      w("w9", "board.D5", "drvL.in", "#3b82f6"),
-      w("w10", "drvL.out1", "mL.a"),
-      w("w11", "drvL.out2", "mL.b"),
-      w("w12", "drvR.vcc", "board.5V", "#ef4444"),
-      w("w13", "drvR.gnd", "board.GND", "#111827"),
-      w("w14", "board.D6", "drvR.in", "#22c55e"),
-      w("w15", "drvR.out1", "mR.a"),
-      w("w16", "drvR.out2", "mR.b"),
+      w("w7", "bat.plus", "drv.vs", "#ef4444"),
+      w("w8", "bat.minus", "board.GND", "#111827"),
+      w("w9", "drv.gnd", "board.GND", "#111827"),
+      w("w10", "board.5V", "drv.v5", "#ef4444"),
+      w("w11", "board.D5", "drv.ena", "#3b82f6"),
+      w("w12", "board.D7", "drv.in1", "#22c55e"),
+      w("w13", "board.D8", "drv.in2", "#22c55e"),
+      w("w14", "board.D6", "drv.enb", "#3b82f6"),
+      w("w15", "board.D9", "drv.in3", "#a855f7"),
+      w("w16", "board.D10", "drv.in4", "#a855f7"),
+      w("w17", "drv.out1", "mL.a"),
+      w("w18", "drv.out2", "mL.b"),
+      w("w19", "drv.out3", "mR.a"),
+      w("w20", "drv.out4", "mR.b"),
     ],
-  };
+  } as NonNullable<DesignSpecInput["circuit"]>;
 }
 const lineCode = `var LEFT_SENSOR = 2;
 var RIGHT_SENSOR = 3;
-var LEFT_MOTOR = 5;   // PWM pin to the left driver
-var RIGHT_MOTOR = 6;  // PWM pin to the right driver
+var ENA = 5;   // PWM: left motor speed   (L298N ENA)
+var ENB = 6;   // PWM: right motor speed  (L298N ENB)
 var FAST = 190;
 var SLOW = 30;
 
 function setup() {
   pinMode(LEFT_SENSOR, INPUT);
   pinMode(RIGHT_SENSOR, INPUT);
-  pinMode(LEFT_MOTOR, OUTPUT);
-  pinMode(RIGHT_MOTOR, OUTPUT);
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  pinMode(7, OUTPUT);
+  pinMode(8, OUTPUT);
+  pinMode(9, OUTPUT);
+  pinMode(10, OUTPUT);
+  // L298N truth table: Ven = H, IN1 = H, IN2 = L → forward (both motors)
+  digitalWrite(7, HIGH);
+  digitalWrite(8, LOW);
+  digitalWrite(9, HIGH);
+  digitalWrite(10, LOW);
 }
 
 function loop() {
@@ -158,14 +174,14 @@ function loop() {
   var right = digitalRead(RIGHT_SENSOR);
   if (left == HIGH) {
     // line is under the left sensor: steer left by slowing the left wheel
-    analogWrite(LEFT_MOTOR, SLOW);
-    analogWrite(RIGHT_MOTOR, FAST);
+    analogWrite(ENA, SLOW);
+    analogWrite(ENB, FAST);
   } else if (right == HIGH) {
-    analogWrite(LEFT_MOTOR, FAST);
-    analogWrite(RIGHT_MOTOR, SLOW);
+    analogWrite(ENA, FAST);
+    analogWrite(ENB, SLOW);
   } else {
-    analogWrite(LEFT_MOTOR, FAST);
-    analogWrite(RIGHT_MOTOR, FAST);
+    analogWrite(ENA, FAST);
+    analogWrite(ENB, FAST);
   }
 }
 `;
@@ -173,7 +189,7 @@ function lineSteps() {
   return [
     { id: "l1", title: "Meet the robot", detail: "Open the 3D view and orbit it. Two wheels share one axle, a caster ball holds the back, and two line sensors face the floor at the front. Open the Track view to see the oval it must follow.", videoQuery: "how a line following robot works", check: { kind: "manual" as const } },
     { id: "l2", title: "Wire the sensors", detail: "Each sensor needs 5V, GND and its OUT wire to a pin (D2 left, D3 right). An unpowered sensor reads nothing, so the robot would drive blind.", videoQuery: "ir line sensor arduino wiring", check: { kind: "parts" as const, type: "ir_sensor", min: 2 } },
-    { id: "l3", title: "Wire the motors through drivers", detail: "One driver per motor: VCC→5V, GND→GND, IN→D5 (left) / D6 (right), OUT1→motor a, OUT2→motor b. Same wiring on both sides, so positive power means forward on both.", videoQuery: "arduino l298n dc motor wiring", check: { kind: "wired" as const, part: "mL" } },
+    { id: "l3", title: "Wire the L298N, battery and motors", detail: "One L298N drives both motors: battery + → VS, battery − → GND and the board GND (shared ground), board 5V → +5V. Bridge A: ENA→D5 (speed), IN1→D7, IN2→D8, motor between OUT1/OUT2. Bridge B: ENB→D6, IN3→D9, IN4→D10, motor between OUT3/OUT4. Remove the ENA/ENB jumpers so PWM can set the speed.", videoQuery: "arduino l298n dc motor wiring", check: { kind: "wired" as const, part: "mL" } },
     { id: "l4", title: "Write the steering code", detail: "Read both sensors. Left sensor sees the line → slow the left wheel. Right sensor sees it → slow the right wheel. Otherwise drive straight. Press Run and watch the Track view.", videoQuery: "arduino line follower code explained", check: { kind: "drive" as const, seconds: 20, laps: 1, onLine: 0.8 } },
     { id: "l5", title: "Tune it", detail: "Try FAST = 255 and SLOW = 0. Faster robots overshoot corners. Find the fastest settings that still finish a lap without leaving the line.", check: { kind: "manual" as const } },
   ];
@@ -181,6 +197,119 @@ function lineSteps() {
 function lineTests() {
   return [];
 }
+
+
+// ---------- obstacle-avoiding robot ----------
+const avoiderRobot = {
+  wheelRadius: 21,
+  trackWidth: 130,
+  length: 150,
+  wheelWidth: 14,
+  maxRpm: 200,
+  left: "mL",
+  right: "mR",
+  sensors: [{ id: "usL", x: -38, z: -84, kind: "distance" as const, angle: 30 }, { id: "usR", x: 38, z: -84, kind: "distance" as const, angle: -30 }],
+  body: "auto" as const,
+};
+function avoiderCircuit() {
+  return {
+    parts: [
+      board,
+      { id: "bat", type: "battery", label: "Battery 6 V (4×AA)", x: 560, y: 200, props: { volts: 6 } },
+      { id: "usL", type: "hc_sr04", label: "Left ultrasonic", x: 40, y: 70 },
+      { id: "usR", type: "hc_sr04", label: "Right ultrasonic", x: 170, y: 70 },
+      { id: "drv", type: "l298n", label: "L298N driver", x: 330, y: 190, props: { jumperEnA: 0, jumperEnB: 0, jumper5v: 0 } },
+      { id: "mL", type: "dc_motor", label: "Left motor", x: 340, y: 40 },
+      { id: "mR", type: "dc_motor", label: "Right motor", x: 440, y: 40 },
+    ],
+    wires: [
+      w("w1", "usL.vcc", "board.5V", "#ef4444"),
+      w("w2", "usL.gnd", "board.GND", "#111827"),
+      w("w3", "usL.trig", "board.D11", "#f59e0b"),
+      w("w4", "usL.echo", "board.D12", "#38bdf8"),
+      w("w19", "usR.vcc", "board.5V", "#ef4444"),
+      w("w20", "usR.gnd", "board.GND", "#111827"),
+      w("w21", "usR.trig", "board.D3", "#f59e0b"),
+      w("w22", "usR.echo", "board.D4", "#38bdf8"),
+      w("w5", "bat.plus", "drv.vs", "#ef4444"),
+      w("w6", "bat.minus", "board.GND", "#111827"),
+      w("w7", "drv.gnd", "board.GND", "#111827"),
+      w("w8", "board.5V", "drv.v5", "#ef4444"),
+      w("w9", "board.D5", "drv.ena", "#3b82f6"),
+      w("w10", "board.D7", "drv.in1", "#22c55e"),
+      w("w11", "board.D8", "drv.in2", "#22c55e"),
+      w("w12", "board.D6", "drv.enb", "#3b82f6"),
+      w("w13", "board.D9", "drv.in3", "#a855f7"),
+      w("w14", "board.D10", "drv.in4", "#a855f7"),
+      w("w15", "drv.out1", "mL.a"),
+      w("w16", "drv.out2", "mL.b"),
+      w("w17", "drv.out3", "mR.a"),
+      w("w18", "drv.out4", "mR.b"),
+    ],
+  } as NonNullable<DesignSpecInput["circuit"]>;
+}
+const avoiderCode = `var TRIG_L = 11;
+var ECHO_L = 12;
+var TRIG_R = 3;
+var ECHO_R = 4;
+var ENA = 5;
+var ENB = 6;
+var STOP_CM = 30;
+var turnDir = 1;      // +1 = turn left, −1 = turn right
+var turnUntil = 0;    // keep turning until this time (ms), so it does not dither
+
+function setup() {
+  pinMode(TRIG_L, OUTPUT);
+  pinMode(ECHO_L, INPUT);
+  pinMode(TRIG_R, OUTPUT);
+  pinMode(ECHO_R, INPUT);
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  for (var p = 7; p <= 10; p++) pinMode(p, OUTPUT);
+}
+
+// HC-SR04: 10 µs trigger, then the echo pulse lasts (distance in cm × 58) µs
+function distanceCm(trig, echo) {
+  digitalWrite(trig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+  var us = pulseIn(echo, HIGH);
+  if (us == 0) return 999;   // no echo: nothing within 4 m
+  return us / 58;
+}
+
+function drive(leftDir, rightDir, power) {
+  // L298N truth table: IN1/IN2 = H,L forward · L,H reverse
+  digitalWrite(7, leftDir > 0 ? HIGH : LOW);
+  digitalWrite(8, leftDir > 0 ? LOW : HIGH);
+  digitalWrite(9, rightDir > 0 ? HIGH : LOW);
+  digitalWrite(10, rightDir > 0 ? LOW : HIGH);
+  analogWrite(ENA, power);
+  analogWrite(ENB, power);
+}
+
+function loop() {
+  var left = distanceCm(TRIG_L, ECHO_L);
+  delay(30);
+  var right = distanceCm(TRIG_R, ECHO_R);
+  Serial.println(left + " / " + right);
+  var now = millis();
+  if (now < turnUntil) {
+    drive(-turnDir, turnDir, 150);               // finish the turn we started
+  } else if (left < STOP_CM && right < STOP_CM) {
+    turnDir = 1;  turnUntil = now + 500;         // blocked on both sides: turn left for half a second
+  } else if (left < STOP_CM) {
+    turnDir = -1; turnUntil = now + 350;         // obstacle on the left: turn right
+  } else if (right < STOP_CM) {
+    turnDir = 1;  turnUntil = now + 350;         // obstacle on the right: turn left
+  } else {
+    drive(1, 1, 170);                            // clear: forward
+  }
+  delay(30);
+}
+`;
 
 // ---------- RC car helpers ----------
 const carWheel = (id: string, side: "L" | "R", x: number, z: number) => [
@@ -191,12 +320,11 @@ function carParts() {
   return [
     { id: "chassis", name: "Chassis plate", shape: "box" as const, size: [90, 6, 170], pos: [0, 24, 0] as [N, N, N], color: "#8fd3ff", opacity: 0.22, group: "Body", explode: [0, -10, 0] as [number, number, number], info: { where: "The base everything mounts on", fit: "3 mm plywood or acrylic, 90 × 170 mm.", cost: "~₦1,500" } },
     { id: "nose", name: "Front marker", shape: "cone" as const, size: [8, 18], pos: [0, 24, 96] as [N, N, N], rot: [90, 0, 0] as [N, N, N], color: "#fbbf24", opacity: 0.4, group: "Body" },
-    { id: "battery", name: "Battery pack", shape: "box" as const, size: [32, 20, 40], pos: [0, 37, -62] as [N, N, N], color: "#f87171", opacity: 0.3, group: "Power", explode: [0, 40, 0] as [number, number, number], info: { where: "Centre-rear on the chassis", fit: "4 × AA holder, strapped down. Heavy parts low and central.", cost: "~₦1,800" } },
+    { id: "battery", name: "Battery pack", bind: "bat", shape: "box" as const, size: [32, 20, 40], pos: [0, 37, -62] as [N, N, N], color: "#f87171", opacity: 0.3, group: "Power", explode: [0, 40, 0] as [number, number, number], info: { where: "Centre-rear on the chassis", fit: "4 × AA holder, strapped down. Heavy parts low and central.", cost: "~₦1,800" } },
     { id: "goCap", name: "Go button", shape: "cylinder" as const, size: [7, 5], pos: [-22, 29.5, -35] as [N, N, N], color: "#22c55e", opacity: 0.6, group: "Controls", bind: "go", pressShift: [0, -2, 0] as [number, number, number], info: { where: "Top of the chassis, rear left", fit: "Click it in 3D: it works like the Go button on the circuit bench.", cost: "~₦100" } },
     { id: "turnCap", name: "Turn button", shape: "cylinder" as const, size: [7, 5], pos: [22, 29.5, -35] as [N, N, N], color: "#f59e0b", opacity: 0.6, group: "Controls", bind: "turn", pressShift: [0, -2, 0] as [number, number, number], info: { where: "Top of the chassis, rear right", fit: "Hold it while Go is held and the car curves.", cost: "~₦100" } },
     { id: "uno", name: "Control board", bind: "board", shape: "box" as const, size: [54, 6, 72], pos: [0, 30, 40] as [N, N, N], color: "#5eead4", opacity: 0.3, group: "Electronics", explode: [0, 60, 0] as [number, number, number], info: { where: "Front half of the chassis", fit: "Standoffs under each corner.", cost: "~₦12,000" } },
-    { id: "drvL", name: "Left motor driver", bind: "drvL", shape: "box" as const, size: [26, 10, 22], pos: [-26, 32, -78] as [N, N, N], color: "#a78bfa", opacity: 0.3, group: "Electronics", explode: [-20, 60, 0] as [number, number, number] },
-    { id: "drvR", name: "Right motor driver", bind: "drvR", shape: "box" as const, size: [26, 10, 22], pos: [26, 32, -78] as [N, N, N], color: "#a78bfa", opacity: 0.3, group: "Electronics", explode: [20, 60, 0] as [number, number, number] },
+    { id: "drv", name: "L298N driver", bind: "drv", shape: "box" as const, size: [34, 27, 43], pos: [0, 44, -58] as [N, N, N], color: "#b91c1c", opacity: 0.3, group: "Electronics", explode: [0, 60, 0] as [number, number, number], info: { where: "Rear of the chassis", fit: "Module is 3.4 × 4.3 × 2.7 cm (datasheet); stand it off with screws.", cost: "~₦3,000" } },
     { id: "motL", name: "Left motor", shape: "cylinder" as const, size: [9, 34], pos: [-37, 22, 50] as [N, N, N], rot: [0, 0, 90] as [N, N, N], color: "#fcd34d", opacity: 0.4, group: "Motors", explode: [-20, 0, 0] as [number, number, number] },
     { id: "motR", name: "Right motor", shape: "cylinder" as const, size: [9, 34], pos: [37, 22, 50] as [N, N, N], rot: [0, 0, 90] as [N, N, N], color: "#fcd34d", opacity: 0.4, group: "Motors", explode: [20, 0, 0] as [number, number, number] },
     ...carWheel("wLf", "L", -58, 50),
@@ -209,55 +337,68 @@ function carCircuit() {
   return {
     parts: [
       board,
-      { id: "drvL", type: "motor_driver", label: "Left driver", x: 300, y: 200 },
-      { id: "drvR", type: "motor_driver", label: "Right driver", x: 440, y: 200 },
-      { id: "mL", type: "dc_motor", label: "Left motor", x: 300, y: 70 },
-      { id: "mR", type: "dc_motor", label: "Right motor", x: 440, y: 70 },
+      { id: "bat", type: "battery", label: "Battery 6 V", x: 560, y: 200, props: { volts: 6 } },
+      { id: "drv", type: "l298n", label: "L298N driver", x: 330, y: 190, props: { jumperEnA: 0, jumperEnB: 0, jumper5v: 0 } },
+      { id: "mL", type: "dc_motor", label: "Left motor", x: 340, y: 40 },
+      { id: "mR", type: "dc_motor", label: "Right motor", x: 440, y: 40 },
       { id: "go", type: "button", label: "Go", x: 120, y: 120 },
       { id: "turn", type: "button", label: "Turn", x: 200, y: 120 },
     ],
     wires: [
-      w("w1", "board.5V", "drvL.vcc", "#ef4444"),
-      w("w2", "drvL.gnd", "board.GND", "#111827"),
-      w("w3", "board.D5", "drvL.in", "#3b82f6"),
-      w("w4", "drvL.out1", "mL.a"),
-      w("w5", "drvL.out2", "mL.b"),
-      w("w6", "board.5V", "drvR.vcc", "#ef4444"),
-      w("w7", "drvR.gnd", "board.GND", "#111827"),
-      w("w8", "board.D6", "drvR.in", "#22c55e"),
-      w("w9", "drvR.out1", "mR.a"),
-      w("w10", "drvR.out2", "mR.b"),
-      w("w11", "go.a", "board.D2"),
-      w("w12", "go.b", "board.GND"),
-      w("w13", "turn.a", "board.D4"),
-      w("w14", "turn.b", "board.GND"),
+      w("w1", "bat.plus", "drv.vs", "#ef4444"),
+      w("w2", "bat.minus", "board.GND", "#111827"),
+      w("w3", "drv.gnd", "board.GND", "#111827"),
+      w("w4", "board.5V", "drv.v5", "#ef4444"),
+      w("w5", "board.D5", "drv.ena", "#3b82f6"),
+      w("w6", "board.D7", "drv.in1", "#22c55e"),
+      w("w7", "board.D8", "drv.in2", "#22c55e"),
+      w("w8", "board.D6", "drv.enb", "#3b82f6"),
+      w("w9", "board.D9", "drv.in3", "#a855f7"),
+      w("w10", "board.D10", "drv.in4", "#a855f7"),
+      w("w11", "drv.out1", "mL.a"),
+      w("w12", "drv.out2", "mL.b"),
+      w("w13", "drv.out3", "mR.a"),
+      w("w14", "drv.out4", "mR.b"),
+      w("w15", "go.a", "board.D2"),
+      w("w16", "go.b", "board.GND"),
+      w("w17", "turn.a", "board.D4"),
+      w("w18", "turn.b", "board.GND"),
     ],
-  };
+  } as NonNullable<DesignSpecInput["circuit"]>;
 }
-const carCode = `var LEFT = 5;   // PWM pin to the left driver
-var RIGHT = 6;  // PWM pin to the right driver
+const carCode = `var ENA = 5;   // PWM: left motor speed (L298N ENA)
+var ENB = 6;   // PWM: right motor speed (L298N ENB)
 var GO = 2;
 var TURN = 4;
 
 function setup() {
-  pinMode(LEFT, OUTPUT);
-  pinMode(RIGHT, OUTPUT);
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  pinMode(7, OUTPUT);
+  pinMode(8, OUTPUT);
+  pinMode(9, OUTPUT);
+  pinMode(10, OUTPUT);
   pinMode(GO, INPUT_PULLUP);
   pinMode(TURN, INPUT_PULLUP);
+  // IN1 = H, IN2 = L → forward on both bridges (L298 truth table)
+  digitalWrite(7, HIGH);
+  digitalWrite(8, LOW);
+  digitalWrite(9, HIGH);
+  digitalWrite(10, LOW);
 }
 
 function loop() {
   if (digitalRead(GO) == LOW) {
-    analogWrite(LEFT, 220);
+    analogWrite(ENA, 255);
     // running one side slower makes the car curve
     if (digitalRead(TURN) == LOW) {
-      analogWrite(RIGHT, 70);
+      analogWrite(ENB, 90);
     } else {
-      analogWrite(RIGHT, 220);
+      analogWrite(ENB, 255);
     }
   } else {
-    analogWrite(LEFT, 0);
-    analogWrite(RIGHT, 0);
+    analogWrite(ENA, 0);
+    analogWrite(ENB, 0);
   }
 }
 `;
@@ -502,23 +643,28 @@ export const TEMPLATES: Template[] = [
         { id: "pointer", name: "Output pointer", shape: "box", size: ["1.5*T2 + 6", 3, 4], pos: ["(1.5*T1 + 1.5*T2)/2", 46, 0], bind: "m1", spinAxis: "y", spinRatio: "-T1/T2", color: "#f43f5e", opacity: 0.6, group: "Gears", explode: [0, 60, 0] },
         { id: "shaft2", name: "Output shaft", shape: "cylinder", size: [3, 22], pos: ["(1.5*T1 + 1.5*T2)/2", 28, 0], color: "#94a3b8", opacity: 0.6, group: "Gears" },
       ],
-      circuit: {
+      circuit: ({
         parts: [
           board,
           { id: "sw1", type: "switch", label: "Start switch", x: 120, y: 90 },
-          { id: "drv", type: "motor_driver", label: "Motor driver", x: 360, y: 200 },
-          { id: "m1", type: "dc_motor", label: "Motor", x: 360, y: 70 },
+          { id: "bat", type: "battery", label: "Battery 6 V", x: 560, y: 200, props: { volts: 6 } },
+          { id: "drv", type: "l298n", label: "L298N driver", x: 330, y: 190, props: { jumperEnA: 0, jumperEnB: 0, jumper5v: 0 } },
+          { id: "m1", type: "dc_motor", label: "Motor", x: 360, y: 60 },
         ],
         wires: [
           w("w1", "sw1.a", "board.D2"),
           w("w2", "sw1.b", "board.GND"),
-          w("w3", "board.5V", "drv.vcc", "#ef4444"),
-          w("w4", "drv.gnd", "board.GND", "#111827"),
-          w("w5", "board.D5", "drv.in", "#3b82f6"),
-          w("w6", "drv.out1", "m1.a"),
-          w("w7", "drv.out2", "m1.b"),
+          w("w3", "bat.plus", "drv.vs", "#ef4444"),
+          w("w4", "bat.minus", "board.GND", "#111827"),
+          w("w5", "drv.gnd", "board.GND", "#111827"),
+          w("w6", "board.5V", "drv.v5", "#ef4444"),
+          w("w7", "board.D5", "drv.ena", "#3b82f6"),
+          w("w8", "board.D7", "drv.in1", "#22c55e"),
+          w("w9", "board.D8", "drv.in2", "#22c55e"),
+          w("w10", "drv.out1", "m1.a"),
+          w("w11", "drv.out2", "m1.b"),
         ],
-      },
+      } as NonNullable<DesignSpecInput["circuit"]>),
       codeMode: "blocks",
       blocks: switchBlocks,
       code: compileBlocks(switchBlocks),
@@ -556,7 +702,199 @@ export const TEMPLATES: Template[] = [
       code: lineCode,
       steps: lineSteps(),
       tests: lineTests(),
-      notes: "Sensors read HIGH over the dark line. Wire OUT1→a and OUT2→b on both drivers so positive power drives both wheels forward.",
+      notes: "Sensors read HIGH over the dark line. Datasheet facts used: the L298 drops about 2 V across its bridge (a 6 V pack gives the motors ~4 V) and a TT motor turns 250 rpm at 6 V, 120 rpm at 3 V. Wire OUT1→a/OUT2→b and OUT3→a/OUT4→b so positive power drives both wheels forward.",
+    },
+  },
+  {
+    id: "obstacle-avoider",
+    title: "Obstacle-avoiding robot (HC-SR04 + L298N)",
+    kind: "circuit",
+    level: "intermediate",
+    tags: ["robotics", "physics", "ultrasonic", "sensors", "code"],
+    blurb: "An ultrasonic sensor on the nose measures distance with real HC-SR04 timing (echo µs ÷ 58). Code it to steer around the walls and obstacles of an arena, and watch the physics decide.",
+    spec: {
+      kind: "circuit",
+      summary: "Two HC-SR04 sensors look 30° left and right. Each sends a 10 µs trigger, the module answers with an echo pulse, and the robot converts it to centimetres (µs ÷ 58). An obstacle on the left turns it right, on the right turns it left (it keeps turning for a set time so it does not dither), otherwise it drives forward. The L298N takes its power from a battery, so the motors get a bit under the battery voltage.",
+      robot: avoiderRobot,
+      world: { arena: { width: 1400, depth: 1000 }, obstacles: [{ shape: "box", x: -350, z: -120, w: 200, d: 70, h: 80 }, { shape: "cylinder", x: 300, z: -60, r: 60, h: 80 }, { shape: "box", x: 0, z: -380, w: 300, d: 50, h: 80 }], start: { x: 0, z: 390, heading: 0 } },
+      circuit: avoiderCircuit(),
+      code: avoiderCode,
+      steps: [
+        { id: "o1", title: "See what the sensor sees", detail: "Open the Track view: the robot is drawn to scale in its arena. Each HC-SR04 looks along its own 15° cone (datasheet) and works from 2 cm to 4 m. Two sensors angled apart see what a single one would miss at the robot's sides.", videoQuery: "HC-SR04 ultrasonic sensor how it works", check: { kind: "manual" as const } },
+        { id: "o2", title: "Wire the sensor", detail: "Both: VCC → 5V, GND → GND. Left: TRIG → D11, ECHO → D12; right: TRIG → D3, ECHO → D4. Each module needs a ≥10 µs HIGH pulse on TRIG, then ECHO goes HIGH for (distance × 58) µs.", videoQuery: "arduino hc-sr04 wiring pulseIn", check: { kind: "wired" as const, part: "usL" } },
+        { id: "o3", title: "Read the distance", detail: "Send the trigger pulse with delayMicroseconds(10), then pulseIn(ECHO, HIGH). Distance in cm = echo µs ÷ 58. Check the Serial monitor while you move the object-distance slider.", videoQuery: "arduino ultrasonic distance code", check: { kind: "code" as const } },
+        { id: "o4", title: "Steer away", detail: "If the distance is under 30 cm, spin on the spot (one wheel backwards, one forwards using the L298N truth table). Otherwise drive straight. Press Run and watch the Track view.", videoQuery: "obstacle avoiding robot arduino", check: { kind: "roam" as const, seconds: 30, minDistanceMm: 1000, maxHits: 0 } },
+        { id: "o5", title: "Tune it", detail: "What happens with a 10 cm threshold? With 60 cm? Slow the motors and shorten the delay between measurements (the datasheet asks for at least 60 ms).", check: { kind: "manual" as const } },
+      ],
+      notes: "Datasheet facts used: HC-SR04 range 2 cm – 4 m, 15° cone, trigger ≥ 10 µs, echo µs ÷ 58 = cm. L298 truth table and ~2 V bridge drop; TT motor 250 rpm at 6 V.",
+    },
+  },
+  {
+    id: "auto-gate",
+    title: "Automatic barrier gate (ultrasonic → servo → 3D arm)",
+    kind: "circuit",
+    level: "beginner",
+    tags: ["servo", "ultrasonic", "machine", "3d", "code"],
+    blurb: "A car comes close, the HC-SR04 measures it, the SG90 servo lifts the barrier arm. Drag the object-distance slider and watch code, circuit and 3D move as one machine.",
+    spec: {
+      kind: "circuit",
+      summary: "The HC-SR04 reports echo time (µs ÷ 58 = cm). When something is closer than 25 cm the code turns the SG90 to 90° and the barrier arm lifts; farther away, it lowers. The servo swings at its datasheet speed (0.1 s per 60°), so the arm is not instant.",
+      joints: [{ id: "arm", kind: "revolute" as const, axis: "z" as const, pivot: [-60, 100, 0] as [number, number, number], servo: "gate", rate: 600, min: 0, max: 90, initial: 0 }],
+      parts: [
+        { id: "road", name: "Road", shape: "box", size: [520, 2, 160], pos: [60, 1, 0], color: "#64748b", opacity: 0.25, group: "Scene" },
+        { id: "post", name: "Gate post", shape: "box", size: [26, 100, 26], pos: [-75, 52, 0], color: "#8fd3ff", opacity: 0.3, group: "Gate", explode: [0, 0, -40], info: { where: "Beside the road", fit: "Houses the servo; bolt to the ground." } },
+        { id: "servoBody", name: "SG90 servo", bind: "gate", shape: "box", size: [22.2, 22.7, 11.8], pos: [-62, 100, 0], color: "#1d4ed8", opacity: 0.45, group: "Gate", explode: [0, 40, 0], info: { where: "On top of the post, horn out toward the road", fit: "Datasheet size 22.2 × 11.8 × (22.7 body, 31 with ears) mm.", cost: "~₦2,500" } },
+        { id: "armBeam", name: "Barrier arm", shape: "box", size: [280, 12, 12], pos: [80, 100, 0], joint: "arm", color: "#f8fafc", opacity: 0.5, group: "Gate", explode: [0, 60, 0], info: { where: "Hinged at the servo horn", fit: "Light wood or plastic strip; the servo turns it 90° (SG90 stall torque 1.8 kgf·cm, so keep it light)." } },
+        { id: "armStripe", name: "Arm stripe", shape: "box", size: [60, 13, 13], pos: [150, 100, 0], joint: "arm", color: "#ef4444", opacity: 0.6, group: "Gate" },
+      ],
+      circuit: {
+        parts: [
+          board,
+          { id: "us", type: "hc_sr04", label: "Ultrasonic sensor", x: 90, y: 80, props: { value: 200 } },
+          { id: "gate", type: "servo", label: "Gate servo (SG90)", x: 330, y: 80 },
+        ],
+        wires: [
+          w("w1", "us.vcc", "board.5V", "#ef4444"),
+          w("w2", "us.gnd", "board.GND", "#111827"),
+          w("w3", "us.trig", "board.D9", "#f59e0b"),
+          w("w4", "us.echo", "board.D10", "#38bdf8"),
+          w("w5", "gate.vcc", "board.5V", "#ef4444"),
+          w("w6", "gate.gnd", "board.GND", "#111827"),
+          w("w7", "gate.signal", "board.D6", "#a855f7"),
+        ],
+      } as NonNullable<DesignSpecInput["circuit"]>,
+      code: `var TRIG = 9;
+var ECHO = 10;
+var SERVO = 6;
+
+function setup() {
+  pinMode(TRIG, OUTPUT);
+  pinMode(ECHO, INPUT);
+  pinMode(SERVO, OUTPUT);
+  servoWrite(SERVO, 0);          // arm down
+}
+
+function distanceCm() {
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);          // datasheet: at least 10 µs
+  digitalWrite(TRIG, LOW);
+  var us = pulseIn(ECHO, HIGH);
+  if (us == 0) return 999;
+  return us / 58;                 // datasheet: µs / 58 = cm
+}
+
+function loop() {
+  var d = distanceCm();
+  if (d < 25) {
+    servoWrite(SERVO, 90);        // car close: lift the arm
+  } else {
+    servoWrite(SERVO, 0);
+  }
+  delay(100);                     // the sensor needs 60 ms between measurements
+}
+`,
+      steps: [
+        { id: "g1", title: "Press Run and move the car", detail: "Press Run. Drag the Ultrasonic sensor's object-distance slider below 25 cm: the code lifts the arm. Move it away and the arm lowers.", videoQuery: "arduino ultrasonic servo barrier gate", check: { kind: "scenario" as const, seconds: 6, sets: [{ atS: 0.2, part: "us", value: 200 }, { atS: 1.5, part: "us", value: 15 }, { atS: 3.5, part: "us", value: 200 }], expect: [{ atS: 1.0, joint: "arm", max: 5 }, { atS: 3.0, joint: "arm", min: 85 }, { atS: 5.5, joint: "arm", max: 5 }] } },
+        { id: "g2", title: "How fast does it move?", detail: "The SG90 turns 60° in 0.1 s (datasheet), so a 90° lift takes about 0.15 s. Change the angle to 45 and see the arm stop half way.", check: { kind: "manual" as const } },
+        { id: "g3", title: "Make it safer", detail: "Add a delay so the gate stays open for 2 s after the car leaves, or require two readings below 25 cm in a row to ignore a stray echo.", check: { kind: "manual" as const } },
+      ],
+      notes: "HC-SR04: ≥10 µs trigger, echo µs ÷ 58 = cm, 2 cm – 4 m, 15° cone, ≥60 ms between measurements. SG90: 4.8–5 V, 0.1 s/60°, 1.8 kgf·cm.",
+    },
+  },
+  {
+    id: "limit-lift",
+    title: "Lift with limit switches (motor → driver → carriage)",
+    kind: "circuit",
+    level: "intermediate",
+    tags: ["motors", "limit switches", "machine", "3d", "code"],
+    blurb: "An L298N-driven motor raises a carriage. When it reaches the end of travel it presses a limit switch — in 3D and in the circuit — and the code reverses it. A real feedback loop, not an animation.",
+    spec: {
+      kind: "circuit",
+      summary: "The motor lifts the carriage at a speed that follows the voltage it really gets (battery minus the L298 drop). The top and bottom limit switches are pressed by the carriage position; the code reads them (INPUT_PULLUP, LOW = pressed) and reverses.",
+      joints: [{ id: "carriage", kind: "prismatic" as const, axis: "y" as const, motor: "m1", rate: 40, min: 0, max: 160, initial: 0 }],
+      triggers: [
+        { kind: "limit" as const, part: "bottom", joint: "carriage", at: "min" as const, tolerance: 1 },
+        { kind: "limit" as const, part: "top", joint: "carriage", at: "max" as const, tolerance: 1 },
+      ],
+      parts: [
+        { id: "base", name: "Base", shape: "box", size: [120, 10, 90], pos: [0, 5, 0], color: "#8fd3ff", opacity: 0.25, group: "Frame" },
+        { id: "railL", name: "Left rail", shape: "cylinder", size: [4, 200], pos: [-40, 110, 0], color: "#94a3b8", opacity: 0.5, group: "Frame" },
+        { id: "railR", name: "Right rail", shape: "cylinder", size: [4, 200], pos: [40, 110, 0], color: "#94a3b8", opacity: 0.5, group: "Frame" },
+        { id: "head", name: "Top plate", shape: "box", size: [120, 8, 90], pos: [0, 214, 0], color: "#8fd3ff", opacity: 0.25, group: "Frame" },
+        { id: "motorBody", name: "Lift motor (TT)", shape: "box", size: [70, 18, 22], pos: [0, 223, 0], bind: "m1", color: "#fcd34d", opacity: 0.4, group: "Drive", info: { where: "On the top plate", fit: "TT gearbox motor winding the lifting cord (70 × 22 × 18 mm, 250 rpm at 6 V).", cost: "~₦1,500" } },
+        { id: "car", name: "Carriage", shape: "box", size: [90, 14, 60], pos: [0, 30, 0], joint: "carriage", color: "#5eead4", opacity: 0.4, group: "Carriage", explode: [0, 20, 0], info: { where: "Slides on both rails", fit: "Bushings on the rails; cord to the motor drum." } },
+        { id: "load", name: "Load", shape: "box", size: [40, 30, 40], pos: [0, 52, 0], joint: "carriage", color: "#fbbf24", opacity: 0.35, group: "Carriage" },
+      ],
+      circuit: {
+        parts: [
+          board,
+          { id: "bat", type: "battery", label: "Battery 6 V", x: 560, y: 200, props: { volts: 6 } },
+          { id: "drv", type: "l298n", label: "L298N driver", x: 330, y: 190, props: { jumperEnA: 0, jumperEnB: 0, jumper5v: 0 } },
+          { id: "m1", type: "dc_motor", label: "Lift motor", x: 350, y: 50 },
+          { id: "top", type: "button", label: "Top limit switch", x: 100, y: 60 },
+          { id: "bottom", type: "button", label: "Bottom limit switch", x: 180, y: 60 },
+        ],
+        wires: [
+          w("w1", "bat.plus", "drv.vs", "#ef4444"),
+          w("w2", "bat.minus", "board.GND", "#111827"),
+          w("w3", "drv.gnd", "board.GND", "#111827"),
+          w("w4", "board.5V", "drv.v5", "#ef4444"),
+          w("w5", "board.D5", "drv.ena", "#3b82f6"),
+          w("w6", "board.D7", "drv.in1", "#22c55e"),
+          w("w7", "board.D8", "drv.in2", "#22c55e"),
+          w("w8", "drv.out1", "m1.a"),
+          w("w9", "drv.out2", "m1.b"),
+          w("w10", "top.a", "board.D2"),
+          w("w11", "top.b", "board.GND"),
+          w("w12", "bottom.a", "board.D3"),
+          w("w13", "bottom.b", "board.GND"),
+        ],
+      } as NonNullable<DesignSpecInput["circuit"]>,
+      code: `var TOP = 2;
+var BOTTOM = 3;
+var dir = 1;   // +1 = going up, −1 = going down
+
+function setup() {
+  pinMode(TOP, INPUT_PULLUP);
+  pinMode(BOTTOM, INPUT_PULLUP);
+  pinMode(5, OUTPUT);
+  pinMode(7, OUTPUT);
+  pinMode(8, OUTPUT);
+}
+
+function move(d) {
+  // L298N truth table: IN1 H, IN2 L = forward (up) · IN1 L, IN2 H = reverse (down)
+  digitalWrite(7, d > 0 ? HIGH : LOW);
+  digitalWrite(8, d > 0 ? LOW : HIGH);
+  analogWrite(5, 255);
+}
+
+function halt() {
+  analogWrite(5, 0);    // Enable low: the motor coasts
+}
+
+function loop() {
+  move(dir);
+  if (dir > 0 && digitalRead(TOP) == LOW) {        // limit switch pressed (INPUT_PULLUP: LOW)
+    halt();
+    delay(1000);
+    dir = -1;
+  } else if (dir < 0 && digitalRead(BOTTOM) == LOW) {
+    halt();
+    delay(1000);
+    dir = 1;
+  }
+  delay(10);
+}
+`,
+      steps: [
+        { id: "l1", title: "Run it and watch the limit switches", detail: "Press Run. The carriage rises; at the top it presses the top switch (see the circuit bench and the 3D view), the motor stops for a second, then it lowers until the bottom switch is pressed.", videoQuery: "limit switch arduino lift motor", check: { kind: "scenario" as const, seconds: 14, sets: [], expect: [{ atS: 6.5, joint: "carriage", min: 150 }, { atS: 13, joint: "carriage", max: 5 }] } },
+        { id: "l2", title: "Speed from the datasheet", detail: "The L298N drops about 2 V, so a 6 V pack gives ~4 V; a TT motor then turns about 160 rpm (250 rpm at 6 V, 120 at 3 V). Change PWM 255 to 150 and time a full lift.", check: { kind: "manual" as const } },
+        { id: "l3", title: "What if a switch fails?", detail: "Disconnect the top switch wire: what stops the carriage now? (Real lifts add a second, independent limit.)", check: { kind: "manual" as const } },
+      ],
+      notes: "Limit switches are pressed by the 3D carriage reaching the end of travel; INPUT_PULLUP reads LOW when pressed. Motor speed uses the TT-motor curve at the voltage left after the L298 drop.",
     },
   },
   {

@@ -8,6 +8,7 @@ import { createDesign, serializeDesign } from "@/lib/studio/store";
 import { getTemplate, templateStart } from "@/lib/studio/templates";
 import { emptySpec, designKinds } from "@/lib/studio/spec";
 import { generateDesign } from "@/lib/studio/design-ai";
+import { cleanSelection, selectionSchema } from "@/lib/studio/ai-build";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -51,6 +52,9 @@ const createSchema = z.object({
   guided: z.boolean().default(true),
   kind: z.enum(designKinds).optional(),
   prompt: z.string().trim().max(1500).optional(),
+  /** the bill of materials the learner approved: the AI builds with exactly these shop parts */
+  parts: selectionSchema.optional(),
+  research: z.object({ notes: z.string().max(4000), sources: z.array(z.object({ title: z.string().max(200), uri: z.string().max(600) })).max(12) }).nullish(),
   level: z.string().max(20).optional(),
   title: z.string().trim().max(80).optional(),
   visibility: z.enum(["private", "public", "class"]).default("private"),
@@ -73,7 +77,9 @@ export async function POST(req: NextRequest) {
       if (!body.prompt || body.prompt.length < 4) throw new ApiError(400, "VALIDATION", "Describe what you want to build.");
       const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000 });
       if (limited) return limited;
-      const out = await generateDesign({ prompt: body.prompt, kind: body.kind, level: body.level, userId: caller.uid });
+      const parts = cleanSelection(body.parts);
+      const out = await generateDesign({ prompt: body.prompt, kind: body.kind, level: body.level, userId: caller.uid, parts, research: body.research });
+      if (body.research) out.spec.research = body.research;
       id = await createDesign({ user: caller, title: body.title || out.title, spec: out.spec, source: "ai", message: out.message || `AI: ${body.prompt.slice(0, 80)}`, visibility: body.visibility, classId: body.classId, kcId: body.kcId, challengeId: body.challengeId });
     } else {
       const kind = body.kind || "circuit";

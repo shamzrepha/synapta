@@ -31,9 +31,17 @@ export function TrackView({ drive, running, className }: { drive: DriveSim; runn
     g.fillRect(0, 0, W, H);
 
     const { track, robot } = drive;
-    const xs = track.pts.map((p) => p[0]);
-    const zs = track.pts.map((p) => p[1]);
-    const pad = 70;
+    const xs: number[] = track.pts.map((p) => p[0]);
+    const zs: number[] = track.pts.map((p) => p[1]);
+    if (track.arena) xs.push(-track.arena.width / 2, track.arena.width / 2), zs.push(-track.arena.depth / 2, track.arena.depth / 2);
+    for (const o of track.obstacles) {
+      const ex = o.shape === "box" ? o.w / 2 : o.r;
+      const ez = o.shape === "box" ? o.d / 2 : o.r;
+      xs.push(o.x - ex, o.x + ex);
+      zs.push(o.z - ez, o.z + ez);
+    }
+    if (!xs.length) xs.push(-300, 300), zs.push(-300, 300);
+    const pad = track.arena ? 30 : 70;
     const minX = Math.min(...xs) - pad;
     const maxX = Math.max(...xs) + pad;
     const minZ = Math.min(...zs) - pad;
@@ -44,7 +52,29 @@ export function TrackView({ drive, running, className }: { drive: DriveSim; runn
     const X = (x: number) => x * k + ox;
     const Y = (z: number) => z * k + oy;
 
+    // walls and obstacles
+    if (track.arena) {
+      g.strokeStyle = "#475569";
+      g.lineWidth = 4;
+      g.strokeRect(X(-track.arena.width / 2), Y(-track.arena.depth / 2), track.arena.width * k, track.arena.depth * k);
+    }
+    for (const o of track.obstacles) {
+      g.fillStyle = "#f59e0b";
+      g.strokeStyle = "#b45309";
+      g.lineWidth = 2;
+      if (o.shape === "box") {
+        g.fillRect(X(o.x - o.w / 2), Y(o.z - o.d / 2), o.w * k, o.d * k);
+        g.strokeRect(X(o.x - o.w / 2), Y(o.z - o.d / 2), o.w * k, o.d * k);
+      } else {
+        g.beginPath();
+        g.arc(X(o.x), Y(o.z), o.r * k, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+      }
+    }
+
     // the line
+    if (track.pts.length >= 2) {
     g.lineCap = "round";
     g.lineJoin = "round";
     g.strokeStyle = "#0b1220";
@@ -53,6 +83,7 @@ export function TrackView({ drive, running, className }: { drive: DriveSim; runn
     track.pts.forEach((p, i) => (i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))));
     if (track.closed) g.closePath();
     g.stroke();
+    }
 
     // start marker
     g.fillStyle = "#16a34a";
@@ -90,8 +121,8 @@ export function TrackView({ drive, running, className }: { drive: DriveSim; runn
     g.closePath();
     g.fill();
     for (const s of robot.sensors) {
-      const v = drive.sensor(s.x, s.z);
-      g.fillStyle = v > 500 ? "#ef4444" : "#94a3b8";
+      const v = drive.read(s);
+      g.fillStyle = s.kind === "distance" ? "#38bdf8" : v > 500 ? "#ef4444" : "#94a3b8";
       g.strokeStyle = "#fff";
       g.lineWidth = 1.5;
       g.beginPath();
@@ -108,10 +139,11 @@ export function TrackView({ drive, running, className }: { drive: DriveSim; runn
     g.fillRect(8, 8, 188, 62);
     g.fillStyle = "#f8fafc";
     g.font = "600 12px ui-monospace, monospace";
-    g.fillText(`time ${drive.time.toFixed(1)} s   laps ${Math.max(0, drive.progress / track.length).toFixed(2)}`, 16, 26);
+    const lined = track.pts.length >= 2;
+    g.fillText(lined ? `time ${drive.time.toFixed(1)} s   laps ${Math.max(0, drive.progress / track.length).toFixed(2)}` : `time ${drive.time.toFixed(1)} s   hits ${drive.hits}`, 16, 26);
     g.fillText(`speed ${Math.round(((left + right) / 2) / 10)} cm/s`, 16, 43);
-    g.fillStyle = pct >= 80 ? "#4ade80" : pct >= 50 ? "#fbbf24" : "#f87171";
-    g.fillText(`on the line ${pct}%`, 16, 60);
+    g.fillStyle = !lined ? "#e2e8f0" : pct >= 80 ? "#4ade80" : pct >= 50 ? "#fbbf24" : "#f87171";
+    g.fillText(lined ? `on the line ${pct}%` : `distance ${Math.round(drive.distance / 10)} cm`, 16, 60);
     if (!running && drive.time === 0) {
       g.fillStyle = "rgba(15,23,42,0.7)";
       g.fillRect(W / 2 - 120, H - 36, 240, 26);

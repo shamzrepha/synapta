@@ -21,7 +21,9 @@ export interface PinDef {
 export interface ComponentDef {
   type: string;
   name: string;
-  category: "board" | "output" | "input" | "passive" | "driver";
+  category: "board" | "output" | "input" | "passive" | "driver" | "power";
+  /** true when its behaviour and dimensions come from a datasheet (see parts/library.ts) */
+  verified?: boolean;
   description: string;
   w: number;
   h: number;
@@ -169,7 +171,8 @@ export const CATALOG: ComponentDef[] = [
   },
   {
     type: "ir_sensor",
-    name: "Line sensor (IR)",
+    name: "Line sensor (TCRT5000 module)",
+    verified: true,
     category: "input",
     description: "Shines infrared light at the floor and reads how much comes back: a dark line reflects little (reads HIGH here), a light floor reflects a lot (LOW). VCC to 5V, GND to GND, OUT to a pin — digitalRead(pin) or analogRead. Mount it facing the floor at the front of a robot.",
     w: 60,
@@ -201,7 +204,8 @@ export const CATALOG: ComponentDef[] = [
   },
   {
     type: "servo",
-    name: "Servo motor",
+    name: "Servo motor (SG90)",
+    verified: true,
     category: "output",
     description: "Turns to an angle 0–180°. Brown/black to GND, red to 5V, orange signal to a digital pin; use servoWrite(pin, angle).",
     w: 70,
@@ -233,10 +237,98 @@ export const CATALOG: ComponentDef[] = [
     learn: "L298N motor driver arduino",
   },
   {
+    type: "l298n",
+    name: "L298N motor driver (dual H-bridge)",
+    category: "driver",
+    verified: true,
+    description: "Drives two DC motors. Per bridge: ENA/ENB high (or PWM) enables it; IN1/IN2 pick the direction (H,L forward · L,H reverse · equal = brake). VS = battery (motor power), +5V = logic power, GND must be shared with the board. The bridge burns 2–3 V, so the motor gets less than the battery gives. ENA/ENB are tied high by the module's jumpers unless you wire them.",
+    w: 130,
+    h: 96,
+    pins: [
+      { name: "out1", role: "loadOut", x: 0.08, y: 0 },
+      { name: "out2", role: "loadOut", x: 0.2, y: 0 },
+      { name: "out3", role: "loadOut", x: 0.8, y: 0 },
+      { name: "out4", role: "loadOut", x: 0.92, y: 0 },
+      { name: "vs", role: "power", x: 0.06, y: 1 },
+      { name: "gnd", role: "ground", x: 0.16, y: 1 },
+      { name: "v5", role: "power", x: 0.26, y: 1 },
+      { name: "ena", role: "signalIn", x: 0.36, y: 1 },
+      { name: "in1", role: "signalIn", x: 0.46, y: 1 },
+      { name: "in2", role: "signalIn", x: 0.56, y: 1 },
+      { name: "in3", role: "signalIn", x: 0.66, y: 1 },
+      { name: "in4", role: "signalIn", x: 0.76, y: 1 },
+      { name: "enb", role: "signalIn", x: 0.88, y: 1 },
+    ],
+    props: { jumperEnA: 1, jumperEnB: 1, jumper5v: 0 },
+    cost: "₦3,000",
+    learn: "L298N motor driver arduino how it works",
+  },
+  {
+    type: "tb6612",
+    name: "TB6612FNG motor driver (dual MOSFET)",
+    category: "driver",
+    verified: true,
+    description: "Drives two DC motors with MOSFETs (almost no voltage lost). Per channel: IN1/IN2 pick the direction, PWM sets the speed (H,L + PWM high = CW; L,H + PWM high = CCW; both HIGH or PWM low = short brake; both LOW = stop). STBY must be pulled HIGH or nothing moves. VM = battery, VCC = logic 5 V.",
+    w: 130,
+    h: 90,
+    pins: [
+      { name: "aout1", role: "loadOut", x: 0.08, y: 0 },
+      { name: "aout2", role: "loadOut", x: 0.22, y: 0 },
+      { name: "bout1", role: "loadOut", x: 0.78, y: 0 },
+      { name: "bout2", role: "loadOut", x: 0.92, y: 0 },
+      { name: "vm", role: "power", x: 0.05, y: 1 },
+      { name: "vcc", role: "power", x: 0.15, y: 1 },
+      { name: "gnd", role: "ground", x: 0.25, y: 1 },
+      { name: "stby", role: "signalIn", x: 0.35, y: 1 },
+      { name: "pwma", role: "signalIn", x: 0.45, y: 1 },
+      { name: "ain1", role: "signalIn", x: 0.55, y: 1 },
+      { name: "ain2", role: "signalIn", x: 0.65, y: 1 },
+      { name: "bin1", role: "signalIn", x: 0.75, y: 1 },
+      { name: "bin2", role: "signalIn", x: 0.85, y: 1 },
+      { name: "pwmb", role: "signalIn", x: 0.95, y: 1 },
+    ],
+    cost: "₦4,500",
+    learn: "TB6612FNG motor driver arduino",
+  },
+  {
+    type: "hc_sr04",
+    name: "HC-SR04 ultrasonic distance sensor",
+    category: "input",
+    verified: true,
+    description: "Measures distance with ultrasound. VCC 5 V, GND. Give TRIG a ≥10 µs HIGH pulse, then pulseIn(ECHO, HIGH) returns the echo time in µs; centimetres = µs ÷ 58. Range 2 cm – 4 m, 15° cone. Wait 60 ms between measurements.",
+    w: 90,
+    h: 50,
+    pins: [
+      { name: "vcc", role: "power", x: 0.15, y: 1 },
+      { name: "trig", role: "signalIn", x: 0.38, y: 1 },
+      { name: "echo", role: "signalOut", x: 0.62, y: 1 },
+      { name: "gnd", role: "ground", x: 0.85, y: 1 },
+    ],
+    props: { value: 100 },
+    cost: "₦1,500",
+    learn: "HC-SR04 arduino pulseIn distance",
+  },
+  {
+    type: "battery",
+    name: "Battery pack",
+    category: "power",
+    description: "The motor power supply. Choose the voltage (4×AA alkaline = 6 V, 9 V, 2S LiPo = 7.4 V). Connect − to the board GND (a shared ground) and + to the driver's motor-supply pin.",
+    w: 70,
+    h: 50,
+    pins: [
+      { name: "plus", role: "power", volts: 6, x: 0.25, y: 1 },
+      { name: "minus", role: "ground", x: 0.75, y: 1 },
+    ],
+    props: { volts: 6 },
+    cost: "₦1,800",
+    learn: "battery pack for arduino robot",
+  },
+  {
     type: "dc_motor",
-    name: "DC motor",
+    name: "DC gearbox motor (TT, 3–6 V)",
     category: "output",
-    description: "Spins when powered. Draws ~200 mA — far more than a pin can give — so drive it through a motor driver.",
+    verified: true,
+    description: "The yellow TT gearbox motor: 3–6 V, 250 rpm at 6 V (120 rpm at 3 V), about 150 mA running and 1.5 A stalled — far more than a pin can give, so it needs a motor driver. Speed follows the voltage it actually receives.",
     w: 60,
     h: 60,
     pins: [

@@ -54,9 +54,23 @@ export function modelFor(type: string, props: Record<string, string | number> | 
     case "temp_sensor":
       return [{ shape: "capsule", size: [2.4, 6], dx: 0, dy: TOP + 5, dz: 0, color: "#38bdf8", opacity: 0.45 }];
     case "ir_sensor":
-      return [box([12, 4, 8], 2, "#0f172a", { opacity: 0.5 }), { shape: "cylinder", size: [1.6, 3], dx: -2.5, dy: TOP + 5, dz: 0, color: "#f87171", opacity: 0.6 }];
+      return [box([10.2, 7, 5.8], 3.5, "#0f172a", { opacity: 0.5 }), { shape: "cylinder", size: [1.6, 3], dx: -2.5, dy: TOP + 8, dz: 0, color: "#f87171", opacity: 0.6 }];
+    case "l298n":
+      // 3.4 × 4.3 × 2.7 cm module (Handson datasheet): board, heatsink block and terminals
+      return [box([34, 4, 43], 2, "#b91c1c", { opacity: 0.35 }), box([20, 21, 14], 4 + 10.5, "#111827", { opacity: 0.45 })];
+    case "tb6612":
+      return [box([20, 4, 25], 2, "#1e3a8a", { opacity: 0.4 }), box([8, 2, 8], 5, "#111827", { opacity: 0.5 })];
+    case "hc_sr04":
+      // 45 × 20 × 15 mm (datasheet): board with two transducer cans
+      return [
+        box([45, 2, 20], 1, "#1e40af", { opacity: 0.4 }),
+        { shape: "cylinder", size: [8, 12], dx: -11, dy: TOP + 8, dz: 0, rot: [90, 0, 0], color: "#cbd5e1", opacity: 0.5 },
+        { shape: "cylinder", size: [8, 12], dx: 11, dy: TOP + 8, dz: 0, rot: [90, 0, 0], color: "#cbd5e1", opacity: 0.5 },
+      ];
+    case "battery":
+      return [box([60, 18, 30], 9, "#a16207", { opacity: 0.4 })];
     case "servo":
-      return [box([22, 12, 11], 6, "#1d4ed8", { opacity: 0.35 }), box([3, 2, 16], 13, "#e5e7eb", { opacity: 0.7 })];
+      return [box([22.2, 22.7, 11.8], 11.35, "#1d4ed8", { opacity: 0.35 }), box([3, 2, 16], 24, "#e5e7eb", { opacity: 0.7 })];
     case "motor_driver":
       return [box([18, 4, 14], 2, "#7c3aed", { opacity: 0.35 })];
     case "dc_motor":
@@ -137,7 +151,7 @@ export function sceneParts(spec: DesignSpec, overrides: Record<string, number> =
     let right = Math.max(...explicit.map((p) => p.pos[0] + (p.shape === "box" ? p.size[0] / 2 : p.size[0])));
     if (spec.world) {
       const tr = resolveTrack(spec.world);
-      right = Math.max(right, ...tr.pts.map((q) => q[0] + tr.width), tr.start.x + 100);
+      right = Math.max(right, ...tr.pts.map((q) => q[0] + tr.width), tr.start.x + 100, tr.arena ? tr.arena.width / 2 + 40 : -Infinity, ...tr.obstacles.map((o) => o.x + (o.shape === "box" ? o.w / 2 : o.r)));
     }
     const todo = spec.circuit.parts.filter((p) => !represented.has(p.id) && CATALOG_BY_TYPE[p.type]);
     const width = todo.length ? (Math.max(...todo.map((p) => p.x + CATALOG_BY_TYPE[p.type].w)) - Math.min(...todo.map((p) => p.x))) * S + 28 : 0;

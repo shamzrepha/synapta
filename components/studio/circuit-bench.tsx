@@ -152,6 +152,36 @@ function PartArt({ p, def, out, pressed }: { p: CircuitPart; def: ComponentDef; 
           <text x={w * 0.68} y={(h - 8) / 2 + 4} textAnchor="middle" fontSize={10} fill="#dbeafe">{Math.round(out?.angle ?? 90)}°</text>
         </g>
       );
+    case "l298n":
+    case "tb6612": {
+      const l = p.type === "l298n";
+      return (
+        <g>
+          <rect width={w} height={h} rx={5} fill={l ? "#b91c1c" : "#1e3a8a"} stroke="#fecaca" />
+          <rect x={w * 0.34} y={10} width={w * 0.32} height={h * 0.45} rx={3} fill="#111827" stroke="#9ca3af" />
+          <text x={w / 2} y={h * 0.32} textAnchor="middle" fontSize={11} fill="#f8fafc" fontWeight={800}>{l ? "L298N" : "TB6612"}</text>
+          <text x={w / 2} y={h * 0.58} textAnchor="middle" fontSize={8} fill="#fecaca">{out?.on ? (out.fault ? out.fault : "driving") : out?.fault || "idle"}</text>
+          <text x={w * 0.2} y={14} textAnchor="middle" fontSize={8} fill="#fee2e2">A</text>
+          <text x={w * 0.86} y={14} textAnchor="middle" fontSize={8} fill="#fee2e2">B</text>
+        </g>
+      );
+    }
+    case "hc_sr04":
+      return (
+        <g>
+          <rect width={w} height={h - 8} rx={5} fill="#1e40af" stroke="#93c5fd" />
+          <circle cx={w * 0.27} cy={(h - 8) / 2} r={14} fill="#cbd5e1" stroke="#475569" strokeWidth={3} />
+          <circle cx={w * 0.73} cy={(h - 8) / 2} r={14} fill="#cbd5e1" stroke="#475569" strokeWidth={3} />
+          <text x={w / 2} y={h - 12} textAnchor="middle" fontSize={8} fill="#bfdbfe">HC-SR04</text>
+        </g>
+      );
+    case "battery":
+      return (
+        <g>
+          <rect width={w} height={h - 10} rx={6} fill="#a16207" stroke="#fde68a" />
+          <text x={w / 2} y={(h - 10) / 2 + 4} textAnchor="middle" fontSize={13} fill="#fffbeb" fontWeight={800}>{`${Number(p.props?.volts ?? 6)} V`}</text>
+        </g>
+      );
     case "motor_driver":
       return (
         <g>
@@ -398,10 +428,19 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
       )}
 
       {/* live sensor controls while running */}
-      {running && circuit.parts.some((p) => ["potentiometer", "light_sensor", "temp_sensor"].includes(p.type)) && (
+      {running && circuit.parts.some((p) => ["potentiometer", "light_sensor", "temp_sensor", "hc_sr04"].includes(p.type)) && (
         <div className="grid gap-2 sm:grid-cols-2">
-          {circuit.parts.filter((p) => ["potentiometer", "light_sensor", "temp_sensor"].includes(p.type)).map((p) => {
+          {circuit.parts.filter((p) => ["potentiometer", "light_sensor", "temp_sensor", "hc_sr04"].includes(p.type)).map((p) => {
+            const dist = p.type === "hc_sr04";
             const v = sensorValues[p.id] ?? Number(p.props?.value ?? 512);
+            if (dist)
+              return (
+                <label key={p.id} className="flex items-center gap-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2">
+                  <span className="font-semibold w-28 truncate">{p.label || p.id} (object distance)</span>
+                  <input type="range" min={0} max={450} value={v} onChange={(e) => onSensor(p.id, Number(e.target.value))} className="flex-1 accent-teal-600" />
+                  <span className="font-mono w-14 text-right">{v} cm</span>
+                </label>
+              );
             return (
               <label key={p.id} className="flex items-center gap-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2">
                 <span className="font-semibold w-28 truncate">{p.label || p.id}</span>

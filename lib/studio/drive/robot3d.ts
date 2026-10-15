@@ -32,6 +32,14 @@ export function robotBody(robot: Robot, circuit: DesignSpec["circuit"]): Resolve
   }
 
   for (const s of robot.sensors) {
+    if (s.kind === "distance") {
+      // HC-SR04 (45 × 20 × 15 mm, datasheet) facing the way it measures
+      modelFor("hc_sr04", undefined, 90, 50).forEach((m, k) => {
+        const { dx, dy, dz, ...rest2 } = m;
+        add({ ...rest2, id: `rb_sens_${s.id}_${k}`, name: `Ultrasonic sensor ${s.id}${k ? ` (${k + 1})` : ""}`, pos: [s.x + dx, r + 6 + dy - 3, s.z + dz], rot: k === 0 ? [0, s.angle, 0] : ([90, s.angle, 0] as [number, number, number]), bind: s.id, explode: [0, 40, 0], info: { where: `On the front, ${Math.abs(s.z)} mm ahead of the axle`, fit: "Datasheet: 45 × 20 × 15 mm, 15° measuring angle, 2 cm – 4 m." } } as never);
+      });
+      continue;
+    }
     add({ id: `rb_sens_${s.id}`, name: `Line sensor ${s.id}`, shape: "box", size: [12, 4, 8], pos: [s.x, 7, s.z], color: "#0f172a", opacity: 0.6, bind: s.id, explode: [0, -20, 0], info: { where: `${Math.abs(s.z)} mm ahead of the axle, ${Math.abs(s.x)} mm ${s.x < 0 ? "left" : "right"} of centre`, fit: "Faces the floor about 5–8 mm up." } });
   }
 

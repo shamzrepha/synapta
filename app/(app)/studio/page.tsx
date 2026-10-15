@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Sparkles, Cpu, Cog, Box, Plus, Route, Swords, Globe2, FolderOpen } from "lucide-react";
+import { Sparkles, Cpu, Cog, Box, Plus, Route, Swords, Globe2, FolderOpen, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -94,7 +94,7 @@ export default function StudioHome() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (prompt.trim().length >= 4) create({ from: "prompt", prompt: prompt.trim(), kind: kind || undefined, level }, "prompt");
+            if (prompt.trim().length >= 4) router.push(`/studio/new?prompt=${encodeURIComponent(prompt.trim())}`);
           }}
           className="space-y-2"
         >
@@ -117,8 +117,11 @@ export default function StudioHome() {
               <option value="intermediate" className="text-slate-900">Intermediate</option>
               <option value="advanced" className="text-slate-900">Advanced</option>
             </select>
-            <Button type="submit" className="ml-auto bg-amber-400 text-slate-900 hover:bg-amber-300" isLoading={creating === "prompt"} disabled={prompt.trim().length < 4}>
-              <Sparkles className="h-4 w-4 mr-1" /> Design it with AI
+            <Button type="button" variant="outline" className="ml-auto border-white/40 text-white hover:bg-white/10 bg-transparent" isLoading={creating === "prompt"} disabled={prompt.trim().length < 4} onClick={() => create({ from: "prompt", prompt: prompt.trim(), kind: kind || undefined, level }, "prompt")} title="Let the AI choose the parts and build straight away">
+              Quick build
+            </Button>
+            <Button type="submit" className="bg-amber-400 text-slate-900 hover:bg-amber-300" disabled={prompt.trim().length < 4}>
+              <Sparkles className="h-4 w-4 mr-1" /> Plan parts &amp; build
             </Button>
           </div>
         </form>
@@ -133,7 +136,10 @@ export default function StudioHome() {
               <Sparkles className="h-3 w-3" /> 3D: {idea}
             </button>
           ))}
-          <Link href="/studio/path"className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 hover:bg-white/10">
+          <Link href="/studio/shop" className="flex items-center gap-1 rounded-full bg-amber-400 text-slate-900 font-semibold px-3 py-1 hover:bg-amber-300">
+            <Wrench className="h-3 w-3" /> Parts shop
+          </Link>
+          <Link href="/studio/path" className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 hover:bg-white/10">
             <Route className="h-3 w-3" /> Goal → learning path
           </Link>
           <Link href="/challenges" className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 hover:bg-white/10">

@@ -2,8 +2,14 @@ import type { World } from "../spec";
 
 export type Pt = [number, number];
 
+export type Obstacle = { shape: "box"; x: number; z: number; w: number; d: number; h: number } | { shape: "cylinder"; x: number; z: number; r: number; h: number };
+
 export interface Track {
+  /** the line (empty when the world has no line) */
   pts: Pt[];
+  obstacles: Obstacle[];
+  /** walls around the floor, centred on the origin */
+  arena?: { width: number; depth: number };
   closed: boolean;
   width: number;
   /** cumulative arc length at each point (mm) */
@@ -54,6 +60,12 @@ export function presetPoints(preset: string): { pts: Pt[]; closed: boolean } {
 
 export function resolveTrack(world: World): Track {
   const t = world.track;
+  const obstacles = (world.obstacles || []) as Obstacle[];
+  if (!t) {
+    // no line: an open floor (arena and obstacles only)
+    const s = world.start ? { x: world.start.x, z: world.start.z, heading: (world.start.heading * Math.PI) / 180 } : { x: 0, z: world.arena ? world.arena.depth / 2 - 120 : 0, heading: 0 };
+    return { pts: [], obstacles, arena: world.arena, closed: false, width: 0, cum: [0], length: 1, start: s };
+  }
   const base = t.points && t.points.length >= 2 ? { pts: t.points as Pt[], closed: t.closed } : presetPoints(t.preset || "oval");
   const pts = base.pts;
   const closed = base.closed && pts.length > 2;
@@ -68,12 +80,13 @@ export function resolveTrack(world: World): Track {
   const dz = p1[1] - p0[1];
   const heading = Math.atan2(-dx, -dz);
   const start = world.start ? { x: world.start.x, z: world.start.z, heading: (world.start.heading * Math.PI) / 180 } : { x: p0[0], z: p0[1], heading };
-  return { pts, closed, width: t.width, cum, length: Math.max(length, 1), start };
+  return { pts, obstacles, arena: world.arena, closed, width: t.width, cum, length: Math.max(length, 1), start };
 }
 
 /** Nearest point on the path: distance (mm) and arc length along the path (mm). */
 export function nearest(track: Track, x: number, z: number): { dist: number; s: number } {
   const { pts, closed, cum } = track;
+  if (pts.length < 2) return { dist: Infinity, s: 0 };
   const n = pts.length;
   const segs = closed ? n : n - 1;
   let best = Infinity;

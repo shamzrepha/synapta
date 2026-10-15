@@ -20,8 +20,10 @@ import { GuidePanel, type GuideMode } from "@/components/studio/guide-panel";
 import { HistoryPanel } from "@/components/studio/history-panel";
 import { TrackView } from "@/components/studio/track-view";
 import { DriveSim } from "@/lib/studio/drive/physics";
+import { JointRig } from "@/lib/studio/twin/joints";
 import { resolveTrack } from "@/lib/studio/drive/track";
 import { PartEditor } from "@/components/studio/part-editor";
+import { SourcesPanel } from "@/components/studio/sources-panel";
 import { BlockEditor } from "@/components/studio/block-editor";
 import { SimStage, type StageLab } from "@/components/studio/sim-stage";
 import { compileBlocks, type BlockProgram } from "@/lib/studio/blocks";
@@ -62,7 +64,7 @@ interface Payload {
   myProgress: Record<string, { done: boolean; verified?: boolean }>;
 }
 
-type Tab = "guide" | "build" | "code" | "tests" | "history" | "share";
+type Tab = "guide" | "build" | "code" | "tests" | "sources" | "history" | "share";
 
 async function fetchDesign(id: string): Promise<{ ok: true; data: Payload } | { ok: false; message: string }> {
   try {
@@ -103,6 +105,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const [labs, setLabs] = useState<StageLab[]>([]);
   const [drive, setDrive] = useState<DriveSim | null>(null);
   const [follow, setFollow] = useState(false);
+  const [rig, setRig] = useState<JointRig | null>(null);
   const typesRef = useRef<Record<string, string>>({});
   const runningRef = useRef(false);
   const mechStopRef = useRef<(() => void) | null>(null);
@@ -257,6 +260,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
 
   const parts3d = useMemo(() => (shown ? sceneParts(shown) : []), [shown]);
   const idleDrive = useMemo(() => (shown?.robot && shown.world ? new DriveSim(shown.robot, resolveTrack(shown.world)) : null), [shown]);
+  const idleRig = useMemo(() => (shown && shown.joints.length ? new JointRig(shown.joints) : null), [shown]);
+  const activeRig = rig && shown && rig.joints === shown.joints ? rig : idleRig;
   const activeDrive = drive && shown?.robot === drive.robot ? drive : idleDrive;
   const links = useMemo(() => {
     const out: Record<string, string> = {};
@@ -309,6 +314,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     const robot = shown.robot;
     const sim = robot && shown.world ? new DriveSim(robot, resolveTrack(shown.world)) : null;
     setDrive(sim);
+    const jr = shown.joints.length ? new JointRig(shown.joints) : null;
+    setRig(jr);
     // a mechanism in the same design turns with the circuit's motor, so one Run drives everything
     const mech = shown.mechanism;
     const radPerMetre = mech ? analyzeMechanism(mech).radPerMetre : 0;
@@ -316,7 +323,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     const frame = (now: number) => {
       const dt = Math.min(100, now - last);
       last = now;
-      if (sim && robot) for (const sn of robot.sensors) inputsRef.current.values[sn.id] = sim.sensor(sn.x, sn.z);
+      if (sim && robot) for (const sn of robot.sensors) inputsRef.current.values[sn.id] = sim.read(sn);
       rt.advance(rt.now + dt, 150_000);
       const key = Array.from(inputsRef.current.pressed).sort().join(",");
       if (key !== lastKey) {
@@ -332,6 +339,10 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
           sim.step(h, outs[robot.left], outs[robot.right]);
           rem -= h;
         }
+      }
+      if (jr) {
+        jr.step(dt / 1000, outs);
+        if (jr.applyTriggers(shown.triggers, inputsRef.current)) setPressed(new Set(inputsRef.current.pressed));
       }
       if (mech) {
         const m = Object.entries(outs).find(([pid, o]) => typesRef.current[pid] === "dc_motor" && o.on)?.[1];
@@ -513,6 +524,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     { key: "build", label: design.kind === "circuit" ? "Parts" : design.kind === "mechanism" ? "Mechanism" : "Parts & sizes", show: true },
     { key: "code", label: "Code", show: !!shown.circuit },
     { key: "tests", label: `Tests${testResults.length ? ` ${testResults.filter((t) => t.pass).length}/${testResults.length}` : ""}`, show: !!shown.circuit },
+    { key: "sources", label: "Sources", show: !!shown.circuit || !!shown.research },
     { key: "history", label: `History (${design.commitCount})`, show: true },
     { key: "share", label: "Share", show: true },
   ];
@@ -610,6 +622,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
       onPress={press}
       world={activeDrive ? { track: activeDrive.track, pose: activeDrive.pose } : undefined}
       follow={follow}
+      joints={activeRig && shown ? { defs: shown.joints, values: activeRig.values } : undefined}
       className={cls}
     />
   );
@@ -942,6 +955,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
                 })}
               </div>
             )}
+
+            {tab === "sources" && <SourcesPanel spec={shown} />}
 
             {tab === "history" && (
               <HistoryPanel designId={id} headCommitId={design.headCommitId} version={historyVersion} canEdit={!!data.canEdit} contributors={design.contributors} onRestore={restore} onPreview={previewCommit} />

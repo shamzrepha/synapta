@@ -10,7 +10,7 @@ const line = () => parseSpec(getTemplate("line-follower")!.spec);
 
 describe("robot physics", () => {
   const robot = { wheelRadius: 20, trackWidth: 100, length: 140, wheelWidth: 14, maxRpm: 120, left: "mL", right: "mR", sensors: [], body: "auto" as const };
-  const track = resolveTrack({ track: { preset: "oval", width: 18, closed: true } });
+  const track = resolveTrack({ obstacles: [], track: { preset: "oval", width: 18, closed: true } });
   const on = { on: true, level: 1, direction: 1 as const };
 
   it("drives straight when both wheels match, and moves along its nose (−z)", () => {
@@ -52,9 +52,16 @@ describe("line-following digital twin", { timeout: 60000 }, () => {
 
   it("a robot with no steering code (drives straight) leaves the line", () => {
     const s = line();
-    s.code = "function setup(){pinMode(5,OUTPUT);pinMode(6,OUTPUT);}\nfunction loop(){analogWrite(5,190);analogWrite(6,190);}";
+    s.code = "function setup(){for(var i=5;i<=10;i++)pinMode(i,OUTPUT);digitalWrite(7,HIGH);digitalWrite(8,LOW);digitalWrite(9,HIGH);digitalWrite(10,LOW);}\nfunction loop(){analogWrite(5,190);analogWrite(6,190);}";
     const r = simulateDrive(s, 12, 0.02);
     expect(r.onLineFraction).toBeLessThan(0.6);
+  });
+
+  it("with the battery disconnected the real L298N driver can't move the robot at all", () => {
+    const s = line();
+    s.circuit = { ...s.circuit!, wires: s.circuit!.wires.filter((w) => !w.from.startsWith("bat.") && !w.to.startsWith("bat.")) };
+    const r = simulateDrive(s, 6, 0.02);
+    expect(r.drive.distance).toBeLessThan(5);
   });
 
   it("unpowered sensors make the robot blind, so it leaves the line", () => {
@@ -68,7 +75,7 @@ describe("line-following digital twin", { timeout: 60000 }, () => {
     const parts = sceneParts(line());
     const tyres = parts.filter((p) => p.id.startsWith("rb_tyre"));
     expect(tyres).toHaveLength(2);
-    expect(tyres.map((p) => p.pos[0]).sort((a, b) => a - b)).toEqual([-56, 56]);
+    expect(tyres.map((p) => p.pos[0]).sort((a, b) => a - b)).toEqual([-65, 65]);
     expect(new Set(tyres.map((p) => p.pos[2])).size).toBe(1);
     expect(tyres.every((p) => p.moves && p.bind)).toBe(true);
     expect(parts.filter((p) => p.id.startsWith("rb_sens_")).every((p) => p.pos[2] < -50)).toBe(true);
@@ -84,8 +91,8 @@ describe("AI robot designs are repaired into something that can drive", () => {
     const fixed = parseSpec(repairSpec(messy));
     expect(fixed.robot!.left).toBe("mL");
     expect(fixed.robot!.right).toBe("mR");
-    expect(fixed.robot!.sensors).toEqual([{ id: "sL", x: -17, z: -78 }]);
-    expect(fixed.world?.track.preset).toBe("oval");
+    expect(fixed.robot!.sensors).toEqual([{ id: "sL", x: -17, z: -78, kind: "line", angle: 0 }]);
+    expect(fixed.world?.track?.preset).toBe("oval");
   });
   it("a robot with no motors in the circuit is dropped instead of crashing", () => {
     const s = JSON.parse(JSON.stringify(line()));
@@ -93,5 +100,79 @@ describe("AI robot designs are repaired into something that can drive", () => {
     const fixed = parseSpec(repairSpec(s));
     expect(fixed.robot).toBeUndefined();
     expect(fixed.world).toBeUndefined();
+  });
+});
+
+describe("obstacle-avoiding robot (HC-SR04 + L298N)", () => {
+  const av = () => parseSpec(getTemplate("obstacle-avoider")!.spec);
+  it("roams the arena without hitting anything", () => {
+    const r = simulateDrive(av(), 30, 0.02);
+    expect(r.error).toBeNull();
+    expect(r.drive.hits).toBe(0);
+    expect(r.drive.distance).toBeGreaterThan(1000);
+  });
+  it("the ultrasonic rays measure real distances to obstacles and walls (and report nothing beyond 4 m)", () => {
+    const sp = av();
+    const world = { ...sp.world!, obstacles: [{ shape: "box" as const, x: 0, z: 100, w: 200, d: 40, h: 50 }], start: { x: 0, z: 390, heading: 0 } };
+    const d = new DriveSim(sp.robot!, resolveTrack(world));
+    d.pose = { x: 0, z: 390, h: 0 };
+    const cm = d.range(0, -84, 0); // sensor at z = 306, obstacle face at z = 120 → 186 mm
+    expect(cm).toBeGreaterThan(18);
+    expect(cm).toBeLessThan(19.5);
+    d.pose = { x: 0, z: 390, h: Math.PI }; // facing the rear wall at z = 500: only 26 mm beyond the nose
+    expect(d.range(0, -84, 0)).toBeLessThan(5);
+    const far = new DriveSim(sp.robot!, resolveTrack({ ...sp.world!, obstacles: [], arena: undefined }));
+    far.pose = { x: 0, z: 0, h: 0 };
+    expect(far.range(0, -84, 0)).toBe(999);
+  });
+  it("without the code the robot drives straight into something", () => {
+    const s = av();
+    s.code = "function setup(){for(var i=5;i<=10;i++)pinMode(i,OUTPUT);digitalWrite(7,HIGH);digitalWrite(8,LOW);digitalWrite(9,HIGH);digitalWrite(10,LOW);}function loop(){analogWrite(5,170);analogWrite(6,170);}";
+    expect(simulateDrive(s, 15, 0.02).drive.hits).toBeGreaterThan(0);
+  });
+});
+
+import { simulateMachine } from "./run";
+import { verifyStep } from "../verify";
+
+describe("machines: joints, triggers and scenarios (not only robots)", () => {
+  it("the gate lifts when the ultrasonic sensor sees a car close, at the SG90's speed", () => {
+    const spec = parseSpec(getTemplate("auto-gate")!.spec);
+    const step = spec.steps[0];
+    const r = verifyStep(spec, step);
+    expect(r.message).toBe("The machine did what the scenario asked.");
+    const sets = [{ at: 0.2, v: 200 }, { at: 1.5, v: 15 }];
+    const run = simulateMachine(spec, 2.4, { dt: 0.01, onTick: (t, i) => { for (const s of sets) if (t >= s.at) i.values.us = s.v; } });
+    const during = run.jointLog.filter((l) => l.t >= 1.5).map((l) => l.values.arm);
+    expect(during[0]).toBeLessThan(90); // it takes a moment…
+    expect(during[during.length - 1]).toBe(90); // …but gets there
+  });
+  it("the lift's carriage presses the top limit switch, the code reverses, and it returns to the bottom", () => {
+    const spec = parseSpec(getTemplate("limit-lift")!.spec);
+    expect(verifyStep(spec, spec.steps[0]).done).toBe(true);
+    const r = simulateMachine(spec, 14, { dt: 0.02 });
+    expect(Math.max(...r.jointLog.map((l) => l.values.carriage))).toBeGreaterThan(159);
+    expect(r.jointLog.find((l) => l.t >= 13)!.values.carriage).toBeLessThan(5);
+  });
+  it("a lift whose motor driver has no battery never moves, and the scenario check says so", () => {
+    const spec = parseSpec(getTemplate("limit-lift")!.spec);
+    spec.circuit = { ...spec.circuit!, wires: spec.circuit!.wires.filter((w) => !w.from.startsWith("bat.")) };
+    expect(verifyStep(spec, spec.steps[0]).done).toBe(false);
+  });
+});
+
+describe("AI machine designs are repaired", () => {
+  it("drops joints with no real driver, dangling part joints and triggers", () => {
+    const raw = JSON.parse(JSON.stringify(getTemplate("limit-lift")!.spec));
+    raw.joints.push({ id: "ghost", kind: "revolute", motor: "nope", min: 0, max: 10 });
+    raw.parts.push({ id: "x", name: "X", shape: "box", size: [1, 1, 1], pos: [0, 0, 0], joint: "ghost" });
+    raw.triggers.push({ kind: "limit", part: "nobody", joint: "carriage", at: "max" });
+    raw.joints[0].min = 50;
+    raw.joints[0].max = 10;
+    const fixed = parseSpec(repairSpec(raw));
+    expect(fixed.joints.map((j) => j.id)).toEqual(["carriage"]);
+    expect(fixed.joints[0].min).toBeLessThan(fixed.joints[0].max);
+    expect(fixed.parts.find((p) => p.id === "x")!.joint).toBeUndefined();
+    expect(fixed.triggers).toHaveLength(2);
   });
 });

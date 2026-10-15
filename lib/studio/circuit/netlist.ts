@@ -1,5 +1,6 @@
 import type { CircuitPart, Wire } from "../spec";
 import { CATALOG_BY_TYPE, boardPinName, pinDef, isButtonLike } from "./catalog";
+import { l298Drop, tb6612Drop, ttCurrentAt } from "../parts/library";
 
 /**
  * Turns parts + wires into electrical nets (union-find), then evaluates a simplified DC model:
@@ -36,6 +37,10 @@ export interface OutputState {
   angle?: number;
   toneHz?: number;
   direction?: 1 | -1;
+  /** motors: average voltage across the motor (signed: + = forward when out1→a) after the driver's drop */
+  volts?: number;
+  /** motors: the driver is shorting the motor (fast stop) */
+  brake?: boolean;
 }
 
 const VF: Record<string, number> = { red: 2, yellow: 2.1, amber: 2.1, green: 2.2, blue: 3, white: 3 };
@@ -120,6 +125,11 @@ export class Netlist {
     return def.pins.filter((p) => this.find(term(this.board!.id, p.name)) === net).map((p) => p.name);
   }
 
+  /** is a wire attached to this terminal? */
+  termWired(t: string): boolean {
+    return this.wiredTerms.has(t);
+  }
+
   isWired(partId: string): boolean {
     const p = this.partsById.get(partId);
     if (!p) return false;
@@ -141,7 +151,21 @@ export function netPotential(nl: Netlist, net: string, pins: PinState): number |
       v = Math.max(v ?? 0, out);
     }
   }
+  // a battery whose minus side is tied to the board's ground puts its voltage on the plus net
+  for (const b of nl.circuit.parts) {
+    if (b.type !== "battery") continue;
+    const plus = nl.netOf(term(b.id, "plus"));
+    const minus = nl.netOf(term(b.id, "minus"));
+    if (!batteryGrounded(nl, minus)) continue;
+    if (plus === net) v = Math.max(v ?? 0, Number(b.props?.volts ?? 6));
+    if (minus === net) return 0;
+  }
   return v;
+}
+
+function batteryGrounded(nl: Netlist, minusNet: string): boolean {
+  if (!nl.board) return false;
+  return CATALOG_BY_TYPE.board.pins.some((p) => p.role === "ground" && nl.find(term(nl.board!.id, p.name)) === minusNet);
 }
 
 interface Edge {
@@ -198,6 +222,104 @@ function findSource(nl: Netlist, g: Map<string, Edge[]>, start: string, pins: Pi
   return { v: wantHigh && pwmDuty !== undefined && pwmDuty > 0 ? 5 : best.v, ohms: best.ohms, pwmDuty, toneHz };
 }
 
+interface Bridge {
+  driver: string;
+  outA: string;
+  outB: string;
+  /** average voltage across the motor: + when current flows out A → motor → out B */
+  volts: number;
+  on: boolean;
+  brake: boolean;
+  fault?: string;
+}
+
+/** Duty (0–1) a driver input sees, or null when nothing drives it. `vih` is the logic-high threshold in volts. */
+function inputDuty(nl: Netlist, g: Map<string, Edge[]>, t: string, pins: PinState, vih: number): number | null {
+  const src = findSource(nl, g, nl.netOf(t), pins, true);
+  if (!src) return null;
+  if (src.pwmDuty !== undefined) return src.pwmDuty;
+  return src.v >= vih ? 1 : 0;
+}
+
+/**
+ * Datasheet motor-driver logic (see parts/library.ts):
+ * - L298N: per bridge Ven/IN1/IN2 truth table (H,L fwd · L,H rev · equal = fast stop · Ven L = coast),
+ *   saturation drop ≈ 1.4 V + 1.15 V/A, logic supply 4.5–7 V, jumpers keep EN high when unwired.
+ * - TB6612FNG: IN1/IN2/PWM/STBY truth table, drop = 0.5 Ω × I.
+ */
+function evaluateBridges(nl: Netlist, g: Map<string, Edge[]>, pins: PinState): Bridge[] {
+  const out: Bridge[] = [];
+  const pot = (id: string, pin: string) => netPotential(nl, nl.netOf(term(id, pin)), pins);
+  for (const p of nl.circuit.parts) {
+    if (p.type === "l298n") {
+      const vs = pot(p.id, "vs");
+      const v5 = pot(p.id, "v5");
+      const grounded = pot(p.id, "gnd") === 0;
+      const regulated = Number(p.props?.jumper5v ?? 0) === 1 && (vs ?? 0) >= 7;
+      const logicOk = grounded && ((v5 ?? 0) >= 4.5 || regulated);
+      for (const ch of [
+        { a: "out1", b: "out2", i1: "in1", i2: "in2", en: "ena", jumper: "jumperEnA" },
+        { a: "out3", b: "out4", i1: "in3", i2: "in4", en: "enb", jumper: "jumperEnB" },
+      ]) {
+        const outA = nl.netOf(term(p.id, ch.a));
+        const outB = nl.netOf(term(p.id, ch.b));
+        const base = { driver: p.id, outA, outB, volts: 0, on: false, brake: false };
+        if (!logicOk || vs === undefined || vs < 2.5) {
+          out.push({ ...base, fault: vs === undefined ? "no motor supply" : !logicOk ? "no logic supply" : undefined });
+          continue;
+        }
+        const enWired = nl.termWired(term(p.id, ch.en));
+        const en = enWired ? inputDuty(nl, g, term(p.id, ch.en), pins, 2.3) ?? 0 : Number(p.props?.[ch.jumper] ?? 1) === 1 ? 1 : 0;
+        const d1 = inputDuty(nl, g, term(p.id, ch.i1), pins, 2.3) ?? 0;
+        const d2 = inputDuty(nl, g, term(p.id, ch.i2), pins, 2.3) ?? 0;
+        if (en <= 0) {
+          out.push(base); // Ven = L: free running
+          continue;
+        }
+        if (Math.abs(d1 - d2) < 1e-6) {
+          out.push({ ...base, on: true, brake: true }); // C = D: fast motor stop
+          continue;
+        }
+        // two passes: the drop depends on the motor current, which depends on the voltage
+        let vm = Math.max(0, vs - l298Drop(0.3));
+        vm = Math.max(0, vs - l298Drop(ttCurrentAt(vm)));
+        out.push({ ...base, on: true, volts: en * (d1 - d2) * vm });
+      }
+    } else if (p.type === "tb6612") {
+      const vm0 = pot(p.id, "vm");
+      const vcc = pot(p.id, "vcc");
+      const grounded = pot(p.id, "gnd") === 0;
+      const vih = (vcc ?? 5) * 0.7;
+      const stby = inputDuty(nl, g, term(p.id, "stby"), pins, vih) ?? 0;
+      const ok = grounded && vcc !== undefined && vcc >= 2.7 && vm0 !== undefined && vm0 >= 2.2 && stby > 0;
+      for (const ch of [
+        { a: "aout1", b: "aout2", i1: "ain1", i2: "ain2", pwm: "pwma" },
+        { a: "bout1", b: "bout2", i1: "bin1", i2: "bin2", pwm: "pwmb" },
+      ]) {
+        const outA = nl.netOf(term(p.id, ch.a));
+        const outB = nl.netOf(term(p.id, ch.b));
+        const base = { driver: p.id, outA, outB, volts: 0, on: false, brake: false };
+        if (!ok) {
+          out.push({ ...base, fault: vm0 === undefined ? "no motor supply" : stby <= 0 ? "standby" : undefined });
+          continue;
+        }
+        const in1 = (inputDuty(nl, g, term(p.id, ch.i1), pins, vih) ?? 0) > 0.5;
+        const in2 = (inputDuty(nl, g, term(p.id, ch.i2), pins, vih) ?? 0) > 0.5;
+        const pwm = inputDuty(nl, g, term(p.id, ch.pwm), pins, vih) ?? 0;
+        if (in1 && in2) out.push({ ...base, on: true, brake: true });
+        else if (!in1 && !in2) out.push(base); // stop (outputs off)
+        else if (pwm <= 0) out.push({ ...base, on: true, brake: true }); // PWM low = short brake
+        else {
+          let vm = Math.max(0, (vm0 as number) - tb6612Drop(0.3));
+          vm = Math.max(0, (vm0 as number) - tb6612Drop(ttCurrentAt(vm)));
+          out.push({ ...base, on: true, volts: (in1 ? 1 : -1) * pwm * vm });
+        }
+      }
+    }
+  }
+  return out;
+}
+
 /** What every output part is doing for the given pin state. */
 export function evaluateOutputs(nl: Netlist, pins: PinState): Record<string, OutputState> {
   const g = resistorGraph(nl);
@@ -242,18 +364,30 @@ export function evaluateOutputs(nl: Netlist, pins: PinState): Record<string, Out
       out[p.id] = { on: powered && duty > 0, level: powered ? duty : 0, fault: powered ? undefined : "unpowered" };
     }
   }
+  const bridges = evaluateBridges(nl, g, pins);
+  for (const d of nl.circuit.parts.filter((x) => x.type === "l298n" || x.type === "tb6612")) {
+    const mine = bridges.filter((x) => x.driver === d.id);
+    out[d.id] = { on: mine.some((x) => x.on), level: Math.max(0, ...mine.map((x) => Math.abs(x.volts) / 12)), fault: mine.find((x) => x.fault)?.fault };
+  }
   // Motors: through a driver, or (badly) straight from a pin
   for (const p of nl.circuit.parts) {
     if (p.type !== "dc_motor") continue;
     const a = nl.netOf(term(p.id, "a"));
     const b = nl.netOf(term(p.id, "b"));
+    const br = bridges.find((x) => (x.outA === a && x.outB === b) || (x.outA === b && x.outB === a));
+    if (br) {
+      const volts = (br.outA === a ? 1 : -1) * br.volts;
+      const v = Math.abs(volts);
+      out[p.id] = { on: v >= 0.3, level: Math.min(1, v / 6), direction: volts < 0 ? -1 : 1, volts, brake: br.brake, fault: v > 6.6 ? "overvoltage" : br.fault };
+      continue;
+    }
     const driver = nl.circuit.parts.find(
       (d) => d.type === "motor_driver" && ((nl.netOf(term(d.id, "out1")) === a && nl.netOf(term(d.id, "out2")) === b) || (nl.netOf(term(d.id, "out1")) === b && nl.netOf(term(d.id, "out2")) === a))
     );
     if (driver) {
       const st = out[driver.id];
       const dir = nl.netOf(term(driver.id, "out1")) === a ? 1 : -1;
-      out[p.id] = { on: !!st?.on, level: st?.level || 0, direction: dir as 1 | -1 };
+      out[p.id] = { on: !!st?.on, level: st?.level || 0, direction: dir as 1 | -1, volts: dir * (st?.level || 0) * 6 };
       continue;
     }
     const va = netPotential(nl, a, pins);
@@ -276,7 +410,7 @@ export function readPin(nl: Netlist, pins: PinState, n: number, analog: boolean,
   // A sensor output on this net?
   for (const p of nl.circuit.parts) {
     const def = CATALOG_BY_TYPE[p.type];
-    if (!def || def.category !== "input" || isButtonLike(p.type)) continue;
+    if (!def || def.category !== "input" || isButtonLike(p.type) || p.type === "hc_sr04") continue;
     const outPin = def.pins.find((x) => x.role === "signalOut");
     if (!outPin || nl.netOf(term(p.id, outPin.name)) !== net) continue;
     const vcc = def.pins.find((x) => x.role === "power");

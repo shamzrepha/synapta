@@ -5,6 +5,8 @@ import { checkCircuit, nextGaps } from "./circuit/checker";
 import { analyzeMechanism } from "./mech/gears";
 import { parseSpec, type DesignKind, type DesignSpec } from "./spec";
 import { blocksSchema, compileBlocks, type Block } from "./blocks";
+import { enforceParts, groundingBlock, verifyProblems, type PartSelection, type Research } from "./ai-build";
+import { shopIndex } from "./parts/shop";
 
 /**
  * AI for Maker Studio. The model returns a whole design as JSON; we validate it with the same
@@ -30,12 +32,14 @@ const FORMAT = `DESIGN JSON FORMAT (all keys optional except kind):
   "codeMode": "blocks" | "text" (use "blocks" for beginners; then give "blocks" INSTEAD of "code" and the code is generated),
   "blocks": {"setup":[...],"loop":[...]} — block types: {"type":"write","pin":13,"value":"HIGH"|"LOW"}, {"type":"pwm","pin":5,"value":0-255}, {"type":"wait","ms":500}, {"type":"if","cond":COND,"then":[...],"else":[...]}, {"type":"waitUntil","cond":COND}, {"type":"repeat","times":3,"body":[...]}, {"type":"servo","pin":9,"angle":90}, {"type":"tone","pin":8,"hz":440}, {"type":"noTone","pin":8}, {"type":"print","text":"hi"}; COND = {"kind":"pressed"|"released"|"high"|"low","pin":2} or {"kind":"analog","pin":14,"op":">"|"<","value":500} (pins 14–19 are A0–A5). Pin modes are added for you. Button/switch pins read pressed when wired pin→GND.
   "code": "ES5 JavaScript in Arduino style: function setup(){…} function loop(){…}. Use var (not let/const), no arrow functions. API: pinMode(pin, OUTPUT|INPUT|INPUT_PULLUP), digitalWrite(pin, HIGH|LOW), digitalRead, analogRead(A0), analogWrite(pin, 0-255), delay(ms), millis(), tone(pin, hz), noTone(pin), servoWrite(pin, angle), Serial.println(x), map, constrain, random.",
-  "robot": {"wheelRadius":21,"trackWidth":112,"length":150,"wheelWidth":14,"maxRpm":160,"left":"mL","right":"mR","sensors":[{"id":"sL","x":-17,"z":-78},{"id":"sR","x":17,"z":-78}],"body":"auto"} — see ROBOTS WITH PHYSICS,
-  "world": {"track":{"preset":"oval"|"square"|"scurve"|"zigzag","width":18}} or {"track":{"points":[[x,z],...],"closed":true,"width":18}},
+  "joints": [{"id":"arm","kind":"revolute"|"prismatic","axis":"x"|"y"|"z","pivot":[x,y,z] (hinge, mm),"servo":"<servo id>" (servo angle = joint degrees) OR "motor":"<dc_motor id>" (speed),"rate":600,"min":0,"max":90,"initial":0}] — parts ride on a joint with "joint":"arm" (see MACHINES),
+  "triggers": [{"kind":"limit","part":"<button id>","joint":"carriage","at":"min"|"max","tolerance":1} | {"kind":"position","part":"<potentiometer id>","joint":"arm"}],
+  "robot": {"wheelRadius":21,"trackWidth":130,"length":150,"wheelWidth":14,"maxRpm":200,"left":"mL","right":"mR","sensors":[{"id":"sL","x":-17,"z":-78,"kind":"line"},{"id":"us","x":0,"z":-84,"kind":"distance","angle":0}],"body":"auto"} — see ROBOTS WITH PHYSICS,
+  "world": {"track":{"preset":"oval"|"square"|"scurve"|"zigzag","width":18}, "arena":{"width":900,"depth":700}, "obstacles":[{"shape":"box","x":-200,"z":-60,"w":140,"d":60,"h":80},{"shape":"cylinder","x":160,"z":-20,"r":45,"h":80}], "start":{"x":0,"z":260,"heading":0}} (track, arena and obstacles are each optional; z is NEGATIVE ahead of a robot that starts at heading 0),
   "mechanism": {"input":{"kind":"motor","stallTorque":0.05,"freeRpm":6000} or {"kind":"crank","crankRadius":0.1,"force":40,"crankRpm":60},
                 "module":2,"stages":[{"driverTeeth":12,"drivenTeeth":36}],"efficiencyPerStage":0.95,"drumRadius":0.01,"pulleyAdvantage":1,"load":{"mass":2},"liftHeight":1,"ratchet":true},
   "steps": [{"id":"s1","title":"…","detail":"what to do and why (teach the concept)","videoQuery":"youtube search words",
-             "check": {"kind":"manual"} | {"kind":"parts","type":"led","min":3} | {"kind":"noErrors"} | {"kind":"code"} | {"kind":"test","testId":"t1"} | {"kind":"lifts"} | {"kind":"liftTime","maxSeconds":3} | {"kind":"drive","seconds":20,"laps":1,"onLine":0.8}}],
+             "check": {"kind":"manual"} | {"kind":"parts","type":"led","min":3} | {"kind":"noErrors"} | {"kind":"code"} | {"kind":"test","testId":"t1"} | {"kind":"lifts"} | {"kind":"liftTime","maxSeconds":3} | {"kind":"drive","seconds":20,"laps":1,"onLine":0.8} | {"kind":"roam","seconds":30,"minDistanceMm":1000,"maxHits":0} | {"kind":"scenario","seconds":6,"sets":[{"atS":1.5,"part":"us","value":15}],"expect":[{"atS":3,"joint":"arm","min":85}]}}],
   "tests": [{"id":"t1","title":"…","durationMs":10000,"inputs":[{"atMs":500,"part":"btn","value":1}],
              "expect":{"kind":"sequence","parts":["red","green"],"states":[[1,0],[0,1]],"minMs":300,"cycles":2} or {"kind":"at","checks":[{"atMs":800,"part":"led","on":true}]}}],
   "notes": "safety notes, real-world tips"
@@ -49,11 +53,14 @@ ${catalogText}
 - Give every part a "group", a believable colour (e.g. metal #94a3b8, wood #b45309, plastic #8fd3ff, rubber #1f2937) and "explode" offsets so the exploded view pulls the assembly apart sensibly (move each part away from the centre along the axis it would come off).
 - Use opacity 0.12–0.35 (they are drawn as blueprint-style solids); info.where/info.fit explain placement and assembly.
 - Worked example (phone stand, abridged): params [{"key":"A","label":"Lean angle","value":70,"min":55,"max":85,"unit":"°"}], parts: base box ["120",8,"90"] at [0,4,0]; back rest box [100,120,6] at [0,64,-30] rot [-(90-A)... use numbers like 20,0,0]; front lip box [100,18,8] at [0,17,30]; rubber feet = four cylinders [6,4] under the corners.
+MACHINES (gates, lifts, arms, presses, conveyors — anything that moves, not only robots): the circuit drives real kinematics. Add "joints": a revolute joint (hinge: gate arm, flap, arm segment) or prismatic joint (slide: lift carriage, piston) driven by a "servo" (its angle sets the joint angle, swinging at the SG90's 600°/s) or by a "motor" (a dc_motor's real voltage sets the speed; "rate" = deg/s or mm/s at 6 V). Put the moving 3D parts on it with "joint":"<id>"; model the hinge with "pivot" (absolute mm). Limits "min"/"max" stop it. Use "triggers" so the machine feeds back into the code: a "limit" trigger presses a button at the joint's end of travel (the code reads it with INPUT_PULLUP, LOW = pressed), a "position" trigger sets a potentiometer reading 0–1023. Add a "scenario" check step: it scripts sensor values over time and verifies joint positions, e.g. an object at 15 cm must lift the gate arm to ≥ 85°.
 ROBOTS WITH PHYSICS (line followers, rovers — a real digital twin): add "robot" and "world" and the Studio simulates the robot driving with real physics: the circuit's motors turn the wheels (motor lag, differential drive), the line sensors read the track under them, and the 3D robot follows the same path.
 - Frame: millimetres, x = robot's right, y up, the NOSE points to −z (sensors in front have NEGATIVE z), the drive axle is at z = 0 with wheels at x = ±trackWidth/2. "left"/"right" are the circuit dc_motor ids on each side.
 - Use "body":"auto" (default): the Studio builds the chassis, both wheels on one axle, caster, motors, sensors and electronics correctly from your numbers. DO NOT model chassis, wheels, sensors, board or drivers in "parts" (leave "parts" empty or only extras like a bumper or a flag).
 - Circuit for a line follower: one "ir_sensor" per robot sensor (id must match robot.sensors[].id; vcc→board.5V, gnd→board.GND, out→a digital pin such as D2/D3), one "motor_driver" + one "dc_motor" per side (driver vcc→5V, gnd→GND, in→a PWM pin D5/D6, out1→motor a, out2→motor b — wired identically on both sides so positive power is forward). Sensors read HIGH over the dark line, LOW over the floor.
 - Two sensors straddling the line (x = ±17, z = −78; the line is 18 wide): left HIGH → slow the left wheel; right HIGH → slow the right wheel; neither → both fast. Use FAST ≈ 190, SLOW ≈ 30 (analogWrite 0–255). Three sensors (centre x = 0) allow smoother steering. Speed at full power is about maxRpm × 2π/60 × wheelRadius mm/s.
+- SENSORS: "line" sensors are ir_sensor parts (TCRT5000, read the floor); "distance" sensors are hc_sr04 parts (ultrasonic: 15° cone, 2 cm–4 m). In code: trigger = digitalWrite(TRIG,HIGH); delayMicroseconds(10); digitalWrite(TRIG,LOW); then var us = pulseIn(ECHO, HIGH); cm = us / 58 (pulseIn returns 0 when there is no echo).
+- MOTORS (datasheet-verified): use ONE l298n (or tb6612) for two motors plus a "battery" (6 V). L298N bridge A = out1/out2 (ENA, IN1, IN2), bridge B = out3/out4 (ENB, IN3, IN4); remove its ENA/ENB jumpers (props jumperEnA/jumperEnB = 0) and drive ENA/ENB with PWM pins; IN1 H + IN2 L = forward, IN1 L + IN2 H = reverse. Battery minus joins board GND; battery plus joins VS; board 5V joins v5. The L298 wastes ~2 V so the motors see ~4 V from a 6 V pack. Never use the old simplified "motor_driver".
 - Add a step with check {"kind":"drive","seconds":20,"laps":1,"onLine":0.8} so the Studio verifies the robot really completes the track. Pick the track: "oval" (easy), "square" (rounded corners), "scurve" or "zigzag" (open paths), or give your own points.
 LINKED 3D PARTS (one design, one world — circuit, code and 3D all run together from ONE Run button):
 - EVERY circuit part automatically appears in the 3D world on a baseboard, so you never need to model bare LEDs, resistors, boards, drivers, buttons or switches yourself. LEDs glow, motors spin, buttons/switches can be clicked in 3D, servos swing.
@@ -145,6 +152,27 @@ export function repairSpec(raw: Record<string, unknown>): Record<string, unknown
       if (spec.codeMode === "blocks") spec.codeMode = "text";
     }
   }
+  // machine joints: the driver must exist in the circuit; parts and triggers must point at real things
+  {
+    const cp = ((spec.circuit as { parts?: Array<{ id: string; type: string }> } | undefined)?.parts || []);
+    const typeOf = new Map(cp.map((p) => [p.id, p.type]));
+    const joints = (Array.isArray(spec.joints) ? (spec.joints as Array<Record<string, unknown>>) : []).filter((j) => {
+      if (!j || typeof j.id !== "string") return false;
+      const okServo = typeof j.servo === "string" && typeOf.get(j.servo) === "servo";
+      const okMotor = typeof j.motor === "string" && typeOf.get(j.motor) === "dc_motor";
+      if (okServo) delete j.motor;
+      if (!okServo && !okMotor) return false;
+      if (Number(j.min) >= Number(j.max)) {
+        j.min = 0;
+        j.max = j.kind === "prismatic" ? 100 : 90;
+      }
+      return true;
+    });
+    spec.joints = joints;
+    const jointIds = new Set(joints.map((j) => String(j.id)));
+    if (Array.isArray(spec.parts)) spec.parts = (spec.parts as Array<Record<string, unknown>>).map((p) => (p.joint !== undefined && !jointIds.has(String(p.joint)) ? { ...p, joint: undefined } : p));
+    spec.triggers = (Array.isArray(spec.triggers) ? (spec.triggers as Array<Record<string, unknown>>) : []).filter((t) => jointIds.has(String(t.joint)) && typeOf.has(String(t.part)));
+  }
   // robots: the motors and sensors must exist in the circuit, otherwise there is nothing to simulate
   if (spec.robot && typeof spec.robot === "object") {
     const rb = spec.robot as Record<string, unknown>;
@@ -158,11 +186,13 @@ export function repairSpec(raw: Record<string, unknown>): Record<string, unknown
       } else delete spec.robot;
     }
     if (spec.robot) {
-      const sensorIds = new Set(cparts.filter((p) => p.type === "ir_sensor").map((p) => p.id));
-      rb.sensors = (Array.isArray(rb.sensors) ? (rb.sensors as Array<Record<string, unknown>>) : []).filter((x) => sensorIds.has(String(x.id))).map((x) => ({ id: String(x.id), x: Number(x.x) || 0, z: Number(x.z) > 0 ? -Number(x.z) : Number(x.z) || -70 })).slice(0, 8);
-      if (!spec.world) spec.world = { track: { preset: "oval", width: 18 } };
-      const wd = spec.world as { track?: Record<string, unknown> };
-      if (!wd.track || typeof wd.track !== "object") wd.track = { preset: "oval", width: 18 };
+      const kindOf = new Map(cparts.filter((p) => p.type === "ir_sensor" || p.type === "hc_sr04").map((p) => [p.id, p.type === "hc_sr04" ? "distance" : "line"]));
+      rb.sensors = (Array.isArray(rb.sensors) ? (rb.sensors as Array<Record<string, unknown>>) : []).filter((x) => kindOf.has(String(x.id))).map((x) => ({ id: String(x.id), x: Number(x.x) || 0, z: Number(x.z) > 0 ? -Number(x.z) : Number(x.z) || -70, kind: kindOf.get(String(x.id)), angle: Number(x.angle) || 0 })).slice(0, 8);
+      if (!spec.world || typeof spec.world !== "object") spec.world = { track: { preset: "oval", width: 18 } };
+      const wd = spec.world as { track?: Record<string, unknown>; arena?: unknown; obstacles?: unknown };
+      // a world needs a line to follow, walls, or obstacles; otherwise give it the default oval
+      if (wd.track !== undefined && (typeof wd.track !== "object" || wd.track === null)) delete wd.track;
+      if (!wd.track && !wd.arena && !(Array.isArray(wd.obstacles) && wd.obstacles.length)) wd.track = { preset: "oval", width: 18 };
     }
   }
   if (!spec.robot) delete spec.world;
@@ -181,20 +211,61 @@ export function repairSpec(raw: Record<string, unknown>): Record<string, unknown
   return spec;
 }
 
-async function askForDesign(prompt: string, userId: string, system: string): Promise<{ title: string; message?: string; spec: DesignSpec }> {
+interface AskOptions {
+  /** the parts the learner selected: anything else is removed from the circuit */
+  selected?: string[];
+  /** run the simulator's checks on the result and let the model fix what they find (once) */
+  verify?: boolean;
+  research?: Research | null;
+}
+
+async function askForDesign(prompt: string, userId: string, system: string, opts: AskOptions = {}): Promise<{ title: string; message?: string; spec: DesignSpec; removed: string[]; problems: string[] }> {
   let lastError = "";
+  let removedAll: string[] = [];
+  const parse = (out: z.output<typeof outSchema>) => {
+    let raw = out.spec;
+    if (opts.selected) {
+      const e = enforceParts(raw, opts.selected);
+      raw = e.spec;
+      removedAll = [...removedAll, ...e.removed];
+    }
+    return parseSpec(repairSpec(raw));
+  };
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await generateWithFallback({
       task: "studio_build",
       systemInstruction: system,
       userPrompt: attempt === 0 ? prompt : `${prompt}\n\nYour previous answer was rejected: ${lastError}. Return corrected JSON.`,
       schema: outSchema,
-      temperature: 0.4,
+      temperature: 0.3,
       userId,
     });
     const out = res.data!;
     try {
-      return { title: out.title, message: out.message, spec: parseSpec(repairSpec(out.spec)) };
+      let spec = parse(out);
+      let problems = opts.verify ? verifyProblems(spec) : [];
+      if (problems.length) {
+        // the simulator found real problems: show them to the model once
+        try {
+          const fix = await generateWithFallback({
+            task: "studio_build",
+            systemInstruction: system,
+            userPrompt: `${prompt}\n\nYOUR DESIGN WAS RUN IN THE SIMULATOR AND THESE PROBLEMS WERE FOUND (they are facts, not opinions):\n- ${problems.join("\n- ")}\n\nHere is your design:\n${JSON.stringify(out.spec).slice(0, 30_000)}\n\nReturn the COMPLETE corrected design JSON, fixing every problem without changing anything else.`,
+            schema: outSchema,
+            temperature: 0.2,
+            userId,
+          });
+          const fixed = parse(fix.data!);
+          const fixedProblems = verifyProblems(fixed);
+          if (fixedProblems.length <= problems.length) {
+            spec = fixed;
+            problems = fixedProblems;
+          }
+        } catch {
+          /* keep the first design; the problems are reported */
+        }
+      }
+      return { title: out.title, message: out.message, spec, removed: removedAll, problems };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
     }
@@ -206,10 +277,13 @@ const SYSTEM = `You are Sunroot's Maker Studio engineer and teacher. You design 
 ${FORMAT}
 Return ONLY JSON: {"title": "...", "message": "one-line commit message", "spec": {design}}.`;
 
-export async function generateDesign(params: { prompt: string; kind?: DesignKind; level?: string; userId: string }) {
+export async function generateDesign(params: { prompt: string; kind?: DesignKind; level?: string; userId: string; parts?: PartSelection[]; research?: Research | null }) {
   const prompt = `Create a ${params.kind ? `${params.kind} ` : ""}design for: ${params.prompt.slice(0, 1500)}
 Learner level: ${params.level || "beginner"}. Choose the kind that fits best if not given (electronics with code → circuit; gears/levers/lifting with no electronics → mechanism; physical product/enclosure/structure → assembly). If the idea has BOTH electronics and a physical body that moves (cars, robots, motorised gears, fans, lamps with switches), use kind "circuit" and give the 3D body (parts), the circuit and the code together, with moving parts bound to the circuit motors/LEDs/switches so one Run animates everything. Beginners get "codeMode":"blocks" with a block program. A wheeled robot that should follow a line, drive a track or move on its own MUST use "robot" + "world" (ROBOTS WITH PHYSICS) with body "auto" so it is assembled correctly and really drives in the simulation; include a "drive" check step. Include 4–8 guided steps with checks and, for circuits, at least one behaviour test.`;
-  return askForDesign(prompt, params.userId, SYSTEM);
+  const selected = params.parts?.length ? params.parts.map((p) => p.type) : undefined;
+  const bom = params.parts?.length ? `\nBILL OF MATERIALS the learner will build with: ${params.parts.map((p) => `${p.qty} × ${p.type}`).join(", ")}. Use these quantities.` : "";
+  const system = `${SYSTEM}\n\n${groundingBlock({ types: selected || [], research: params.research })}`;
+  return askForDesign(prompt + bom, params.userId, system, { selected, verify: true, research: params.research });
 }
 
 const editSchema = z.object({
@@ -264,10 +338,12 @@ ${JSON.stringify(params.spec).slice(0, 60_000)}
 
 CHANGE REQUEST: ${params.instruction.slice(0, 1500)}`;
   let lastError = "";
+  const usedTypes = Array.from(new Set((params.spec.circuit?.parts || []).map((p) => p.type)));
+  const editSystem = `${EDIT_SYSTEM}\n\n${groundingBlock({ types: usedTypes })}\n\nOTHER SHOP PARTS YOU MAY ADD (same datasheet rules apply; use exact pin names):\n${shopIndex()}`;
   for (let attempt = 0; attempt < 2; attempt++) {
     const res = await generateWithFallback({
       task: "studio_build",
-      systemInstruction: EDIT_SYSTEM,
+      systemInstruction: editSystem,
       userPrompt: attempt === 0 ? base : `${base}\n\nYour previous answer was rejected: ${lastError}. Return a corrected patch.`,
       schema: editSchema,
       temperature: 0.4,

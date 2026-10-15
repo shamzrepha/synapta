@@ -416,6 +416,8 @@ export interface GenerateWithFallbackResult<T> {
   latencyMs: number;
   fallbackTriggered: boolean;
   reducedQuality?: boolean;
+  /** web pages the answer was grounded on (when the Google Search tool was used) */
+  sources?: Array<{ title: string; uri: string }>;
 }
 
 /**
@@ -590,9 +592,17 @@ export async function generateWithFallback<T>({
 
         const reducedQuality = activeModel.includes("lite") && isHeavyTask(task);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const chunks = (response as any).candidates?.[0]?.groundingMetadata?.groundingChunks;
+        const sources = Array.isArray(chunks)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ? (chunks as any[]).map((c) => ({ title: String(c?.web?.title || c?.web?.uri || ""), uri: String(c?.web?.uri || "") })).filter((c) => /^https?:\/\//.test(c.uri)).slice(0, 12)
+          : undefined;
+
         return {
           text: responseText,
           data: parsedData,
+          sources,
           functionCalls,
           modelUsed: activeModel,
           tokensIn,

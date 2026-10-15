@@ -159,6 +159,8 @@ export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
 
     // Powered parts: check their supply and ground
     for (const pin of def.pins) {
+      if (pin.role === "power" && p.type === "battery") continue;
+      if (pin.role === "power" && p.type === "l298n" && pin.name === "v5" && Number(p.props?.jumper5v ?? 0) === 1) continue;
       if (pin.role === "power") {
         const v = netPotential(nl, nl.netOf(term(p.id, pin.name)), pins);
         if (v === undefined) {
@@ -172,6 +174,13 @@ export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
       }
     }
 
+    if (p.type === "tb6612" && !nl.termWired(term(p.id, "stby"))) {
+      issues.push({ severity: "warning", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} STBY isn't connected.`, why: "TB6612FNG's STBY pin has a pull-down: unless it is driven HIGH the driver stays in standby and the motors never move (SparkFun hookup guide).", prompt: "Which pin or rail should keep STBY HIGH?" });
+    }
+    if (p.type === "l298n") {
+      const vsV = netPotential(nl, nl.netOf(term(p.id, "vs")), pins);
+      if (vsV !== undefined && vsV < 5) issues.push({ severity: "warning", system: "POWER", parts: [p.id], message: `${label(nl, p.id)} gets only ${vsV} V on VS. The L298 drops 2–3 V across the bridge, so the motors would barely turn.`, why: "ST's datasheet: total saturation drop is 1.8–3.2 V at 1 A. The motor only receives what's left.", prompt: "How many volts does the motor need, and how many does the bridge keep for itself?" });
+    }
     if (p.type === "dc_motor") {
       const direct = ["a", "b"].some((pin) => nl.boardPinsOn(nl.netOf(term(p.id, pin))).some((n) => ["digital", "analog"].includes(pinDef("board", n)?.role || "")));
       if (direct) {
@@ -186,7 +195,7 @@ export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
       }
     }
 
-    if (def.category === "input" && !isButtonLike(p.type) && p.type !== "ir_sensor") {
+    if (def.category === "input" && !isButtonLike(p.type) && p.type !== "ir_sensor" && p.type !== "hc_sr04") {
       const outPin = def.pins.find((x) => x.role === "signalOut")!;
       const bp = nl.boardPinsOn(nl.netOf(term(p.id, outPin.name)));
       if (bp.length === 0) {

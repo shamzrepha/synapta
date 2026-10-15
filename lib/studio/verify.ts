@@ -3,7 +3,7 @@ import { checkCircuit } from "./circuit/checker";
 import { Netlist, scanCode } from "./circuit/netlist";
 import { runBehaviorTest, type TestResult } from "./circuit/runtime";
 import { simulateLift } from "./mech/gears";
-import { simulateDrive } from "./drive/run";
+import { simulateDrive, simulateMachine } from "./drive/run";
 import type { DesignSpec, Step } from "./spec";
 
 /**
@@ -69,6 +69,42 @@ export function verifyStep(spec: DesignSpec, step: Step): StepResult {
       if (laps < c.laps) return { done: false, verified: true, message: `In ${c.seconds} s the robot covered ${Math.round(laps * 100)}% of ${c.laps === 1 ? "a lap" : `${c.laps} laps`}. It stayed on the line ${pct}% of the time — ${pct < 60 ? "it keeps leaving the line: check the sensors, wiring and steering code" : "make it faster without leaving the line"}.` };
       if (r.onLineFraction < c.onLine) return { done: false, verified: true, message: `It finished, but stayed on the line only ${pct}% of the time (needs ${Math.round(c.onLine * 100)}%). Slow down in corners.` };
       return { done: true, verified: true, message: `Finished ${laps.toFixed(1)} lap(s) in ${c.seconds} s, on the line ${pct}% of the time.` };
+    }
+    case "scenario": {
+      if (!circuit) return { done: false, verified: true, message: "No circuit." };
+      const sets = [...c.sets].sort((a, b) => a.atS - b.atS);
+      let i = 0;
+      const r = simulateMachine(spec, c.seconds, {
+        dt: 0.02,
+        onTick: (t, inputs) => {
+          while (i < sets.length && sets[i].atS <= t) {
+            const sp = circuit.parts.find((p) => p.id === sets[i].part);
+            if (sp && (sp.type === "button" || sp.type === "switch")) {
+              if (sets[i].value) inputs.pressed.add(sp.id);
+              else inputs.pressed.delete(sp.id);
+            } else inputs.values[sets[i].part] = sets[i].value;
+            i++;
+          }
+        },
+      });
+      if (r.error) return { done: false, verified: true, message: `Program error — ${r.error}` };
+      for (const e of [...c.expect].sort((a, b) => a.atS - b.atS)) {
+        const at = r.jointLog.find((l) => l.t >= e.atS - 1e-9) || r.jointLog[r.jointLog.length - 1];
+        const v = at?.values[e.joint];
+        if (v === undefined) return { done: false, verified: true, message: `There is no joint called “${e.joint}”.` };
+        if (e.min !== undefined && v < e.min) return { done: false, verified: true, message: `At ${e.atS} s “${e.joint}” is at ${Math.round(v)} but should be at least ${e.min}.` };
+        if (e.max !== undefined && v > e.max) return { done: false, verified: true, message: `At ${e.atS} s “${e.joint}” is at ${Math.round(v)} but should be at most ${e.max}.` };
+      }
+      return { done: true, verified: true, message: "The machine did what the scenario asked." };
+    }
+    case "roam": {
+      if (!circuit || !spec.robot || !spec.world) return { done: false, verified: true, message: "This design needs a robot and a world." };
+      const r = simulateDrive(spec, c.seconds, 0.02);
+      if (r.error) return { done: false, verified: true, message: `Program error — ${r.error}` };
+      const mm = Math.round(r.drive.distance);
+      if (r.drive.hits > c.maxHits) return { done: false, verified: true, message: `It hit something ${r.drive.hits} time(s) in ${c.seconds} s (allowed: ${c.maxHits}). Look at the distance sensor: is it read, and does the code turn away in time?` };
+      if (mm < c.minDistanceMm) return { done: false, verified: true, message: `It only travelled ${mm} mm in ${c.seconds} s (needs ${c.minDistanceMm} mm). Is it stuck turning, or not driving at all?` };
+      return { done: true, verified: true, message: `Roamed ${mm} mm with ${r.drive.hits} collision(s).` };
     }
     case "liftTime": {
       if (!spec.mechanism) return { done: false, verified: true, message: "No mechanism." };

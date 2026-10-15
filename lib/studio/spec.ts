@@ -53,6 +53,8 @@ export const part3dSchema = z.object({
   spinAxis: z.enum(["x", "y", "z"]).optional(),
   /** turns this many times per motor turn (gears: −driver/driven teeth when meshing; may be a formula) */
   spinRatio: numOrExpr.optional(),
+  /** moves with this joint (a gate arm, a lift carriage …): see `joints` */
+  joint: z.string().max(24).optional(),
   /** moves by this much (mm) while the linked button/switch is pressed, e.g. a button cap sinks */
   pressShift: z.tuple([z.number(), z.number(), z.number()]).optional(),
   explode: z.tuple([z.number(), z.number(), z.number()]).optional(),
@@ -151,23 +153,76 @@ export const robotSchema = z.object({
   left: z.string().max(24),
   right: z.string().max(24),
   /** line/IR sensors: circuit part id and where they sit on the robot (x right, z ahead is negative) */
-  sensors: z.array(z.object({ id: z.string().max(24), x: z.number().min(-300).max(300), z: z.number().min(-400).max(400) })).max(8).default([]),
+  sensors: z
+    .array(
+      z.object({
+        id: z.string().max(24),
+        x: z.number().min(-300).max(300),
+        z: z.number().min(-400).max(400),
+        /** "line": floor reflectance (IR line sensor); "distance": ultrasonic range to obstacles (HC-SR04) */
+        kind: z.enum(["line", "distance"]).default("line"),
+        /** distance sensors: direction relative to the nose, degrees (+ = left) */
+        angle: z.number().min(-180).max(180).default(0),
+      })
+    )
+    .max(8)
+    .default([]),
   /** "auto" builds the chassis, wheels, caster and parts from these numbers; "custom" uses your own parts */
   body: z.enum(["auto", "custom"]).default("auto"),
 });
 
+const obstacleSchema = z.union([
+  z.object({ shape: z.literal("box"), x: z.number(), z: z.number(), w: z.number().min(5).max(2000), d: z.number().min(5).max(2000), h: z.number().min(5).max(500).default(80) }),
+  z.object({ shape: z.literal("cylinder"), x: z.number(), z: z.number(), r: z.number().min(3).max(500), h: z.number().min(5).max(500).default(80) }),
+]);
+
 export const worldSchema = z.object({
-  track: z.object({
+  /** walls around the floor, centred on the origin */
+  arena: z.object({ width: z.number().min(200).max(6000), depth: z.number().min(200).max(6000) }).optional(),
+  obstacles: z.array(obstacleSchema).max(40).default([]),
+  track: z
+    .object({
     preset: z.enum(["oval", "square", "scurve", "zigzag"]).optional(),
     /** or your own path: [x, z] points in mm */
     points: z.array(z.tuple([z.number(), z.number()])).min(2).max(400).optional(),
     closed: z.boolean().default(true),
     /** line width in mm */
     width: z.number().min(6).max(60).default(18),
-  }),
+    })
+    .optional(),
   /** robot start pose; default: on the first track point facing along the track */
   start: z.object({ x: z.number(), z: z.number(), heading: z.number() }).optional(),
 });
+
+/**
+ * A moving joint driven by the circuit: a motor turns it at a speed (gate, wheel, lift screw) or a
+ * servo sets its angle. Parts with `joint: <id>` ride on it. Limits stop it; triggers can press limit
+ * switches or feed a position back to the board, so code, circuit and 3D stay one machine.
+ */
+export const jointSchema = z.object({
+  id: z.string().max(24),
+  kind: z.enum(["revolute", "prismatic"]),
+  /** revolute: the axle direction; prismatic: the direction of travel */
+  axis: z.enum(["x", "y", "z"]).default("y"),
+  /** revolute: the hinge point (mm); default = centre of the first part on the joint */
+  pivot: z.tuple([z.number(), z.number(), z.number()]).optional(),
+  /** circuit dc_motor that drives it at a speed… */
+  motor: z.string().max(24).optional(),
+  /** …or a servo whose angle is the joint angle (revolute: degrees 1:1) */
+  servo: z.string().max(24).optional(),
+  /** motor speed at 6 V full power: degrees/s (revolute) or mm/s (prismatic); servo: max degrees/s (default 600, from the SG90 datasheet) */
+  rate: z.number().min(0.1).max(5000).default(90),
+  min: z.number().default(0),
+  max: z.number().default(90),
+  initial: z.number().default(0),
+});
+
+export const triggerSchema = z.discriminatedUnion("kind", [
+  /** presses this switch/button while the joint is at its `min` or `max` end */
+  z.object({ kind: z.literal("limit"), part: z.string().max(24), joint: z.string().max(24), at: z.enum(["min", "max"]), tolerance: z.number().min(0).max(50).default(1) }),
+  /** feeds the joint position (0–1023 across min…max) to a potentiometer-type sensor */
+  z.object({ kind: z.literal("position"), part: z.string().max(24), joint: z.string().max(24) }),
+]);
 
 export const checkSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("manual") }),
@@ -179,6 +234,17 @@ export const checkSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("lifts") }),
   z.object({ kind: z.literal("liftTime"), maxSeconds: z.number().positive() }),
   /** the robot must complete `laps` of the track (or that fraction of an open path) staying on the line `onLine` of the time */
+  /** a scripted scenario: set sensors at given times, then check where machine joints are */
+  z.object({
+    kind: z.literal("scenario"),
+    seconds: z.number().min(1).max(120).default(10),
+    /** at `atS`, sensor/pot `part` reads `value` (an object at 15 cm, a pot turned to 800 …) */
+    sets: z.array(z.object({ atS: z.number().min(0), part: z.string().max(24), value: z.number() })).max(24).default([]),
+    /** at `atS`, joint `joint` must be within [min, max] (degrees or mm) */
+    expect: z.array(z.object({ atS: z.number().min(0), joint: z.string().max(24), min: z.number().optional(), max: z.number().optional() })).min(1).max(24),
+  }),
+  /** the robot must roam for `seconds`, covering at least `minDistanceMm`, with at most `maxHits` collisions */
+  z.object({ kind: z.literal("roam"), seconds: z.number().min(5).max(180).default(30), minDistanceMm: z.number().min(100).max(100000).default(1500), maxHits: z.number().int().min(0).max(50).default(0) }),
   z.object({ kind: z.literal("drive"), seconds: z.number().min(5).max(180).default(40), laps: z.number().min(0.1).max(10).default(1), onLine: z.number().min(0).max(1).default(0.8) }),
 ]);
 
@@ -211,11 +277,15 @@ export const designSpecSchema = z.object({
   blocks: blocksSchema.optional(),
   codeMode: z.enum(["blocks", "text"]).optional(),
   mechanism: mechanismSchema.optional(),
+  joints: z.array(jointSchema).max(16).default([]),
+  triggers: z.array(triggerSchema).max(16).default([]),
   robot: robotSchema.optional(),
   world: worldSchema.optional(),
   steps: z.array(stepSchema).max(30).default([]),
   tests: z.array(testSchema).max(10).default([]),
   notes: z.string().max(3000).optional(),
+  /** web research done before the build (what the AI read, with its sources) */
+  research: z.object({ notes: z.string().max(4000), sources: z.array(z.object({ title: z.string().max(200), uri: z.string().max(600) })).max(12).default([]) }).optional(),
 });
 
 export type DesignSpec = z.output<typeof designSpecSchema>;
@@ -226,6 +296,8 @@ export type Wire = z.output<typeof wireSchema>;
 export type Mechanism = z.output<typeof mechanismSchema>;
 export type Step = z.output<typeof stepSchema>;
 export type BehaviorTest = z.output<typeof testSchema>;
+export type Joint = z.output<typeof jointSchema>;
+export type Trigger = z.output<typeof triggerSchema>;
 export type Robot = z.output<typeof robotSchema>;
 export type World = z.output<typeof worldSchema>;
 export type Param = z.output<typeof paramSchema>;

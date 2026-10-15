@@ -28,9 +28,11 @@ export interface Viewer3DProps {
   /** a linked button/switch part was pressed (down=true) or released in the 3D view */
   onPress?: (id: string, down: boolean) => void;
   /** a track on the floor and the robot's live pose: parts marked `moves` ride on the robot */
+  /** machine joints: parts with `joint` ride on them; `values` is read every frame (degrees or mm) */
+  joints?: { defs: Array<{ id: string; kind: "revolute" | "prismatic"; axis: "x" | "y" | "z"; pivot?: [number, number, number] }>; values: Record<string, number> };
   /** keep the camera on the robot (close-up chase view) */
   follow?: boolean;
-  world?: { track: { pts: Array<[number, number]>; closed: boolean; width: number }; pose: { x: number; z: number; h: number } };
+  world?: { track: { pts: Array<[number, number]>; closed: boolean; width: number; obstacles: Array<{ shape: "box"; x: number; z: number; w: number; d: number; h: number } | { shape: "cylinder"; x: number; z: number; r: number; h: number }>; arena?: { width: number; depth: number } }; pose: { x: number; z: number; h: number } };
   className?: string;
 }
 
@@ -125,10 +127,18 @@ export function partGeometry(p: { shape: string; size: number[]; teeth?: number 
 }
 
 /** A light floor and the dark line drawn flat on it. */
-function addTrack(into: THREE.Group, track: { pts: Array<[number, number]>; closed: boolean; width: number }) {
-  const xs = track.pts.map((p) => p[0]);
-  const zs = track.pts.map((p) => p[1]);
-  const pad = 140;
+function addTrack(into: THREE.Group, track: NonNullable<Viewer3DProps["world"]>["track"]) {
+  const xs: number[] = track.pts.map((p) => p[0]);
+  const zs: number[] = track.pts.map((p) => p[1]);
+  if (track.arena) xs.push(-track.arena.width / 2, track.arena.width / 2), zs.push(-track.arena.depth / 2, track.arena.depth / 2);
+  for (const o of track.obstacles) {
+    const ex = o.shape === "box" ? o.w / 2 : o.r;
+    const ez = o.shape === "box" ? o.d / 2 : o.r;
+    xs.push(o.x - ex, o.x + ex);
+    zs.push(o.z - ez, o.z + ez);
+  }
+  if (!xs.length) xs.push(-300, 300), zs.push(-300, 300);
+  const pad = track.arena ? 20 : 140;
   const minX = Math.min(...xs) - pad;
   const maxX = Math.max(...xs) + pad;
   const minZ = Math.min(...zs) - pad;
@@ -137,6 +147,27 @@ function addTrack(into: THREE.Group, track: { pts: Array<[number, number]>; clos
   floor.position.set((minX + maxX) / 2, 0.1, (minZ + maxZ) / 2);
   floor.renderOrder = 0;
   into.add(floor);
+
+  if (track.arena) {
+    const { width: W, depth: D } = track.arena;
+    const wall = (w: number, d: number, x: number, z: number) => {
+      const g = solid(new THREE.BoxGeometry(w, 60, d), "#93c5fd", 0.18, false);
+      g.position.set(x, 30, z);
+      into.add(g);
+    };
+    wall(W, 8, 0, -D / 2);
+    wall(W, 8, 0, D / 2);
+    wall(8, D, -W / 2, 0);
+    wall(8, D, W / 2, 0);
+  }
+  for (const o of track.obstacles) {
+    const geo = o.shape === "box" ? new THREE.BoxGeometry(o.w, o.h, o.d) : new THREE.CylinderGeometry(o.r, o.r, o.h, 28);
+    const g = solid(geo, "#fbbf24", 0.28, false);
+    g.position.set(o.x, o.h / 2, o.z);
+    into.add(g);
+  }
+  if (track.pts.length < 2) return;
+
   const mat = new THREE.MeshBasicMaterial({ color: "#05080f", transparent: true, opacity: 0.95, depthWrite: false });
   const half = track.width / 2;
   const n = track.pts.length;
@@ -177,7 +208,7 @@ function solid(geo: THREE.BufferGeometry, color: string, opacity: number, select
   return g;
 }
 
-export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, links, live, onPress, world, follow, className }: Viewer3DProps) {
+export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, links, live, onPress, world, follow, joints, className }: Viewer3DProps) {
   const host = useRef<HTMLDivElement>(null);
   const ctx = useRef<{
     renderer: THREE.WebGLRenderer;
@@ -193,12 +224,14 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     pickables: THREE.Object3D[];
     linked: Linked[];
     robot: THREE.Group;
+    jointGroups: Array<{ id: string; obj: THREE.Group; kind: "revolute" | "prismatic"; axis: "x" | "y" | "z"; pivot: THREE.Vector3 }>;
     fitted: string;
   } | null>(null);
   const mech = useRef(mechState);
   const liveRef = useRef(live);
   const worldRef = useRef(world);
   const followRef = useRef(follow);
+  const jointValues = useRef(joints?.values);
   const onPressRef = useRef(onPress);
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
@@ -206,6 +239,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     liveRef.current = live;
     worldRef.current = world;
     followRef.current = follow;
+    jointValues.current = joints?.values;
     onPressRef.current = onPress;
     onSelectRef.current = onSelect;
   });
@@ -229,7 +263,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     scene.add(grid);
     const content = new THREE.Group();
     scene.add(content);
-    ctx.current = { renderer, scene, camera, controls, content, gears: [], load: null, rope: null, ropeTop: new THREE.Vector3(), loadBaseY: 0, pickables: [], linked: [], robot: new THREE.Group(), fitted: "" };
+    ctx.current = { renderer, scene, camera, controls, content, gears: [], load: null, rope: null, ropeTop: new THREE.Vector3(), loadBaseY: 0, pickables: [], linked: [], robot: new THREE.Group(), jointGroups: [], fitted: "" };
 
     const resize = () => {
       const w = el.clientWidth;
@@ -314,6 +348,17 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
           camera.position.add(delta);
         } else following = false;
       }
+      const jv = jointValues.current;
+      if (jv) {
+        for (const jg of c.jointGroups) {
+          const val = jv[jg.id] ?? 0;
+          if (jg.kind === "revolute") jg.obj.rotation[jg.axis] = (val * Math.PI) / 180;
+          else {
+            jg.obj.position.copy(jg.pivot);
+            jg.obj.position[jg.axis] += val;
+          }
+        }
+      }
       const lv = liveRef.current;
       if (lv) {
         const t = nowT / 1000;
@@ -390,6 +435,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     c.linked = [];
     c.robot = new THREE.Group();
     c.content.add(c.robot);
+    c.jointGroups = [];
     if (world) addTrack(c.content, world.track);
 
     for (const p of parts) {
@@ -399,7 +445,20 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
       g.position.set(p.pos[0] + ex[0] * explode, p.pos[1] + ex[1] * explode, p.pos[2] + ex[2] * explode);
       if (p.rot) g.rotation.set((p.rot[0] * Math.PI) / 180, (p.rot[1] * Math.PI) / 180, (p.rot[2] * Math.PI) / 180);
       g.userData.partId = p.id;
-      (p.moves ? c.robot : c.content).add(g);
+      const jd = p.joint ? joints?.defs.find((d) => d.id === p.joint) : undefined;
+      if (jd) {
+        let jg = c.jointGroups.find((x) => x.id === jd.id);
+        if (!jg) {
+          const pivot = new THREE.Vector3(...(jd.pivot || (jd.kind === "revolute" ? [g.position.x, g.position.y, g.position.z] : [0, 0, 0])));
+          const grp = new THREE.Group();
+          grp.position.copy(pivot);
+          (p.moves ? c.robot : c.content).add(grp);
+          jg = { id: jd.id, obj: grp, kind: jd.kind, axis: jd.axis, pivot };
+          c.jointGroups.push(jg);
+        }
+        g.position.sub(jg.pivot);
+        jg.obj.add(g);
+      } else (p.moves ? c.robot : c.content).add(g);
       c.pickables.push(g.children[0]);
       const bind = p.bind || p.spinWith;
       const role = bind && links ? ROLE[links[bind]] : undefined;
@@ -534,7 +593,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
         c.camera.updateProjectionMatrix();
       }
     }
-  }, [parts, mechanism, explode, selectedId, links, world?.track]);
+  }, [parts, mechanism, explode, selectedId, links, world?.track, joints?.defs]);
 
   return <div ref={host} className={className} style={{ background: "#0b2a5b", position: "relative", overflow: "hidden" }} aria-label="3D model — drag to orbit, scroll or pinch to zoom" />;
 }
