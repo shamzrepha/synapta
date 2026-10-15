@@ -117,3 +117,15 @@ The **Deploy Firestore rules & indexes** GitHub Action runs the same `firebase d
 It also runs automatically whenever `firestore.rules` or `firestore.indexes.json` change on `main`.
 If it fails with a permission error, give that service account the **Firebase Admin** role in
 Google Cloud console → IAM.
+
+## 8. Maker Studio
+
+No extra setup is required: designs, versions and challenge scoring all run on Firestore and the
+built-in simulators. Redeploy indexes after pulling (`designs` collection) — or run the
+**Deploy Firestore rules & indexes** GitHub Action.
+
+- **YouTube videos per step (optional):** create a free API key in Google Cloud console →
+  APIs & Services → enable **YouTube Data API v3** → Credentials → Create API key (restrict it to
+  that API). Set `YOUTUBE_API_KEY` in Vercel and redeploy. Without it, steps show a "Watch on
+  YouTube" search link instead of embedded videos. Results are cached for 30 days to stay within the
+  free quota (~100 searches/day).

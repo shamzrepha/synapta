@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, use, useRef, useCallback } from "react";
 import Link from "next/link";
+import { TopicLabs } from "@/components/studio/topic-labs";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -27,8 +28,7 @@ import {
   Send,
   Sparkles,
   Wand2,
-  Cpu,
-} from "lucide-react";
+  Cpu, Wrench } from "lucide-react";
 import { formatPL, getMasteryStatus, cn } from "@/lib/utils";
 import { LAB_REGISTRY } from "@/components/labs";
 import { AiSimulation } from "@/components/labs/ai-simulation";
@@ -60,7 +60,7 @@ interface ChatMessage {
   isError?: boolean;
 }
 
-type Tab = "learn" | "simulate" | "flashcards" | "quiz" | "tutor";
+type Tab = "learn" | "simulate" | "build" | "flashcards" | "quiz" | "tutor";
 
 const THIN_LESSON_CHARS = 600;
 const TUTOR_STARTERS = [
@@ -86,6 +86,14 @@ export default function TopicPage({
   const [canManage, setCanManage] = useState(false);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("learn");
+  // Deep link: ?tab=build (lab notifications)
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t === "build") {
+      const h = setTimeout(() => setActiveTab("build"), 0);
+      return () => clearTimeout(h);
+    }
+  }, []);
 
   // Lesson generation
   const [lessonBusy, setLessonBusy] = useState(false);
@@ -335,6 +343,7 @@ export default function TopicPage({
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode; onOpen?: () => void }> = [
     { key: "learn", label: "Learn", icon: <BookOpen className="h-4 w-4" /> },
     { key: "simulate", label: "Simulate", icon: <Gamepad2 className="h-4 w-4" /> },
+    { key: "build", label: "Build lab", icon: <Wrench className="h-4 w-4" /> },
     {
       key: "flashcards",
       label: "Flashcards",
@@ -630,6 +639,8 @@ export default function TopicPage({
           )}
 
           {/* QUIZ */}
+          {activeTab === "build" && <TopicLabs classId={classId} kcId={kcId} topicTitle={kc.title} />}
+
           {activeTab === "quiz" && (
             <Card className="p-4 md:p-6">
               <QuizPlayer classId={classId} kcId={kcId} onEvidence={applyEvidenceUpdate} />

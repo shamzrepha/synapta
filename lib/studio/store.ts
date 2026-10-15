@@ -66,6 +66,8 @@ export async function createDesign(params: {
   templateId?: string | null;
   forkedFrom?: { id: string; title: string; ownerName: string; commitId: string } | null;
   challengeId?: string | null;
+  /** class topic lab this design was started from */
+  labId?: string | null;
 }): Promise<string> {
   const db = adminDb();
   const mine = await db.collection("designs").where("ownerUid", "==", params.user.uid).count().get().catch(() => null);
@@ -89,6 +91,7 @@ export async function createDesign(params: {
     kcId: params.kcId || null,
     templateId: params.templateId || null,
     challengeId: params.challengeId || null,
+    labId: params.labId || null,
     forkedFrom: params.forkedFrom || null,
     spec,
     headCommitId: commitRef.id,

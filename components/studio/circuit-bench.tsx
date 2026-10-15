@@ -229,12 +229,13 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
           </span>
         </div>
       )}
-      <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-[#0b1220]">
+      {/* On phones the bench keeps a usable size and scrolls sideways, so pins stay big enough to tap */}
+      <div className="relative rounded-2xl overflow-x-auto overflow-y-hidden border border-slate-200 dark:border-slate-800 bg-[#0b1220]">
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
         <svg
           ref={svg}
           viewBox={`0 0 ${W} ${H}`}
-          className="w-full h-auto touch-none select-none"
+          className="w-full min-w-[760px] h-auto touch-none select-none"
           onPointerMove={(e) => {
             if (!drag || !editable) return;
             const p = toSvg(e);

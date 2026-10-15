@@ -75,47 +75,46 @@ export class BoardRuntime {
     code: string,
     private readonly read: (pin: number, analog: boolean, pins: PinState) => number
   ) {
-    const self = this;
     const program = PRELUDE + toEs5(code) + "\n;if(typeof setup==='function')setup();if(typeof loop==='function'){while(true){loop();}}";
     try {
       this.interp = new Interpreter(program, (it, global) => {
         const fn = (name: string, f: (...a: never[]) => unknown) => it.setProperty(global, name, it.createNativeFunction(f));
         fn("pinMode", ((pin: number, mode: string) => {
-          self.pins.mode[Number(pin)] = (["INPUT", "OUTPUT", "INPUT_PULLUP"].includes(mode) ? mode : "INPUT") as PinMode;
+          this.pins.mode[Number(pin)] = (["INPUT", "OUTPUT", "INPUT_PULLUP"].includes(mode) ? mode : "INPUT") as PinMode;
         }) as never);
         fn("digitalWrite", ((pin: number, v: number) => {
           const n = Number(pin);
-          self.pins.level[n] = v ? 1 : 0;
-          delete self.pins.pwm[n];
+          this.pins.level[n] = v ? 1 : 0;
+          delete this.pins.pwm[n];
         }) as never);
         fn("analogWrite", ((pin: number, v: number) => {
           const n = Number(pin);
-          self.pins.pwm[n] = Math.max(0, Math.min(255, Math.round(Number(v) || 0)));
-          if (self.pins.mode[n] === undefined) self.pins.mode[n] = "OUTPUT";
+          this.pins.pwm[n] = Math.max(0, Math.min(255, Math.round(Number(v) || 0)));
+          if (this.pins.mode[n] === undefined) this.pins.mode[n] = "OUTPUT";
         }) as never);
-        fn("digitalRead", ((pin: number) => self.read(Number(pin), false, self.pins)) as never);
-        fn("analogRead", ((pin: number) => self.read(Number(pin), true, self.pins)) as never);
-        fn("millis", (() => Math.floor(self.now)) as never);
+        fn("digitalRead", ((pin: number) => this.read(Number(pin), false, this.pins)) as never);
+        fn("analogRead", ((pin: number) => this.read(Number(pin), true, this.pins)) as never);
+        fn("millis", (() => Math.floor(this.now)) as never);
         fn("tone", ((pin: number, hz: number) => {
           const n = Number(pin);
-          self.pins.tone[n] = Math.max(1, Number(hz) || 440);
-          if (self.pins.mode[n] === undefined) self.pins.mode[n] = "OUTPUT";
+          this.pins.tone[n] = Math.max(1, Number(hz) || 440);
+          if (this.pins.mode[n] === undefined) this.pins.mode[n] = "OUTPUT";
         }) as never);
         fn("noTone", ((pin: number) => {
-          delete self.pins.tone[Number(pin)];
+          delete this.pins.tone[Number(pin)];
         }) as never);
         fn("servoWrite", ((pin: number, angle: number) => {
-          self.pins.servo[Number(pin)] = Math.max(0, Math.min(180, Number(angle) || 0));
+          this.pins.servo[Number(pin)] = Math.max(0, Math.min(180, Number(angle) || 0));
         }) as never);
         fn("__print", ((s: string) => {
-          if (self.serial.length < 500) self.serial.push({ atMs: Math.round(self.now), text: String(s) });
+          if (this.serial.length < 500) this.serial.push({ atMs: Math.round(this.now), text: String(s) });
         }) as never);
         it.setProperty(
           global,
           "delay",
           it.createAsyncFunction(((ms: number, cb: () => void) => {
-            self.waitUntil = self.now + Math.max(0, Number(ms) || 0);
-            self.resume = cb;
+            this.waitUntil = this.now + Math.max(0, Number(ms) || 0);
+            this.resume = cb;
           }) as never)
         );
       });
