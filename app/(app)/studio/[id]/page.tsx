@@ -18,6 +18,7 @@ import { CodeEditor } from "@/components/studio/code-editor";
 import { MechPanel } from "@/components/studio/mech-panel";
 import { GuidePanel, type GuideMode } from "@/components/studio/guide-panel";
 import { HistoryPanel } from "@/components/studio/history-panel";
+import { PartEditor } from "@/components/studio/part-editor";
 import { parseSpec, resolveParts, type DesignSpec } from "@/lib/studio/spec";
 import { Netlist, evaluateOutputs, type OutputState } from "@/lib/studio/circuit/netlist";
 import { BoardRuntime, circuitReader, runBehaviorTest, type TestResult } from "@/lib/studio/circuit/runtime";
@@ -572,19 +573,10 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
                     <p className="text-[11px] text-slate-500">Bad wiring is allowed — run it and see what happens. That&apos;s how you learn.</p>
                   </div>
                 )}
-                {parts3d.length > 0 && (
-                  <div>
-                    <p className="text-sm font-bold mb-1">Parts list</p>
-                    <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {parts3d.map((p) => (
-                        <li key={p.id}>
-                          <button type="button" onClick={() => setSelected(p.id)} className={cn("w-full flex justify-between gap-2 py-1.5 text-left text-sm", selected === p.id && "text-teal-600")}>
-                            <span>{p.name}</span>
-                            <span className="text-xs text-slate-500">{p.info?.cost || ""}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                {(shown.kind === "assembly" || shown.parts.length > 0) && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-bold">3D parts</p>
+                    <PartEditor spec={shown} selectedId={selected} onSelect={setSelected} onChange={(parts) => edit({ parts })} readOnly={!canEdit} />
                   </div>
                 )}
                 {shown.notes && <p className="text-xs text-slate-500 whitespace-pre-wrap">{shown.notes}</p>}

@@ -28,11 +28,17 @@ export const paramSchema = z.object({
 export const part3dSchema = z.object({
   id: z.string().max(40),
   name: z.string().max(80),
-  shape: z.enum(["box", "cylinder", "sphere", "cone"]).default("box"),
-  /** box: [w, h, d]; cylinder/cone: [radius, height]; sphere: [radius] */
+  shape: z.enum(["box", "cylinder", "sphere", "cone", "torus", "capsule", "gear", "tube", "prism"]).default("box"),
+  /**
+   * box: [w, h, d] · cylinder/cone: [radius, height] · sphere: [radius] · torus: [ring radius, tube radius]
+   * capsule: [radius, length] · gear: [pitch radius, thickness] (needs `teeth`) · tube: [outer radius, height, inner radius]
+   * prism: [radius, height, sides 3–12]
+   */
   size: z.array(numOrExpr).min(1).max(3),
+  /** gears: number of teeth */
+  teeth: numOrExpr.optional(),
   pos: vec3,
-  rot: z.tuple([z.number(), z.number(), z.number()]).optional(),
+  rot: z.tuple([numOrExpr, numOrExpr, numOrExpr]).optional(),
   color: z.string().max(20).optional(),
   opacity: z.number().min(0.02).max(1).optional(),
   group: z.string().max(40).optional(),
@@ -183,9 +189,11 @@ export function paramValues(spec: Pick<DesignSpec, "params">, overrides: Record<
   return out;
 }
 
-export interface ResolvedPart extends Omit<Part3D, "size" | "pos"> {
+export interface ResolvedPart extends Omit<Part3D, "size" | "pos" | "rot" | "teeth"> {
   size: number[];
   pos: [number, number, number];
+  rot?: [number, number, number];
+  teeth?: number;
 }
 
 /** Turns formula sizes/positions into numbers using the current parameter values. */
@@ -195,6 +203,8 @@ export function resolveParts(spec: DesignSpec, overrides: Record<string, number>
     ...p,
     size: p.size.map((s) => Math.max(0.1, num(s, vars, 10))),
     pos: [num(p.pos[0], vars), num(p.pos[1], vars), num(p.pos[2], vars)],
+    rot: p.rot ? [num(p.rot[0], vars), num(p.rot[1], vars), num(p.rot[2], vars)] : undefined,
+    teeth: p.teeth === undefined ? undefined : Math.max(6, Math.min(120, Math.round(num(p.teeth, vars, 20)))),
   }));
 }
 
@@ -209,4 +219,55 @@ export function emptySpec(kind: DesignKind): DesignSpec {
         ? { input: { kind: "motor" }, stages: [{ driverTeeth: 12, drivenTeeth: 36 }], load: { mass: 2 } }
         : undefined,
   });
+}
+
+export type Shape = Part3D["shape"];
+
+/** Size fields each shape uses (for editors and validation). */
+export const SHAPE_FIELDS: Record<Shape, string[]> = {
+  box: ["Width", "Height", "Depth"],
+  cylinder: ["Radius", "Height"],
+  sphere: ["Radius"],
+  cone: ["Radius", "Height"],
+  torus: ["Ring radius", "Tube radius"],
+  capsule: ["Radius", "Length"],
+  gear: ["Pitch radius", "Thickness"],
+  tube: ["Outer radius", "Height", "Inner radius"],
+  prism: ["Radius", "Height", "Sides"],
+};
+
+export const SHAPE_LABELS: Record<Shape, string> = {
+  box: "Box",
+  cylinder: "Cylinder",
+  sphere: "Sphere",
+  cone: "Cone",
+  torus: "Ring (torus)",
+  capsule: "Capsule",
+  gear: "Gear",
+  tube: "Tube / pipe",
+  prism: "Prism",
+};
+
+/** Sensible starting size for a newly added shape (mm). */
+export function defaultSize(shape: Shape): number[] {
+  switch (shape) {
+    case "box":
+      return [60, 40, 60];
+    case "cylinder":
+      return [25, 50];
+    case "sphere":
+      return [30];
+    case "cone":
+      return [30, 60];
+    case "torus":
+      return [30, 8];
+    case "capsule":
+      return [15, 60];
+    case "gear":
+      return [30, 10];
+    case "tube":
+      return [25, 60, 18];
+    case "prism":
+      return [30, 40, 6];
+  }
 }

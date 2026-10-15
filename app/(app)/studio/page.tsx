@@ -128,7 +128,12 @@ export default function StudioHome() {
               <Plus className="h-3 w-3" /> Blank {KIND[k].label.toLowerCase()}
             </button>
           ))}
-          <Link href="/studio/path" className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 hover:bg-white/10">
+          {["a phone stand with adjustable angle", "a pair of meshing gears", "a pen holder with a tube and a base"].map((idea) => (
+            <button key={idea} type="button" onClick={() => create({ from: "prompt", prompt: idea, kind: "assembly", level }, "prompt")} className="flex items-center gap-1 rounded-full border border-amber-300/60 text-amber-200 px-3 py-1 hover:bg-white/10">
+              <Sparkles className="h-3 w-3" /> 3D: {idea}
+            </button>
+          ))}
+          <Link href="/studio/path"className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 hover:bg-white/10">
             <Route className="h-3 w-3" /> Goal → learning path
           </Link>
           <Link href="/challenges" className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 hover:bg-white/10">

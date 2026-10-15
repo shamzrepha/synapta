@@ -18,9 +18,10 @@ const FORMAT = `DESIGN JSON FORMAT (all keys optional except kind):
   "kind": "circuit" | "mechanism" | "assembly",
   "summary": "one paragraph",
   "params": [{"key":"W","label":"Width","value":200,"min":100,"max":300,"step":10,"unit":"mm"}],
-  "parts": [ // 3D parts in millimetres, Y is up; size/pos numbers may be formulas of params like "W / 2 + 10"
-    {"id":"base","name":"Base plate","shape":"box"|"cylinder"|"sphere"|"cone","size":[w,h,d] (cylinder/cone: [radius,height]; sphere: [radius]),
-     "pos":[x,y,z] (centre),"rot":[deg,deg,deg],"color":"#8fd3ff","opacity":0.15,"group":"Housing","explode":[dx,dy,dz],
+  "parts": [ // 3D parts in millimetres, Y is up, x/z horizontal; size/pos numbers may be formulas of params like "W / 2 + 10"
+    {"id":"base","name":"Base plate","shape":"box"|"cylinder"|"sphere"|"cone"|"torus"|"capsule"|"gear"|"tube"|"prism",
+     "size":[...] (box [w,h,d]; cylinder/cone [radius,height]; sphere [radius]; torus [ring radius, tube radius]; capsule [radius,length]; gear [pitch radius, thickness] plus "teeth":20; tube [outer radius,height,inner radius]; prism [radius,height,sides 3-12]),
+     "pos":[x,y,z] (centre of the part),"rot":[deg,deg,deg],"color":"#8fd3ff","opacity":0.15,"group":"Housing","explode":[dx,dy,dz],
      "info":{"where":"…","fit":"how to make/fit it","cost":"₦…","material":"…"}}
   ],
   "circuit": {"parts":[{"id":"board","type":"board","x":60,"y":300},{"id":"red","type":"led","label":"Red LED","x":120,"y":60,"props":{"color":"red"}},{"id":"r1","type":"resistor","x":100,"y":180,"props":{"ohms":220}}],
@@ -36,6 +37,13 @@ const FORMAT = `DESIGN JSON FORMAT (all keys optional except kind):
 }
 CIRCUIT COMPONENTS (use only these types; wire ends are "partId.pinName"):
 ${catalogText}
+3D MODEL GUIDE (assemblies; also useful for enclosures):
+- Build recognisable objects from 8–40 primitives with real proportions: a bottle = cylinder body + cone shoulder + small cylinder neck + cap; a wheel = torus tyre + tube rim + cylinder hub; a gear box = box housing + gear parts on cylinder shafts; a desk lamp = cylinder base + capsule arm + cone shade + sphere bulb.
+- Sit the model on the ground: the lowest part's bottom is at y = 0 (so a box of height h has pos y = h/2). Centre it around x = 0, z = 0. Parts must touch or slightly overlap where they join; no floating gaps.
+- Use "params" for the 1–4 dimensions people will want to change (width, height, number of teeth...) and write sizes/positions as formulas of them.
+- Give every part a "group", a believable colour (e.g. metal #94a3b8, wood #b45309, plastic #8fd3ff, rubber #1f2937) and "explode" offsets so the exploded view pulls the assembly apart sensibly (move each part away from the centre along the axis it would come off).
+- Use opacity 0.12–0.35 (they are drawn as blueprint-style solids); info.where/info.fit explain placement and assembly.
+- Worked example (phone stand, abridged): params [{"key":"A","label":"Lean angle","value":70,"min":55,"max":85,"unit":"°"}], parts: base box ["120",8,"90"] at [0,4,0]; back rest box [100,120,6] at [0,64,-30] rot [-(90-A)... use numbers like 20,0,0]; front lip box [100,18,8] at [0,17,30]; rubber feet = four cylinders [6,4] under the corners.
 RULES: circuit bench coordinates x 0–900, y 0–500 (board at about x 60, y 300; parts above it). Every LED needs a resistor in series. Motors go through a motor_driver. Sensors need power and GND. Steps must build understanding in small pieces; end circuits with a behaviour test. Mechanisms: lifting must be physically possible; explain torque, ratio and speed. Assemblies: realistic sizes in mm, every part has info.where and info.fit.`;
 
 const outSchema = z.object({
@@ -56,7 +64,24 @@ export function repairSpec(raw: Record<string, unknown>): Record<string, unknown
     return s;
   };
   if (Array.isArray(spec.parts)) {
-    spec.parts = (spec.parts as Record<string, unknown>[]).slice(0, 150).map((p, i) => ({ ...p, id: uniq(p.id, "p", i), name: String(p.name || p.id || `Part ${i + 1}`).slice(0, 80) }));
+    const SHAPES = new Set(["box", "cylinder", "sphere", "cone", "torus", "capsule", "gear", "tube", "prism"]);
+    spec.parts = (spec.parts as Record<string, unknown>[]).slice(0, 150).map((p, i) => {
+      const shape = SHAPES.has(String(p.shape)) ? String(p.shape) : "box";
+      const need = { box: 3, cylinder: 2, sphere: 1, cone: 2, torus: 2, capsule: 2, gear: 2, tube: 3, prism: 3 }[shape as "box"];
+      const raw = Array.isArray(p.size) ? (p.size as unknown[]) : [];
+      const fallback = shape === "tube" ? [20, 40, 14] : shape === "prism" ? [20, 30, 6] : [20, 20, 20];
+      const size = Array.from({ length: need }, (_, k) => (typeof raw[k] === "number" || typeof raw[k] === "string" ? raw[k] : fallback[k]));
+      const pos = Array.isArray(p.pos) && p.pos.length >= 3 ? (p.pos as unknown[]).slice(0, 3) : [0, 0, 0];
+      return {
+        ...p,
+        id: uniq(p.id, "p", i),
+        name: String(p.name || p.id || `Part ${i + 1}`).slice(0, 80),
+        shape,
+        size,
+        pos: pos.map((v) => (typeof v === "number" || typeof v === "string" ? v : 0)),
+        ...(shape === "gear" ? { teeth: typeof p.teeth === "string" ? p.teeth : Math.max(6, Math.min(120, Math.round(Number(p.teeth) || 20))) } : { teeth: undefined }),
+      };
+    });
   }
   const circuit = spec.circuit as { parts?: Record<string, unknown>[]; wires?: Record<string, unknown>[] } | undefined;
   if (circuit && Array.isArray(circuit.parts)) {

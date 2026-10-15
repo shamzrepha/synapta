@@ -262,6 +262,58 @@ export const TEMPLATES: Template[] = [
       ],
     },
   },
+  {
+    id: "phone-stand",
+    title: "Adjustable phone stand (3D)",
+    kind: "assembly",
+    level: "beginner",
+    tags: ["3d", "assembly", "design"],
+    blurb: "A phone stand whose back rest tilts: change the angle and width and the whole model re-computes.",
+    spec: {
+      kind: "assembly",
+      summary: "A weighted base, a tilted back rest and a front lip that stops the phone sliding. Rubber feet stop it skating.",
+      params: [
+        { key: "A", label: "Tilt angle", value: 70, min: 55, max: 85, step: 1, unit: "°" },
+        { key: "W", label: "Stand width", value: 100, min: 80, max: 140, step: 5, unit: "mm" },
+      ],
+      parts: [
+        { id: "base", name: "Base", shape: "box", size: ["W", 8, 90], pos: [0, 8, 0], color: "#5eead4", opacity: 0.25, group: "Body", explode: [0, -20, 0] },
+        { id: "rest", name: "Back rest", shape: "box", size: ["W - 10", 120, 6], pos: [0, "12 + 60*sin(A)", "-10 - 60*cos(A)"], rot: ["-(90 - A)", 0, 0], color: "#8fd3ff", opacity: 0.25, group: "Body", explode: [0, 25, -20] },
+        { id: "lip", name: "Front lip", shape: "box", size: ["W - 10", 14, 6], pos: [0, 21, 38], color: "#fcd34d", opacity: 0.3, group: "Body", explode: [0, 0, 25] },
+        { id: "f1", name: "Rubber foot L", shape: "cylinder", size: [6, 4], pos: ["-W/2 + 10", 2, -30], color: "#475569", opacity: 0.5, group: "Feet", explode: [0, -45, 0] },
+        { id: "f2", name: "Rubber foot R", shape: "cylinder", size: [6, 4], pos: ["W/2 - 10", 2, -30], color: "#475569", opacity: 0.5, group: "Feet", explode: [0, -45, 0] },
+      ],
+      steps: [
+        { id: "p1", title: "Tilt it", detail: "Slide the Tilt angle setting. A steeper rest holds the phone upright; a shallower one is easier for typing.", check: { kind: "manual" } },
+        { id: "p2", title: "Edit a part", detail: "Open the Build tab, tap a part and change its size or colour, or add a new shape of your own.", check: { kind: "manual" } },
+      ],
+    },
+  },
+  {
+    id: "gear-set-3d",
+    title: "Meshing gear pair (3D)",
+    kind: "assembly",
+    level: "intermediate",
+    tags: ["3d", "gears", "mechanical"],
+    blurb: "Two gears whose spacing is calculated from their tooth counts — change the teeth and they stay meshed.",
+    spec: {
+      kind: "assembly",
+      summary: "Gears of module 3 mesh when their centres are the sum of their pitch radii (1.5 × teeth) apart.",
+      params: [
+        { key: "T1", label: "Driver teeth", value: 12, min: 8, max: 30, step: 1 },
+        { key: "T2", label: "Driven teeth", value: 24, min: 8, max: 48, step: 1 },
+      ],
+      parts: [
+        { id: "g1", name: "Driver gear", shape: "gear", teeth: "T1", size: ["1.5*T1", 10], pos: ["-(1.5*T1 + 1.5*T2)/2", 5, 0], color: "#fb923c", opacity: 0.35, group: "Gears", explode: [-20, 0, 0] },
+        { id: "g2", name: "Driven gear", shape: "gear", teeth: "T2", size: ["1.5*T2", 10], pos: ["(1.5*T1 + 1.5*T2)/2", 5, 0], color: "#5eead4", opacity: 0.35, group: "Gears", explode: [20, 0, 0] },
+        { id: "s1", name: "Driver shaft", shape: "cylinder", size: [3, 30], pos: ["-(1.5*T1 + 1.5*T2)/2", 10, 0], color: "#94a3b8", opacity: 0.6, group: "Shafts", explode: [-20, 20, 0] },
+        { id: "s2", name: "Driven shaft", shape: "cylinder", size: [3, 30], pos: ["(1.5*T1 + 1.5*T2)/2", 10, 0], color: "#94a3b8", opacity: 0.6, group: "Shafts", explode: [20, 20, 0] },
+      ],
+      steps: [
+        { id: "q1", title: "Change the teeth", detail: "Slide Driven teeth. Gear ratio = driven ÷ driver teeth. What ratio makes the driven gear turn at half speed?", videoQuery: "gear ratio explained", check: { kind: "manual" } },
+      ],
+    },
+  },
 ];
 
 export function getTemplate(id: string): Template | undefined {

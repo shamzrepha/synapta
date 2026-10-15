@@ -55,6 +55,48 @@ function gearShape(teeth: number, module: number): THREE.Shape {
   return shape;
 }
 
+/** Geometry for a design part. Every shape's axis runs along Y (up) so rotation behaves the same for all. */
+export function partGeometry(p: { shape: string; size: number[]; teeth?: number }): THREE.BufferGeometry {
+  const [a, b, c] = p.size;
+  switch (p.shape) {
+    case "cylinder":
+      return new THREE.CylinderGeometry(a, a, b ?? a, 40);
+    case "cone":
+      return new THREE.ConeGeometry(a, b ?? a, 40);
+    case "sphere":
+      return new THREE.SphereGeometry(a, 24, 16);
+    case "torus":
+      // lies flat (axis up), like a washer or tyre
+      return new THREE.TorusGeometry(a, Math.min(b ?? a / 4, a * 0.95), 14, 40).rotateX(Math.PI / 2);
+    case "capsule":
+      return new THREE.CapsuleGeometry(a, Math.max(0.1, b ?? a * 2), 6, 20);
+    case "prism":
+      return new THREE.CylinderGeometry(a, a, b ?? a, Math.max(3, Math.min(12, Math.round(c ?? 6))));
+    case "tube": {
+      const outer = a;
+      const inner = Math.min(c ?? a * 0.7, outer * 0.95);
+      const h = b ?? a * 2;
+      const shape = new THREE.Shape();
+      shape.absarc(0, 0, outer, 0, Math.PI * 2, false);
+      const hole = new THREE.Path();
+      hole.absarc(0, 0, Math.max(0.5, inner), 0, Math.PI * 2, true);
+      shape.holes.push(hole);
+      const geo = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false, curveSegments: 32 });
+      geo.translate(0, 0, -h / 2);
+      return geo.rotateX(Math.PI / 2);
+    }
+    case "gear": {
+      const teeth = Math.max(6, p.teeth ?? 20);
+      const thickness = b ?? a * 0.3;
+      const geo = new THREE.ExtrudeGeometry(gearShape(teeth, (2 * a) / teeth), { depth: thickness, bevelEnabled: false, curveSegments: 6 });
+      geo.translate(0, 0, -thickness / 2);
+      return geo.rotateX(Math.PI / 2);
+    }
+    default:
+      return new THREE.BoxGeometry(a, b ?? a, c ?? a);
+  }
+}
+
 function solid(geo: THREE.BufferGeometry, color: string, opacity: number, selected: boolean): THREE.Group {
   const g = new THREE.Group();
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: selected ? SELECT : color, transparent: true, opacity: selected ? Math.max(0.35, opacity * 1.6) : opacity, depthWrite: false }));
@@ -189,11 +231,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     c.pickables = [];
 
     for (const p of parts) {
-      let geo: THREE.BufferGeometry;
-      if (p.shape === "cylinder") geo = new THREE.CylinderGeometry(p.size[0], p.size[0], p.size[1] ?? p.size[0], 40);
-      else if (p.shape === "cone") geo = new THREE.ConeGeometry(p.size[0], p.size[1] ?? p.size[0], 40);
-      else if (p.shape === "sphere") geo = new THREE.SphereGeometry(p.size[0], 24, 16);
-      else geo = new THREE.BoxGeometry(p.size[0], p.size[1] ?? p.size[0], p.size[2] ?? p.size[0]);
+      const geo = partGeometry(p);
       const g = solid(geo, p.color || "#8fd3ff", p.opacity ?? 0.15, p.id === selectedId);
       const ex = p.explode || [0, 0, 0];
       g.position.set(p.pos[0] + ex[0] * explode, p.pos[1] + ex[1] * explode, p.pos[2] + ex[2] * explode);

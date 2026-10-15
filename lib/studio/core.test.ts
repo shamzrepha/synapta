@@ -69,3 +69,54 @@ describe("design diff", () => {
     expect(lineDiff("a\nb\nc", "a\nc")).toEqual({ added: 0, removed: 1 });
   });
 });
+
+import { repairSpec } from "./design-ai";
+import { SHAPE_FIELDS, defaultSize } from "./spec";
+
+describe("3D shapes", () => {
+  it("accepts every shape and every shape has default sizes matching its fields", () => {
+    for (const shape of Object.keys(SHAPE_FIELDS) as Array<keyof typeof SHAPE_FIELDS>) {
+      expect(defaultSize(shape)).toHaveLength(SHAPE_FIELDS[shape].length);
+    }
+    const spec = parseSpec({
+      kind: "assembly",
+      parts: [
+        { id: "g", name: "Gear", shape: "gear", teeth: 24, size: [30, 8], pos: [0, 4, 0] },
+        { id: "t", name: "Pipe", shape: "tube", size: [20, 50, 14], pos: [0, 25, 0] },
+        { id: "r", name: "Ring", shape: "torus", size: [30, 6], pos: [0, 3, 0] },
+      ],
+    });
+    expect(resolveParts(spec).map((p) => p.shape)).toEqual(["gear", "tube", "torus"]);
+    expect(resolveParts(spec)[0].teeth).toBe(24);
+  });
+
+  it("repairs messy AI parts: unknown shapes, missing sizes, bad positions", () => {
+    const fixed = parseSpec(
+      repairSpec({
+        kind: "assembly",
+        parts: [
+          { id: "a b", name: "Weird", shape: "pyramid", size: [10], pos: [1] },
+          { id: "g", shape: "gear", size: [30, 8], pos: [0, 0, 0] },
+          { id: "t", shape: "tube", size: [20], pos: [0, 0, 0] },
+        ],
+      })
+    );
+    expect(fixed.parts[0].shape).toBe("box");
+    expect(fixed.parts[0].size).toHaveLength(3);
+    expect(fixed.parts[0].pos).toHaveLength(3);
+    expect(fixed.parts[1].teeth).toBe(20);
+    expect(fixed.parts[2].size).toHaveLength(3);
+  });
+});
+
+import { TEMPLATES } from "./templates";
+describe("3D templates", () => {
+  it("every template parses and 3D ones resolve to finite numbers", () => {
+    for (const t of TEMPLATES) {
+      const s = parseSpec(t.spec);
+      for (const p of resolveParts(s)) {
+        expect([...p.size, ...p.pos, ...(p.rot || [])].every(Number.isFinite)).toBe(true);
+      }
+    }
+  });
+});
