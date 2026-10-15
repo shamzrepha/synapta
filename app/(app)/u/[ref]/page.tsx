@@ -1,5 +1,6 @@
 "use client";
 
+import { ShoutoutsStrip } from "@/components/shoutouts/shoutouts-strip";
 import React, { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserPlus, UserCheck, MessageCircle, Flame, Share2, CalendarDays } from "lucide-react";
@@ -180,6 +181,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ ref: s
         ))}
       </div>
 
+      <ShoutoutsStrip userRef={p.uid} />
       {p.badges.length > 0 && (
         <Card className="p-4 space-y-3">
           <p className="font-bold">Badges ({p.badges.length})</p>

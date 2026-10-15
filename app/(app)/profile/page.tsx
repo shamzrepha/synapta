@@ -26,6 +26,7 @@ import { useGameState } from "@/components/game/use-game";
 import { LevelCard, BadgeGrid } from "@/components/game/widgets";
 import { GameSettings } from "@/components/game/game-settings";
 import { EquippedTitle } from "@/components/shop/equipped-title";
+import { ShoutoutsStrip } from "@/components/shoutouts/shoutouts-strip";
 import { ActivityHeatmap } from "@/components/activity/activity-heatmap";
 
 export default function ProfilePage() {
@@ -360,6 +361,7 @@ export default function ProfilePage() {
           <LevelCard game={game} />
           <BadgeGrid game={game} />
           {user?.uid && <Card className="p-4 sm:p-5"><ActivityHeatmap uid={user.uid} compact /></Card>}
+          {user?.uid && <ShoutoutsStrip userRef={user.uid} />}
           <GameSettings game={game} />
         </div>
       )}

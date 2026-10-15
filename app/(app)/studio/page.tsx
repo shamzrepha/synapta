@@ -139,6 +139,12 @@ export default function StudioHome() {
           <Link href="/studio/shop" className="flex items-center gap-1 rounded-full bg-amber-400 text-slate-900 font-semibold px-3 py-1 hover:bg-amber-300">
             <Wrench className="h-3 w-3" /> Parts shop
           </Link>
+          <Link href="/studio/wall" className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 hover:bg-white/10">
+            Maker Wall
+          </Link>
+          <Link href="/studio/contests" className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 hover:bg-white/10">
+            Contests
+          </Link>
           <Link href="/studio/path" className="flex items-center gap-1 rounded-full border border-white/30 px-3 py-1 hover:bg-white/10">
             <Route className="h-3 w-3" /> Goal → learning path
           </Link>
