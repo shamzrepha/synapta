@@ -1,4 +1,4 @@
-/* Synapta web push service worker (Firebase Cloud Messaging).
+/* Sunroot web push service worker (Firebase Cloud Messaging).
    Firebase config is passed in the registration URL's query string. */
 /* global importScripts, firebase */
 importScripts("https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js");
@@ -16,7 +16,7 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   const data = payload.data || {};
-  const title = (payload.notification && payload.notification.title) || data.title || "Synapta";
+  const title = (payload.notification && payload.notification.title) || data.title || "Sunroot";
   self.registration.showNotification(title, {
     body: (payload.notification && payload.notification.body) || data.body || "",
     icon: "/favicon.ico",

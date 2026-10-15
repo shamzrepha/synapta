@@ -53,7 +53,7 @@ export function PushToggle() {
         localStorage.setItem("synapta-push", "on");
       } catch {}
       setState("on");
-      toast({ title: "Push notifications on", description: "You'll get alerts even when Synapta is closed.", variant: "success" });
+      toast({ title: "Push notifications on", description: "You'll get alerts even when Sunroot is closed.", variant: "success" });
     } catch (e) {
       toast({ title: "Couldn't enable push", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
     } finally {
@@ -87,7 +87,7 @@ export function PushToggle() {
             : state === "denied"
             ? "Blocked in your browser settings. Allow notifications for this site to turn them on."
             : state === "unsupported"
-            ? "This browser doesn't support push. On iPhone, add Synapta to your Home Screen first."
+            ? "This browser doesn't support push. On iPhone, add Sunroot to your Home Screen first."
             : "Get messages, mentions, session reminders and results on this device even when the app is closed."}
         </span>
       </span>
