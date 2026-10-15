@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api/errors";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
 import { getTeacherSystemPrompt, checkStudentMessageSafety } from "./prompts";
 import { trackMisconception } from "./misconceptions";
+import { levelInstruction, type ExplainLevel } from "@/lib/study/explain-level";
 
 export interface TeacherAgentParams {
   uid: string;
@@ -12,6 +13,8 @@ export interface TeacherAgentParams {
   /** Optional: ground the tutor in one topic (lesson, objectives, mastery) */
   kcId?: string | null;
   userMessage: string;
+  /** Optional explanation level (simple / standard / lecturer) */
+  level?: ExplainLevel;
   history?: Array<{ role: "user" | "model"; text: string }>;
 }
 
@@ -69,7 +72,7 @@ SAFETY:
  * server and put in the system prompt so each answer is a single model call — no function-calling
  * round trips, which were slow and broke on Gemini 3 (tool calls must echo thought signatures).
  */
-export async function runTeacherAgent({ uid, classId, kcId, userMessage, history = [] }: TeacherAgentParams): Promise<TeacherAgentResponse> {
+export async function runTeacherAgent({ uid, classId, kcId, userMessage, level, history = [] }: TeacherAgentParams): Promise<TeacherAgentResponse> {
   const safety = checkStudentMessageSafety(userMessage);
   const mode: TeacherAgentResponse["mode"] = classId && kcId ? "topic" : classId ? "class" : "general";
   if (!safety.safe) {
@@ -120,6 +123,8 @@ FORMAT:
     }
     systemInstruction = generalTutorPrompt({ classTitle, topics, misconceptions: [] });
   }
+
+  systemInstruction += levelInstruction(level);
 
   const contents = [
     ...normalizeHistory(history),
