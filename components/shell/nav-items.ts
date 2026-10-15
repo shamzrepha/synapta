@@ -12,6 +12,8 @@ import {
   Swords,
   Crown,
   CalendarClock,
+  MessageCircle,
+  Bookmark,
 } from "lucide-react";
 
 export interface NavItem {
@@ -31,11 +33,13 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Review", href: "/classes/heatmap", icon: RotateCw, roles: ALL, group: "learn" },
   { label: "Explore", href: "/explore", icon: Compass, roles: ALL, group: "learn" },
   { label: "Community", href: "/feed", icon: Newspaper, roles: ALL, group: "social" },
+  { label: "Messages", href: "/messages", icon: MessageCircle, roles: ALL, group: "social" },
   { label: "Challenges", href: "/challenges", icon: Swords, roles: ALL, group: "social" },
   { label: "Leaderboard", href: "/leaderboard", icon: Crown, roles: ALL, group: "social" },
   { label: "Sessions", href: "/sessions", icon: CalendarClock, roles: ALL, group: "social" },
   { label: "Peer Lounge", href: "/lounge", icon: Users, roles: ALL, group: "social" },
   { label: "Friends", href: "/friends", icon: MessageSquare, roles: ALL, group: "social" },
+  { label: "Saved", href: "/saved", icon: Bookmark, roles: ALL, group: "account" },
   { label: "Profile", href: "/profile", icon: User, roles: ALL, group: "account" },
   { label: "Admin Console", href: "/admin", icon: ShieldCheck, roles: ["admin"], group: "account" },
 ];

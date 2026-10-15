@@ -49,15 +49,15 @@ async function runAcceptanceSuite() {
     KNOWN_MODELS["gemini-3.8-flash"].rpd === 20
   );
   assert(
-    "Default tutor task resolves to light model (gemini-3.1-flash-lite)",
-    modelFor("tutor_chat") === "gemini-3.1-flash-lite"
+    "Default tutor task resolves to light model (gemini-3.5-flash-lite)",
+    modelFor("tutor_chat") === "gemini-3.5-flash-lite"
   );
   assert(
     "Heavy class_build task resolves to gemini-3.6-flash",
     modelFor("class_build") === "gemini-3.6-flash"
   );
   assert(
-    "Heavy fallback chain has 4 models and never starts with 3.8-flash",
+    "Heavy fallback chain has 3+ models and starts with 3.6-flash",
     DEFAULT_MODEL_CONFIG.chainHeavy.length >= 3 && DEFAULT_MODEL_CONFIG.chainHeavy[0] === "gemini-3.6-flash"
   );
 

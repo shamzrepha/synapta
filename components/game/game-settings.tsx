@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import type { GameState } from "./use-game";
+import { PushToggle } from "@/components/notifications/push-toggle";
 
 function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description: string }) {
   return (
@@ -46,7 +47,8 @@ export function GameSettings({ game }: { game: GameState }) {
 
   return (
     <Card className="p-5 divide-y divide-slate-100 dark:divide-slate-800">
-      <p className="font-bold pb-2">Privacy & sharing</p>
+      <p className="font-bold pb-2">Notifications, privacy & sharing</p>
+      <PushToggle />
       <Toggle
         checked={settings.showOnLeaderboard}
         onChange={(v) => update({ showOnLeaderboard: v })}

@@ -36,6 +36,7 @@ import { QuizPlayer } from "@/components/quiz/quiz-player";
 import { AudioLesson } from "@/components/lesson/audio-lesson";
 import { PracticeBankTools } from "@/components/lesson/practice-bank-tools";
 import { ReadAloud } from "@/components/ui/read-aloud";
+import { ShareButton, SaveButton } from "@/components/social/share-button";
 
 interface KcDetails {
   id: string;
@@ -362,6 +363,10 @@ export default function TopicPage({
               {kc.title}
             </h1>
             {kc.description && <p className="text-sm text-slate-500 mt-1">{kc.description}</p>}
+            <div className="flex flex-wrap gap-2 mt-3">
+              <ShareButton item={{ type: "topic", id: `${classId}_${kcId}`, title: kc.title, subtitle: "Lesson, simulation & quiz", href: `/classes/${classId}/topics/${kcId}`, emoji: "📚" }} />
+              <SaveButton item={{ type: "topic", id: `${classId}_${kcId}`, title: kc.title, subtitle: "Topic", href: `/classes/${classId}/topics/${kcId}` }} />
+            </div>
           </div>
 
           {/* Tabs: scrollable on phones */}

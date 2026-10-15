@@ -38,6 +38,9 @@ export async function GET(req: NextRequest) {
       data: {
         xp: u.xp || 0,
         streakDays: u.streakDays || 0,
+        streakFreezes: u.streakFreezes || 0,
+        // Studied before, but not yet today: today's activity keeps the streak alive
+        streakAtRisk: (u.streakDays || 0) > 0 && !!u.lastActiveDate && u.lastActiveDate !== new Date().toISOString().slice(0, 10),
         level: levelFromXp(u.xp || 0),
         stats: normalizeStats(u.stats),
         badges: BADGES.map((b) => ({

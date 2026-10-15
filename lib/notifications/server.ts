@@ -1,5 +1,6 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { bumpUserSignal } from "@/lib/live/server";
+import { sendPush } from "./push";
 
 export type NotificationType =
   | "level_up"
@@ -41,6 +42,7 @@ export async function notify(uid: string, n: NotificationInput): Promise<void> {
         createdAt: Timestamp.now(),
       });
     await bumpUserSignal(uid, { unreadDelta: 1, topic: n.type });
+    await sendPush(uid, { title: n.title, body: n.body, href: n.href, tag: n.type });
   } catch (err) {
     console.warn("[notify] failed", err instanceof Error ? err.message : err);
   }

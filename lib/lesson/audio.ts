@@ -74,10 +74,37 @@ export async function getAudioLesson(classId: string, kcId: string): Promise<Aud
   };
 }
 
-export async function getAudioTurn(classId: string, kcId: string, index: number): Promise<Buffer | null> {
-  const snap = await audioCol(classId, kcId).doc(`turn_${index}`).get();
-  const b64 = snap.data()?.audioBase64;
-  return typeof b64 === "string" ? Buffer.from(b64, "base64") : null;
+const TTS_TIMEOUT_MS = 8000;
+const FAILURE_COOLDOWN_MS = 10 * 60 * 1000;
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([p, new Promise<null>((resolve) => setTimeout(() => resolve(null), ms))]);
+}
+
+/**
+ * Returns a turn's MP3, recording it on first request and caching it for every later listener.
+ * Voice synthesis is time-boxed; on failure we remember it briefly and the player instantly falls
+ * back to the device's voice, so "Listen" never hangs.
+ */
+export async function getOrSynthesizeTurn(classId: string, kcId: string, index: number): Promise<Buffer | null> {
+  const col = audioCol(classId, kcId);
+  const ref = col.doc(`turn_${index}`);
+  const snap = await ref.get();
+  const d = snap.data();
+  if (typeof d?.audioBase64 === "string") return Buffer.from(d.audioBase64, "base64");
+  if (d?.failedAt && Date.now() - d.failedAt.toMillis() < FAILURE_COOLDOWN_MS) return null;
+
+  const meta = await getAudioLesson(classId, kcId);
+  const turn = meta?.turns[index];
+  if (!meta || !turn) return null;
+  const voices = VOICES[meta.voiceStyle] || VOICES.female;
+  const mp3 = await withTimeout(synthesizeEdgeVoice(turn.text, turn.speaker === "teacher" ? voices.teacher : voices.student), TTS_TIMEOUT_MS);
+  if (mp3 && mp3.length <= MAX_TURN_BYTES) {
+    await ref.set({ audioBase64: mp3.toString("base64"), mimeType: "audio/mpeg", bytes: mp3.length });
+    return mp3;
+  }
+  await ref.set({ failedAt: Timestamp.now() }).catch(() => null);
+  return null;
 }
 
 /** Strips Markdown/LaTeX so text reads naturally aloud and in the transcript. */
@@ -125,7 +152,7 @@ export async function generateAudioLesson(params: {
 - "teacher" (${teacherName}): a warm, clear expert who explains with everyday analogies.
 - "student" (${studentName}): a curious learner who asks the questions real students ask, guesses, sometimes gets things wrong and is gently corrected.
 
-Write 12 to 18 turns (about 4-6 minutes spoken) that teach the topic properly: hook → core ideas → a worked example talked through step by step → a common mistake → a quick recap and one question for the listener to think about.
+Write 10 to 14 turns (about 3-5 minutes spoken) that teach the topic properly: hook → core ideas → a worked example talked through step by step → a common mistake → a quick recap and one question for the listener to think about.
 Rules: base everything on the provided material and stay accurate; write for the EAR — no Markdown, no LaTeX, no symbols; say formulas in words ("V equals I times R"); keep each turn under 70 words; audience level: ${ctx.level}.
 Return JSON only: {"title":"...","turns":[{"speaker":"teacher","text":"..."},{"speaker":"student","text":"..."}]}`;
 
@@ -140,30 +167,16 @@ Return JSON only: {"title":"...","turns":[{"speaker":"teacher","text":"..."},{"s
     if (!result.data) throw new AiGenerationError("The AI couldn't write the audio lesson. Please try again.");
 
     const turns = result.data.turns.map((t) => ({ speaker: t.speaker as "teacher" | "student", text: speakable(t.text) }));
-    const voices = VOICES[voiceStyle];
 
-    // Narrate (5 at a time). Turns that fail TTS fall back to the browser's voice on playback.
-    const hasAudio: boolean[] = new Array(turns.length).fill(false);
-    for (let i = 0; i < turns.length; i += 5) {
-      await Promise.all(
-        turns.slice(i, i + 5).map(async (turn, k) => {
-          const idx = i + k;
-          const mp3 = await synthesizeEdgeVoice(turn.text, turn.speaker === "teacher" ? voices.teacher : voices.student);
-          if (mp3 && mp3.length <= MAX_TURN_BYTES) {
-            await col.doc(`turn_${idx}`).set({ audioBase64: mp3.toString("base64"), mimeType: "audio/mpeg", bytes: mp3.length });
-            hasAudio[idx] = true;
-          }
-        })
-      );
-    }
-    // Remove leftover clips from a longer previous version
+    // Clear clips from any previous version; new clips are recorded on first play (see getOrSynthesizeTurn)
     const prevCount = Array.isArray(prev?.turns) ? prev!.turns.length : 0;
-    for (let i = turns.length; i < prevCount; i++) await col.doc(`turn_${i}`).delete().catch(() => null);
+    await Promise.all(Array.from({ length: Math.max(prevCount, turns.length) }, (_, i) => col.doc(`turn_${i}`).delete().catch(() => null)));
 
     const meta: AudioLessonMeta = {
       status: "ready",
       title: result.data.title || `${ctx.kcTitle} — audio lesson`,
-      turns: turns.map((t, i) => ({ ...t, hasAudio: hasAudio[i] })),
+      // Audio is recorded just-in-time per turn; the player falls back to the device voice if needed
+      turns: turns.map((t) => ({ ...t, hasAudio: true })),
       teacherName,
       studentName,
       voiceStyle,

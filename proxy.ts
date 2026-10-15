@@ -15,6 +15,10 @@ const protectedPrefixes = [
   "/sessions",
   "/notifications",
   "/friends",
+  "/messages",
+  "/saved",
+  "/u",
+  "/search",
 ];
 
 const authPages = ["/login", "/signup"];

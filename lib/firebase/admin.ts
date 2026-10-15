@@ -1,4 +1,5 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
 import { getAuth, Auth } from "firebase-admin/auth";
 import { getFirestore, Firestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getStorage, Storage } from "firebase-admin/storage";
@@ -53,6 +54,8 @@ function getFirebaseAdmin(): { app: App; auth: Auth; db: Firestore; storage: Sto
 }
 
 export const adminAuth = () => getFirebaseAdmin().auth;
+/** Firebase Cloud Messaging (web push). */
+export const adminMessaging = () => getMessaging(getFirebaseAdmin().app);
 export const adminDb = () => getFirebaseAdmin().db;
 export const adminStorage = () => getFirebaseAdmin().storage;
 export const adminBucket = () => {

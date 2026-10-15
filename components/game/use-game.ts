@@ -6,6 +6,8 @@ import { useRealtime } from "@/components/providers/realtime-provider";
 export interface GameState {
   xp: number;
   streakDays: number;
+  streakFreezes?: number;
+  streakAtRisk?: boolean;
   level: { level: number; title: string; xp: number; currentLevelXp: number; nextLevelXp: number; progress: number };
   stats: Record<string, number>;
   badges: Array<{ id: string; name: string; description: string; emoji: string; rarity: string; earnedAt: string | null }>;

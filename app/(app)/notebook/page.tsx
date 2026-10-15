@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { extractTextFromFile } from "@/lib/pdf/extractor";
 import { cn } from "@/lib/utils";
+import { useLiveChannel } from "@/lib/live/client";
+import { NotebookBar, type NotebookMeta } from "@/components/notebook/notebook-bar";
 import {
   BookOpen,
   FileText,
@@ -56,6 +58,39 @@ interface ChatMessage {
   role: "user" | "model";
   text: string;
   citations?: Citation[];
+  authorName?: string | null;
+}
+
+const WELCOME: ChatMessage = {
+  id: "welcome-msg",
+  role: "model",
+  text: "Welcome to your **Source-Grounded Notebook**! All answers are generated strictly using your active source materials with verifiable inline citations `[S1]`, `[S2]`. Ask anything or generate study artifacts in the studio panel.",
+};
+
+interface NotebookPayload {
+  notebook: NotebookMeta & {
+    studio: { studyGuide?: string; flashcards?: Flashcard[]; quiz?: QuizItem[]; podcast?: DeepDiveEpisode };
+  };
+  sources: Array<{ id: string; title: string; type: "pdf" | "note"; content: string; wordCount: number; createdAt: string | null }>;
+  messages: Array<{ id: string; role: "user" | "model"; text: string; citations: Citation[]; authorName: string | null }>;
+}
+
+async function fetchNotebook(id: string): Promise<{ ok: true; data: NotebookPayload } | { ok: false; message: string }> {
+  try {
+    const j = await fetch(`/api/notebooks/${id}`).then((r) => r.json());
+    return j.ok ? { ok: true, data: j.data } : { ok: false, message: j.error?.message || "Couldn't open notebook" };
+  } catch {
+    return { ok: false, message: "Couldn't open notebook" };
+  }
+}
+
+async function jsonFetch(url: string, method: string, body?: unknown): Promise<{ ok: boolean; data?: Record<string, unknown>; error?: { message?: string } }> {
+  try {
+    const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+    return await r.json();
+  } catch {
+    return { ok: false, error: { message: "Network error" } };
+  }
 }
 
 interface DialogueTurn {
@@ -98,13 +133,7 @@ export default function NotebookPage() {
   const [previewSource, setPreviewSource] = useState<SourceItem | null>(null);
 
   // Chat State
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome-msg",
-      role: "model",
-      text: "Welcome to your **Source-Grounded Notebook**! All answers are generated strictly using your active source materials with verifiable inline citations `[S1]`, `[S2]`. Ask anything or generate study artifacts in the studio panel.",
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [inputQuery, setInputQuery] = useState("");
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [activeCitationPopover, setActiveCitationPopover] = useState<Citation | null>(null);
@@ -138,30 +167,163 @@ export default function NotebookPage() {
   const [selectedQuizAnswers, setSelectedQuizAnswers] = useState<Record<number, number>>({});
   const [generatingQuiz, setGeneratingQuiz] = useState(false);
 
+  // Saved / shared notebook (null = unsaved scratch pad)
+  const [nbId, setNbId] = useState<string | null>(null);
+  const [nbMeta, setNbMeta] = useState<NotebookMeta | null>(null);
+  const [listVersion, setListVersion] = useState(0);
+  const canEdit = !nbMeta || nbMeta.role !== "viewer";
+  const deactivatedRef = useRef<Set<string>>(new Set());
+
+  const applyNotebook = useCallback((data: NotebookPayload) => {
+    setNbMeta(data.notebook);
+    setSources(
+      data.sources.map((s) => ({
+        id: s.id,
+        title: s.title,
+        content: s.content,
+        type: s.type,
+        wordCount: s.wordCount,
+        active: !deactivatedRef.current.has(s.id),
+        createdAt: s.createdAt ? new Date(s.createdAt).toLocaleDateString() : "",
+      }))
+    );
+    setMessages([WELCOME, ...data.messages.map((m) => ({ id: m.id, role: m.role, text: m.text, citations: m.citations, authorName: m.authorName }))]);
+    const studio = data.notebook.studio || {};
+    setStudyGuideMarkdown((prev) => studio.studyGuide ?? prev);
+    if (studio.flashcards) setFlashcardDeck((prev) => (prev.length === studio.flashcards!.length && prev[0]?.front === studio.flashcards![0]?.front ? prev : studio.flashcards!));
+    if (studio.quiz) setQuizQuestions((prev) => (prev.length === studio.quiz!.length && prev[0]?.question === studio.quiz![0]?.question ? prev : studio.quiz!));
+    if (studio.podcast) setDeepDiveEpisode((prev) => (prev?.title === studio.podcast!.title ? prev : studio.podcast!));
+  }, []);
+
+  const reloadNotebook = useCallback(() => {
+    if (!nbId) return;
+    fetchNotebook(nbId).then((r) => {
+      if (r.ok) applyNotebook(r.data);
+    });
+  }, [nbId, applyNotebook]);
+
+  const openNotebook = useCallback(
+    (id: string | null) => {
+      deactivatedRef.current = new Set();
+      setNbId(id);
+      window.history.replaceState(null, "", id ? `/notebook?nb=${id}` : "/notebook");
+      if (!id) {
+        setNbMeta(null);
+        setSources([]);
+        setMessages([WELCOME]);
+        setStudyGuideMarkdown(null);
+        setFlashcardDeck([]);
+        setQuizQuestions([]);
+        setDeepDiveEpisode(null);
+        return;
+      }
+      fetchNotebook(id).then((r) => {
+        if (r.ok) {
+          setStudyGuideMarkdown(null);
+          setFlashcardDeck([]);
+          setQuizQuestions([]);
+          setDeepDiveEpisode(null);
+          applyNotebook(r.data);
+        } else {
+          toast({ title: "Couldn't open notebook", description: r.message, variant: "destructive" });
+          setNbId(null);
+          window.history.replaceState(null, "", "/notebook");
+        }
+      });
+    },
+    [applyNotebook, toast]
+  );
+
+  // Deep link: /notebook?nb=<id> (search results, share notifications)
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("nb");
+    if (!id) return;
+    const t = setTimeout(() => openNotebook(id), 0);
+    return () => clearTimeout(t);
+  }, [openNotebook]);
+
+  // Live: another member added a source, asked the AI or saved a study set
+  useLiveChannel(nbId ? `notebook:${nbId}` : null, reloadNotebook);
+
+  const saveStudio = (studio: Record<string, unknown>) => {
+    if (!nbId || !canEdit) return;
+    jsonFetch(`/api/notebooks/${nbId}`, "PATCH", { studio }).then((j) => {
+      if (!j.ok) toast({ title: "Not saved to notebook", description: j.error?.message, variant: "amber" });
+    });
+  };
+
+  /** Adds a source locally (scratch) or to the saved notebook. Returns false when it failed. */
+  const persistSource = async (src: SourceItem): Promise<boolean> => {
+    if (!nbId) {
+      setSources((prev) => [src, ...prev]);
+      return true;
+    }
+    const j = await jsonFetch(`/api/notebooks/${nbId}/sources`, "POST", { title: src.title, type: src.type, content: src.content });
+    if (!j.ok) {
+      toast({ title: "Couldn't add source", description: j.error?.message, variant: "destructive" });
+      return false;
+    }
+    reloadNotebook();
+    return true;
+  };
+
+  const createNotebookFrom = async (title: string, course: string, fromScratch: boolean) => {
+    const j = await jsonFetch("/api/notebooks", "POST", { title, course });
+    if (!j.ok || !j.data?.id) {
+      toast({ title: "Couldn't create notebook", description: j.error?.message, variant: "destructive" });
+      return;
+    }
+    const id = String(j.data.id);
+    if (fromScratch) {
+      for (const s of sources.slice(0, 20).reverse()) {
+        await jsonFetch(`/api/notebooks/${id}/sources`, "POST", { title: s.title, type: s.type, content: s.content });
+      }
+      const studio: Record<string, unknown> = {};
+      if (studyGuideMarkdown) studio.studyGuide = studyGuideMarkdown;
+      if (flashcardDeck.length) studio.flashcards = flashcardDeck;
+      if (quizQuestions.length) studio.quiz = quizQuestions;
+      if (deepDiveEpisode) studio.podcast = deepDiveEpisode;
+      if (Object.keys(studio).length) await jsonFetch(`/api/notebooks/${id}`, "PATCH", { studio });
+    }
+    toast({ title: "Notebook created", description: `${title} · ${course}`, variant: "success" });
+    setListVersion((v) => v + 1);
+    openNotebook(id);
+  };
+
   // Active Sources Helper
   const activeSources = sources.filter((s) => s.active);
   const totalWords = activeSources.reduce((acc, s) => acc + s.wordCount, 0);
 
   // Source Operations
   const toggleSourceActive = (id: string) => {
+    const src = sources.find((s) => s.id === id);
+    if (src?.active) deactivatedRef.current.add(id);
+    else deactivatedRef.current.delete(id);
     setSources((prev) =>
       prev.map((s) => (s.id === id ? { ...s, active: !s.active } : s))
     );
   };
 
-  const removeSource = (id: string) => {
+  const removeSource = async (id: string) => {
+    if (nbId) {
+      const j = await jsonFetch(`/api/notebooks/${nbId}/sources/${id}`, "DELETE");
+      if (!j.ok) {
+        toast({ title: "Couldn't remove source", description: j.error?.message, variant: "destructive" });
+        return;
+      }
+    }
     setSources((prev) => prev.filter((s) => s.id !== id));
     toast({ title: "Source Removed", description: "Source excluded from notebook." });
   };
 
-  const handleAddPastedSource = () => {
+  const handleAddPastedSource = async () => {
     if (!pasteTitle.trim() || !pasteContent.trim()) {
       toast({ title: "Incomplete", description: "Provide both a title and text.", variant: "destructive" });
       return;
     }
 
     const newSource: SourceItem = {
-      id: `source-${sources.length + 1}`,
+      id: `source-${Date.now()}`,
       title: pasteTitle.trim(),
       content: pasteContent.trim(),
       type: "note",
@@ -170,7 +332,7 @@ export default function NotebookPage() {
       createdAt: new Date().toLocaleDateString(),
     };
 
-    setSources((prev) => [newSource, ...prev]);
+    if (!(await persistSource(newSource))) return;
     setPasteTitle("");
     setPasteContent("");
     setActiveAddModal(false);
@@ -190,7 +352,7 @@ export default function NotebookPage() {
 
       const isPdf = file.name.toLowerCase().endsWith(".pdf");
       const newSource: SourceItem = {
-        id: `source-${sources.length + 1}`,
+        id: `source-${Date.now()}`,
         title: file.name.replace(/\.[^/.]+$/, ""),
         content: extractedText,
         type: isPdf ? "pdf" : "note",
@@ -199,7 +361,7 @@ export default function NotebookPage() {
         createdAt: new Date().toLocaleDateString(),
       };
 
-      setSources((prev) => [newSource, ...prev]);
+      if (!(await persistSource(newSource))) return;
       setActiveAddModal(false);
       toast({
         title: "File Processed",
@@ -259,6 +421,14 @@ export default function NotebookPage() {
             citations: json.data.citations,
           },
         ]);
+        // Shared history: every member of a saved notebook sees the Q&A
+        if (nbId && canEdit) {
+          jsonFetch(`/api/notebooks/${nbId}/messages`, "POST", {
+            question: query,
+            answer: json.data.answer,
+            citations: Array.isArray(json.data.citations) ? json.data.citations.slice(0, 40) : [],
+          });
+        }
       } else {
         toast({
           title: "Synthesizer Notice",
@@ -295,6 +465,7 @@ export default function NotebookPage() {
       const json = await res.json();
       if (json.ok) {
         setDeepDiveEpisode(json.data);
+        saveStudio({ podcast: json.data });
         setCurrentTurnIndex(0);
         setTurnAudioCache({});
         toast({ title: "Script Ready", description: "Converting the full two-host script to audio...", variant: "success" });
@@ -497,7 +668,10 @@ export default function NotebookPage() {
         }),
       });
       const json = await res.json();
-      if (json.ok) setStudyGuideMarkdown(json.data.markdown);
+      if (json.ok) {
+        setStudyGuideMarkdown(json.data.markdown);
+        saveStudio({ studyGuide: json.data.markdown });
+      }
     } finally {
       setGeneratingStudyGuide(false);
     }
@@ -518,6 +692,7 @@ export default function NotebookPage() {
       const json = await res.json();
       if (json.ok) {
         setFlashcardDeck(json.data.cards);
+        saveStudio({ flashcards: json.data.cards });
         setCurrentCardIndex(0);
         setIsCardFlipped(false);
       }
@@ -541,6 +716,7 @@ export default function NotebookPage() {
       const json = await res.json();
       if (json.ok) {
         setQuizQuestions(json.data.questions);
+        saveStudio({ quiz: json.data.questions });
         setSelectedQuizAnswers({});
       }
     } finally {
@@ -566,11 +742,34 @@ export default function NotebookPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => setActiveAddModal(true)} className="text-xs">
-            <Plus className="h-4 w-4 mr-1" /> Add Source Document
-          </Button>
+          {canEdit && (
+            <Button size="sm" onClick={() => setActiveAddModal(true)} className="text-xs">
+              <Plus className="h-4 w-4 mr-1" /> Add Source Document
+            </Button>
+          )}
         </div>
       </div>
+
+      <NotebookBar
+        meta={nbMeta}
+        listVersion={listVersion}
+        hasScratch={sources.length > 0}
+        onSelect={openNotebook}
+        onCreate={createNotebookFrom}
+        onDeleted={() => {
+          setListVersion((v) => v + 1);
+          openNotebook(null);
+        }}
+        onMembersChanged={() => {
+          reloadNotebook();
+          setListVersion((v) => v + 1);
+        }}
+      />
+      {nbMeta?.role === "viewer" && (
+        <p className="text-xs rounded-xl bg-amber-500/10 text-amber-800 dark:text-amber-300 px-3 py-2">
+          View-only: you can read sources, ask questions and study, but answers and new sources aren&apos;t saved to this notebook.
+        </p>
+      )}
 
       {/* MOBILE SEGMENTED TAB BAR (Below lg) */}
       <div className="lg:hidden sticky top-0 z-30 bg-background/95 backdrop-blur-md pb-2 pt-1 border-b border-slate-200 dark:border-slate-800">
@@ -681,13 +880,13 @@ export default function NotebookPage() {
                         >
                           <Eye className="h-3.5 w-3.5" />
                         </button>
-                        <button
+                        {canEdit && <button
                           onClick={() => removeSource(src.id)}
                           title="Delete Source"
                           className="h-6 w-6 rounded-md hover:bg-rose-100 dark:hover:bg-rose-950 flex items-center justify-center text-slate-400 hover:text-rose-600"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        </button>}
                       </div>
                     </div>
                   </div>
@@ -720,6 +919,9 @@ export default function NotebookPage() {
                   key={m.id}
                   className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}
                 >
+                  {m.role === "user" && m.authorName && nbMeta?.members && nbMeta.members.length > 1 && (
+                    <span className="text-[10px] text-slate-400 mb-0.5 px-1">{m.authorName}</span>
+                  )}
                   <div
                     className={`max-w-[90%] rounded-2xl p-4 text-xs ${
                       m.role === "user"

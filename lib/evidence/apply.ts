@@ -2,6 +2,7 @@ import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { updateMastery, Activity, OMEGA, MASTERY_THRESHOLD, safeBktParams } from "@/lib/bkt/engine";
 import { ApiError } from "@/lib/api/errors";
 import { trackProgress } from "@/lib/game/progress";
+import { nextStreak } from "@/lib/game/streak";
 import { notify } from "@/lib/notifications/server";
 import { shareAchievement } from "@/lib/social/feed";
 
@@ -42,6 +43,8 @@ export async function applyEvidence({
   const evidenceRef = adminDb().collection("evidence").doc();
   const kcRef = adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId);
 
+  // Set inside the transaction; read after it commits
+  const streakHolder: { value: ReturnType<typeof nextStreak> | null } = { value: null };
   const result = await adminDb().runTransaction(async (t): Promise<ApplyEvidenceResult> => {
     // 1. Read KC doc for BKT parameters (enforcing KC existence)
     const kcDoc = await t.get(kcRef);
@@ -132,20 +135,13 @@ export async function applyEvidence({
     const lastActiveDate = userData?.lastActiveDate ?? null;
 
     const todayStr = new Date().toISOString().split("T")[0];
-    let newStreak = currentStreak;
-
-    if (lastActiveDate) {
-      const lastDate = new Date(lastActiveDate);
-      const today = new Date(todayStr);
-      const diffTime = Math.abs(today.getTime() - lastDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 1) {
-        newStreak = currentStreak + 1;
-      } else if (diffDays > 1 && lastActiveDate !== todayStr) {
-        newStreak = 1;
-      }
-    }
+    const streakResult = nextStreak({
+      current: currentStreak,
+      lastActiveDate,
+      today: todayStr,
+      freezes: userData?.streakFreezes ?? 0,
+    });
+    const newStreak = streakResult.streak;
 
     // 6. Transactional writes
     const masteryUpdates: Record<string, unknown> = {
@@ -194,9 +190,11 @@ export async function applyEvidence({
     t.update(userRef, {
       xp: currentXp,
       streakDays: newStreak,
+      streakFreezes: streakResult.freezes,
       lastActiveDate: todayStr,
       updatedAt: Timestamp.now(),
     });
+    streakHolder.value = streakResult;
 
     return {
       pLBefore: pLPrev,
@@ -225,6 +223,24 @@ export async function applyEvidence({
     },
     reason: `evidence:${activity}`,
   });
+  const streakEvent = streakHolder.value;
+  if (streakEvent?.freezesUsed) {
+    await notify(uid, {
+      type: "system",
+      title: `🧊 Streak freeze used — your ${result.streakDays}-day streak is safe`,
+      body: `${streakEvent.freezes} freeze${streakEvent.freezes === 1 ? "" : "s"} left.`,
+      href: "/dashboard",
+      icon: "🧊",
+    }).catch(() => null);
+  } else if (streakEvent?.freezeEarned) {
+    await notify(uid, {
+      type: "system",
+      title: `🧊 You earned a streak freeze for your ${result.streakDays}-day streak!`,
+      body: "It saves your streak automatically if you miss a day.",
+      href: "/dashboard",
+      icon: "🧊",
+    }).catch(() => null);
+  }
   if (result.crossedMasteryFirstTime) {
     try {
       const kc = await kcRef.get();

@@ -148,15 +148,17 @@ export const KNOWN_MODELS: Record<string, ModelMeta> = {
 };
 
 export const DEFAULT_MODEL_CONFIG = {
-  tutor: "gemini-3.1-flash-lite",
-  structured: "gemini-3.1-flash-lite",
-  longdoc: "gemini-3.1-flash-lite",
+  // gemini-3.5-flash-lite is Google's current Flash-Lite; 3.1-flash-lite is scheduled for retirement
+  tutor: "gemini-3.5-flash-lite",
+  structured: "gemini-3.5-flash-lite",
+  longdoc: "gemini-3.5-flash-lite",
   build: "gemini-3.6-flash",
   grading: "gemini-3.6-flash",
   voice: "gemini-2.5-flash-preview-tts",
-  legacy: "gemini-3.1-flash-lite",
-  chainLight: ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite"],
-  chainHeavy: ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.8-flash"],
+  legacy: "gemini-3.5-flash-lite",
+  chainLight: ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"],
+  // gemini-3.5-flash now routes to 3.6-flash and 3.7-flash isn't in Google's current list, so both are dropped
+  chainHeavy: ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-flash-latest"],
   overflow: "",
 };
 

@@ -1,6 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import { useUserStore } from "@/lib/store/use-user-store";
+import { ShareSheet } from "@/components/social/share-sheet";
 import Link from "next/link";
 import { CheckCircle2, Trophy, Timer } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -19,13 +21,22 @@ export function LevelCard({ game }: { game: GameState }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-bold text-lg leading-tight">{l.title}</p>
-          <p className="text-xs text-slate-500">{formatNumber(game.xp)} XP total · 🔥 {game.streakDays}-day streak</p>
+          <p className="text-xs text-slate-500">
+            {formatNumber(game.xp)} XP total · 🔥 {game.streakDays}-day streak
+            {game.streakFreezes ? ` · 🧊 ${game.streakFreezes} freeze${game.streakFreezes === 1 ? "" : "s"}` : ""}
+          </p>
           <div className="mt-2 h-2.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
             <div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-700" style={{ width: `${Math.round(l.progress * 100)}%` }} />
           </div>
           <p className="text-[11px] text-slate-500 mt-1">{formatNumber(l.nextLevelXp - l.xp)} XP to level {l.level + 1}</p>
         </div>
       </div>
+      {game.streakAtRisk && (
+        <div className="relative mt-3 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs font-semibold text-amber-800 dark:text-amber-200">
+          🔥 Study today to keep your {game.streakDays}-day streak
+          {game.streakFreezes ? ` (or a 🧊 freeze will cover you)` : ""} — ends at midnight UTC.
+        </div>
+      )}
     </Card>
   );
 }
@@ -101,6 +112,8 @@ const RARITY_STYLE: Record<string, string> = {
 };
 
 export function BadgeGrid({ game, compact = false }: { game: GameState; compact?: boolean }) {
+  const { user } = useUserStore();
+  const [sharing, setSharing] = useState<GameState["badges"][number] | null>(null);
   const earned = game.badges.filter((b) => b.earnedAt).length;
   const list = compact ? [...game.badges].sort((a, b) => Number(!!b.earnedAt) - Number(!!a.earnedAt)).slice(0, 8) : game.badges;
   return (
@@ -113,19 +126,28 @@ export function BadgeGrid({ game, compact = false }: { game: GameState; compact?
       </div>
       <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
         {list.map((b) => (
-          <div
+          <button
+            type="button"
             key={b.id}
-            title={`${b.name} — ${b.description}${b.earnedAt ? "" : " (locked)"}`}
+            disabled={!b.earnedAt}
+            onClick={() => setSharing(b)}
+            title={`${b.name} — ${b.description}${b.earnedAt ? " (tap to share)" : " (locked)"}`}
             className={cn(
               "aspect-square rounded-2xl border-2 flex flex-col items-center justify-center p-1 text-center",
-              b.earnedAt ? RARITY_STYLE[b.rarity] : "border-dashed border-slate-200 dark:border-slate-800 opacity-40 grayscale"
+              b.earnedAt ? `${RARITY_STYLE[b.rarity]} hover:scale-105 transition-transform` : "border-dashed border-slate-200 dark:border-slate-800 opacity-40 grayscale"
             )}
           >
             <span className="text-2xl">{b.emoji}</span>
             {!compact && <span className="text-[9px] font-semibold leading-tight mt-0.5 line-clamp-2">{b.name}</span>}
-          </div>
+          </button>
         ))}
       </div>
+      {sharing && (
+        <ShareSheet
+          attachment={{ type: "badge", id: sharing.id, title: `${sharing.name} badge`, subtitle: sharing.description, href: `/u/${user?.username || user?.uid || ""}`, emoji: sharing.emoji }}
+          onClose={() => setSharing(null)}
+        />
+      )}
     </Card>
   );
 }

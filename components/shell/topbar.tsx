@@ -3,11 +3,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Flame, Sun, Moon, LogOut, MessageSquare, User, Bell, BrainCircuit } from "lucide-react";
+import { Search, Flame, Sun, Moon, LogOut, MessageSquare, User, Bell, BrainCircuit, Bookmark } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useTheme } from "@/components/providers/theme-provider";
 import { useAuth } from "@/components/providers/auth-provider";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { useRealtime } from "@/components/providers/realtime-provider";
 import { levelFromXp } from "@/lib/game/levels";
 import { formatNumber } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ export function Topbar() {
   const { user } = useUserStore();
   const { theme, toggleTheme } = useTheme();
   const { signOut } = useAuth();
+  const { dmUnread } = useRealtime();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -37,11 +39,14 @@ export function Topbar() {
         <Link href="/dashboard" className="md:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white" aria-label="Home">
           <BrainCircuit className="h-5 w-5" />
         </Link>
+        <Link href="/search" className="sm:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800" aria-label="Search">
+          <Search className="h-4 w-4" />
+        </Link>
         <form
           className="relative hidden sm:block w-full max-w-sm"
           onSubmit={(e) => {
             e.preventDefault();
-            if (query.trim()) router.push(`/explore?q=${encodeURIComponent(query.trim())}`);
+            if (query.trim()) router.push(`/search?q=${encodeURIComponent(query.trim())}`);
           }}
         >
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -49,7 +54,7 @@ export function Topbar() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search classes and topics…"
+            placeholder="Search people, classes, topics, #tags…"
             className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-400"
           />
         </form>
@@ -94,12 +99,17 @@ export function Topbar() {
         )}
 
         <Link
-          href="/friends"
-          title="Friends & messages"
-          aria-label="Friends and messages"
-          className="hidden sm:flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-teal-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-teal-400"
+          href="/messages"
+          title="Messages"
+          aria-label={`Messages${dmUnread ? `, ${dmUnread} unread` : ""}`}
+          className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-teal-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-teal-400"
         >
           <MessageSquare className="h-4 w-4" />
+          {dmUnread > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-teal-600 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
+              {dmUnread > 99 ? "99+" : dmUnread}
+            </span>
+          )}
         </Link>
 
         {user && <NotificationBell />}
@@ -134,8 +144,11 @@ export function Topbar() {
                 <Link href="/notifications" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                   <Bell className="h-4 w-4" /> Notifications
                 </Link>
-                <Link href="/friends" onClick={() => setMenuOpen(false)} className="sm:hidden flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
-                  <MessageSquare className="h-4 w-4" /> Friends & messages
+                <Link href="/friends" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
+                  <MessageSquare className="h-4 w-4" /> Friends
+                </Link>
+                <Link href="/saved" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
+                  <Bookmark className="h-4 w-4" /> Saved
                 </Link>
                 <button type="button" onClick={toggleTheme} className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                   {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4" />}

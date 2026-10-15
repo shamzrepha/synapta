@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -62,6 +63,7 @@ interface DirectMessage {
 }
 
 export default function FriendsPage() {
+  const router = useRouter();
   const { user } = useUserStore();
   const { toast } = useToast();
 
@@ -115,7 +117,7 @@ export default function FriendsPage() {
           setIncomingRequests(json.data.incomingRequests || []);
           setOutgoingRequests(json.data.outgoingRequests || []);
           if (json.data.friends?.length > 0) {
-            setSelectedFriend((prev) => prev || json.data.friends[0]);
+            // Conversations now live in Messages; this page manages friends
           }
         }
       } catch {
@@ -416,7 +418,7 @@ export default function FriendsPage() {
                   return (
                     <button
                       key={f.uid}
-                      onClick={() => setSelectedFriend(f)}
+                      onClick={() => router.push(`/messages?with=${f.uid}`)}
                       className={cn(
                         "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
                         isSelected
@@ -547,11 +549,12 @@ export default function FriendsPage() {
               <div className="flex flex-col items-center justify-center flex-1 p-8 text-center space-y-3 text-slate-500">
                 <MessageSquare className="h-12 w-12 text-slate-300 dark:text-slate-700" />
                 <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
-                  Select a friend to begin chatting
+                  Chat lives in Messages now
                 </h3>
                 <p className="text-xs text-slate-400 max-w-sm">
-                  Choose a friend from the left sidebar to send direct messages, share syllabus study notes, and coordinate peer sessions.
+                  Tap a friend to open your conversation — with group chats, reactions, shared study rooms and more.
                 </p>
+                <Button size="sm" onClick={() => router.push("/messages")}>Open Messages</Button>
               </div>
             )}
           </Card>

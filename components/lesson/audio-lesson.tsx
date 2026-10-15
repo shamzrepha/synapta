@@ -81,11 +81,27 @@ class Narrator {
     if (turn.hasAudio) {
       if (!this.audio) this.audio = new Audio();
       const a = this.audio;
+      let settled = false;
+      const fallback = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        a.pause();
+        this.speak(turn, next);
+      };
+      // A clip is recorded on first play; if it doesn't start quickly, use the device voice instead
+      const timer = setTimeout(fallback, 10000);
       a.src = this.urlFor(i);
       a.playbackRate = this.speed;
+      a.onplaying = () => {
+        settled = true;
+        clearTimeout(timer);
+      };
       a.onended = next;
-      a.onerror = () => this.speak(turn, next);
-      a.play().catch(() => this.speak(turn, next));
+      a.onerror = fallback;
+      a.play().catch(fallback);
+      // Warm the next clip so it's ready (and recorded) by the time this one ends
+      if (i + 1 < turns.length && turns[i + 1].hasAudio) fetch(this.urlFor(i + 1)).catch(() => null);
     } else {
       this.speak(turn, next);
     }
@@ -223,7 +239,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
               {lesson
                 ? `${lesson.teacherName} & ${lesson.studentName} · ~${minutes} min`
                 : generating || payload.lesson?.status === "generating"
-                ? "Recording with neural voices… about a minute"
+                ? "Writing the lesson script… about 10 seconds"
                 : "A short spoken conversation between a teacher and a student"}
             </p>
           </div>

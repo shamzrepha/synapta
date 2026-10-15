@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useToast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ShareButton } from "@/components/social/share-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -391,9 +392,12 @@ export default function LoungeRoomPage({
             Host: {room.hostName}
           </Badge>
         </div>
-        <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          {room.title}
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+            {room.title}
+          </h1>
+          <ShareButton label="Invite" item={{ type: "room", id: roomCode, title: room.title, subtitle: `Study room · code ${roomCode}`, href: `/lounge/${roomCode}`, emoji: "🚪" }} />
+        </div>
       </div>
 
       {/* 2-PANE WORKSPACE: LEFT CHAT & EVIDENCE, RIGHT COLLABORATIVE SCRATCHPAD */}

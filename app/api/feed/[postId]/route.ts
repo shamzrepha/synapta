@@ -4,9 +4,22 @@ import { ApiError } from "@/lib/api/errors";
 import { adminDb } from "@/lib/firebase/admin";
 import { loadVisiblePost } from "@/lib/social/access";
 import { bumpChannels } from "@/lib/live/server";
-import { feedChannels } from "@/lib/social/feed";
+import { feedChannels, serializePost, withViewerState } from "@/lib/social/feed";
 
 export const runtime = "nodejs";
+
+/** A single post (deep links from notifications and shares). */
+export async function GET(req: NextRequest, { params }: { params: Promise<{ postId: string }> }) {
+  try {
+    const { postId } = await params;
+    const caller = await requireUser(req);
+    const { post } = await loadVisiblePost(caller, postId);
+    const [withState] = await withViewerState([serializePost(postId, post)], caller.uid);
+    return NextResponse.json({ ok: true, data: { post: withState } });
+  } catch (error) {
+    return handleAuthError(error);
+  }
+}
 
 /** Authors, class teachers and admins can delete a post (and its likes/comments). */
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ postId: string }> }) {

@@ -101,7 +101,7 @@ describe("lib/ai/router & models (Fix Pack C1 & C2)", () => {
 
     it("ensures light tasks never spill into heavy models", () => {
       const chain = getChainForTask("tutor_chat");
-      expect(chain).toEqual(["gemini-3.1-flash-lite", "gemini-3.5-flash-lite"]);
+      expect(chain).toEqual(["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]);
       expect(chain).not.toContain("gemini-3.6-flash");
       expect(chain).not.toContain("gemini-3.8-flash");
     });
@@ -109,8 +109,8 @@ describe("lib/ai/router & models (Fix Pack C1 & C2)", () => {
     it("ensures heavy tasks walk heavy chain and as last resort drop to light", () => {
       const chain = getChainForTask("class_build");
       expect(chain[0]).toBe("gemini-3.6-flash");
-      expect(chain).toContain("gemini-3.7-flash");
-      expect(chain).toContain("gemini-3.1-flash-lite");
+      expect(chain).toContain("gemini-3.8-flash");
+      expect(chain).toContain("gemini-3.5-flash-lite");
     });
   });
 
@@ -169,10 +169,10 @@ describe("lib/ai/router & models (Fix Pack C1 & C2)", () => {
       });
 
       expect(res.fallbackTriggered).toBe(true);
-      expect(res.modelUsed).toBe("gemini-3.5-flash-lite");
+      expect(res.modelUsed).toBe("gemini-3.1-flash-lite");
 
       // Verify Model A was marked exhausted and is no longer available
-      const primaryAvail = await isModelAvailable("gemini-3.1-flash-lite");
+      const primaryAvail = await isModelAvailable("gemini-3.5-flash-lite");
       expect(primaryAvail).toBe(false);
     });
 

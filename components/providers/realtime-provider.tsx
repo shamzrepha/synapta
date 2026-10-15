@@ -12,6 +12,8 @@ interface RealtimeContextType {
   signalVersion: number;
   lastTopic: string | null;
   lastSignalTime: number | null;
+  /** Unread direct/group messages across all conversations */
+  dmUnread: number;
 }
 
 const RealtimeContext = createContext<RealtimeContextType>({
@@ -19,7 +21,15 @@ const RealtimeContext = createContext<RealtimeContextType>({
   signalVersion: 0,
   lastTopic: null,
   lastSignalTime: null,
+  dmUnread: 0,
 });
+
+function fetchDmUnread(): Promise<number | null> {
+  return fetch("/api/chats")
+    .then((r) => r.json())
+    .then((j) => (j.ok ? (j.data.unreadTotal as number) : null))
+    .catch(() => null);
+}
 
 /**
  * Listens to `userSignals/{uid}` (written only by the server). Every server-side event for this user
@@ -28,12 +38,13 @@ const RealtimeContext = createContext<RealtimeContextType>({
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   const { firebaseUser } = useAuth();
   const updateUser = useUserStore((s) => s.updateUser);
-  const [state, setState] = useState<RealtimeContextType>({
+  const [state, setState] = useState<Omit<RealtimeContextType, "dmUnread">>({
     unreadCount: 0,
     signalVersion: 0,
     lastTopic: null,
     lastSignalTime: null,
   });
+  const [dmUnread, setDmUnread] = useState(0);
   const first = useRef(true);
 
   useEffect(() => {
@@ -51,8 +62,11 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
             lastTopic: (data.lastTopic as string) || null,
             lastSignalTime: Date.now(),
           }));
+          if (first.current || data.lastTopic === "dm") {
+            fetchDmUnread().then((n) => n !== null && setDmUnread(n));
+          }
           // Keep XP / streak in the top bar fresh after XP-changing events
-          if (!first.current && data.lastTopic !== "notifications") {
+          if (!first.current && data.lastTopic !== "notifications" && data.lastTopic !== "dm") {
             fetch("/api/me/game")
               .then((r) => r.json())
               .then((j) => {
@@ -72,7 +86,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [firebaseUser?.uid, updateUser]);
 
-  return <RealtimeContext.Provider value={state}>{children}</RealtimeContext.Provider>;
+  return <RealtimeContext.Provider value={{ ...state, dmUnread }}>{children}</RealtimeContext.Provider>;
 }
 
 export function useRealtime() {

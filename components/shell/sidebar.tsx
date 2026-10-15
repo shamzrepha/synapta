@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, BrainCircuit } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isActivePath } from "./nav-items";
+import { useRealtime } from "@/components/providers/realtime-provider";
 
 const GROUP_LABEL: Record<string, string> = { learn: "Learn", social: "Together", account: "You" };
 
@@ -17,6 +18,7 @@ const GROUP_LABEL: Record<string, string> = { learn: "Learn", social: "Together"
 export function Sidebar() {
   const pathname = usePathname();
   const { user, isSidebarCollapsed, toggleSidebar } = useUserStore();
+  const { dmUnread } = useRealtime();
   const role = user?.role || "student";
   const items = NAV_ITEMS.filter((i) => i.roles.includes(role));
   // Labels show only on lg+ and only when not collapsed
@@ -70,6 +72,11 @@ export function Sidebar() {
                   >
                     <Icon className={cn("h-5 w-5 shrink-0", active ? "text-teal-600 dark:text-teal-400" : "text-slate-400")} />
                     <span className={cn("truncate", label)}>{item.label}</span>
+                    {item.href === "/messages" && dmUnread > 0 && (
+                      <span className="absolute top-1.5 left-7 lg:static lg:ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
+                        {dmUnread > 99 ? "99+" : dmUnread}
+                      </span>
+                    )}
                     {active && <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-teal-500 rounded-l-full" />}
                   </Link>
                 );

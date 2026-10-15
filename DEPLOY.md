@@ -76,3 +76,23 @@ firebase deploy --only firestore:rules,firestore:indexes
 
   Vercel sends `Authorization: Bearer $CRON_SECRET`; set `CRON_SECRET` in the project env.
 - Weekly leagues settle lazily (the first time each learner earns XP in a new week), so no cron is needed.
+
+## 5. Social, messages, notebooks & push notifications
+
+Redeploy indexes after pulling (`firebase deploy --only firestore:rules,firestore:indexes`). New
+composite indexes: `posts` (Following and #hashtag feeds), `chats` (Messages inbox) and `notebooks`
+(Study Hub notebook list).
+
+- **Post photos** are stored in the default Firebase Storage bucket under `posts/{uid}/` by the server
+  and served through the authenticated `/api/media/...` route. The bucket must exist
+  (`FIREBASE_STORAGE_BUCKET` / `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`); no Storage rules changes are needed.
+- **Web push** (optional): Firebase console → Project settings → Cloud Messaging → Web Push
+  certificates → *Generate key pair*, then set `NEXT_PUBLIC_FIREBASE_VAPID_KEY` to the public key.
+  Without it the "Push notifications" toggle in Settings stays hidden and in-app notifications still work.
+- **Streak reminders** (optional cron, same `CRON_SECRET` bearer as above):
+
+  ```json
+  { "crons": [{ "path": "/api/jobs/streak-reminders", "schedule": "0 18 * * *" }] }
+  ```
+- **Audio lessons** now write the script first and voice each line on demand (cached after the first
+  listen), so no extra setup is needed; a line that can't be voiced in time falls back to the device voice.

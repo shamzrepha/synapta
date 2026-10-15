@@ -12,6 +12,7 @@ import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { QuizSprintPlayer } from "@/components/events/quiz-sprint";
 import { HackathonPanel } from "@/components/events/hackathon";
 import { STATUS_STYLE, type EventDetail } from "@/components/events/types";
+import { ShareButton } from "@/components/social/share-button";
 import { formatCountdown, useNow } from "@/components/game/use-game";
 import { useLiveChannel } from "@/lib/live/client";
 import { useToast } from "@/components/ui/toast";
@@ -156,6 +157,12 @@ export default function ChallengePage({ params }: { params: Promise<{ eventId: s
           </span>
           <span className="flex items-center gap-1">
             <Trophy className="h-4 w-4 text-amber-500" /> {ev.rewards.first} / {ev.rewards.second} / {ev.rewards.third} XP · +{ev.rewards.participation} for taking part
+          </span>
+          <span className="ml-auto">
+            <ShareButton
+              label="Invite"
+              item={{ type: "event", id: ev.id, title: ev.title, subtitle: `${ev.kind === "hackathon" ? "Hackathon" : "Quiz sprint"} · ${ev.participantCount} joined`, href: `/challenges/${ev.id}`, emoji: ev.kind === "hackathon" ? "🛠️" : "⚡" }}
+            />
           </span>
         </div>
         {detail.canManage && !ev.finalized && (

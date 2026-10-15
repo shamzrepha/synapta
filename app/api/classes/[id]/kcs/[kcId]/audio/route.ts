@@ -6,7 +6,7 @@ import { getAudioLesson, generateAudioLesson } from "@/lib/lesson/audio";
 import { z } from "zod";
 
 export const runtime = "nodejs";
-export const maxDuration = 180;
+export const maxDuration = 60;
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string; kcId: string }> }) {
   try {
