@@ -18,6 +18,7 @@ import { CodeEditor } from "@/components/studio/code-editor";
 import { MechPanel } from "@/components/studio/mech-panel";
 import { GuidePanel, type GuideMode } from "@/components/studio/guide-panel";
 import { HistoryPanel } from "@/components/studio/history-panel";
+import { PresenceBar } from "@/components/studio/presence-bar";
 import { TrackView } from "@/components/studio/track-view";
 import { DriveSim } from "@/lib/studio/drive/physics";
 import { JointRig } from "@/lib/studio/twin/joints";
@@ -419,7 +420,9 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
         setMessage("");
         await load({ force: true });
         setHistoryVersion((v) => v + 1);
-        toast({ title: "Version saved", description: j.data.diff?.lines?.slice(0, 2).join(" · "), variant: "success" });
+        const m = j.data.merged as { count: number; from: string } | undefined;
+        if (m) toast({ title: `Merged ${m.count} change${m.count === 1 ? "" : "s"} from ${m.from}`, description: "Your edits were combined with their newer version.", variant: "success" });
+        else toast({ title: "Version saved", description: j.data.diff?.lines?.slice(0, 2).join(" · "), variant: "success" });
         return true;
       }
       if (j.error?.code === "STALE") setStale(true);
@@ -790,10 +793,11 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
         )}
       </div>
 
+      {design && <PresenceBar designId={id} selected={selected} editing={dirty} tab={tab} />}
       {stale && (
         <div className="rounded-xl bg-amber-500/10 text-amber-800 dark:text-amber-300 text-sm px-3 py-2 flex items-center gap-2">
-          A collaborator saved a newer version.
-          <Button size="sm" variant="outline" className="ml-auto" onClick={() => load({ force: true })}>Load it (discard my unsaved changes)</Button>
+          A collaborator saved a newer version. Saving will merge your changes with theirs.
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => load({ force: true })}>Load theirs (discard mine)</Button>
         </div>
       )}
       {preview && (
