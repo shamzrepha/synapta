@@ -39,7 +39,7 @@ export interface Viewer3DProps {
 const SELECT = "#ffc24d";
 
 type Role = "light" | "spin" | "press" | "servo" | "pulse";
-const ROLE: Record<string, Role> = { led: "light", dc_motor: "spin", button: "press", switch: "press", servo: "servo", buzzer: "pulse" };
+const ROLE: Record<string, Role> = { led: "light", dc_motor: "spin", button: "press", switch: "press", servo: "servo", buzzer: "pulse", stepper: "servo" };
 interface Linked {
   obj: THREE.Group;
   bind: string;

@@ -1,6 +1,7 @@
 import type { CircuitPart, Wire } from "../spec";
 import { CATALOG_BY_TYPE, boardPinName, pinDef, isButtonLike } from "./catalog";
 import { l298Drop, tb6612Drop, ttCurrentAt } from "../parts/library";
+import { ULN_ON_VOLTS, stepperDegrees } from "./stepper";
 
 /**
  * Turns parts + wires into electrical nets (union-find), then evaluates a simplified DC model:
@@ -22,10 +23,14 @@ export interface PinState {
   pwm: Record<number, number>;
   tone: Record<number, number>;
   servo: Record<number, number>;
+  /** SSD1306 text lines (oledPrint) */
+  oled: string[];
+  /** 28BYJ-48 steppers: signed half-steps moved so far, by part id */
+  stepper: Record<string, number>;
 }
 
 export function emptyPinState(): PinState {
-  return { mode: {}, level: {}, pwm: {}, tone: {}, servo: {} };
+  return { mode: {}, level: {}, pwm: {}, tone: {}, servo: {}, oled: [], stepper: {} };
 }
 
 export interface OutputState {
@@ -41,6 +46,12 @@ export interface OutputState {
   volts?: number;
   /** motors: the driver is shorting the motor (fast stop) */
   brake?: boolean;
+  /** OLED: the lines on the screen */
+  text?: string[];
+  /** stepper: output shaft rotation in degrees (unbounded) */
+  rotation?: number;
+  /** relay: the coil is energised (COM connects to NO) */
+  energised?: boolean;
 }
 
 const VF: Record<string, number> = { red: 2, yellow: 2.1, amber: 2.1, green: 2.2, blue: 3, white: 3 };
@@ -60,7 +71,12 @@ export class Netlist {
   readonly board: CircuitPart | null;
   readonly wiredTerms = new Set<string>();
 
-  constructor(readonly circuit: Circuit, pressed: Set<string> = new Set()) {
+  constructor(
+    readonly circuit: Circuit,
+    readonly pressed: Set<string> = new Set(),
+    /** extra connections (a relay's closed contacts), as terminal pairs */
+    readonly contacts: Array<[string, string]> = []
+  ) {
     this.partsById = new Map(circuit.parts.map((p) => [p.id, p]));
     this.board = circuit.parts.find((p) => p.type === "board") || null;
     for (const p of circuit.parts) {
@@ -78,6 +94,7 @@ export class Netlist {
       this.wiredTerms.add(w.from);
       this.wiredTerms.add(w.to);
     }
+    for (const [a, b] of contacts) if (this.valid(a) && this.valid(b)) this.union(a, b);
   }
 
   valid(t: string): boolean {
@@ -320,8 +337,43 @@ function evaluateBridges(nl: Netlist, g: Map<string, Edge[]>, pins: PinState): B
   return out;
 }
 
+/**
+ * Relay module: the coil needs the pull-in voltage (75 % of 5 V = 3.75 V, SRD datasheet) on VCC with GND, and IN at the
+ * module's active level (prop activeLow, default 1: many opto-isolated modules energise on LOW; no module datasheet was read).
+ */
+function relayEnergised(nl: Netlist, g: Map<string, Edge[]>, id: string, pins: PinState): boolean {
+  const p = nl.partsById.get(id);
+  if (!p) return false;
+  const vcc = netPotential(nl, nl.netOf(term(id, "vcc")), pins) ?? 0;
+  if (vcc < 3.75 || netPotential(nl, nl.netOf(term(id, "gnd")), pins) !== 0) return false;
+  if (!nl.termWired(term(id, "in"))) return false;
+  const duty = inputDuty(nl, g, term(id, "in"), pins, 2.5);
+  if (duty === null) return false;
+  const high = duty > 0.5;
+  return Number(p.props?.activeLow ?? 1) === 1 ? !high : high;
+}
+
+/** The netlist with every relay's contacts closed the way its coil says (COM–NO when energised, else COM–NC). */
+export function withRelays(nl: Netlist, pins: PinState): { nl: Netlist; energised: Record<string, boolean> } {
+  const relays = nl.circuit.parts.filter((p) => p.type === "relay");
+  if (!relays.length) return { nl, energised: {} };
+  const g = resistorGraph(nl);
+  const energised: Record<string, boolean> = {};
+  const contacts: Array<[string, string]> = relays.map((r) => {
+    energised[r.id] = relayEnergised(nl, g, r.id, pins);
+    return [term(r.id, "com"), term(r.id, energised[r.id] ? "no" : "nc")];
+  });
+  return { nl: new Netlist(nl.circuit, nl.pressed, contacts), energised };
+}
+
+/** SDA on A4 and SCL on A5: the Uno R3's hardware I2C pins (Arduino A000066 datasheet). */
+export function i2cWired(nl: Netlist, id: string): boolean {
+  return nl.boardPinsOn(nl.netOf(term(id, "sda"))).includes("A4") && nl.boardPinsOn(nl.netOf(term(id, "scl"))).includes("A5");
+}
+
 /** What every output part is doing for the given pin state. */
-export function evaluateOutputs(nl: Netlist, pins: PinState): Record<string, OutputState> {
+export function evaluateOutputs(nl0: Netlist, pins: PinState): Record<string, OutputState> {
+  const { nl, energised } = withRelays(nl0, pins);
   const g = resistorGraph(nl);
   const out: Record<string, OutputState> = {};
   const potential = (t: string) => netPotential(nl, nl.netOf(t), pins);
@@ -357,6 +409,19 @@ export function evaluateOutputs(nl: Netlist, pins: PinState): Record<string, Out
       const num = sigPins.map((n) => pinDef("board", n)?.number).find((n) => n !== undefined);
       const angle = num !== undefined && pins.servo[num] !== undefined ? pins.servo[num] : 90;
       out[p.id] = { on: powered && num !== undefined, level: powered ? 1 : 0, angle, fault: powered ? undefined : "unpowered" };
+    } else if (p.type === "relay") {
+      const on = !!energised[p.id];
+      out[p.id] = { on, level: on ? 1 : 0, energised: on };
+    } else if (p.type === "oled") {
+      const powered = (potential(term(p.id, "vcc")) ?? 0) >= 3 && potential(term(p.id, "gnd")) === 0;
+      const bus = i2cWired(nl, p.id);
+      out[p.id] = { on: powered && bus, level: powered && bus ? 1 : 0, text: powered && bus ? [...pins.oled] : [], fault: !powered ? "unpowered" : !bus ? "no I2C" : undefined };
+    } else if (p.type === "stepper") {
+      const powered = (potential(term(p.id, "vcc")) ?? 0) >= 4.5 && potential(term(p.id, "gnd")) === 0;
+      const steps = pins.stepper[p.id] ?? 0;
+      const deg = stepperDegrees(steps);
+      const coils = ["in1", "in2", "in3", "in4"].filter((n) => (potential(term(p.id, n)) ?? 0) > ULN_ON_VOLTS).length;
+      out[p.id] = { on: powered && coils > 0, level: powered && coils > 0 ? 1 : 0, rotation: deg, angle: 90 + deg, fault: powered ? undefined : "unpowered" };
     } else if (p.type === "motor_driver") {
       const powered = (potential(term(p.id, "vcc")) ?? 0) >= 4.5 && potential(term(p.id, "gnd")) === 0;
       const sig = findSource(nl, g, nl.netOf(term(p.id, "in")), pins, true);
@@ -403,14 +468,15 @@ export function evaluateOutputs(nl: Netlist, pins: PinState): Record<string, Out
 }
 
 /** digitalRead / analogRead as the board would see them. `values` overrides sensor readings. */
-export function readPin(nl: Netlist, pins: PinState, n: number, analog: boolean, values: Record<string, number> = {}): number {
+export function readPin(nl0: Netlist, pins: PinState, n: number, analog: boolean, values: Record<string, number> = {}): number {
+  const nl = withRelays(nl0, pins).nl;
   const name = boardPinName(n);
   if (!nl.board || !name) return 0;
   const net = nl.netOf(term(nl.board.id, name));
   // A sensor output on this net?
   for (const p of nl.circuit.parts) {
     const def = CATALOG_BY_TYPE[p.type];
-    if (!def || def.category !== "input" || isButtonLike(p.type) || p.type === "hc_sr04") continue;
+    if (!def || def.category !== "input" || isButtonLike(p.type) || p.type === "hc_sr04" || p.type === "dht11" || p.type === "mpu6050") continue;
     const outPin = def.pins.find((x) => x.role === "signalOut");
     if (!outPin || nl.netOf(term(p.id, outPin.name)) !== net) continue;
     const vcc = def.pins.find((x) => x.role === "power");

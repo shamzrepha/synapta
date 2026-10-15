@@ -5,6 +5,7 @@ import { getClassAccess } from "@/lib/auth/classAccess";
 import type { AuthUser } from "@/lib/auth/requireUser";
 import { diffSpecs } from "./diff";
 import { parseSpec, type DesignSpec } from "./spec";
+import { mergeSpecs } from "./merge";
 
 /**
  * Maker Studio storage, Git-style:
@@ -54,7 +55,7 @@ export async function loadDesign(id: string, user: AuthUser, need: "view" | "edi
   return { ref, data, canEdit, isOwner };
 }
 
-async function displayName(uid: string): Promise<string> {
+export async function displayName(uid: string): Promise<string> {
   const u = await adminDb().collection("users").doc(uid).get();
   return String(u.data()?.displayName || u.data()?.username || "Maker");
 }
@@ -132,23 +133,45 @@ export async function commitDesign(params: {
   parentId: string;
   message: string;
   source: CommitSource;
-}): Promise<{ commitId: string; diff: ReturnType<typeof diffSpecs> }> {
+}): Promise<{ commitId: string; diff: ReturnType<typeof diffSpecs>; merged?: { count: number; from: string; lines: string[] } }> {
   const { ref } = await loadDesign(params.id, params.user, "edit");
   const name = await displayName(params.user.uid);
-  const spec = parseSpec(params.spec);
+  const incoming = parseSpec(params.spec);
+  let merged: { count: number; from: string; lines: string[] } | undefined;
   const result = await adminDb().runTransaction(async (t) => {
     const snap = await t.get(ref);
     const d = snap.data()!;
-    if (d.headCommitId !== params.parentId) {
-      throw new ApiError(409, "STALE", "Someone else saved a newer version. Reload to see it, then apply your change again.", undefined);
+    let spec = incoming;
+    let parentId = params.parentId;
+    merged = undefined;
+    if (d.headCommitId !== parentId) {
+      // Someone saved since this editor loaded: three-way merge (base = the parent they edited from, ours = head)
+      const baseSnap = await t.get(ref.collection("commits").doc(params.parentId));
+      const headCommit = await t.get(ref.collection("commits").doc(String(d.headCommitId)));
+      const staleMsg = "Someone else saved a newer version. Reload to see it, then apply your change again.";
+      if (!baseSnap.exists || !d.spec) throw new ApiError(409, "STALE", staleMsg);
+      const baseSpec = parseSpec(baseSnap.data()!.spec);
+      const theirChanges = diffSpecs(baseSpec, parseSpec(d.spec)).lines.filter((l) => l !== "No changes");
+      const r = mergeSpecs(baseSpec, parseSpec(d.spec), spec);
+      if (r.conflicts.length) {
+        const where = r.conflicts.slice(0, 3).map((c) => c.path).join(", ");
+        throw new ApiError(409, "STALE", `You and ${headCommit.data()?.authorName || "a teammate"} both changed ${where}${r.conflicts.length > 3 ? " and more" : ""}. Load their version, then redo that change.`);
+      }
+      try {
+        spec = parseSpec(r.spec);
+      } catch {
+        throw new ApiError(409, "STALE", staleMsg);
+      }
+      merged = { count: theirChanges.length, from: String(headCommit.data()?.authorName || "a teammate"), lines: theirChanges.slice(0, 5) };
+      parentId = String(d.headCommitId);
     }
     const diff = diffSpecs(d.spec ? parseSpec(d.spec) : null, spec);
-    if (diff.lines.length === 1 && diff.lines[0] === "No changes") return { commitId: d.headCommitId as string, diff };
+    if (diff.lines.length === 1 && diff.lines[0] === "No changes") return { commitId: d.headCommitId as string, diff, merged };
     const commitRef = ref.collection("commits").doc();
     const now = Timestamp.now();
     t.set(commitRef, {
       id: commitRef.id,
-      parentId: params.parentId,
+      parentId,
       authorUid: params.user.uid,
       authorName: name,
       message: params.message.slice(0, 200) || diff.lines[0],
@@ -167,7 +190,7 @@ export async function commitDesign(params: {
       [`contributorNames.${params.user.uid}`]: name,
       updatedAt: now,
     });
-    return { commitId: commitRef.id, diff };
+    return { commitId: commitRef.id, diff, merged };
   });
   await bumpChannel(`design:${params.id}`);
   return result;
