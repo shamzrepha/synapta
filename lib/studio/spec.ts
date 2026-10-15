@@ -1,0 +1,212 @@
+import { z } from "zod";
+import { num } from "./expr";
+
+/**
+ * A Studio design is data, not code: the AI and learners edit this JSON, one shared viewer draws
+ * it, the simulators run it, and every change is a commit that can be diffed, reverted or forked.
+ *
+ * - `parts`: 3D assembly parts (boxes/cylinders/spheres) — sizes and positions may be formulas over `params`
+ * - `circuit` + `code`: components on a virtual bench, wires between pins, Arduino-style program
+ * - `mechanism`: gear train → drum → load, simulated with gravity
+ * - `steps`: the guided build, each step optionally auto-checked
+ * - `tests`: behaviour tests for circuits (also used to score challenges)
+ */
+
+const numOrExpr = z.union([z.number(), z.string().max(200)]);
+const vec3 = z.tuple([numOrExpr, numOrExpr, numOrExpr]);
+
+export const paramSchema = z.object({
+  key: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]{0,31}$/),
+  label: z.string().max(60),
+  value: z.number(),
+  min: z.number(),
+  max: z.number(),
+  step: z.number().positive().default(1),
+  unit: z.string().max(12).optional(),
+});
+
+export const part3dSchema = z.object({
+  id: z.string().max(40),
+  name: z.string().max(80),
+  shape: z.enum(["box", "cylinder", "sphere", "cone"]).default("box"),
+  /** box: [w, h, d]; cylinder/cone: [radius, height]; sphere: [radius] */
+  size: z.array(numOrExpr).min(1).max(3),
+  pos: vec3,
+  rot: z.tuple([z.number(), z.number(), z.number()]).optional(),
+  color: z.string().max(20).optional(),
+  opacity: z.number().min(0.02).max(1).optional(),
+  group: z.string().max(40).optional(),
+  explode: z.tuple([z.number(), z.number(), z.number()]).optional(),
+  info: z
+    .object({
+      where: z.string().max(300).optional(),
+      fit: z.string().max(600).optional(),
+      cost: z.string().max(60).optional(),
+      material: z.string().max(80).optional(),
+    })
+    .optional(),
+});
+
+export const circuitPartSchema = z.object({
+  id: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,23}$/),
+  type: z.string().max(30),
+  label: z.string().max(40).optional(),
+  x: z.number().min(0).max(1000),
+  y: z.number().min(0).max(1000),
+  props: z.record(z.union([z.string().max(40), z.number()])).optional(),
+});
+
+export const wireSchema = z.object({
+  id: z.string().max(40),
+  /** "partId.pin" */
+  from: z.string().max(60),
+  to: z.string().max(60),
+  color: z.string().max(20).optional(),
+});
+
+export const gearStageSchema = z.object({
+  driverTeeth: z.number().int().min(6).max(200),
+  drivenTeeth: z.number().int().min(6).max(200),
+});
+
+export const mechanismSchema = z.object({
+  input: z.object({
+    kind: z.enum(["motor", "crank"]),
+    /** motor: stall torque N·m and no-load speed rpm */
+    stallTorque: z.number().positive().max(1000).default(0.5),
+    freeRpm: z.number().positive().max(30000).default(3000),
+    /** crank: handle radius (m), push force (N) and how fast a person can turn it (rpm) */
+    crankRadius: z.number().positive().max(2).default(0.1),
+    force: z.number().positive().max(2000).default(40),
+    crankRpm: z.number().positive().max(300).default(60),
+  }),
+  /** gear module in mm (tooth size); all meshing gears share it */
+  module: z.number().positive().max(20).default(2),
+  stages: z.array(gearStageSchema).max(6),
+  efficiencyPerStage: z.number().min(0.3).max(1).default(0.95),
+  drumRadius: z.number().positive().max(1).default(0.02),
+  pulleyAdvantage: z.number().int().min(1).max(8).default(1),
+  load: z.object({ mass: z.number().positive().max(10000) }),
+  liftHeight: z.number().positive().max(100).default(1),
+  /** a ratchet stops the load falling back when the input can't hold it */
+  ratchet: z.boolean().default(true),
+});
+
+export const testSchema = z.object({
+  id: z.string().max(40),
+  title: z.string().max(120),
+  durationMs: z.number().int().min(100).max(120_000),
+  /** simulated button presses / sensor values */
+  inputs: z.array(z.object({ atMs: z.number().int().min(0), part: z.string(), value: z.number() })).max(40).default([]),
+  expect: z.union([
+    z.object({
+      kind: z.literal("sequence"),
+      /** output part ids (LEDs, buzzers…) whose on/off pattern is checked */
+      parts: z.array(z.string()).min(1).max(8),
+      /** each state is a list of 0/1 for `parts`; they must appear in this order */
+      states: z.array(z.array(z.union([z.literal(0), z.literal(1)]))).min(1).max(12),
+      minMs: z.number().int().min(0).default(200),
+      cycles: z.number().int().min(1).max(5).default(1),
+    }),
+    z.object({
+      kind: z.literal("at"),
+      checks: z.array(z.object({ atMs: z.number().int().min(0), part: z.string(), on: z.boolean() })).min(1).max(40),
+    }),
+  ]),
+});
+
+export const checkSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("manual") }),
+  z.object({ kind: z.literal("parts"), type: z.string(), min: z.number().int().min(1).default(1) }),
+  z.object({ kind: z.literal("wired"), part: z.string() }),
+  z.object({ kind: z.literal("noErrors") }),
+  z.object({ kind: z.literal("code") }),
+  z.object({ kind: z.literal("test"), testId: z.string() }),
+  z.object({ kind: z.literal("lifts") }),
+  z.object({ kind: z.literal("liftTime"), maxSeconds: z.number().positive() }),
+]);
+
+export const stepSchema = z.object({
+  id: z.string().max(40),
+  title: z.string().max(120),
+  detail: z.string().max(1500),
+  /** what to search on YouTube for this step */
+  videoQuery: z.string().max(120).optional(),
+  check: checkSchema.default({ kind: "manual" }),
+});
+
+export const designKinds = ["circuit", "mechanism", "assembly"] as const;
+export type DesignKind = (typeof designKinds)[number];
+
+export const designSpecSchema = z.object({
+  version: z.literal(1).default(1),
+  kind: z.enum(designKinds),
+  summary: z.string().max(800).default(""),
+  params: z.array(paramSchema).max(24).default([]),
+  parts: z.array(part3dSchema).max(150).default([]),
+  circuit: z
+    .object({
+      parts: z.array(circuitPartSchema).max(40),
+      wires: z.array(wireSchema).max(120),
+    })
+    .optional(),
+  code: z.string().max(20_000).optional(),
+  mechanism: mechanismSchema.optional(),
+  steps: z.array(stepSchema).max(30).default([]),
+  tests: z.array(testSchema).max(10).default([]),
+  notes: z.string().max(3000).optional(),
+});
+
+export type DesignSpec = z.output<typeof designSpecSchema>;
+export type DesignSpecInput = z.input<typeof designSpecSchema>;
+export type Part3D = z.output<typeof part3dSchema>;
+export type CircuitPart = z.output<typeof circuitPartSchema>;
+export type Wire = z.output<typeof wireSchema>;
+export type Mechanism = z.output<typeof mechanismSchema>;
+export type Step = z.output<typeof stepSchema>;
+export type BehaviorTest = z.output<typeof testSchema>;
+export type Param = z.output<typeof paramSchema>;
+
+/** Validates and fills defaults. Throws a readable error. */
+export function parseSpec(input: unknown): DesignSpec {
+  const r = designSpecSchema.safeParse(input);
+  if (!r.success) {
+    const issue = r.error.issues[0];
+    throw new Error(`Invalid design: ${issue.path.join(".") || "root"} — ${issue.message}`);
+  }
+  return r.data;
+}
+
+export function paramValues(spec: Pick<DesignSpec, "params">, overrides: Record<string, number> = {}): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of spec.params) out[p.key] = Math.min(p.max, Math.max(p.min, overrides[p.key] ?? p.value));
+  return out;
+}
+
+export interface ResolvedPart extends Omit<Part3D, "size" | "pos"> {
+  size: number[];
+  pos: [number, number, number];
+}
+
+/** Turns formula sizes/positions into numbers using the current parameter values. */
+export function resolveParts(spec: DesignSpec, overrides: Record<string, number> = {}): ResolvedPart[] {
+  const vars = paramValues(spec, overrides);
+  return spec.parts.map((p) => ({
+    ...p,
+    size: p.size.map((s) => Math.max(0.1, num(s, vars, 10))),
+    pos: [num(p.pos[0], vars), num(p.pos[1], vars), num(p.pos[2], vars)],
+  }));
+}
+
+export function emptySpec(kind: DesignKind): DesignSpec {
+  return parseSpec({
+    kind,
+    summary: "",
+    circuit: kind === "circuit" ? { parts: [{ id: "board", type: "board", x: 80, y: 120 }], wires: [] } : undefined,
+    code: kind === "circuit" ? "function setup() {\n  \n}\n\nfunction loop() {\n  \n}\n" : undefined,
+    mechanism:
+      kind === "mechanism"
+        ? { input: { kind: "motor" }, stages: [{ driverTeeth: 12, drivenTeeth: 36 }], load: { mass: 2 } }
+        : undefined,
+  });
+}

@@ -109,6 +109,11 @@ export const AI_TASK_DEFINITIONS = {
     label: "Research Synthesizer",
     description: "Web-grounded research answers with rigorous cited web references.",
   },
+  studio_build: {
+    key: "studio_build",
+    label: "Maker Studio Designer",
+    description: "Generates and edits Maker Studio designs (3D assemblies, circuits with code, gear mechanisms) as validated JSON.",
+  },
   sim_build: {
     key: "sim_build",
     label: "HTML5 Simulation Builder",
