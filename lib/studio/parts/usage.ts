@@ -84,6 +84,48 @@ export const PART_USAGE: Record<string, PartUsage> = {
     code: "function setup(){ pinMode(8, OUTPUT); pinMode(9, OUTPUT); pinMode(5, OUTPUT); }\nfunction loop(){\n  digitalWrite(8, HIGH); digitalWrite(9, LOW);  // IN1 H, IN2 L = clockwise\n  analogWrite(5, 200);                          // PWM = speed\n}",
     mistakes: ["STBY must be HIGH or the driver is in standby.", "PWM LOW = short brake; both INs HIGH = short brake; both LOW = stop."],
   },
+  stepper: {
+    wiring: [
+      "ULN2003 board: 5V → vcc, GND → gnd (the supply's minus is also the board GND). in1, in2, in3, in4 → four board pins (e.g. D8, D9, D10, D11).",
+      "The 5-pin motor plug goes into the ULN2003 board; the simulator treats motor + driver as one part.",
+      "stepperRun(in1, in2, in3, in4, steps, msPerStep) runs the half-step sequence for you (negative steps reverse). 4096 half-steps = one turn of the output shaft.",
+      "Or drive the pins yourself: HIGH on a pin energises its coil. Sequence (IN1..IN4): 1000, 1100, 0100, 0110, 0010, 0011, 0001, 1001, then repeat.",
+    ],
+    code: "function setup(){ }\nfunction loop(){\n  stepperRun(8, 9, 10, 11, 512, 2);   // 512 half-steps = 1/8 turn, 2 ms apart\n  delay(500);\n  stepperRun(8, 9, 10, 11, -512, 2);  // and back\n  delay(500);\n}",
+    mistakes: [
+      "Wait at least 1 ms between steps: faster than ~1 kHz the rotor cannot follow and skips steps (datasheet out-traction frequency > 1000 Hz).",
+      "Skipping phases (for example 1000 then 0010) or energising opposite coils together makes the rotor lose its place.",
+      "Power the ULN2003 board from 5 V with a shared ground; a board pin cannot drive the coils.",
+    ],
+  },
+  oled: {
+    wiring: ["vcc → 3V3 (or 5V on a module with a regulator), gnd → GND, sda → A4, scl → A5 (the Uno's hardware I2C pins)."],
+    code: "function setup(){\n  oledClear();\n  oledPrint('Hello Sunroot');\n  oledPrint('Line two');\n}\nfunction loop(){\n  oledText(3, 'ms: ' + millis());\n  delay(200);\n}",
+    mistakes: [
+      "SDA and SCL on any other pins: nothing is drawn.",
+      "8 lines of 21 characters fit on the 128×64 screen; longer text is cut, older lines scroll off.",
+      "The SSD1306 logic runs at up to 3.3 V: use a module with a regulator on 5 V.",
+    ],
+  },
+  dht11: {
+    wiring: ["vcc → 5V, gnd → GND, data → a digital pin (D2…). A 5 kΩ pull-up on DATA is built into most 3-pin modules."],
+    code: "function setup(){ Serial.begin(9600); }\nfunction loop(){\n  var t = dhtTemperature(2);   // whole degrees C, 0–50\n  var h = dhtHumidity(2);      // whole % RH, 20–90\n  Serial.println('T=' + t + ' H=' + h);\n  delay(1000);               // at most one reading per second\n}",
+    mistakes: ["Reading more than once per second (the datasheet's sampling period).", "Values are whole numbers: ±2 °C and ±5 %RH, outside 0–50 °C / 20–90 %RH they are not reliable.", "An unpowered or unwired sensor gives NaN."],
+  },
+  relay: {
+    wiring: [
+      "Control side: vcc → 5V, gnd → GND, in → a board pin.",
+      "Load side (isolated from the board): battery plus → com; no → the load's positive (e.g. a resistor then an LED anode); load's negative → battery minus (and the board GND in the simulator). com–no connect while the coil is energised, com–nc while it is not.",
+      "Many modules energise on a LOW signal (the 'Active level' setting activeLow = 1, the default); set activeLow = 0 for a HIGH-triggered module.",
+    ],
+    code: "function setup(){ pinMode(7, OUTPUT); digitalWrite(7, HIGH); }  // HIGH = off on an active-LOW module\nfunction loop(){\n  digitalWrite(7, LOW);  delay(1000);   // energise: COM connects to NO\n  digitalWrite(7, HIGH); delay(1000);   // release: COM connects to NC\n}",
+    mistakes: ["The coil needs the module's own 5 V (VCC), not just the signal.", "Using the wrong active level: it clicks the opposite way round.", "Do not switch mains on a breadboard; the relay is rated 7 A 28 VDC / 10 A 125 VAC on its own, with proper wiring."],
+  },
+  mpu6050: {
+    wiring: ["vcc → 3V3 (or 5V on a GY-521 module), gnd → GND, sda → A4, scl → A5."],
+    code: "function setup(){ Serial.begin(9600); }\nfunction loop(){\n  var ax = accelX(), ay = accelY(), az = accelZ();   // in g\n  Serial.println(ax + ' ' + ay + ' ' + az);\n  delay(200);\n}",
+    mistakes: ["Readings include gravity: a still board is 1 g in total, flat = Z about +1 g.", "SDA/SCL on the wrong pins: the readings stay 0.", "Default range is ±2 g (16384 LSB/g); hard shakes clip."],
+  },
   motor_driver: {
     wiring: ["Simplified generic driver: vcc → 5V, gnd → GND, in → PWM pin, out1/out2 → motor. Prefer the real L298N or TB6612FNG."],
     mistakes: ["Not datasheet-accurate (no voltage drop, no truth table)."],

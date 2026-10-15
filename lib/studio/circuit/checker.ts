@@ -1,5 +1,5 @@
 import { CATALOG_BY_TYPE, boardPinName, pinDef, isButtonLike } from "./catalog";
-import { Netlist, emptyPinState, netPotential, scanCode, term, type Circuit, type PinState } from "./netlist";
+import { Netlist, emptyPinState, i2cWired, netPotential, scanCode, term, type Circuit, type PinState } from "./netlist";
 
 /**
  * Wiring and code checks. Like SunRoot's GraphChecker, bad wiring is allowed (that's how people
@@ -195,7 +195,16 @@ export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
       }
     }
 
-    if (def.category === "input" && !isButtonLike(p.type) && p.type !== "ir_sensor" && p.type !== "hc_sr04") {
+    if ((p.type === "oled" || p.type === "mpu6050") && !i2cWired(nl, p.id)) {
+      issues.push({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} needs SDA on A4 and SCL on A5.`, why: "The Uno's hardware I2C bus is on A4 (SDA) and A5 (SCL) (Arduino UNO R3 datasheet); the code library can only talk on those pins.", prompt: "Which two board pins carry the I2C data and clock lines?" });
+    }
+    if (p.type === "dht11" && nl.boardPinsOn(nl.netOf(term(p.id, "data"))).filter((n) => pinDef("board", n)?.role === "digital").length === 0) {
+      issues.push({ severity: "warning", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} DATA isn't on a digital pin.`, why: "The DHT11 answers on a single wire, so its DATA pin has to reach a board pin the code reads with dhtTemperature(pin).", prompt: "Which pin number will you pass to dhtTemperature()?" });
+    }
+    if (p.type === "relay" && !nl.termWired(term(p.id, "in"))) {
+      issues.push({ severity: "warning", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} IN isn't connected, so the coil never switches.`, why: "The module's IN pin is how the board tells the relay to energise (the coil needs ≥ 3.75 V, SRD datasheet).", prompt: "Which board pin should control the relay?" });
+    }
+    if (def.category === "input" && !isButtonLike(p.type) && !["ir_sensor", "hc_sr04", "dht11", "mpu6050"].includes(p.type)) {
       const outPin = def.pins.find((x) => x.role === "signalOut")!;
       const bp = nl.boardPinsOn(nl.netOf(term(p.id, outPin.name)));
       if (bp.length === 0) {

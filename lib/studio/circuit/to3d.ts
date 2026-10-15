@@ -20,6 +20,7 @@ export const LINK_ROLE: Record<string, LinkRole> = {
   switch: "press",
   servo: "servo",
   buzzer: "pulse",
+  stepper: "servo",
 };
 
 const S = 0.26; // bench pixels → mm
@@ -71,6 +72,22 @@ export function modelFor(type: string, props: Record<string, string | number> | 
       return [box([60, 18, 30], 9, "#a16207", { opacity: 0.4 })];
     case "servo":
       return [box([22.2, 22.7, 11.8], 11.35, "#1d4ed8", { opacity: 0.35 }), box([3, 2, 16], 24, "#e5e7eb", { opacity: 0.7 })];
+    // The five parts below are illustrative: their datasheets only give drawings as images, so no real body size was read.
+    case "stepper":
+      return [
+        { shape: "cylinder", size: [14, 19], dx: 0, dy: TOP + 9.5, dz: 0, color: "#9ca3af", opacity: 0.4 },
+        { shape: "cylinder", size: [2.5, 6], dx: 0, dy: TOP + 22, dz: 0, color: "#e5e7eb", opacity: 0.6 },
+        { shape: "box", size: [2, 2, 12], dx: 0, dy: TOP + 25.5, dz: 0, color: "#f8fafc", opacity: 0.8, name: "arm" },
+        box([32, 2, 22], 1, "#1d4ed8", { opacity: 0.35, dx: 0, dz: 26, name: "ULN2003 board" }),
+      ];
+    case "oled":
+      return [box([27, 3, 27], 1.5, "#111827", { opacity: 0.45 }), box([22, 1, 11], 3.5, "#38bdf8", { opacity: 0.5, name: "Screen" })];
+    case "dht11":
+      return [box([12, 15, 5.5], 7.5, "#38bdf8", { opacity: 0.45 })];
+    case "relay":
+      return [box([40, 3, 26], 1.5, "#1e3a8a", { opacity: 0.4 }), box([19, 16, 15], 11, "#2563eb", { opacity: 0.5, name: "Relay" })];
+    case "mpu6050":
+      return [box([21, 2, 16], 1, "#1d4ed8", { opacity: 0.4 }), box([4, 1, 4], 2.5, "#111827", { opacity: 0.6, name: "MPU-6050 chip (4 × 4 × 0.9 mm)" })];
     case "motor_driver":
       return [box([18, 4, 14], 2, "#7c3aed", { opacity: 0.35 })];
     case "dc_motor":
@@ -121,7 +138,7 @@ export function circuitTo3D(circuit: Circuit, represented: Set<string>, origin =
         pos: [X + dx, dy, Z + dz],
         group: "Circuit",
         // linked parts behave from the live circuit: LEDs glow, motors spin, switches can be clicked…
-        bind: LINK_ROLE[p.type] ? p.id : undefined,
+        bind: LINK_ROLE[p.type] && (p.type !== "stepper" || name === "arm") ? p.id : undefined,
         info: { where: `${def.name} “${p.label || p.id}” from the circuit bench`, fit: def.description },
       } as ResolvedPart);
     });

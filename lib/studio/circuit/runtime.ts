@@ -1,7 +1,8 @@
 import Interpreter from "js-interpreter";
 import type { BehaviorTest } from "../spec";
 import { boardPinName, isButtonLike } from "./catalog";
-import { Netlist, emptyPinState, evaluateOutputs, netPotential, readPin, term, type Circuit, type OutputState, type PinMode, type PinState } from "./netlist";
+import { ULN_ON_VOLTS, newStepperState, stepperUpdate, type StepperState } from "./stepper";
+import { Netlist, emptyPinState, evaluateOutputs, i2cWired, netPotential, readPin, term, type Circuit, type OutputState, type PinMode, type PinState } from "./netlist";
 
 /**
  * Runs an Arduino-style program (setup()/loop(), digitalWrite, delay…) inside a sandboxed ES5
@@ -9,6 +10,10 @@ import { Netlist, emptyPinState, evaluateOutputs, netPotential, readPin, term, t
  * viewer's account, so shared designs are safe to run. The same runtime powers live simulation,
  * behaviour tests and server-side challenge scoring.
  */
+
+/** SSD1306 text layout: 64 rows / 8-row pages = 8 lines; 128 columns / 6-pixel cells = 21 characters */
+export const OLED_ROWS = 8;
+export const OLED_COLS = 21;
 
 /** Virtual time charged per interpreter step, so busy loops still advance the clock */
 const STEP_MS = 0.002;
@@ -18,7 +23,10 @@ const PRELUDE =
   "var HIGH=1,LOW=0,INPUT='INPUT',OUTPUT='OUTPUT',INPUT_PULLUP='INPUT_PULLUP',A0=14,A1=15,A2=16,A3=17,A4=18,A5=19,LED_BUILTIN=13;" +
   "var Serial={begin:function(){},print:function(x){__print(String(x))},println:function(x){__print((x===undefined?'':String(x))+'\\n')}};" +
   "function map(x,a,b,c,d){return (x-a)*(d-c)/(b-a)+c}function constrain(x,a,b){return x<a?a:x>b?b:x}" +
-  "function random(a,b){if(b===undefined){b=a;a=0}return Math.floor(a+Math.random()*(b-a))}\n";
+  "function random(a,b){if(b===undefined){b=a;a=0}return Math.floor(a+Math.random()*(b-a))}" +
+  // stepperRun(in1,in2,in3,in4,steps,msPerStep): half-step sequence for a 28BYJ-48 on a ULN2003 board (negative steps reverse)
+  "var __HS=[[1,0,0,0],[1,1,0,0],[0,1,0,0],[0,1,1,0],[0,0,1,0],[0,0,1,1],[0,0,0,1],[1,0,0,1]],__SI={};" +
+  "function stepperRun(a,b,c,d,steps,ms){var k=a+'_'+b;var i=__SI[k]||0;var dir=steps<0?-1:1;var n=Math.abs(Math.round(steps));pinMode(a,OUTPUT);pinMode(b,OUTPUT);pinMode(c,OUTPUT);pinMode(d,OUTPUT);for(var s=0;s<n;s++){i=(i+dir+8)%8;digitalWrite(a,__HS[i][0]);digitalWrite(b,__HS[i][1]);digitalWrite(c,__HS[i][2]);digitalWrite(d,__HS[i][3]);delay(ms===undefined?2:ms);}__SI[k]=i;}\n";
 
 /** Modern keywords the ES5 sandbox doesn't know, rewritten outside strings and comments. */
 export function toEs5(code: string): string {
@@ -59,6 +67,16 @@ export function toEs5(code: string): string {
 /** Answers pulseIn(): how long (µs) the pin stays HIGH, given the trigger pulses the program has sent. */
 export type PulseReader = (pin: number, pins: PinState, nowMs: number, trigs: Record<number, { widthUs: number; endMs: number }>) => number;
 
+/** Bus sensors: DHT11 temperature / humidity by data pin, MPU-6050 acceleration in g */
+export type SensorReader = (kind: "dhtT" | "dhtH" | "ax" | "ay" | "az", pin: number, pins: PinState) => number;
+
+export type PinReader = ((pin: number, analog: boolean, pins: PinState) => number) & {
+  pulse?: PulseReader;
+  sensor?: SensorReader;
+  /** called after every pin write (steppers follow the coil pattern) */
+  onWrite?: (pins: PinState, nowMs: number) => void;
+};
+
 export interface RuntimeEvent {
   atMs: number;
   text: string;
@@ -79,7 +97,7 @@ export class BoardRuntime {
 
   constructor(
     code: string,
-    private readonly read: ((pin: number, analog: boolean, pins: PinState) => number) & { pulse?: PulseReader }
+    private readonly read: PinReader
   ) {
     const program = PRELUDE + toEs5(code) + "\n;if(typeof setup==='function')setup();if(typeof loop==='function'){while(true){loop();}}";
     try {
@@ -99,11 +117,30 @@ export class BoardRuntime {
             t.widthUs = (this.now - t.riseMs) * 1000;
             t.endMs = this.now;
           }
+          this.read.onWrite?.(this.pins, this.now);
         }) as never);
         fn("analogWrite", ((pin: number, v: number) => {
           const n = Number(pin);
           this.pins.pwm[n] = Math.max(0, Math.min(255, Math.round(Number(v) || 0)));
           if (this.pins.mode[n] === undefined) this.pins.mode[n] = "OUTPUT";
+          this.read.onWrite?.(this.pins, this.now);
+        }) as never);
+        fn("dhtTemperature", ((pin: number) => this.read.sensor?.("dhtT", Number(pin), this.pins) ?? NaN) as never);
+        fn("dhtHumidity", ((pin: number) => this.read.sensor?.("dhtH", Number(pin), this.pins) ?? NaN) as never);
+        fn("accelX", (() => this.read.sensor?.("ax", 0, this.pins) ?? 0) as never);
+        fn("accelY", (() => this.read.sensor?.("ay", 0, this.pins) ?? 0) as never);
+        fn("accelZ", (() => this.read.sensor?.("az", 0, this.pins) ?? 0) as never);
+        fn("oledClear", (() => {
+          this.pins.oled = [];
+        }) as never);
+        fn("oledPrint", ((text: unknown) => {
+          for (const line of String(text).split("\n")) this.pins.oled.push(line.slice(0, OLED_COLS));
+          while (this.pins.oled.length > OLED_ROWS) this.pins.oled.shift();
+        }) as never);
+        fn("oledText", ((row: number, text: unknown) => {
+          const r = Math.max(0, Math.min(OLED_ROWS - 1, Math.floor(Number(row) || 0)));
+          while (this.pins.oled.length <= r) this.pins.oled.push("");
+          this.pins.oled[r] = String(text).slice(0, OLED_COLS);
         }) as never);
         fn("digitalRead", ((pin: number) => this.read(Number(pin), false, this.pins)) as never);
         fn("analogRead", ((pin: number) => this.read(Number(pin), true, this.pins)) as never);
@@ -224,6 +261,38 @@ export function circuitReader(circuit: Circuit, inputs: { pressed: Set<string>; 
     }
     return readPin(nl, pins, pin, analog, inputs.values);
   };
+  const powered = (id: string, vccMin: number, pins: PinState) => (netPotential(nl, nl.netOf(term(id, "vcc")), pins) ?? 0) >= vccMin && netPotential(nl, nl.netOf(term(id, "gnd")), pins) === 0;
+  const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+  const steppers = new Map<string, StepperState>(circuit.parts.filter((p) => p.type === "stepper").map((p) => [p.id, newStepperState()]));
+  /** 28BYJ-48 + ULN2003: follow the coil pattern on IN1–IN4 (see stepper.ts) */
+  if (steppers.size) {
+    reader.onWrite = (pins: PinState, nowMs: number) => {
+      for (const [id, st] of steppers) {
+        const bits = ["in1", "in2", "in3", "in4"].map((n) => ((netPotential(nl, nl.netOf(term(id, n)), pins) ?? 0) > ULN_ON_VOLTS ? 1 : 0));
+        const moved = stepperUpdate(st, bits, powered(id, 4.5, pins), nowMs);
+        if (moved) pins.stepper[id] = (pins.stepper[id] ?? 0) + moved;
+      }
+    };
+  }
+  /** DHT11 (whole °C 0–50, whole %RH 20–90 — datasheet) and MPU-6050 (±2 g, 16384 LSB/g) */
+  reader.sensor = ((kind: string, pin: number, pins: PinState) => {
+    if (kind === "dhtT" || kind === "dhtH") {
+      const name = boardPinName(pin);
+      if (!nl.board || !name) return NaN;
+      const net = nl.netOf(term(nl.board.id, name));
+      const s = circuit.parts.find((p) => p.type === "dht11" && nl.netOf(term(p.id, "data")) === net);
+      if (!s || !powered(s.id, 3, pins)) return NaN;
+      if (kind === "dhtT") return Math.round(clamp(inputs.values[s.id] ?? Number(s.props?.value ?? 24), 0, 50));
+      return Math.round(clamp(inputs.values[s.id + "#b"] ?? Number(s.props?.humidity ?? 55), 20, 90));
+    }
+    const m = circuit.parts.find((p) => p.type === "mpu6050" && i2cWired(nl, p.id) && powered(p.id, 3, pins));
+    if (!m) return 0;
+    const rad = (d: number) => (clamp(d, -90, 90) * Math.PI) / 180;
+    const tx = rad(inputs.values[m.id] ?? Number(m.props?.value ?? 0));
+    const ty = rad(inputs.values[m.id + "#b"] ?? Number(m.props?.tiltY ?? 0));
+    const g = kind === "ax" ? Math.sin(tx) : kind === "ay" ? Math.cos(tx) * Math.sin(ty) : Math.cos(tx) * Math.cos(ty);
+    return Math.round(g * 16384) / 16384;
+  }) as SensorReader;
   /** HC-SR04: needs power, a ≥10 µs HIGH trigger pulse, and answers with echo µs = cm × 58 (datasheet) */
   reader.pulse = ((pin, pins, nowMs, trigs) => {
     if (!nl.board) return 0;

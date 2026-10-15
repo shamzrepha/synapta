@@ -175,6 +175,59 @@ function PartArt({ p, def, out, pressed }: { p: CircuitPart; def: ComponentDef; 
           <text x={w / 2} y={h - 12} textAnchor="middle" fontSize={8} fill="#bfdbfe">HC-SR04</text>
         </g>
       );
+    case "stepper": {
+      const rot = out?.rotation ?? 0;
+      return (
+        <g>
+          <rect width={w} height={h - 8} rx={5} fill="#1e3a8a" stroke="#93c5fd" />
+          <circle cx={w * 0.3} cy={(h - 8) / 2} r={26} fill="#9ca3af" stroke="#e5e7eb" strokeWidth={2} />
+          <g transform={`rotate(${rot} ${w * 0.3} ${(h - 8) / 2})`}>
+            <rect x={w * 0.3 - 3} y={(h - 8) / 2 - 24} width={6} height={24} rx={3} fill="#f8fafc" />
+          </g>
+          <circle cx={w * 0.3} cy={(h - 8) / 2} r={5} fill="#f8fafc" />
+          {[0, 1, 2, 3].map((i) => <circle key={i} cx={w * (0.62 + i * 0.08)} cy={14} r={4} fill={out?.on ? "#fbbf24" : "#475569"} />)}
+          <text x={w * 0.76} y={(h - 8) / 2 + 12} textAnchor="middle" fontSize={9} fill="#dbeafe">{Math.round(((rot % 360) + 360) % 360)}°</text>
+          <text x={w * 0.76} y={(h - 8) / 2 + 24} textAnchor="middle" fontSize={7} fill="#bfdbfe">28BYJ-48</text>
+        </g>
+      );
+    }
+    case "oled": {
+      const lines = out?.text ?? [];
+      return (
+        <g>
+          <rect width={w} height={h - 8} rx={4} fill="#111827" stroke="#64748b" />
+          <rect x={6} y={6} width={w - 12} height={h - 20} fill="#020617" stroke="#334155" />
+          {lines.slice(0, 8).map((t, i) => <text key={i} x={9} y={15 + i * 5.4} fontSize={5} fill="#7dd3fc" fontFamily="monospace">{t}</text>)}
+          {!out?.on && <text x={w / 2} y={(h - 8) / 2 + 3} textAnchor="middle" fontSize={8} fill="#475569">{out?.fault || "SSD1306"}</text>}
+        </g>
+      );
+    }
+    case "dht11":
+      return (
+        <g>
+          <rect width={w} height={h - 8} rx={5} fill="#0ea5e9" stroke="#bae6fd" />
+          {[0, 1, 2, 3].map((i) => <line key={i} x1={8} x2={w - 8} y1={9 + i * 6} y2={9 + i * 6} stroke="#0369a1" strokeWidth={2} />)}
+          <text x={w / 2} y={(h - 8) / 2 + 12} textAnchor="middle" fontSize={9} fill="#f0f9ff" fontWeight={700}>DHT11</text>
+        </g>
+      );
+    case "relay":
+      return (
+        <g>
+          <rect width={w} height={h - 8} rx={5} fill="#1e3a8a" stroke="#93c5fd" />
+          <rect x={w * 0.12} y={14} width={w * 0.55} height={(h - 8) * 0.55} rx={3} fill="#2563eb" stroke="#bfdbfe" />
+          <text x={w * 0.395} y={14 + (h - 8) * 0.3} textAnchor="middle" fontSize={9} fill="#eff6ff" fontWeight={700}>RELAY</text>
+          <circle cx={w * 0.85} cy={22} r={5} fill={out?.energised ? "#4ade80" : "#14532d"} />
+          <text x={w * 0.85} y={40} textAnchor="middle" fontSize={8} fill="#bfdbfe">{out?.energised ? "COM-NO" : "COM-NC"}</text>
+        </g>
+      );
+    case "mpu6050":
+      return (
+        <g>
+          <rect width={w} height={h - 8} rx={5} fill="#1d4ed8" stroke="#bfdbfe" />
+          <rect x={w / 2 - 10} y={(h - 8) / 2 - 10} width={20} height={20} rx={2} fill="#111827" />
+          <text x={w / 2} y={(h - 8) / 2 + 3} textAnchor="middle" fontSize={6} fill="#9ca3af">MPU</text>
+        </g>
+      );
     case "battery":
       return (
         <g>
@@ -448,6 +501,32 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
                 <span className="font-mono w-10 text-right">{v}</span>
               </label>
             );
+          })}
+        </div>
+      )}
+      {running && circuit.parts.some((p) => p.type === "dht11" || p.type === "mpu6050") && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {circuit.parts.filter((p) => p.type === "dht11" || p.type === "mpu6050").flatMap((p) => {
+            const dht = p.type === "dht11";
+            const rows = dht
+              ? [
+                  { key: p.id, label: "temperature", min: 0, max: 50, unit: "°C", def: Number(p.props?.value ?? 24) },
+                  { key: `${p.id}#b`, label: "humidity", min: 20, max: 90, unit: "%RH", def: Number(p.props?.humidity ?? 55) },
+                ]
+              : [
+                  { key: p.id, label: "tilt X", min: -90, max: 90, unit: "°", def: Number(p.props?.value ?? 0) },
+                  { key: `${p.id}#b`, label: "tilt Y", min: -90, max: 90, unit: "°", def: Number(p.props?.tiltY ?? 0) },
+                ];
+            return rows.map((r) => {
+              const v = sensorValues[r.key] ?? r.def;
+              return (
+                <label key={r.key} className="flex items-center gap-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2">
+                  <span className="font-semibold w-28 truncate">{p.label || p.id} {r.label}</span>
+                  <input type="range" min={r.min} max={r.max} value={v} onChange={(e) => onSensor(r.key, Number(e.target.value))} className="flex-1 accent-teal-600" />
+                  <span className="font-mono w-16 text-right">{v} {r.unit}</span>
+                </label>
+              );
+            });
           })}
         </div>
       )}
