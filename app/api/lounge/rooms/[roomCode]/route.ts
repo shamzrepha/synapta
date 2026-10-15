@@ -87,6 +87,7 @@ export async function GET(
         hostId: roomData.hostId,
         hostName: roomData.hostName,
         scratchpad: roomData.scratchpad || "",
+        designId: roomData.designId || null,
         participants,
         messages,
       },

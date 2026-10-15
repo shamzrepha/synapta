@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShareButton } from "@/components/social/share-button";
+import { MakerSpace } from "@/components/studio/maker-space";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -52,6 +53,7 @@ interface RoomData {
   hostId: string;
   hostName: string;
   scratchpad: string;
+  designId?: string | null;
   participants: Participant[];
   messages: Message[];
 }
@@ -404,6 +406,8 @@ export default function LoungeRoomPage({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* LEFT COLUMN: CHAT & PEER TEACHING VERIFICATION (5 Cols) */}
         <div className="lg:col-span-5 space-y-4">
+          <MakerSpace roomCode={roomCode} designId={room.designId} />
+
           {/* Peer Explanation Evidence Card */}
           <Card className="p-4 border-amber-500/30 bg-amber-50/30 dark:bg-amber-950/20 space-y-3">
             <div className="flex items-start justify-between gap-2">

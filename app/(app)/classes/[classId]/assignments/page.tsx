@@ -1,5 +1,6 @@
 "use client";
 
+import { ClassBuildAssignments } from "@/components/studio/class-build-assignments";
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/toast";
@@ -270,6 +271,8 @@ export default function ClassAssignmentsPage({
           </Button>
         )}
       </div>
+
+      <ClassBuildAssignments classId={classId} />
 
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-xl w-fit">

@@ -58,6 +58,7 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
   const [source, setSource] = useState("template:traffic-light");
   const [myDesigns, setMyDesigns] = useState<Array<{ id: string; title: string }>>([]);
   const [focus, setFocus] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [rosterFor, setRosterFor] = useState<string | null>(null);
 
   const refresh = useCallback(() => fetchLabs(classId, kcId).then((d) => d && setData(d)), [classId, kcId]);
@@ -93,6 +94,7 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
         setTitle("");
         setGoal("");
         setFocus("");
+        setDueDate("");
         refresh();
       } else toast({ title: "Couldn't update labs", description: j.error?.message, variant: "destructive" });
     } finally {
@@ -129,6 +131,10 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
             <p className="text-sm font-bold">…or add one yourself</p>
             <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder="Lab title" className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm" />
             <input value={goal} onChange={(e) => setGoal(e.target.value)} maxLength={500} placeholder="Goal for students (optional)" className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm" />
+            <label className="flex items-center gap-2 text-xs font-semibold">
+              Due date (makes it an assignment)
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-9 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-sm font-normal" />
+            </label>
             <select value={source} onChange={(e) => setSource(e.target.value)} className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-sm">
               <optgroup label="Guided starter projects">
                 {TEMPLATES.map((t) => <option key={t.id} value={`template:${t.id}`}>{t.label}</option>)}
@@ -144,7 +150,7 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
               isLoading={busy === "add"}
               onClick={() => {
                 const [kind, sid] = source.split(":");
-                post({ action: "add", title, goal, ...(kind === "template" ? { templateId: sid } : { designId: sid }) }, "add");
+                post({ action: "add", title, goal, dueAt: dueDate ? new Date(`${dueDate}T23:59:00`).toISOString() : null, ...(kind === "template" ? { templateId: sid } : { designId: sid }) }, "add");
               }}
             >
               Add lab
@@ -173,7 +179,12 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
                         <div className="h-1.5 w-32 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
                           <div className="h-full bg-teal-500" style={{ width: `${(lab.myDone / Math.max(1, lab.stepCount)) * 100}%` }} />
                         </div>
-                        <span className="text-[11px] text-slate-500">{lab.myDone}/{lab.stepCount} steps{lab.dueAt ? ` · due ${new Date(lab.dueAt).toLocaleDateString()}` : ""}</span>
+                        <span className="text-[11px] text-slate-500">{lab.myDone}/{lab.stepCount} steps</span>
+                        {lab.dueAt && (
+                          <span className={cn("text-[10px] font-bold rounded-full px-2 py-0.5", !complete && new Date(lab.dueAt) < new Date() ? "bg-rose-500/15 text-rose-600" : "bg-amber-500/15 text-amber-700 dark:text-amber-300")}>
+                            {!complete && new Date(lab.dueAt) < new Date() ? "OVERDUE" : "DUE"} {new Date(lab.dueAt).toLocaleDateString()}
+                          </span>
+                        )}
                         {complete && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
                       </div>
                     </div>

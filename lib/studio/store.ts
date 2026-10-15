@@ -37,7 +37,12 @@ export async function loadDesign(id: string, user: AuthUser, need: "view" | "edi
   if (!snap.exists) throw new ApiError(404, "NOT_FOUND", "Design not found");
   const data = snap.data()!;
   const isOwner = data.ownerUid === user.uid || user.role === "admin";
-  const isCollab = Array.isArray(data.memberIds) && data.memberIds.includes(user.uid);
+  let isCollab = Array.isArray(data.memberIds) && data.memberIds.includes(user.uid);
+  // Maker space: everyone in the design's Lounge room edits it together (commits stay credited per person)
+  if (!isCollab && data.roomCode) {
+    const room = await adminDb().collection("rooms").doc(String(data.roomCode)).get();
+    isCollab = !!room.exists && Array.isArray(room.data()!.memberIds) && room.data()!.memberIds.includes(user.uid);
+  }
   let canView = isOwner || isCollab || data.visibility === "public";
   if (!canView && data.visibility === "class" && data.classId) {
     canView = (await getClassAccess(user, data.classId).catch(() => null))?.canView ?? false;

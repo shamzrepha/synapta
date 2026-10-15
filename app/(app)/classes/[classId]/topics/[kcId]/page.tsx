@@ -3,6 +3,7 @@
 import React, { useState, useEffect, use, useRef, useCallback } from "react";
 import Link from "next/link";
 import { TopicLabs } from "@/components/studio/topic-labs";
+import { StepVideos } from "@/components/studio/videos";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useToast } from "@/components/ui/toast";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -28,7 +29,7 @@ import {
   Send,
   Sparkles,
   Wand2,
-  Cpu, Wrench } from "lucide-react";
+  Cpu, Wrench, PlayCircle } from "lucide-react";
 import { formatPL, getMasteryStatus, cn } from "@/lib/utils";
 import { LAB_REGISTRY } from "@/components/labs";
 import { AiSimulation } from "@/components/labs/ai-simulation";
@@ -496,6 +497,11 @@ export default function TopicPage({
                   <p className="text-xs text-slate-500">Stuck? Get guided hints</p>
                 </button>
               </div>
+
+              <Card className="p-4 space-y-2">
+                <p className="font-bold text-sm flex items-center gap-2"><PlayCircle className="h-4 w-4 text-rose-600" /> Videos on this topic</p>
+                <StepVideos query={`${kc.title} explained`} />
+              </Card>
             </div>
           )}
 
