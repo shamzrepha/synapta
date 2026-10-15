@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { ClipQueue, type ClipStatus } from "@/lib/audio/clip-queue";
 
 interface Turn {
   speaker: "teacher" | "student";
@@ -33,28 +34,41 @@ interface Payload {
 
 const SPEEDS = [1, 1.25, 1.5, 0.85];
 
+/** 44-byte silent WAV, played inside the Play tap so later (async) clip playback isn't blocked on iOS */
+const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+
 /**
- * Plays a lesson turn by turn: recorded MP3 when available, browser speech otherwise.
- * Kept outside React so the play-next chain isn't fighting render cycles.
+ * Plays a lesson turn by turn. Clips come from a ClipQueue that keeps voicing the following lines
+ * in the background, so the next line is usually ready before the current one ends. A line that
+ * can't be voiced is read by the device voice. Kept outside React so the play-next chain isn't
+ * fighting render cycles.
  */
 class Narrator {
   private audio: HTMLAudioElement | null = null;
   private active = false;
+  private token = 0;
   speed = 1;
   constructor(
-    private urlFor: (i: number) => string,
+    private queue: ClipQueue,
     private onIndex: (i: number) => void,
-    private onStop: () => void
+    private onStop: () => void,
+    private onBuffering: (b: boolean) => void
   ) {}
 
   play(turns: Turn[], from: number) {
     this.active = true;
-    this.playTurn(turns, from);
+    if (!this.audio) this.audio = new Audio();
+    // Unlock audio playback while we're still inside the user's tap
+    this.audio.src = SILENT_WAV;
+    this.audio.play().catch(() => null);
+    void this.playTurn(turns, from);
   }
 
   stop() {
     this.active = false;
+    this.token++;
     this.audio?.pause();
+    this.onBuffering(false);
     if (typeof window !== "undefined") window.speechSynthesis?.cancel();
   }
 
@@ -63,7 +77,8 @@ class Narrator {
     if (this.audio) this.audio.playbackRate = s;
   }
 
-  private playTurn(turns: Turn[], i: number) {
+  private async playTurn(turns: Turn[], i: number) {
+    const my = ++this.token;
     this.audio?.pause();
     window.speechSynthesis?.cancel();
     if (!this.active) return;
@@ -74,34 +89,36 @@ class Narrator {
       return;
     }
     this.onIndex(i);
+    // Voice this line and everything after it, one by one, in the background
+    this.queue.startFrom(i);
     const turn = turns[i];
+    let done = false;
     const next = () => {
-      if (this.active) this.playTurn(turns, i + 1);
+      if (done) return;
+      done = true;
+      if (this.active && this.token === my) void this.playTurn(turns, i + 1);
     };
+
+    let url: string | null = null;
     if (turn.hasAudio) {
-      if (!this.audio) this.audio = new Audio();
+      if (this.queue.status(i) !== "ready") this.onBuffering(true);
+      url = await this.queue.get(i);
+      if (this.token === my) this.onBuffering(false);
+    }
+    if (!this.active || this.token !== my) return;
+
+    if (url && this.audio) {
       const a = this.audio;
-      let settled = false;
       const fallback = () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
+        if (done || this.token !== my) return;
         a.pause();
         this.speak(turn, next);
       };
-      // A clip is recorded on first play; if it doesn't start quickly, use the device voice instead
-      const timer = setTimeout(fallback, 21000);
-      a.src = this.urlFor(i);
+      a.src = url;
       a.playbackRate = this.speed;
-      a.onplaying = () => {
-        settled = true;
-        clearTimeout(timer);
-      };
       a.onended = next;
       a.onerror = fallback;
       a.play().catch(fallback);
-      // Warm the next clip so it's ready (and recorded) by the time this one ends
-      if (i + 1 < turns.length && turns[i + 1].hasAudio) fetch(this.urlFor(i + 1)).catch(() => null);
     } else {
       this.speak(turn, next);
     }
@@ -115,6 +132,7 @@ class Narrator {
     const voices = synth.getVoices().filter((v) => v.lang.startsWith("en"));
     if (voices.length > 1) u.voice = turn.speaker === "teacher" ? voices[0] : voices[1];
     u.onend = onEnd;
+    u.onerror = onEnd;
     synth.speak(u);
   }
 }
@@ -149,15 +167,33 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
   const lesson = payload?.lesson && payload.lesson.status === "ready" ? payload.lesson : null;
   const version = lesson?.version || 0;
 
+  const [buffering, setBuffering] = useState(false);
+  const [clipStatus, setClipStatus] = useState<ClipStatus[]>([]);
+  const turnsKey = lesson ? lesson.turns.map((t) => (t.hasAudio ? 1 : 0)).join("") : "";
+
   useEffect(() => {
+    if (!turnsKey) return;
+    const queue = new ClipQueue(turnsKey.length, async (i) => {
+      if (turnsKey[i] !== "1") return null;
+      const res = await fetch(`${base}/${i}?v=${version}`);
+      return res.ok ? await res.blob() : null;
+    });
+    // Warm the first line so Play starts right away
+    queue.startFrom(0, 1);
+    const unsubscribe = queue.subscribe(() => setClipStatus(Array.from({ length: queue.size }, (_, i) => queue.status(i))));
     const n = new Narrator(
-      (i) => `${base}/${i}?v=${version}`,
+      queue,
       (i) => setIndex(i),
-      () => setPlaying(false)
+      () => setPlaying(false),
+      (b) => setBuffering(b)
     );
     narratorRef.current = n;
-    return () => n.stop();
-  }, [base, version]);
+    return () => {
+      n.stop();
+      unsubscribe();
+      queue.dispose();
+    };
+  }, [base, version, turnsKey]);
 
   const stopAll = () => narratorRef.current?.stop();
 
@@ -224,6 +260,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
   if (!payload) return null;
   if (!lesson && !payload.canGenerate && !(payload.lesson?.status === "generating")) return null;
 
+  const settled = clipStatus.filter((c) => c === "ready" || c === "failed").length;
   const minutes = lesson ? Math.max(1, Math.round(lesson.turns.reduce((n, t) => n + t.text.split(/\s+/).length, 0) / 150)) : 0;
 
   return (
@@ -237,7 +274,11 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
             <p className="font-bold leading-tight">{lesson ? lesson.title : "Listen to this lesson"}</p>
             <p className="text-xs text-slate-500">
               {lesson
-                ? `${lesson.teacherName} & ${lesson.studentName} · ~${minutes} min`
+                ? playing && buffering
+                  ? "Voicing this line…"
+                  : playing && settled < lesson.turns.length
+                  ? `${lesson.teacherName} & ${lesson.studentName} · next lines loading in the background (${settled}/${lesson.turns.length})`
+                  : `${lesson.teacherName} & ${lesson.studentName} · ~${minutes} min`
                 : generating || payload.lesson?.status === "generating"
                 ? "Writing the lesson script… about 10 seconds"
                 : "A short spoken conversation between a teacher and a student"}
@@ -250,7 +291,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
               aria-label={playing ? "Pause" : "Play"}
               className="h-12 w-12 shrink-0 rounded-full bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center shadow-lg"
             >
-              {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
+              {playing && buffering ? <Loader2 className="h-5 w-5 animate-spin" /> : playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
             </button>
           ) : (
             <Button size="sm" onClick={() => generate(false)} isLoading={generating || payload.lesson?.status === "generating"}>
@@ -273,7 +314,17 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
                   aria-label={`Go to part ${i + 1}`}
                   className={cn(
                     "h-1.5 flex-1 rounded-full transition-colors",
-                    i < index ? "bg-teal-500" : i === index ? (playing ? "bg-teal-400 animate-pulse" : "bg-teal-400") : "bg-slate-300 dark:bg-slate-700"
+                    i < index
+                      ? "bg-teal-500"
+                      : i === index
+                      ? playing
+                        ? "bg-teal-400 animate-pulse"
+                        : "bg-teal-400"
+                      : clipStatus[i] === "ready"
+                      ? "bg-teal-200 dark:bg-teal-900"
+                      : clipStatus[i] === "loading"
+                      ? "bg-slate-300 dark:bg-slate-700 animate-pulse"
+                      : "bg-slate-300 dark:bg-slate-700"
                   )}
                 />
               ))}

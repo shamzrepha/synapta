@@ -11,6 +11,7 @@ import { extractTextFromFile } from "@/lib/pdf/extractor";
 import { cn } from "@/lib/utils";
 import { useLiveChannel } from "@/lib/live/client";
 import { NotebookBar, type NotebookMeta } from "@/components/notebook/notebook-bar";
+import { ClipQueue, type ClipStatus } from "@/lib/audio/clip-queue";
 import {
   BookOpen,
   FileText,
@@ -150,7 +151,9 @@ export default function NotebookPage() {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
   const [studioVoiceEnabled, setStudioVoiceEnabled] = useState(true);
   const [loadingTurnAudio, setLoadingTurnAudio] = useState(false);
-  const [turnAudioCache, setTurnAudioCache] = useState<Record<number, string>>({});
+  const [podcastClips, setPodcastClips] = useState<ClipStatus[]>([]);
+  const podcastQueueRef = useRef<ClipQueue | null>(null);
+  const playTokenRef = useRef(0);
   const isSpeakingRef = useRef(false);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
@@ -467,10 +470,7 @@ export default function NotebookPage() {
         setDeepDiveEpisode(json.data);
         saveStudio({ podcast: json.data });
         setCurrentTurnIndex(0);
-        setTurnAudioCache({});
-        turnAudioInflight.current.clear();
-        toast({ title: "Podcast ready", description: "Press play — each line is voiced as you listen.", variant: "success" });
-        prefetchTurnAudio(json.data.dialogue, 0);
+        toast({ title: "Podcast ready", description: "Voicing the first lines now — press play any time; the rest load while you listen.", variant: "success" });
       } else {
         toast({ title: "Error", description: json.error?.message || "Failed to generate podcast.", variant: "destructive" });
       }
@@ -481,33 +481,42 @@ export default function NotebookPage() {
     }
   };
 
-  // Studio voice per line, fetched just in time (and one line ahead) instead of the whole episode up front
-  const turnAudioInflight = useRef<Map<string, Promise<string | null>>>(new Map());
-  const fetchTurnAudio = (turn: { speaker: string; text: string }, index: number): Promise<string | null> => {
-    const key = `${index}:${turn.text.slice(0, 40)}`;
-    const existing = turnAudioInflight.current.get(key);
-    if (existing) return existing;
-    const p = fetch("/api/notebook/voice", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: turn.text, speaker: turn.speaker }),
-    })
-      .then((r) => r.json())
-      .then((json) => {
-        if (json.ok && json.data?.audioBase64) {
-          const url = `data:${json.data.mimeType || "audio/wav"};base64,${json.data.audioBase64}`;
-          setTurnAudioCache((prev) => ({ ...prev, [index]: url }));
-          return url;
-        }
-        return null;
-      })
-      .catch(() => null);
-    turnAudioInflight.current.set(key, p);
-    return p;
-  };
-  const prefetchTurnAudio = (dialogue: Array<{ speaker: string; text: string }> | undefined, index: number) => {
-    const turn = dialogue?.[index];
-    if (turn && studioVoiceEnabled && !turnAudioCache[index]) void fetchTurnAudio(turn, index);
+  // Studio voice: lines are voiced one after another in the background (starting from the line
+  // being played), so while one line plays the next ones are already loading — like a stream.
+  const episodeKey = deepDiveEpisode ? `${deepDiveEpisode.title}:${deepDiveEpisode.dialogue.length}:${deepDiveEpisode.dialogue[0]?.text.slice(0, 30)}` : "";
+  useEffect(() => {
+    if (!deepDiveEpisode || !studioVoiceEnabled) return;
+    const dialogue = deepDiveEpisode.dialogue;
+    const queue = new ClipQueue(dialogue.length, async (i) => {
+      const res = await fetch("/api/notebook/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: dialogue[i].text, speaker: dialogue[i].speaker }),
+      });
+      const json = await res.json();
+      if (!json.ok || !json.data?.audioBase64) return null;
+      const bytes = Uint8Array.from(atob(json.data.audioBase64), (c) => c.charCodeAt(0));
+      return new Blob([bytes], { type: json.data.mimeType || "audio/mpeg" });
+    });
+    const unsubscribe = queue.subscribe(() => setPodcastClips(Array.from({ length: queue.size }, (_, i) => queue.status(i))));
+    podcastQueueRef.current = queue;
+    // Start voicing the opening lines as soon as the script exists
+    queue.startFrom(0, 2);
+    return () => {
+      unsubscribe();
+      queue.dispose();
+      if (podcastQueueRef.current === queue) podcastQueueRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [episodeKey, studioVoiceEnabled]);
+
+  /** Starts playback from a line; called from a tap so audio is unlocked for later async plays (iOS). */
+  const startPlaybackAt = (index: number) => {
+    if (!audioElementRef.current) audioElementRef.current = new Audio();
+    const a = audioElementRef.current;
+    a.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+    a.play().catch(() => null);
+    void playTurn(index);
   };
 
   // SpeechSynthesis Fallback Audio
@@ -549,7 +558,7 @@ export default function NotebookPage() {
       return;
     }
 
-    // Stop current audio elements
+    const my = ++playTokenRef.current;
     if (audioElementRef.current) {
       audioElementRef.current.pause();
     }
@@ -562,35 +571,38 @@ export default function NotebookPage() {
     setIsPlayingAudio(true);
 
     const turn = deepDiveEpisode.dialogue[index];
+    const queue = podcastQueueRef.current;
 
-    // Priority 1: High-fidelity Google Voice Lab
-    if (studioVoiceEnabled) {
-      let audioUrl: string | null = turnAudioCache[index] || null;
-      prefetchTurnAudio(deepDiveEpisode.dialogue, index + 1);
-      if (!audioUrl) {
-        setLoadingTurnAudio(true);
-        try {
-          audioUrl = await fetchTurnAudio(turn, index);
-        } finally {
-          setLoadingTurnAudio(false);
-        }
+    if (studioVoiceEnabled && queue) {
+      // Keep voicing this line and the ones after it, one by one, in the background
+      queue.startFrom(index);
+      let audioUrl: string | null = null;
+      if (queue.status(index) !== "ready") setLoadingTurnAudio(true);
+      try {
+        audioUrl = await queue.get(index);
+      } finally {
+        if (playTokenRef.current === my) setLoadingTurnAudio(false);
       }
+      if (playTokenRef.current !== my || !isSpeakingRef.current) return;
 
-      if (audioUrl && isSpeakingRef.current) {
-        const audio = new Audio(audioUrl);
+      if (audioUrl) {
+        if (!audioElementRef.current) audioElementRef.current = new Audio();
+        const audio = audioElementRef.current;
+        let done = false;
+        const fallback = () => {
+          if (done || playTokenRef.current !== my) return;
+          done = true;
+          playWithBrowserTts(turn, index);
+        };
+        audio.src = audioUrl;
         audio.playbackRate = playbackSpeed;
-        audioElementRef.current = audio;
         audio.onended = () => {
-          if (isSpeakingRef.current) {
-            playTurn(index + 1);
-          }
+          if (done) return;
+          done = true;
+          if (isSpeakingRef.current && playTokenRef.current === my) playTurn(index + 1);
         };
-        audio.onerror = () => {
-          playWithBrowserTts(turn, index);
-        };
-        audio.play().catch(() => {
-          playWithBrowserTts(turn, index);
-        });
+        audio.onerror = fallback;
+        audio.play().catch(fallback);
         return;
       }
     }
@@ -619,7 +631,7 @@ export default function NotebookPage() {
         setIsPlayingAudio(true);
         isSpeakingRef.current = true;
       } else {
-        playTurn(currentTurnIndex);
+        startPlaybackAt(currentTurnIndex);
       }
     }
   };
@@ -1136,7 +1148,12 @@ export default function NotebookPage() {
                             </Button>
                             {loadingTurnAudio && (
                               <span className="text-[10px] text-teal-600 dark:text-teal-400 flex items-center gap-1 font-mono">
-                                <RefreshCw className="h-2.5 w-2.5 animate-spin" /> Synthesizing...
+                                <RefreshCw className="h-2.5 w-2.5 animate-spin" /> Voicing this line…
+                              </span>
+                            )}
+                            {!loadingTurnAudio && studioVoiceEnabled && podcastClips.length > 0 && podcastClips.some((c) => c === "loading") && (
+                              <span className="text-[10px] text-slate-500 font-mono">
+                                {podcastClips.filter((c) => c === "ready").length}/{podcastClips.length} lines ready
                               </span>
                             )}
                           </div>
@@ -1170,7 +1187,7 @@ export default function NotebookPage() {
                           return (
                             <div
                               key={i}
-                              onClick={() => playTurn(i)}
+                              onClick={() => startPlaybackAt(i)}
                               className={`p-3 rounded-xl border text-xs transition-all cursor-pointer ${
                                 isCurrent
                                   ? "border-teal-500 bg-teal-50 dark:bg-teal-950/40 shadow-sm"
