@@ -13,6 +13,7 @@ import { z } from "zod";
 import { sanitizeModelId, parseModelChain, DEFAULT_MODEL_CONFIG } from "./models";
 import { markModelExhausted, isModelAvailable } from "./health";
 import { handleAuthError } from "@/lib/auth/requireUser";
+import { resetCachedEnv } from "@/lib/env";
 
 // Mock Firebase Admin and Gemini Client for unit testing
 vi.mock("@/lib/firebase/admin", () => {
@@ -60,6 +61,8 @@ describe("lib/ai/router & models (Fix Pack C1 & C2)", () => {
     delete process.env.GEMINI_MODEL_STRUCTURED;
     delete process.env.GEMINI_MODEL_BUILD;
     delete process.env.GEMINI_FALLBACK_CHAIN;
+    // getServerEnv() caches; with a complete env (as in CI) later overrides would be ignored
+    resetCachedEnv();
   });
 
   describe("C1: Model Registry and Defaults", () => {
@@ -75,6 +78,7 @@ describe("lib/ai/router & models (Fix Pack C1 & C2)", () => {
 
     it("honors environment overrides verbatim without silent rewrites", () => {
       process.env.GEMINI_MODEL_TUTOR = "my-custom-experimental-model";
+      resetCachedEnv();
       expect(modelFor("tutor_chat")).toBe("my-custom-experimental-model");
     });
 
