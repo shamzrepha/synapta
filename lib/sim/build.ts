@@ -41,6 +41,14 @@ export const SIM_BRIDGE_SCRIPT = `<script>
 })();
 </script>`;
 
+/** Everything we add to the model's document. Kept as one exact string so edits can remove it again. */
+export const SIM_HEAD_INJECT = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${SIM_CSP}"><meta name="viewport" content="width=device-width, initial-scale=1">${SIM_BRIDGE_SCRIPT}`;
+
+/** Returns the simulation's own code, without our CSP/bridge, so the AI edits only what it wrote. */
+export function stripHostInjection(html: string): string {
+  return html.split(SIM_HEAD_INJECT).join("");
+}
+
 const checkQuestionSchema = z.object({
   question: z.string().min(5),
   options: z.array(z.union([z.string(), z.number()]).transform(String)).min(3).max(6),
@@ -118,6 +126,62 @@ Return the complete HTML document now.`;
   return { systemInstruction, userPrompt };
 }
 
+export function buildSimulationEditPrompt(params: {
+  kcTitle: string;
+  currentHtml: string;
+  currentMeta: {
+    title: string;
+    goal: string;
+    howTo: string[];
+    concepts: string[];
+    checkQuestion?: { question: string; options: string[]; answer: string; explanation: string } | null;
+  };
+  changeRequest?: string;
+  runtimeError?: string;
+}): { systemInstruction: string; userPrompt: string } {
+  const systemInstruction = `You are a senior educational game developer maintaining an existing HTML5 simulation.
+You will receive the CURRENT simulation code and a requested change. Apply the change like a careful code edit:
+
+1. Change ONLY what the request needs. Keep every other feature, control, level, colour, layout, wording and behaviour exactly as it is. Do not redesign, rename or "improve" unrelated parts.
+2. Keep the code working: every variable defined, every queried element present, no runtime errors. If you add a control, wire it into the existing update/render loop.
+3. Keep all original rules: one self-contained document, inline <style>/<script> only, no external URLs, no localStorage/cookies/alert/prompt, pointer events for mouse + touch, window.synapta.complete({score, level}) when a goal is achieved.
+4. Output the COMPLETE updated HTML document starting with <!DOCTYPE html> — not a diff, no Markdown fences, no commentary.
+5. Include the <script type="application/json" id="sim-meta"> block in <head>, updated only if the change affects it (e.g. a new goal or new steps). Keep the checkQuestion unless the change makes it wrong; it must still have exactly 4 options and "answer" copied exactly from the correct option.`;
+
+  const meta = {
+    title: params.currentMeta.title,
+    goal: params.currentMeta.goal,
+    howTo: params.currentMeta.howTo,
+    concepts: params.currentMeta.concepts,
+    ...(params.currentMeta.checkQuestion ? { checkQuestion: params.currentMeta.checkQuestion } : {}),
+  };
+
+  const task = [
+    params.changeRequest ? `Requested change from the teacher:\n<CHANGE_REQUEST>\n${params.changeRequest}\n</CHANGE_REQUEST>` : "",
+    params.runtimeError
+      ? `The current code throws this runtime error in the browser — find and fix the cause without changing anything else:\n${params.runtimeError}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const userPrompt = `Topic: ${params.kcTitle}
+
+${task}
+
+Current metadata (put the updated version in the sim-meta block):
+${JSON.stringify(meta)}
+
+Current simulation code:
+<CURRENT_HTML>
+${params.currentHtml}
+</CURRENT_HTML>
+
+Return the complete updated HTML document now.`;
+
+  return { systemInstruction, userPrompt };
+}
+
 function stripFences(text: string): string {
   const fenced = text.match(/```(?:html)?\s*([\s\S]*?)```/i);
   return fenced ? fenced[1] : text;
@@ -165,7 +229,7 @@ export function sanitizeSimulationHtml(input: string): string {
     .replace(/@import\s+url\([^)]*\)\s*;?/gi, "")
     .replace(/@import\s+["'][^"']*["']\s*;?/gi, "");
 
-  const headInject = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${SIM_CSP}"><meta name="viewport" content="width=device-width, initial-scale=1">${SIM_BRIDGE_SCRIPT}`;
+  const headInject = SIM_HEAD_INJECT;
 
   if (/<head[^>]*>/i.test(html)) {
     html = html.replace(/<head[^>]*>/i, (m) => `${m}${headInject}`);

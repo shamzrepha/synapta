@@ -13,6 +13,9 @@ import {
   XCircle,
   ChevronDown,
   Gamepad2,
+  Undo2,
+  PencilLine,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +36,11 @@ interface ClientSimulation {
   error?: string;
   hasCheck: boolean;
   checkQuestion?: { question: string; options: string[] };
+  canUndo?: boolean;
+  editLog?: Array<{ version: number; kind: string; note: string; at: string }>;
 }
+
+type BuildMode = "create" | "edit";
 
 export interface AiSimulationProps {
   classId: string;
@@ -48,6 +55,21 @@ const BUILD_STEPS = [
   "Writing the physics and the visuals…",
   "Adding controls, scoring and levels…",
   "Polishing and checking the code…",
+];
+
+const EDIT_STEPS = [
+  "Reading the current simulation…",
+  "Applying your change…",
+  "Keeping everything else the same…",
+  "Checking the code still runs…",
+];
+
+const QUICK_EDITS = [
+  "Make it easier for beginners",
+  "Add one more, harder level",
+  "Make text and controls bigger",
+  "Show the formula and live values more clearly",
+  "Add simple sound effects for success and failure",
 ];
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
@@ -82,7 +104,11 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
   const [building, setBuilding] = useState(false);
   const [buildStep, setBuildStep] = useState(0);
   const [instructions, setInstructions] = useState("");
+  const [changeRequest, setChangeRequest] = useState("");
   const [showDesigner, setShowDesigner] = useState(false);
+  const [designerTab, setDesignerTab] = useState<"change" | "restart">("change");
+  const [buildMode, setBuildMode] = useState<BuildMode>("create");
+  const [undoing, setUndoing] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
   const [goalReached, setGoalReached] = useState<{ score?: number; level?: number } | null>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
@@ -165,19 +191,31 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  const build = async (opts: { previousError?: string } = {}) => {
-    setBuildStep(0);
-    setBuilding(true);
+  const resetPlayState = () => {
     setRuntimeError(null);
     setGoalReached(null);
     setCheckResult(null);
     setCheckSelected(null);
+  };
+
+  /**
+   * mode "create": build from scratch (first build or "start over").
+   * mode "edit":   send the current code + a change request (or a runtime error) and change only that.
+   */
+  const build = async (opts: { mode?: BuildMode; previousError?: string } = {}) => {
+    const mode = opts.mode || "create";
+    setBuildMode(mode);
+    setBuildStep(0);
+    setBuilding(true);
+    resetPlayState();
     try {
       const res = await fetch(base, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          instructions: canManage ? instructions : undefined,
+          mode,
+          instructions: canManage && mode === "create" ? instructions : undefined,
+          changeRequest: canManage && mode === "edit" ? changeRequest : undefined,
           previousError: opts.previousError,
         }),
       });
@@ -187,7 +225,12 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
         setFrameKey((k) => k + 1);
         setShowDesigner(false);
         setBuilding(false);
-        toast({ title: "Simulation ready", description: "Have fun experimenting!", variant: "success" });
+        if (mode === "edit") setChangeRequest("");
+        toast({
+          title: mode === "edit" ? (opts.previousError ? "Simulation fixed" : "Change applied") : "Simulation ready",
+          description: mode === "edit" ? "Not what you wanted? Use Undo to go back." : "Have fun experimenting!",
+          variant: "success",
+        });
         return;
       }
       if (data?.error?.code === "SIM_GENERATING" || data?.error?.code === "SIM_EXISTS" || !data) {
@@ -196,10 +239,34 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
         return;
       }
       setBuilding(false);
-      toast({ title: "Couldn't build the simulation", description: data.error?.message, variant: "destructive" });
+      toast({
+        title: mode === "edit" ? "Couldn't apply the change" : "Couldn't build the simulation",
+        description: data.error?.message,
+        variant: "destructive",
+      });
       load();
     } catch {
       startPolling();
+    }
+  };
+
+  const undo = async () => {
+    setUndoing(true);
+    try {
+      const res = await fetch(`${base}/undo`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        setSim(data.data.simulation);
+        setFrameKey((k) => k + 1);
+        resetPlayState();
+        toast({ title: "Went back to the previous version", variant: "success" });
+      } else {
+        toast({ title: "Couldn't undo", description: data.error?.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setUndoing(false);
     }
   };
 
@@ -239,6 +306,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
     return <div className="h-[420px] rounded-2xl bg-slate-100 dark:bg-slate-900 animate-pulse" />;
   }
 
+  const steps = buildMode === "edit" ? EDIT_STEPS : BUILD_STEPS;
   if (building) {
     return (
       <div className="h-[420px] rounded-2xl border border-teal-500/30 bg-gradient-to-br from-slate-950 to-slate-900 text-slate-100 flex flex-col items-center justify-center gap-5 p-6 text-center">
@@ -248,12 +316,12 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
           <Gamepad2 className="absolute inset-0 m-auto h-7 w-7 text-amber-400" />
         </div>
         <div className="space-y-1.5">
-          <p className="font-bold text-lg">Building your simulation</p>
-          <p className="text-sm text-teal-300">{BUILD_STEPS[buildStep]}</p>
+          <p className="font-bold text-lg">{buildMode === "edit" ? "Updating your simulation" : "Building your simulation"}</p>
+          <p className="text-sm text-teal-300">{steps[Math.min(buildStep, steps.length - 1)]}</p>
           <p className="text-xs text-slate-400">This usually takes 30–90 seconds. You can keep studying in another tab.</p>
         </div>
         <div className="flex gap-1.5">
-          {BUILD_STEPS.map((_, i) => (
+          {steps.map((_, i) => (
             <span key={i} className={cn("h-1.5 w-8 rounded-full", i <= buildStep ? "bg-teal-400" : "bg-slate-700")} />
           ))}
         </div>
@@ -261,12 +329,8 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
     );
   }
 
-  const designer = canManage && (
-    <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-4 space-y-3">
-      <div className="flex items-center gap-2">
-        <Wand2 className="h-4 w-4 text-indigo-500" />
-        <p className="font-semibold text-sm">Describe the simulation you want</p>
-      </div>
+  const createPanel = (
+    <div className="space-y-3">
       <Textarea
         value={instructions}
         onChange={(e) => setInstructions(e.target.value)}
@@ -275,9 +339,14 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
         placeholder={`e.g. "A game where students adjust launch angle and speed to hit castle targets, with wind in level 3" — leave empty and the AI designs it from the topic.`}
         className="text-sm"
       />
+      {sim?.html && (
+        <p className="text-xs text-amber-700 dark:text-amber-300">
+          This writes a completely new simulation. The current one is saved, so you can Undo.
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => build()}>
-          <Sparkles className="h-4 w-4 mr-1.5" /> {sim?.html ? "Rebuild simulation" : "Build simulation"}
+        <Button size="sm" onClick={() => build({ mode: "create" })}>
+          <Sparkles className="h-4 w-4 mr-1.5" /> {sim?.html ? "Start over from scratch" : "Build simulation"}
         </Button>
         {sim?.html && (
           <Button size="sm" variant="outline" onClick={() => setShowDesigner(false)}>
@@ -285,6 +354,99 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
           </Button>
         )}
       </div>
+    </div>
+  );
+
+  const designer = canManage && (
+    <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-4 space-y-3">
+      {sim?.html ? (
+        <>
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-white/60 dark:bg-slate-900/60 w-fit">
+            <button
+              type="button"
+              onClick={() => setDesignerTab("change")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5",
+                designerTab === "change" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-300"
+              )}
+            >
+              <PencilLine className="h-3.5 w-3.5" /> Change this simulation
+            </button>
+            <button
+              type="button"
+              onClick={() => setDesignerTab("restart")}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5",
+                designerTab === "restart" ? "bg-indigo-600 text-white" : "text-slate-600 dark:text-slate-300"
+              )}
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Start over
+            </button>
+          </div>
+
+          {designerTab === "change" ? (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                Describe what to add or change. The AI edits the current simulation and keeps everything else as it is.
+              </p>
+              <Textarea
+                value={changeRequest}
+                onChange={(e) => setChangeRequest(e.target.value)}
+                rows={3}
+                maxLength={2000}
+                placeholder={`e.g. "Make the ball red and twice as big", "Add a wind slider in level 2", "Rename 'Fire' to 'Launch'"`}
+                className="text-sm"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_EDITS.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setChangeRequest((prev) => (prev.trim() ? `${prev.trim()}\n${q}` : q))}
+                    className="px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] hover:border-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-300"
+                  >
+                    + {q}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => build({ mode: "edit" })} disabled={!changeRequest.trim()}>
+                  <PencilLine className="h-4 w-4 mr-1.5" /> Apply change
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowDesigner(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            createPanel
+          )}
+
+          {sim.editLog && sim.editLog.length > 0 && (
+            <div className="pt-3 border-t border-indigo-500/20 space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                <History className="h-3.5 w-3.5" /> Recent changes
+              </p>
+              <ul className="space-y-1">
+                {[...sim.editLog].reverse().slice(0, 5).map((e) => (
+                  <li key={`${e.version}-${e.at}`} className="text-xs text-slate-600 dark:text-slate-400 flex gap-2">
+                    <span className="font-mono text-slate-400 shrink-0">v{e.version}</span>
+                    <span className="min-w-0 truncate">{e.note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="flex items-center gap-2">
+            <Wand2 className="h-4 w-4 text-indigo-500" />
+            <p className="font-semibold text-sm">Describe the simulation you want</p>
+          </div>
+          {createPanel}
+        </>
+      )}
     </div>
   );
 
@@ -306,7 +468,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
             <p className="text-xs text-rose-600 dark:text-rose-400 bg-rose-500/10 rounded-xl p-2 max-w-md mx-auto">{sim.error}</p>
           )}
           {canGenerate && !canManage && (
-            <Button onClick={() => build()}>
+            <Button onClick={() => build({ mode: "create" })}>
               <Sparkles className="h-4 w-4 mr-1.5" /> Build the simulation
             </Button>
           )}
@@ -344,8 +506,20 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
           <Button size="sm" variant="outline" onClick={goFullscreen} title="Full screen">
             <Maximize2 className="h-4 w-4" />
           </Button>
+          {canManage && sim.canUndo && (
+            <Button size="sm" variant="outline" onClick={undo} isLoading={undoing} title="Go back to the previous version">
+              <Undo2 className="h-4 w-4 mr-1" /> Undo
+            </Button>
+          )}
           {canManage && (
-            <Button size="sm" variant="outline" onClick={() => setShowDesigner((v) => !v)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setDesignerTab("change");
+                setShowDesigner((v) => !v);
+              }}
+            >
               <Wand2 className="h-4 w-4 mr-1" /> Edit
             </Button>
           )}
@@ -395,7 +569,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
             The simulation hit an error{canManage ? `: ${runtimeError}` : ". Try restarting it."}
           </span>
           {canManage && (
-            <Button size="sm" variant="outline" onClick={() => build({ previousError: runtimeError })}>
+            <Button size="sm" variant="outline" onClick={() => build({ mode: "edit", previousError: runtimeError })}>
               <Wand2 className="h-3.5 w-3.5 mr-1" /> Auto-fix
             </Button>
           )}

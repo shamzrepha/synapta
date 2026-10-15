@@ -34,7 +34,10 @@ export async function GET(
 }
 
 const generateSchema = z.object({
+  /** "create" builds from scratch (first build or "start over"); "edit" changes the current code. */
+  mode: z.enum(["create", "edit"]).optional().default("create"),
   instructions: z.string().max(2000).optional(),
+  changeRequest: z.string().max(2000).optional(),
   previousError: z.string().max(500).optional(),
 });
 
@@ -56,12 +59,23 @@ export async function POST(
       );
     }
 
+    const mode = canManage ? body.mode : "create";
+    const changeRequest = body.changeRequest?.trim() || undefined;
+    if (mode === "edit" && !changeRequest && !body.previousError) {
+      return NextResponse.json(
+        { ok: false, error: { code: "VALIDATION", message: "Describe the change you want to make." } },
+        { status: 400 }
+      );
+    }
+
     const sim = await generateAndStoreSimulation({
       classId,
       kcId,
       userId: caller.uid,
+      mode,
       // Only teachers can steer the generation; students get the default design
       instructions: canManage ? body.instructions?.trim() || undefined : undefined,
+      changeRequest: canManage ? changeRequest : undefined,
       previousError: body.previousError,
       allowReplace: canManage,
     });

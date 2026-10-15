@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { parseGeneratedSimulation, sanitizeSimulationHtml, extractSimMeta, SIM_CSP } from "./build";
+import {
+  parseGeneratedSimulation,
+  sanitizeSimulationHtml,
+  extractSimMeta,
+  stripHostInjection,
+  buildSimulationEditPrompt,
+  SIM_CSP,
+} from "./build";
 
 const bigScript = `let t = 0; function loop(){ t += 1; requestAnimationFrame(loop); }\n`.repeat(8);
 
@@ -46,5 +53,35 @@ describe("AI simulation pipeline", () => {
 
   it("rejects output that has no runnable script or drawing surface", () => {
     expect(parseGeneratedSimulation("<html><body><p>Sorry, I can't.</p></body></html>", "X")).toBeNull();
+  });
+
+  it("strips our CSP and bridge so edits only see the simulation's own code, and re-injects once", () => {
+    const sim = parseGeneratedSimulation(sample, "Ohm's Law")!;
+    const own = stripHostInjection(sim.html);
+    expect(own).not.toContain(SIM_CSP);
+    expect(own).not.toContain("window.synapta = {");
+    expect(own).toContain("<canvas");
+    // Round trip: an edit returning the same code is served with exactly one injection
+    const again = sanitizeSimulationHtml(own);
+    expect(again.split(SIM_CSP).length - 1).toBe(1);
+  });
+
+  it("edit prompt carries the current code, the change and the answer key", () => {
+    const { systemInstruction, userPrompt } = buildSimulationEditPrompt({
+      kcTitle: "Ohm's Law",
+      currentHtml: "<!DOCTYPE html><html><body><canvas id=\"c\"></canvas></body></html>",
+      currentMeta: {
+        title: "Ohm Lab",
+        goal: "Reach 0.2 A",
+        howTo: [],
+        concepts: [],
+        checkQuestion: { question: "Q?", options: ["a", "b", "c", "d"], answer: "b", explanation: "because" },
+      },
+      changeRequest: "Make the resistor red",
+    });
+    expect(systemInstruction).toMatch(/Change ONLY what the request needs/);
+    expect(userPrompt).toContain("Make the resistor red");
+    expect(userPrompt).toContain('<canvas id="c">');
+    expect(userPrompt).toContain('"answer":"b"');
   });
 });
