@@ -25,6 +25,7 @@ export function serializeSession(id: string, s: FirebaseFirestore.DocumentData, 
   const endAt = toDate(s.endAt);
   const rsvp: string[] = Array.isArray(s.rsvpUids) ? s.rsvpUids : [];
   const attendees: string[] = Array.isArray(s.attendeeUids) ? s.attendeeUids : [];
+  const maybe: string[] = Array.isArray(s.maybeUids) ? s.maybeUids : [];
   return {
     id,
     classId: s.classId,
@@ -39,6 +40,8 @@ export function serializeSession(id: string, s: FirebaseFirestore.DocumentData, 
     status: sessionStatus(startAt, endAt),
     rsvpCount: rsvp.length,
     attendeeCount: attendees.length,
+    maybeCount: maybe.length,
+    maybe: maybe.includes(uid),
     going: rsvp.includes(uid),
     attended: attendees.includes(uid),
     isHost: s.hostUid === uid,

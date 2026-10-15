@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, Users, Video, Check, Trash2, X, CalendarClock } from "lucide-react";
+import { CalendarPlus, Users, Video, Trash2, X, CalendarClock } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { useLiveChannel } from "@/lib/live/client";
 import { formatCountdown, useNow } from "@/components/game/use-game";
 import { cn } from "@/lib/utils";
 import { asArray } from "@/lib/api/client";
+import { RsvpButtons, AttendeeList, type RsvpPatch } from "@/components/sessions/rsvp-controls";
 
 export interface StudySession {
   id: string;
@@ -27,6 +28,8 @@ export interface StudySession {
   status: "upcoming" | "starting_soon" | "live" | "ended";
   rsvpCount: number;
   attendeeCount: number;
+  maybeCount?: number;
+  maybe?: boolean;
   going: boolean;
   attended: boolean;
   isHost: boolean;
@@ -165,10 +168,8 @@ export function SessionsPanel({
   useLiveChannel(channels[1], load);
   useLiveChannel(channels[2], load);
 
-  const rsvp = async (s: StudySession) => {
-    setSessions((prev) => (prev || []).map((x) => (x.id === s.id ? { ...x, going: !x.going, rsvpCount: x.rsvpCount + (x.going ? -1 : 1) } : x)));
-    await fetch(`/api/sessions/${s.id}/rsvp`, { method: "POST" }).catch(() => null);
-  };
+  const patchSession = (id: string, patch: RsvpPatch) =>
+    setSessions((prev) => (prev || []).map((x) => (x.id === id ? { ...x, ...patch } : x)));
 
   const join = async (s: StudySession) => {
     setJoining(s.id);
@@ -246,19 +247,16 @@ export function SessionsPanel({
                     {s.isHost ? "you" : s.hostName}
                   </p>
                   <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                    <Users className="h-3.5 w-3.5" /> {s.rsvpCount} going{live || ended ? ` · ${s.attendeeCount} joined` : ""}
-                    {!live && !ended && until > 0 && <span className="ml-2 font-semibold text-slate-700 dark:text-slate-300">in {formatCountdown(until)}</span>}
+                    <Users className="h-3.5 w-3.5" /> {live || ended ? `${s.attendeeCount} joined` : "Starts"}
+                    {!live && !ended && until > 0 && <span className="ml-1 font-semibold text-slate-700 dark:text-slate-300">in {formatCountdown(until)}</span>}
                   </p>
+                  <AttendeeList s={s} />
+                  {!ended && <RsvpButtons s={s} onChange={(p) => patchSession(s.id, p)} />}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {(live || soon) && (
                     <Button size="sm" onClick={() => join(s)} isLoading={joining === s.id} className={live ? "bg-rose-600 hover:bg-rose-700" : ""}>
                       <Video className="h-4 w-4 mr-1" /> Join room
-                    </Button>
-                  )}
-                  {!live && !ended && !s.isHost && (
-                    <Button size="sm" variant={s.going ? "default" : "outline"} onClick={() => rsvp(s)}>
-                      {s.going ? <Check className="h-4 w-4 mr-1" /> : null} {s.going ? "Going" : "I'm going"}
                     </Button>
                   )}
                   {s.isHost && !ended && (

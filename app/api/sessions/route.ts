@@ -8,6 +8,7 @@ import { getActiveStudentUids, getMyClassIds } from "@/lib/classes/members";
 import { notifyMany } from "@/lib/notifications/server";
 import { bumpChannel } from "@/lib/live/server";
 import { serializeSession, sendDueReminders } from "@/lib/sessions/store";
+import { sendRsvpReminders } from "@/lib/sessions/rsvp-reminders";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
       classIds = (await getMyClassIds(caller.uid)).slice(0, 15);
     }
     await sendDueReminders(classIds).catch(() => 0);
+    await sendRsvpReminders(classIds).catch(() => 0);
 
     const since = Timestamp.fromMillis(Date.now() - 7 * 24 * 3600 * 1000);
     const snaps = await Promise.all(

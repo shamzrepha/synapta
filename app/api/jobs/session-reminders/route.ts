@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { sendDueReminders, REMINDER_LEAD_MS } from "@/lib/sessions/store";
+import { sendRsvpReminders } from "@/lib/sessions/rsvp-reminders";
 
 export const runtime = "nodejs";
 
@@ -21,5 +22,6 @@ export async function GET(req: NextRequest) {
     .get();
   const classIds = Array.from(new Set(snap.docs.filter((d) => !d.data().reminderSent).map((d) => d.data().classId as string)));
   const sent = await sendDueReminders(classIds);
+  await sendRsvpReminders(Array.from(new Set(snap.docs.map((d) => d.data().classId as string)))).catch(() => 0);
   return NextResponse.json({ ok: true, data: { sent } });
 }
