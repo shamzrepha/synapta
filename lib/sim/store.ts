@@ -223,6 +223,8 @@ export async function generateAndStoreSimulation(params: {
               subject: ctx.subject,
               level: ctx.level,
               contextText: ctx.contextText,
+              objectives: ctx.objectives,
+              otherTopics: ctx.otherTopics,
               teacherInstructions: params.instructions,
               previousError: params.previousError || retryNote,
             });

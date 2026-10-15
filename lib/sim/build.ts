@@ -1,3 +1,4 @@
+import { scopeRule } from "@/lib/kc/context";
 import { z } from "zod";
 import { normalizeQuizQuestions, type NormalizedQuizQuestion } from "@/lib/quiz/normalize";
 
@@ -84,11 +85,15 @@ export function buildSimulationPrompt(params: {
   subject: string;
   level: string;
   contextText: string;
+  objectives?: string[];
+  otherTopics?: string[];
   teacherInstructions?: string;
   previousError?: string;
 }): { systemInstruction: string; userPrompt: string } {
   const systemInstruction = `You are a senior educational game developer and physics/maths/science visualisation engineer.
 You build ONE polished, playable, self-contained HTML5 simulation that teaches a specific topic by letting the learner experiment — like a PhET simulation crossed with a small game.
+
+${scopeRule({ kcTitle: params.kcTitle, objectives: params.objectives || [], otherTopics: params.otherTopics || [] })}
 
 OUTPUT FORMAT (strict):
 - Output ONLY a complete HTML document starting with <!DOCTYPE html>. No Markdown fences, no commentary.

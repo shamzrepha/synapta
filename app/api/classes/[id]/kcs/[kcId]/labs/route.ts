@@ -96,7 +96,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (limited) return limited;
       const k = kc.data()!;
       const out = await generateDesign({
-        prompt: `A hands-on lab for the class topic "${k.title}". ${body.focus || ""}\nLesson summary: ${String(k.lessonMarkdown || k.description || "").slice(0, 2500)}\nBreak it into small guided steps that each teach one idea of this topic.`,
+        prompt: `A hands-on lab for the class subtopic "${k.title}". It must teach ONLY this subtopic (not its parent topic, other topics or the wider course). ${body.focus || ""}\nLesson summary: ${String(k.lessonMarkdown || k.description || "").slice(0, 2500)}\nBreak it into small guided steps that each teach one idea of this topic.`,
         level: body.level,
         userId: caller.uid,
       });

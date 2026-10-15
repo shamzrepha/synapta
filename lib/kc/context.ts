@@ -10,6 +10,8 @@ export interface KcGroundingContext {
   subject: string;
   level: string;
   lessonMarkdown: string;
+  /** Titles of the class's other topics: the AI must not drift onto these. */
+  otherTopics: string[];
   /** Lesson + objectives + relevant uploaded-material excerpts, ready to drop into a prompt. */
   contextText: string;
   kcData: FirebaseFirestore.DocumentData;
@@ -66,9 +68,10 @@ export async function loadKcGroundingContext(
 ): Promise<KcGroundingContext> {
   const materialBudget = opts.materialBudget ?? 8000;
   const classRef = adminDb().collection("classes").doc(classId);
-  const [classDoc, kcDoc] = await Promise.all([
+  const [classDoc, kcDoc, allKcs] = await Promise.all([
     classRef.get(),
     classRef.collection("kcs").doc(kcId).get(),
+    classRef.collection("kcs").orderBy("order", "asc").limit(80).get().catch(() => null),
   ]);
   if (!kcDoc.exists) {
     throw new ApiError(404, "NOT_FOUND", "Topic not found");
@@ -127,7 +130,39 @@ export async function loadKcGroundingContext(
     subject: classData.subject || "",
     level: classData.level || "undergrad",
     lessonMarkdown,
+    otherTopics: (allKcs?.docs || []).filter((d) => d.id !== kcId).map((d) => String(d.data().title || "")).filter(Boolean),
     contextText,
     kcData,
   };
+}
+
+/**
+ * Hard scope for anything generated for ONE subtopic (simulation ideas, simulations): it must teach
+ * exactly this subtopic — not the parent topic, siblings, prerequisites or the wider course.
+ */
+export function scopeRule(params: { kcTitle: string; objectives: string[]; otherTopics: string[] }): string {
+  const others = params.otherTopics.slice(0, 40);
+  return `SCOPE — THIS IS THE MOST IMPORTANT RULE:
+Everything you produce must teach ONLY the subtopic "${params.kcTitle}"${params.objectives.length ? ` and its learning objectives:\n${params.objectives.map((o) => `  - ${o.replace(/^\[[^\]]+\]\s*/, "")}`).join("\n")}` : ""}.
+- Do NOT cover the parent topic, the wider course, prerequisites, or any other topic of this class. The reference material may contain content about other topics: IGNORE it unless it is about "${params.kcTitle}" itself.
+- A learner should finish this activity able to do exactly what the objectives above say, nothing broader.${others.length ? `\n- Other topics in this class (they have their own simulations — do NOT teach or build on them): ${others.join("; ")}.` : ""}`;
+}
+
+const words = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+
+/**
+ * Drops ideas that are really about another topic: they name another topic of the class but none of
+ * this subtopic's own keywords. (Keeps everything if that would leave nothing.)
+ */
+export function dropOffTopicIdeas<T extends { title: string; pitch?: string; learningGoal?: string; howItWorks?: string; challenge?: string }>(ideas: T[], kcTitle: string, otherTopics: string[]): T[] {
+  const self = words(kcTitle);
+  const others = otherTopics.map((t) => t.toLowerCase().trim()).filter((t) => t.length > 3 && !kcTitle.toLowerCase().includes(t) && !t.includes(kcTitle.toLowerCase()));
+  if (self.length === 0 || others.length === 0) return ideas;
+  const kept = ideas.filter((i) => {
+    const focus = `${i.title} ${i.learningGoal || ""}`.toLowerCase();
+    const mentionsSelf = self.some((w) => focus.includes(w.slice(0, Math.max(4, w.length - 2))));
+    const mentionsOther = others.some((t) => focus.includes(t));
+    return mentionsSelf || !mentionsOther;
+  });
+  return kept.length > 0 ? kept : ideas;
 }

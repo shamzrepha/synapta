@@ -1,7 +1,7 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { executeStructuredAiTask } from "@/lib/ai/router";
 import { sanitizeUntrustedPromptText } from "@/lib/ai/scrub";
-import { loadKcGroundingContext } from "@/lib/kc/context";
+import { loadKcGroundingContext, scopeRule, dropOffTopicIdeas } from "@/lib/kc/context";
 import { z } from "zod";
 
 /**
@@ -127,9 +127,12 @@ export async function recommendSimulation(params: {
   userId: string;
   current?: { title: string; goal: string; howTo: string[] } | null;
 }): Promise<SimIdeas> {
-  const ctx = await loadKcGroundingContext(params.classId, params.kcId, { materialBudget: 9000 });
-  const systemInstruction = `You design interactive HTML5 learning simulations and games for a specific topic.
-Read the topic material (lesson + the teacher's uploaded documents) and propose 4 DIFFERENT simulation concepts that would make this topic click — vary the format (lab bench, game with levels, step-through visualiser, design/build challenge, prediction game…).
+  // Small material budget: the excerpts are background only; the subtopic itself is what matters
+  const ctx = await loadKcGroundingContext(params.classId, params.kcId, { materialBudget: 3500 });
+  const scope = scopeRule({ kcTitle: ctx.kcTitle, objectives: ctx.objectives, otherTopics: ctx.otherTopics });
+  const systemInstruction = `You design interactive HTML5 learning simulations and games for ONE specific subtopic of a class.
+${scope}
+Read the subtopic's lesson and propose 4 DIFFERENT simulation concepts that would make exactly this subtopic click — vary the format (lab bench, game with levels, step-through visualiser, design/build challenge, prediction game…).
 Each idea: a catchy title, a one-sentence pitch, how it works (what the learner manipulates and sees), the challenge/goal that makes it a game, and the learning goal it targets. Be concrete and accurate for level ${ctx.level}.
 ${params.current ? `There is an existing simulation ("${params.current.title}", goal: "${params.current.goal}"). Also give 4-6 specific, small "improvements" phrased as change requests a teacher could apply to it (e.g. "Add a wind slider to level 2", "Show the formula with live values").` : `Return "improvements": [].`}
 Return JSON only: {"ideas":[{"title":"","pitch":"","howItWorks":"","challenge":"","learningGoal":""}],"improvements":["..."]}`;
@@ -137,11 +140,11 @@ Return JSON only: {"ideas":[{"title":"","pitch":"","howItWorks":"","challenge":"
   const r = await executeStructuredAiTask({
     task: "structured_spec",
     systemInstruction,
-    userPrompt: `Topic: ${ctx.kcTitle}\nCourse subject: ${ctx.subject}\n${params.current?.howTo?.length ? `Current simulation steps: ${params.current.howTo.join(" | ")}\n` : ""}\n<MATERIAL>\n${ctx.contextText}\n</MATERIAL>`,
+    userPrompt: `Subtopic (the ONLY thing the ideas may teach): ${ctx.kcTitle}\nCourse subject (context only): ${ctx.subject}\n${params.current?.howTo?.length ? `Current simulation steps: ${params.current.howTo.join(" | ")}\n` : ""}\n<MATERIAL>\n${ctx.contextText}\n</MATERIAL>`,
     schema: simIdeasSchema,
     userId: params.userId,
     estimatedTokens: 2500,
     isPrivileged: true,
   });
-  return r.data;
+  return { ...r.data, ideas: dropOffTopicIdeas(r.data.ideas, ctx.kcTitle, ctx.otherTopics) };
 }
