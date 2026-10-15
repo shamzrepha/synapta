@@ -95,6 +95,15 @@ function PartArt({ p, def, out, pressed }: { p: CircuitPart; def: ComponentDef; 
           <line x1={w} y1={h - 10} x2={w} y2={h} stroke="#9ca3af" strokeWidth={2} />
         </g>
       );
+    case "ir_sensor":
+      return (
+        <g>
+          <rect width={w} height={h - 8} rx={6} fill="#0f172a" stroke="#94a3b8" />
+          <circle cx={w * 0.32} cy={(h - 8) / 2} r={7} fill="#1e293b" stroke="#475569" />
+          <circle cx={w * 0.68} cy={(h - 8) / 2} r={7} fill={(out?.on ?? pressed) ? "#f87171" : "#7f1d1d"} stroke="#475569" />
+          <text x={w / 2} y={h - 12} textAnchor="middle" fontSize={8} fill="#94a3b8">IR</text>
+        </g>
+      );
     case "switch":
       return (
         <g>

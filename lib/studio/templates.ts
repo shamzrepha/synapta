@@ -95,6 +95,93 @@ const switchBlocks: BlockProgram = {
   ],
 };
 
+
+// ---------- line-following robot ----------
+const lineRobot = {
+  wheelRadius: 21,
+  trackWidth: 112,
+  length: 150,
+  wheelWidth: 14,
+  maxRpm: 160,
+  left: "mL",
+  right: "mR",
+  sensors: [{ id: "sL", x: -17, z: -78 }, { id: "sR", x: 17, z: -78 }],
+  body: "auto" as const,
+};
+function lineCircuit() {
+  return {
+    parts: [
+      board,
+      { id: "sL", type: "ir_sensor", label: "Left sensor", x: 80, y: 90 },
+      { id: "sR", type: "ir_sensor", label: "Right sensor", x: 180, y: 90 },
+      { id: "drvL", type: "motor_driver", label: "Left driver", x: 330, y: 200 },
+      { id: "drvR", type: "motor_driver", label: "Right driver", x: 470, y: 200 },
+      { id: "mL", type: "dc_motor", label: "Left motor", x: 330, y: 70 },
+      { id: "mR", type: "dc_motor", label: "Right motor", x: 470, y: 70 },
+    ],
+    wires: [
+      w("w1", "sL.vcc", "board.5V", "#ef4444"),
+      w("w2", "sL.gnd", "board.GND", "#111827"),
+      w("w3", "sL.out", "board.D2", "#f59e0b"),
+      w("w4", "sR.vcc", "board.5V", "#ef4444"),
+      w("w5", "sR.gnd", "board.GND", "#111827"),
+      w("w6", "sR.out", "board.D3", "#f59e0b"),
+      w("w7", "drvL.vcc", "board.5V", "#ef4444"),
+      w("w8", "drvL.gnd", "board.GND", "#111827"),
+      w("w9", "board.D5", "drvL.in", "#3b82f6"),
+      w("w10", "drvL.out1", "mL.a"),
+      w("w11", "drvL.out2", "mL.b"),
+      w("w12", "drvR.vcc", "board.5V", "#ef4444"),
+      w("w13", "drvR.gnd", "board.GND", "#111827"),
+      w("w14", "board.D6", "drvR.in", "#22c55e"),
+      w("w15", "drvR.out1", "mR.a"),
+      w("w16", "drvR.out2", "mR.b"),
+    ],
+  };
+}
+const lineCode = `var LEFT_SENSOR = 2;
+var RIGHT_SENSOR = 3;
+var LEFT_MOTOR = 5;   // PWM pin to the left driver
+var RIGHT_MOTOR = 6;  // PWM pin to the right driver
+var FAST = 190;
+var SLOW = 30;
+
+function setup() {
+  pinMode(LEFT_SENSOR, INPUT);
+  pinMode(RIGHT_SENSOR, INPUT);
+  pinMode(LEFT_MOTOR, OUTPUT);
+  pinMode(RIGHT_MOTOR, OUTPUT);
+}
+
+function loop() {
+  var left = digitalRead(LEFT_SENSOR);   // HIGH = over the dark line
+  var right = digitalRead(RIGHT_SENSOR);
+  if (left == HIGH) {
+    // line is under the left sensor: steer left by slowing the left wheel
+    analogWrite(LEFT_MOTOR, SLOW);
+    analogWrite(RIGHT_MOTOR, FAST);
+  } else if (right == HIGH) {
+    analogWrite(LEFT_MOTOR, FAST);
+    analogWrite(RIGHT_MOTOR, SLOW);
+  } else {
+    analogWrite(LEFT_MOTOR, FAST);
+    analogWrite(RIGHT_MOTOR, FAST);
+  }
+}
+`;
+function lineSteps() {
+  return [
+    { id: "l1", title: "Meet the robot", detail: "Open the 3D view and orbit it. Two wheels share one axle, a caster ball holds the back, and two line sensors face the floor at the front. Open the Track view to see the oval it must follow.", videoQuery: "how a line following robot works", check: { kind: "manual" as const } },
+    { id: "l2", title: "Wire the sensors", detail: "Each sensor needs 5V, GND and its OUT wire to a pin (D2 left, D3 right). An unpowered sensor reads nothing, so the robot would drive blind.", videoQuery: "ir line sensor arduino wiring", check: { kind: "parts" as const, type: "ir_sensor", min: 2 } },
+    { id: "l3", title: "Wire the motors through drivers", detail: "One driver per motor: VCC→5V, GND→GND, IN→D5 (left) / D6 (right), OUT1→motor a, OUT2→motor b. Same wiring on both sides, so positive power means forward on both.", videoQuery: "arduino l298n dc motor wiring", check: { kind: "wired" as const, part: "mL" } },
+    { id: "l4", title: "Write the steering code", detail: "Read both sensors. Left sensor sees the line → slow the left wheel. Right sensor sees it → slow the right wheel. Otherwise drive straight. Press Run and watch the Track view.", videoQuery: "arduino line follower code explained", check: { kind: "drive" as const, seconds: 20, laps: 1, onLine: 0.8 } },
+    { id: "l5", title: "Tune it", detail: "Try FAST = 255 and SLOW = 0. Faster robots overshoot corners. Find the fastest settings that still finish a lap without leaving the line.", check: { kind: "manual" as const } },
+  ];
+}
+function lineTests() {
+  return [];
+}
+
 // ---------- RC car helpers ----------
 const carWheel = (id: string, side: "L" | "R", x: number, z: number) => [
   { id: `${id}_tyre`, name: `${side === "L" ? "Left" : "Right"} wheel ${z > 0 ? "front" : "rear"}`, shape: "torus" as const, size: [17, 5], pos: [x, 22, z] as [N, N, N], rot: [0, 0, 90] as [N, N, N], color: "#475569", opacity: 0.55, group: "Wheels", spinWith: `m${side}`, spinAxis: "x" as const, explode: [x > 0 ? 40 : -40, 0, 0] as [number, number, number], info: { where: `${side === "L" ? "Left" : "Right"} side, ${z > 0 ? "front" : "rear"}`, fit: "Press onto the motor shaft or axle.", cost: "~₦1,500" } },
@@ -441,6 +528,35 @@ export const TEMPLATES: Template[] = [
         { id: "x3", title: "Edit the blocks", detail: "Open Code → Blocks. Change the power from 200 to 100 and watch the gears slow down. Add a block to make the motor run only while the switch is OFF.", videoQuery: "scratch style block coding arduino", check: { kind: "code" } },
       ],
       tests: [{ id: "start", title: "Motor runs only while the switch is ON", durationMs: 1500, inputs: [{ atMs: 400, part: "sw1", value: 1 }, { atMs: 1000, part: "sw1", value: 0 }], expect: { kind: "at", checks: [{ atMs: 200, part: "m1", on: false }, { atMs: 700, part: "m1", on: true }, { atMs: 1300, part: "m1", on: false }] } }],
+    },
+  },
+  {
+    id: "line-follower",
+    title: "Line-following robot (digital twin)",
+    kind: "circuit",
+    level: "intermediate",
+    tags: ["robotics", "physics", "sensors", "code", "3d"],
+    blurb: "Two line sensors, two driven wheels and a track. Wire it, code it, press Run and watch the real physics decide whether your robot follows the line — in 2D and in 3D.",
+    starter: {
+      kind: "circuit",
+      summary: "A two-wheel robot on an oval track. Wire the sensors and the motor drivers, then write the code that steers it along the line.",
+      robot: lineRobot,
+      world: { track: { preset: "oval", width: 18 } },
+      circuit: { parts: [board], wires: [] },
+      code: "function setup() {\n  \n}\n\nfunction loop() {\n  \n}\n",
+      steps: lineSteps(),
+      tests: lineTests(),
+    },
+    spec: {
+      kind: "circuit",
+      summary: "The left and right sensors straddle the line. If the left one sees the dark line the robot is drifting right, so it slows the left wheel to turn left; the same on the other side. Both off the line: drive straight.",
+      robot: lineRobot,
+      world: { track: { preset: "oval", width: 18 } },
+      circuit: lineCircuit(),
+      code: lineCode,
+      steps: lineSteps(),
+      tests: lineTests(),
+      notes: "Sensors read HIGH over the dark line. Wire OUT1→a and OUT2→b on both drivers so positive power drives both wheels forward.",
     },
   },
   {

@@ -158,3 +158,8 @@ This log records architectural and design decisions, trade-offs, and deviations 
 - A latching `switch` part joins the momentary `button`. One Run starts the circuit, drives any mechanism from the motor, or plays the gear lift if there is no circuit.
 - Fullscreen stage (`components/studio/sim-stage.tsx`): a fixed overlay (works on iOS) that also requests browser fullscreen + landscape lock where supported, with 3D / Circuit / Code / Controls views, a split mode, and a lab switcher (`?stage=1` reopens it after switching).
 - AI edits are patches (add/update/remove parts, replace sections) with a plain "can't, because…" reason; blocks and bindings are repaired server-side.
+
+## Maker Studio: robot digital twin (physics world)
+- A design may carry `robot` + `world`. The robot is simulated top-down (`lib/studio/drive/physics.ts`): the circuit's motor outputs (PWM duty × direction through the driver) drive wheel speeds with motor lag, the body moves by differential-drive kinematics, and `ir_sensor` parts read the track under their mounting points. Because sensors only read when powered/wired, wiring mistakes make the robot behave wrongly, as in real life.
+- Frame: x = right, y = up, nose = −z, drive axle at the origin. With `body: "auto"` the 3D chassis, wheels (one axle at ±track/2), caster, motors, sensors and electronics are generated from the numbers, so the AI can no longer misplace wheels (`lib/studio/drive/robot3d.ts`). Parts flagged `moves` ride on the robot in 3D; the same pose drives the 2D Track view.
+- `simulateDrive` runs the same engine headless; the `drive` step check (laps + time on line) uses it on client and server, so "it finishes a lap" is machine-verified.

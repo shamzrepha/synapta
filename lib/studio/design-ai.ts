@@ -30,10 +30,12 @@ const FORMAT = `DESIGN JSON FORMAT (all keys optional except kind):
   "codeMode": "blocks" | "text" (use "blocks" for beginners; then give "blocks" INSTEAD of "code" and the code is generated),
   "blocks": {"setup":[...],"loop":[...]} — block types: {"type":"write","pin":13,"value":"HIGH"|"LOW"}, {"type":"pwm","pin":5,"value":0-255}, {"type":"wait","ms":500}, {"type":"if","cond":COND,"then":[...],"else":[...]}, {"type":"waitUntil","cond":COND}, {"type":"repeat","times":3,"body":[...]}, {"type":"servo","pin":9,"angle":90}, {"type":"tone","pin":8,"hz":440}, {"type":"noTone","pin":8}, {"type":"print","text":"hi"}; COND = {"kind":"pressed"|"released"|"high"|"low","pin":2} or {"kind":"analog","pin":14,"op":">"|"<","value":500} (pins 14–19 are A0–A5). Pin modes are added for you. Button/switch pins read pressed when wired pin→GND.
   "code": "ES5 JavaScript in Arduino style: function setup(){…} function loop(){…}. Use var (not let/const), no arrow functions. API: pinMode(pin, OUTPUT|INPUT|INPUT_PULLUP), digitalWrite(pin, HIGH|LOW), digitalRead, analogRead(A0), analogWrite(pin, 0-255), delay(ms), millis(), tone(pin, hz), noTone(pin), servoWrite(pin, angle), Serial.println(x), map, constrain, random.",
+  "robot": {"wheelRadius":21,"trackWidth":112,"length":150,"wheelWidth":14,"maxRpm":160,"left":"mL","right":"mR","sensors":[{"id":"sL","x":-17,"z":-78},{"id":"sR","x":17,"z":-78}],"body":"auto"} — see ROBOTS WITH PHYSICS,
+  "world": {"track":{"preset":"oval"|"square"|"scurve"|"zigzag","width":18}} or {"track":{"points":[[x,z],...],"closed":true,"width":18}},
   "mechanism": {"input":{"kind":"motor","stallTorque":0.05,"freeRpm":6000} or {"kind":"crank","crankRadius":0.1,"force":40,"crankRpm":60},
                 "module":2,"stages":[{"driverTeeth":12,"drivenTeeth":36}],"efficiencyPerStage":0.95,"drumRadius":0.01,"pulleyAdvantage":1,"load":{"mass":2},"liftHeight":1,"ratchet":true},
   "steps": [{"id":"s1","title":"…","detail":"what to do and why (teach the concept)","videoQuery":"youtube search words",
-             "check": {"kind":"manual"} | {"kind":"parts","type":"led","min":3} | {"kind":"noErrors"} | {"kind":"code"} | {"kind":"test","testId":"t1"} | {"kind":"lifts"} | {"kind":"liftTime","maxSeconds":3}}],
+             "check": {"kind":"manual"} | {"kind":"parts","type":"led","min":3} | {"kind":"noErrors"} | {"kind":"code"} | {"kind":"test","testId":"t1"} | {"kind":"lifts"} | {"kind":"liftTime","maxSeconds":3} | {"kind":"drive","seconds":20,"laps":1,"onLine":0.8}}],
   "tests": [{"id":"t1","title":"…","durationMs":10000,"inputs":[{"atMs":500,"part":"btn","value":1}],
              "expect":{"kind":"sequence","parts":["red","green"],"states":[[1,0],[0,1]],"minMs":300,"cycles":2} or {"kind":"at","checks":[{"atMs":800,"part":"led","on":true}]}}],
   "notes": "safety notes, real-world tips"
@@ -47,6 +49,12 @@ ${catalogText}
 - Give every part a "group", a believable colour (e.g. metal #94a3b8, wood #b45309, plastic #8fd3ff, rubber #1f2937) and "explode" offsets so the exploded view pulls the assembly apart sensibly (move each part away from the centre along the axis it would come off).
 - Use opacity 0.12–0.35 (they are drawn as blueprint-style solids); info.where/info.fit explain placement and assembly.
 - Worked example (phone stand, abridged): params [{"key":"A","label":"Lean angle","value":70,"min":55,"max":85,"unit":"°"}], parts: base box ["120",8,"90"] at [0,4,0]; back rest box [100,120,6] at [0,64,-30] rot [-(90-A)... use numbers like 20,0,0]; front lip box [100,18,8] at [0,17,30]; rubber feet = four cylinders [6,4] under the corners.
+ROBOTS WITH PHYSICS (line followers, rovers — a real digital twin): add "robot" and "world" and the Studio simulates the robot driving with real physics: the circuit's motors turn the wheels (motor lag, differential drive), the line sensors read the track under them, and the 3D robot follows the same path.
+- Frame: millimetres, x = robot's right, y up, the NOSE points to −z (sensors in front have NEGATIVE z), the drive axle is at z = 0 with wheels at x = ±trackWidth/2. "left"/"right" are the circuit dc_motor ids on each side.
+- Use "body":"auto" (default): the Studio builds the chassis, both wheels on one axle, caster, motors, sensors and electronics correctly from your numbers. DO NOT model chassis, wheels, sensors, board or drivers in "parts" (leave "parts" empty or only extras like a bumper or a flag).
+- Circuit for a line follower: one "ir_sensor" per robot sensor (id must match robot.sensors[].id; vcc→board.5V, gnd→board.GND, out→a digital pin such as D2/D3), one "motor_driver" + one "dc_motor" per side (driver vcc→5V, gnd→GND, in→a PWM pin D5/D6, out1→motor a, out2→motor b — wired identically on both sides so positive power is forward). Sensors read HIGH over the dark line, LOW over the floor.
+- Two sensors straddling the line (x = ±17, z = −78; the line is 18 wide): left HIGH → slow the left wheel; right HIGH → slow the right wheel; neither → both fast. Use FAST ≈ 190, SLOW ≈ 30 (analogWrite 0–255). Three sensors (centre x = 0) allow smoother steering. Speed at full power is about maxRpm × 2π/60 × wheelRadius mm/s.
+- Add a step with check {"kind":"drive","seconds":20,"laps":1,"onLine":0.8} so the Studio verifies the robot really completes the track. Pick the track: "oval" (easy), "square" (rounded corners), "scurve" or "zigzag" (open paths), or give your own points.
 LINKED 3D PARTS (one design, one world — circuit, code and 3D all run together from ONE Run button):
 - EVERY circuit part automatically appears in the 3D world on a baseboard, so you never need to model bare LEDs, resistors, boards, drivers, buttons or switches yourself. LEDs glow, motors spin, buttons/switches can be clicked in 3D, servos swing.
 - Model the physical BODY (chassis, gears, wheels, arms, enclosure) as "parts" and LINK moving ones with "bind": the id of a circuit part. A part bound to a dc_motor spins (set "spinAxis" "x","y" or "z" = the axle direction in world space; gears lie flat so use "y"); to a led glows; to a button/switch is clickable (give caps "pressShift" like [0,-1.5,0]); to a servo swings; to a buzzer shakes. Several parts can bind to the same circuit part (a wheel = torus tyre + spoke box).
@@ -137,6 +145,27 @@ export function repairSpec(raw: Record<string, unknown>): Record<string, unknown
       if (spec.codeMode === "blocks") spec.codeMode = "text";
     }
   }
+  // robots: the motors and sensors must exist in the circuit, otherwise there is nothing to simulate
+  if (spec.robot && typeof spec.robot === "object") {
+    const rb = spec.robot as Record<string, unknown>;
+    const cparts = ((spec.circuit as { parts?: Array<{ id: string; type: string }> } | undefined)?.parts || []);
+    const motors = cparts.filter((p) => p.type === "dc_motor").map((p) => p.id);
+    const has = (id: unknown) => motors.includes(String(id));
+    if (!has(rb.left) || !has(rb.right) || rb.left === rb.right) {
+      if (motors.length >= 2) {
+        rb.left = motors[0];
+        rb.right = motors[1];
+      } else delete spec.robot;
+    }
+    if (spec.robot) {
+      const sensorIds = new Set(cparts.filter((p) => p.type === "ir_sensor").map((p) => p.id));
+      rb.sensors = (Array.isArray(rb.sensors) ? (rb.sensors as Array<Record<string, unknown>>) : []).filter((x) => sensorIds.has(String(x.id))).map((x) => ({ id: String(x.id), x: Number(x.x) || 0, z: Number(x.z) > 0 ? -Number(x.z) : Number(x.z) || -70 })).slice(0, 8);
+      if (!spec.world) spec.world = { track: { preset: "oval", width: 18 } };
+      const wd = spec.world as { track?: Record<string, unknown> };
+      if (!wd.track || typeof wd.track !== "object") wd.track = { preset: "oval", width: 18 };
+    }
+  }
+  if (!spec.robot) delete spec.world;
   if (typeof spec.code === "string") spec.code = spec.code.replace(/\r\n/g, "\n");
   if (Array.isArray(spec.parts)) {
     const ids = new Set(((spec.circuit as { parts?: Array<{ id: unknown }> } | undefined)?.parts || []).map((p) => String(p.id)));
@@ -179,7 +208,7 @@ Return ONLY JSON: {"title": "...", "message": "one-line commit message", "spec":
 
 export async function generateDesign(params: { prompt: string; kind?: DesignKind; level?: string; userId: string }) {
   const prompt = `Create a ${params.kind ? `${params.kind} ` : ""}design for: ${params.prompt.slice(0, 1500)}
-Learner level: ${params.level || "beginner"}. Choose the kind that fits best if not given (electronics with code → circuit; gears/levers/lifting with no electronics → mechanism; physical product/enclosure/structure → assembly). If the idea has BOTH electronics and a physical body that moves (cars, robots, motorised gears, fans, lamps with switches), use kind "circuit" and give the 3D body (parts), the circuit and the code together, with moving parts bound to the circuit motors/LEDs/switches so one Run animates everything. Beginners get "codeMode":"blocks" with a block program. Include 4–8 guided steps with checks and, for circuits, at least one behaviour test.`;
+Learner level: ${params.level || "beginner"}. Choose the kind that fits best if not given (electronics with code → circuit; gears/levers/lifting with no electronics → mechanism; physical product/enclosure/structure → assembly). If the idea has BOTH electronics and a physical body that moves (cars, robots, motorised gears, fans, lamps with switches), use kind "circuit" and give the 3D body (parts), the circuit and the code together, with moving parts bound to the circuit motors/LEDs/switches so one Run animates everything. Beginners get "codeMode":"blocks" with a block program. A wheeled robot that should follow a line, drive a track or move on its own MUST use "robot" + "world" (ROBOTS WITH PHYSICS) with body "auto" so it is assembled correctly and really drives in the simulation; include a "drive" check step. Include 4–8 guided steps with checks and, for circuits, at least one behaviour test.`;
   return askForDesign(prompt, params.userId, SYSTEM);
 }
 
@@ -192,7 +221,7 @@ const editSchema = z.object({
   /** changes to existing parts: {"id":"wheel1", ...only the fields that change} */
   updateParts: z.array(z.record(z.unknown())).max(80).optional(),
   removePartIds: z.array(z.string()).max(80).optional(),
-  /** top-level keys to replace completely: params, circuit, code, mechanism, steps, tests, summary, notes */
+  /** top-level keys to replace completely: params, circuit, code, blocks, codeMode, mechanism, robot, world, steps, tests, summary, notes */
   set: z.record(z.unknown()).optional(),
 });
 

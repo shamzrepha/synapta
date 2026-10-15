@@ -1,6 +1,8 @@
 import { CATALOG_BY_TYPE, LED_COLORS } from "./catalog";
 import type { Circuit } from "./netlist";
 import { resolveParts, type DesignSpec, type ResolvedPart } from "../spec";
+import { resolveTrack } from "../drive/track";
+import { robotBody } from "../drive/robot3d";
 
 /**
  * One design, one world. Every part on the circuit bench also exists in the 3D view: parts the
@@ -23,9 +25,9 @@ export const LINK_ROLE: Record<string, LinkRole> = {
 const S = 0.26; // bench pixels → mm
 const TOP = 3; // baseboard thickness
 
-type Draft = Omit<ResolvedPart, "id" | "name" | "pos"> & { dx: number; dy: number; dz: number; name?: string };
+export type Draft = Omit<ResolvedPart, "id" | "name" | "pos"> & { dx: number; dy: number; dz: number; name?: string };
 
-function modelFor(type: string, props: Record<string, string | number> | undefined, w: number, h: number): Draft[] {
+export function modelFor(type: string, props: Record<string, string | number> | undefined, w: number, h: number): Draft[] {
   const box = (size: number[], dy: number, color: string, extra: Partial<Draft> = {}): Draft => ({ shape: "box", size, dx: 0, dy: TOP + dy, dz: 0, color, opacity: 0.35, ...extra });
   switch (type) {
     case "board":
@@ -51,6 +53,8 @@ function modelFor(type: string, props: Record<string, string | number> | undefin
       return [{ shape: "cylinder", size: [4, 3], dx: 0, dy: TOP + 1.5, dz: 0, color: "#fbbf24", opacity: 0.5 }];
     case "temp_sensor":
       return [{ shape: "capsule", size: [2.4, 6], dx: 0, dy: TOP + 5, dz: 0, color: "#38bdf8", opacity: 0.45 }];
+    case "ir_sensor":
+      return [box([12, 4, 8], 2, "#0f172a", { opacity: 0.5 }), { shape: "cylinder", size: [1.6, 3], dx: -2.5, dy: TOP + 5, dz: 0, color: "#f87171", opacity: 0.6 }];
     case "servo":
       return [box([22, 12, 11], 6, "#1d4ed8", { opacity: 0.35 }), box([3, 2, 16], 13, "#e5e7eb", { opacity: 0.7 })];
     case "motor_driver":
@@ -111,9 +115,17 @@ export function circuitTo3D(circuit: Circuit, represented: Set<string>, origin =
   return out;
 }
 
-/** Everything the 3D view shows: the designer's own parts plus generated models of the rest of the circuit. */
+/** Everything the 3D view shows: the designer's own parts plus generated models of the rest of the circuit (and the robot's body). */
 export function sceneParts(spec: DesignSpec, overrides: Record<string, number> = {}): ResolvedPart[] {
-  const explicit = resolveParts(spec, overrides);
+  let explicit = resolveParts(spec, overrides);
+  const robot = spec.robot;
+  const auto = !!robot && robot.body === "auto";
+  if (robot) {
+    // the auto body builds its own wheels; drop any hand-made part that would double them
+    if (auto) explicit = explicit.filter((p) => !(p.bind === robot.left || p.bind === robot.right || p.spinWith === robot.left || p.spinWith === robot.right));
+    explicit = explicit.map((p) => ({ ...p, moves: true }));
+    if (auto) explicit = [...explicit, ...robotBody(robot, spec.circuit)];
+  }
   if (!spec.circuit) return explicit;
   const represented = new Set<string>();
   for (const p of explicit) {
@@ -122,10 +134,14 @@ export function sceneParts(spec: DesignSpec, overrides: Record<string, number> =
   }
   let origin = { x: 0, z: 0 };
   if (explicit.length) {
-    const right = Math.max(...explicit.map((p) => p.pos[0] + (p.shape === "box" ? p.size[0] / 2 : p.size[0])));
+    let right = Math.max(...explicit.map((p) => p.pos[0] + (p.shape === "box" ? p.size[0] / 2 : p.size[0])));
+    if (spec.world) {
+      const tr = resolveTrack(spec.world);
+      right = Math.max(right, ...tr.pts.map((q) => q[0] + tr.width), tr.start.x + 100);
+    }
     const todo = spec.circuit.parts.filter((p) => !represented.has(p.id) && CATALOG_BY_TYPE[p.type]);
     const width = todo.length ? (Math.max(...todo.map((p) => p.x + CATALOG_BY_TYPE[p.type].w)) - Math.min(...todo.map((p) => p.x))) * S + 28 : 0;
-    origin = { x: right + width / 2 + 40, z: 0 };
+    origin = { x: right + width / 2 + 60, z: 0 };
   }
   return [...explicit, ...circuitTo3D(spec.circuit, represented, origin)];
 }

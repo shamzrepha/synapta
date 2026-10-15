@@ -186,7 +186,7 @@ export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
       }
     }
 
-    if (def.category === "input" && !isButtonLike(p.type)) {
+    if (def.category === "input" && !isButtonLike(p.type) && p.type !== "ir_sensor") {
       const outPin = def.pins.find((x) => x.role === "signalOut")!;
       const bp = nl.boardPinsOn(nl.netOf(term(p.id, outPin.name)));
       if (bp.length === 0) {

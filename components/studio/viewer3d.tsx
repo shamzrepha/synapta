@@ -27,6 +27,10 @@ export interface Viewer3DProps {
   live?: { outputs: Record<string, { on: boolean; level: number; direction?: 1 | -1; angle?: number }>; pressed: Set<string> };
   /** a linked button/switch part was pressed (down=true) or released in the 3D view */
   onPress?: (id: string, down: boolean) => void;
+  /** a track on the floor and the robot's live pose: parts marked `moves` ride on the robot */
+  /** keep the camera on the robot (close-up chase view) */
+  follow?: boolean;
+  world?: { track: { pts: Array<[number, number]>; closed: boolean; width: number }; pose: { x: number; z: number; h: number } };
   className?: string;
 }
 
@@ -120,6 +124,51 @@ export function partGeometry(p: { shape: string; size: number[]; teeth?: number 
   }
 }
 
+/** A light floor and the dark line drawn flat on it. */
+function addTrack(into: THREE.Group, track: { pts: Array<[number, number]>; closed: boolean; width: number }) {
+  const xs = track.pts.map((p) => p[0]);
+  const zs = track.pts.map((p) => p[1]);
+  const pad = 140;
+  const minX = Math.min(...xs) - pad;
+  const maxX = Math.max(...xs) + pad;
+  const minZ = Math.min(...zs) - pad;
+  const maxZ = Math.max(...zs) + pad;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(maxX - minX, maxZ - minZ).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#e5edf7", transparent: true, opacity: 0.26, depthWrite: false }));
+  floor.position.set((minX + maxX) / 2, 0.1, (minZ + maxZ) / 2);
+  floor.renderOrder = 0;
+  into.add(floor);
+  const mat = new THREE.MeshBasicMaterial({ color: "#05080f", transparent: true, opacity: 0.95, depthWrite: false });
+  const half = track.width / 2;
+  const n = track.pts.length;
+  const segs = track.closed ? n : n - 1;
+  const pos: number[] = [];
+  for (let i = 0; i < segs; i++) {
+    const a = track.pts[i];
+    const b = track.pts[(i + 1) % n];
+    const dx = b[0] - a[0];
+    const dz = b[1] - a[1];
+    const len = Math.hypot(dx, dz) || 1;
+    const nx = (-dz / len) * half;
+    const nz = (dx / len) * half;
+    const y = 0.4;
+    pos.push(a[0] + nx, y, a[1] + nz, a[0] - nx, y, a[1] - nz, b[0] + nx, y, b[1] + nz, b[0] + nx, y, b[1] + nz, a[0] - nx, y, a[1] - nz, b[0] - nx, y, b[1] - nz);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  const ribbon = new THREE.Mesh(g, mat);
+  ribbon.renderOrder = 1;
+  ribbon.frustumCulled = false;
+  ribbon.material.side = THREE.DoubleSide;
+  into.add(ribbon);
+  const disc = new THREE.CircleGeometry(half, 14).rotateX(-Math.PI / 2);
+  for (const p of track.pts) {
+    const d = new THREE.Mesh(disc, mat);
+    d.position.set(p[0], 0.4, p[1]);
+    d.renderOrder = 1;
+    into.add(d);
+  }
+}
+
 function solid(geo: THREE.BufferGeometry, color: string, opacity: number, selected: boolean): THREE.Group {
   const g = new THREE.Group();
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: selected ? SELECT : color, transparent: true, opacity: selected ? Math.max(0.35, opacity * 1.6) : opacity, depthWrite: false }));
@@ -128,7 +177,7 @@ function solid(geo: THREE.BufferGeometry, color: string, opacity: number, select
   return g;
 }
 
-export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, links, live, onPress, className }: Viewer3DProps) {
+export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, links, live, onPress, world, follow, className }: Viewer3DProps) {
   const host = useRef<HTMLDivElement>(null);
   const ctx = useRef<{
     renderer: THREE.WebGLRenderer;
@@ -143,15 +192,20 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     loadBaseY: number;
     pickables: THREE.Object3D[];
     linked: Linked[];
+    robot: THREE.Group;
     fitted: string;
   } | null>(null);
   const mech = useRef(mechState);
   const liveRef = useRef(live);
+  const worldRef = useRef(world);
+  const followRef = useRef(follow);
   const onPressRef = useRef(onPress);
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
     mech.current = mechState;
     liveRef.current = live;
+    worldRef.current = world;
+    followRef.current = follow;
     onPressRef.current = onPress;
     onSelectRef.current = onSelect;
   });
@@ -175,7 +229,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     scene.add(grid);
     const content = new THREE.Group();
     scene.add(content);
-    ctx.current = { renderer, scene, camera, controls, content, gears: [], load: null, rope: null, ropeTop: new THREE.Vector3(), loadBaseY: 0, pickables: [], linked: [], fitted: "" };
+    ctx.current = { renderer, scene, camera, controls, content, gears: [], load: null, rope: null, ropeTop: new THREE.Vector3(), loadBaseY: 0, pickables: [], linked: [], robot: new THREE.Group(), fitted: "" };
 
     const resize = () => {
       const w = el.clientWidth;
@@ -236,6 +290,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
 
     let raf = 0;
     let lastT = performance.now();
+    let following = false;
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const c = ctx.current;
@@ -243,6 +298,22 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
       const nowT = performance.now();
       const dt = Math.min(0.1, (nowT - lastT) / 1000);
       lastT = nowT;
+      const wd = worldRef.current;
+      if (wd) {
+        c.robot.position.set(wd.pose.x, 0, wd.pose.z);
+        c.robot.rotation.y = wd.pose.h;
+        if (followRef.current) {
+          const target = new THREE.Vector3(wd.pose.x, 20, wd.pose.z);
+          if (!following) {
+            // first frame of a chase view: come in close behind-and-above
+            camera.position.set(target.x + 220, 170, target.z + 260);
+            following = true;
+          }
+          const delta = target.clone().sub(controls.target);
+          controls.target.add(delta);
+          camera.position.add(delta);
+        } else following = false;
+      }
       const lv = liveRef.current;
       if (lv) {
         const t = nowT / 1000;
@@ -317,6 +388,9 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     c.rope = null;
     c.pickables = [];
     c.linked = [];
+    c.robot = new THREE.Group();
+    c.content.add(c.robot);
+    if (world) addTrack(c.content, world.track);
 
     for (const p of parts) {
       const geo = partGeometry(p);
@@ -325,7 +399,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
       g.position.set(p.pos[0] + ex[0] * explode, p.pos[1] + ex[1] * explode, p.pos[2] + ex[2] * explode);
       if (p.rot) g.rotation.set((p.rot[0] * Math.PI) / 180, (p.rot[1] * Math.PI) / 180, (p.rot[2] * Math.PI) / 180);
       g.userData.partId = p.id;
-      c.content.add(g);
+      (p.moves ? c.robot : c.content).add(g);
       c.pickables.push(g.children[0]);
       const bind = p.bind || p.spinWith;
       const role = bind && links ? ROLE[links[bind]] : undefined;
@@ -460,7 +534,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
         c.camera.updateProjectionMatrix();
       }
     }
-  }, [parts, mechanism, explode, selectedId, links]);
+  }, [parts, mechanism, explode, selectedId, links, world?.track]);
 
   return <div ref={host} className={className} style={{ background: "#0b2a5b", position: "relative", overflow: "hidden" }} aria-label="3D model — drag to orbit, scroll or pinch to zoom" />;
 }

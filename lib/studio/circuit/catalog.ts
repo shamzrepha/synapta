@@ -168,6 +168,22 @@ export const CATALOG: ComponentDef[] = [
     learn: "arduino LDR light sensor",
   },
   {
+    type: "ir_sensor",
+    name: "Line sensor (IR)",
+    category: "input",
+    description: "Shines infrared light at the floor and reads how much comes back: a dark line reflects little (reads HIGH here), a light floor reflects a lot (LOW). VCC to 5V, GND to GND, OUT to a pin — digitalRead(pin) or analogRead. Mount it facing the floor at the front of a robot.",
+    w: 60,
+    h: 50,
+    pins: [
+      { name: "vcc", role: "power", x: 0.2, y: 1 },
+      { name: "gnd", role: "ground", x: 0.5, y: 1 },
+      { name: "out", role: "signalOut", x: 0.8, y: 1 },
+    ],
+    props: { value: 80 },
+    cost: "₦700",
+    learn: "TCRT5000 line follower sensor arduino",
+  },
+  {
     type: "temp_sensor",
     name: "Temperature sensor (analog)",
     category: "input",

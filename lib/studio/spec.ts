@@ -134,6 +134,41 @@ export const testSchema = z.object({
   ]),
 });
 
+/**
+ * A wheeled robot in a physics world. Frame: x is the robot's right, z is its front when NEGATIVE
+ * (the nose points to −z), y is up, units mm. Wheels sit on the x axis at ±trackWidth/2.
+ */
+export const robotSchema = z.object({
+  wheelRadius: z.number().min(5).max(100).default(21),
+  /** distance between the left and right wheel centres */
+  trackWidth: z.number().min(30).max(400).default(110),
+  /** chassis length (front to back) */
+  length: z.number().min(40).max(500).default(150),
+  wheelWidth: z.number().min(4).max(60).default(14),
+  /** wheel speed at full power, after the gearbox */
+  maxRpm: z.number().min(10).max(600).default(180),
+  /** circuit motor ids driving the left and right wheels (positive = forward when out1→a, out2→b) */
+  left: z.string().max(24),
+  right: z.string().max(24),
+  /** line/IR sensors: circuit part id and where they sit on the robot (x right, z ahead is negative) */
+  sensors: z.array(z.object({ id: z.string().max(24), x: z.number().min(-300).max(300), z: z.number().min(-400).max(400) })).max(8).default([]),
+  /** "auto" builds the chassis, wheels, caster and parts from these numbers; "custom" uses your own parts */
+  body: z.enum(["auto", "custom"]).default("auto"),
+});
+
+export const worldSchema = z.object({
+  track: z.object({
+    preset: z.enum(["oval", "square", "scurve", "zigzag"]).optional(),
+    /** or your own path: [x, z] points in mm */
+    points: z.array(z.tuple([z.number(), z.number()])).min(2).max(400).optional(),
+    closed: z.boolean().default(true),
+    /** line width in mm */
+    width: z.number().min(6).max(60).default(18),
+  }),
+  /** robot start pose; default: on the first track point facing along the track */
+  start: z.object({ x: z.number(), z: z.number(), heading: z.number() }).optional(),
+});
+
 export const checkSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("manual") }),
   z.object({ kind: z.literal("parts"), type: z.string(), min: z.number().int().min(1).default(1) }),
@@ -143,6 +178,8 @@ export const checkSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("test"), testId: z.string() }),
   z.object({ kind: z.literal("lifts") }),
   z.object({ kind: z.literal("liftTime"), maxSeconds: z.number().positive() }),
+  /** the robot must complete `laps` of the track (or that fraction of an open path) staying on the line `onLine` of the time */
+  z.object({ kind: z.literal("drive"), seconds: z.number().min(5).max(180).default(40), laps: z.number().min(0.1).max(10).default(1), onLine: z.number().min(0).max(1).default(0.8) }),
 ]);
 
 export const stepSchema = z.object({
@@ -174,6 +211,8 @@ export const designSpecSchema = z.object({
   blocks: blocksSchema.optional(),
   codeMode: z.enum(["blocks", "text"]).optional(),
   mechanism: mechanismSchema.optional(),
+  robot: robotSchema.optional(),
+  world: worldSchema.optional(),
   steps: z.array(stepSchema).max(30).default([]),
   tests: z.array(testSchema).max(10).default([]),
   notes: z.string().max(3000).optional(),
@@ -187,6 +226,8 @@ export type Wire = z.output<typeof wireSchema>;
 export type Mechanism = z.output<typeof mechanismSchema>;
 export type Step = z.output<typeof stepSchema>;
 export type BehaviorTest = z.output<typeof testSchema>;
+export type Robot = z.output<typeof robotSchema>;
+export type World = z.output<typeof worldSchema>;
 export type Param = z.output<typeof paramSchema>;
 
 /** Validates and fills defaults. Throws a readable error. */
@@ -207,6 +248,8 @@ export function paramValues(spec: Pick<DesignSpec, "params">, overrides: Record<
 
 export interface ResolvedPart extends Omit<Part3D, "size" | "pos" | "rot" | "teeth" | "spinRatio"> {
   spinRatio?: number;
+  /** part of the robot: it moves with the robot in the physics world */
+  moves?: boolean;
   size: number[];
   pos: [number, number, number];
   rot?: [number, number, number];

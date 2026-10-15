@@ -3,6 +3,7 @@ import { checkCircuit } from "./circuit/checker";
 import { Netlist, scanCode } from "./circuit/netlist";
 import { runBehaviorTest, type TestResult } from "./circuit/runtime";
 import { simulateLift } from "./mech/gears";
+import { simulateDrive } from "./drive/run";
 import type { DesignSpec, Step } from "./spec";
 
 /**
@@ -58,6 +59,16 @@ export function verifyStep(spec: DesignSpec, step: Step): StepResult {
       if (!spec.mechanism) return { done: false, verified: true, message: "No mechanism." };
       const r = simulateLift(spec.mechanism);
       return { done: r.reached, verified: true, message: r.verdict };
+    }
+    case "drive": {
+      if (!circuit || !spec.robot || !spec.world) return { done: false, verified: true, message: "This design needs a robot and a track." };
+      const r = simulateDrive(spec, c.seconds, 0.02);
+      if (r.error) return { done: false, verified: true, message: `Program error — ${r.error}` };
+      const pct = Math.round(r.onLineFraction * 100);
+      const laps = Math.max(0, r.laps);
+      if (laps < c.laps) return { done: false, verified: true, message: `In ${c.seconds} s the robot covered ${Math.round(laps * 100)}% of ${c.laps === 1 ? "a lap" : `${c.laps} laps`}. It stayed on the line ${pct}% of the time — ${pct < 60 ? "it keeps leaving the line: check the sensors, wiring and steering code" : "make it faster without leaving the line"}.` };
+      if (r.onLineFraction < c.onLine) return { done: false, verified: true, message: `It finished, but stayed on the line only ${pct}% of the time (needs ${Math.round(c.onLine * 100)}%). Slow down in corners.` };
+      return { done: true, verified: true, message: `Finished ${laps.toFixed(1)} lap(s) in ${c.seconds} s, on the line ${pct}% of the time.` };
     }
     case "liftTime": {
       if (!spec.mechanism) return { done: false, verified: true, message: "No mechanism." };

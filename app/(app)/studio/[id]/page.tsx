@@ -18,6 +18,9 @@ import { CodeEditor } from "@/components/studio/code-editor";
 import { MechPanel } from "@/components/studio/mech-panel";
 import { GuidePanel, type GuideMode } from "@/components/studio/guide-panel";
 import { HistoryPanel } from "@/components/studio/history-panel";
+import { TrackView } from "@/components/studio/track-view";
+import { DriveSim } from "@/lib/studio/drive/physics";
+import { resolveTrack } from "@/lib/studio/drive/track";
 import { PartEditor } from "@/components/studio/part-editor";
 import { BlockEditor } from "@/components/studio/block-editor";
 import { SimStage, type StageLab } from "@/components/studio/sim-stage";
@@ -98,6 +101,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const [stageView, setStageView] = useState("3d");
   const [stageSplit, setStageSplit] = useState(true);
   const [labs, setLabs] = useState<StageLab[]>([]);
+  const [drive, setDrive] = useState<DriveSim | null>(null);
+  const [follow, setFollow] = useState(false);
   const typesRef = useRef<Record<string, string>>({});
   const runningRef = useRef(false);
   const mechStopRef = useRef<(() => void) | null>(null);
@@ -251,6 +256,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const canEdit = !!data?.canEdit && !preview;
 
   const parts3d = useMemo(() => (shown ? sceneParts(shown) : []), [shown]);
+  const idleDrive = useMemo(() => (shown?.robot && shown.world ? new DriveSim(shown.robot, resolveTrack(shown.world)) : null), [shown]);
+  const activeDrive = drive && shown?.robot === drive.robot ? drive : idleDrive;
   const links = useMemo(() => {
     const out: Record<string, string> = {};
     for (const p of shown?.circuit?.parts || []) out[p.id] = p.type;
@@ -299,6 +306,9 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     let printed = 0;
     let lastKey = "";
     let nl = new Netlist(circuit);
+    const robot = shown.robot;
+    const sim = robot && shown.world ? new DriveSim(robot, resolveTrack(shown.world)) : null;
+    setDrive(sim);
     // a mechanism in the same design turns with the circuit's motor, so one Run drives everything
     const mech = shown.mechanism;
     const radPerMetre = mech ? analyzeMechanism(mech).radPerMetre : 0;
@@ -306,6 +316,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     const frame = (now: number) => {
       const dt = Math.min(100, now - last);
       last = now;
+      if (sim && robot) for (const sn of robot.sensors) inputsRef.current.values[sn.id] = sim.sensor(sn.x, sn.z);
       rt.advance(rt.now + dt, 150_000);
       const key = Array.from(inputsRef.current.pressed).sort().join(",");
       if (key !== lastKey) {
@@ -314,6 +325,14 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
       }
       const outs = evaluateOutputs(nl, rt.pins);
       setOutputs(outs);
+      if (sim && robot) {
+        let rem = dt / 1000;
+        while (rem > 1e-6) {
+          const h = Math.min(0.02, rem);
+          sim.step(h, outs[robot.left], outs[robot.right]);
+          rem -= h;
+        }
+      }
       if (mech) {
         const m = Object.entries(outs).find(([pid, o]) => typesRef.current[pid] === "dc_motor" && o.on)?.[1];
         if (m) {
@@ -563,6 +582,13 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
       />
     ) : null;
 
+  const trackBlock = activeDrive ? (
+    <div className="space-y-1.5">
+      <TrackView drive={activeDrive} running={running} className="h-[34vh] min-h-[220px] w-full rounded-2xl border border-slate-200 dark:border-slate-800" />
+      <p className="text-[11px] text-slate-500">Top-down view with real physics: the code reads the line sensors, the motors turn the wheels, and the robot moves. Wire both drivers the same way so positive power means forward.</p>
+    </div>
+  ) : null;
+
   const benchBlock = shown.circuit ? (
     <div className="space-y-2">
       {runError && <p className="rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300 text-sm px-3 py-2 font-mono">{runError}</p>}
@@ -582,6 +608,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
       links={links}
       live={{ outputs: liveOutputs, pressed }}
       onPress={press}
+      world={activeDrive ? { track: activeDrive.track, pose: activeDrive.pose } : undefined}
+      follow={follow}
       className={cls}
     />
   );
@@ -606,9 +634,18 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     </label>
   ) : null;
 
+  const followButton = activeDrive ? (
+    <button type="button" onClick={() => setFollow((f) => !f)} className={cn("absolute right-2 top-2 z-10 rounded-lg px-2.5 py-1.5 text-xs font-bold", follow ? "bg-teal-600 text-white" : "bg-black/50 text-white hover:bg-black/70")}>
+      {follow ? "Following robot" : "Follow robot"}
+    </button>
+  ) : null;
+
   const viewerBlock = (
     <div className="space-y-2">
-      {viewerEl("h-[48vh] min-h-[320px] w-full rounded-2xl border border-slate-200 dark:border-slate-800")}
+      <div className="relative">
+        {viewerEl("h-[48vh] min-h-[320px] w-full rounded-2xl border border-slate-200 dark:border-slate-800")}
+        {followButton}
+      </div>
       {parts3d.some((p) => p.bind) && shown.circuit && <p className="text-[11px] text-slate-500">Tap a switch or button on the 3D model to use it — it works the same as on the circuit bench.</p>}
       {explodeSlider}
       {selectedCard}
@@ -676,7 +713,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   );
 
   const stageViews = [
-    ...(has3d ? [{ key: "3d", label: "3D", node: <div className="relative h-full w-full">{viewerEl("h-full w-full")}</div> }] : []),
+    ...(has3d ? [{ key: "3d", label: "3D", node: <div className="relative h-full w-full">{viewerEl("h-full w-full")}{followButton}</div> }] : []),
+    ...(activeDrive ? [{ key: "track", label: "Track", node: <TrackView drive={activeDrive} running={running} className="h-full w-full" /> }] : []),
     ...(shown.circuit ? [{ key: "circuit", label: "Circuit", node: <div className="h-full p-1.5">{benchEl(true)}</div> }] : []),
     ...(shown.circuit ? [{ key: "code", label: "Code", node: <div className="p-2 text-slate-900 dark:text-slate-100">{codePanel}</div> }] : []),
     { key: "controls", label: "Controls", node: controlsPanel },
@@ -789,13 +827,15 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
           {!stageOpen && (
             <>
               {(shown.circuit || shown.mechanism) && runBar}
-              {shown.parts.length > 0 || !shown.circuit ? (
+              {shown.parts.length > 0 || !shown.circuit || shown.robot ? (
                 <>
                   {has3d && viewerBlock}
+                  {trackBlock}
                   {benchBlock}
                 </>
               ) : (
                 <>
+                  {trackBlock}
                   {benchBlock}
                   {has3d && viewerBlock}
                 </>
