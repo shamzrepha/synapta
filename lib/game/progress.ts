@@ -2,6 +2,7 @@ import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { notify } from "@/lib/notifications/server";
 import { bumpChannels, bumpUserSignal } from "@/lib/live/server";
 import { shareAchievement } from "@/lib/social/feed";
+import { onProgressEvent } from "@/lib/quests/hook";
 import { levelFromXp } from "./levels";
 import { newlyEarnedBadges, normalizeStats, type PlayerStats } from "./badges";
 import { questsForDay, dayIdFor, type QuestDef } from "./quests";
@@ -95,6 +96,8 @@ async function trackProgressInner(ev: ProgressEvent): Promise<void> {
   // 4. Daily quests
   if (ev.countsForQuests !== false) {
     await advanceQuests(ev.uid, { ...(ev.stats || {}), xp: totalXpDelta });
+    // Heatmap day counter + seasonal quests (best-effort)
+    try { await onProgressEvent(ev.uid, { ...(ev.stats || {}), xp: totalXpDelta }, totalXpDelta); } catch { /* never break progress */ }
   }
 
   // 5. Badges

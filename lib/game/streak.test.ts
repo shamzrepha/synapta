@@ -15,8 +15,8 @@ describe("streaks with freezes", () => {
     expect(nextStreak({ current: 9, lastActiveDate: "2026-10-11", today: "2026-10-15", freezes: 2 }).streak).toBe(1);
   });
 
-  it("earns a freeze every 7 days, capped at 2", () => {
+  it("earns a freeze every 7 days, capped at 3", () => {
     expect(nextStreak({ current: 6, lastActiveDate: "2026-10-14", today: "2026-10-15", freezes: 0 })).toMatchObject({ streak: 7, freezes: 1, freezeEarned: true });
-    expect(nextStreak({ current: 13, lastActiveDate: "2026-10-14", today: "2026-10-15", freezes: 2 })).toMatchObject({ streak: 14, freezes: 2, freezeEarned: false });
+    expect(nextStreak({ current: 13, lastActiveDate: "2026-10-14", today: "2026-10-15", freezes: 3 })).toMatchObject({ streak: 14, freezes: 3, freezeEarned: false });
   });
 });

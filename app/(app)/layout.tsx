@@ -3,6 +3,7 @@ import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { TutorLauncher } from "@/components/tutor/tutor-launcher";
+import { ThemeApplier } from "@/components/shop/theme-applier";
 
 export default function AppLayout({
   children,
@@ -20,6 +21,7 @@ export default function AppLayout({
       </div>
       <MobileNav />
       <TutorLauncher />
+      <ThemeApplier />
     </div>
   );
 }

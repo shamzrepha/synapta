@@ -1,4 +1,4 @@
-export const MAX_STREAK_FREEZES = 2;
+export const MAX_STREAK_FREEZES = 3;
 export const FREEZE_EVERY_DAYS = 7;
 
 /**
@@ -6,7 +6,7 @@ export const FREEZE_EVERY_DAYS = 7;
  * - studying again the next day extends the streak;
  * - missing days uses one freeze per missed day if you have enough, keeping the streak alive;
  * - otherwise the streak restarts at 1;
- * - every 7-day milestone earns a freeze (holding at most 2).
+ * - every 7-day milestone earns a freeze (holding at most 3).
  */
 export function nextStreak(params: {
   current: number;
