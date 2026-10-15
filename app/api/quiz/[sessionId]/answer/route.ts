@@ -4,6 +4,7 @@ import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { applyEvidence } from "@/lib/evidence/apply";
 import { trackMisconception } from "@/lib/teacher/misconceptions";
 import { ApiError, parseJson } from "@/lib/api/errors";
+import { recordMistake } from "@/lib/mistakes/store";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -101,6 +102,25 @@ export async function POST(
         selectedOptionIndex,
       },
     });
+
+    // Mistake notebook (best effort; recordMistake never throws)
+    if (!isCorrect) {
+      try {
+        await recordMistake({
+          uid: caller.uid,
+          question: targetQuestion.question,
+          options: targetQuestion.options,
+          correctIndex: targetQuestion.correctIndex,
+          selectedIndex: selectedOptionIndex,
+          explanation: targetQuestion.explanation,
+          classId: sessionData.classId,
+          kcId: sessionData.kcId,
+          source: "quiz",
+        });
+      } catch {
+        // never break quizzes
+      }
+    }
 
     // Misconception detection & resolution tracking
     const misconceptionLabel = targetQuestion.distractorMisconceptions?.[selectedOptionIndex];

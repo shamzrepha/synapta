@@ -16,15 +16,15 @@ export interface FeatureEntry {
 }
 
 export const FEATURES: FeatureEntry[] = [
-  { n: 1, id: "flashcards", title: "AI flashcards", blurb: "Turn any lesson into spaced-repetition cards.", emoji: "🃏", href: "/study/flashcards", group: "Study", status: "soon" },
-  { n: 2, id: "daily", title: "Daily 5-minute challenge", blurb: "Five questions from what you got wrong.", emoji: "⚡", href: "/study/daily", group: "Study", status: "soon" },
+  { n: 1, id: "flashcards", title: "AI flashcards", blurb: "Turn any lesson into spaced-repetition cards.", emoji: "🃏", href: "/study/flashcards", group: "Study", status: "live" },
+  { n: 2, id: "daily", title: "Daily 5-minute challenge", blurb: "Five questions from what you got wrong.", emoji: "⚡", href: "/study/daily", group: "Study", status: "live" },
   { n: 3, id: "snap", title: "Snap your homework", blurb: "Photograph a problem; the AI explains it step by step.", emoji: "📸", href: "/study/snap", group: "Study", status: "soon" },
-  { n: 4, id: "exams", title: "Exam countdown planner", blurb: "A revision schedule built backwards from your exam date.", emoji: "🗓️", href: "/study/exams", group: "Study", status: "soon" },
+  { n: 4, id: "exams", title: "Exam countdown planner", blurb: "A revision schedule built backwards from your exam date.", emoji: "🗓️", href: "/study/exams", group: "Study", status: "live" },
   { n: 5, id: "papers", title: "Past-paper mode", blurb: "Timed papers, AI-marked, with a weak-topic report.", emoji: "📝", href: "/study/papers", group: "Study", status: "soon" },
   { n: 6, id: "focus", title: "Focus rooms", blurb: "Pomodoro with friends, silently, with a streak.", emoji: "🍅", href: "/focus", group: "Study", status: "soon" },
   { n: 7, id: "eli", title: "Explain it like I'm 12", blurb: "Switch any explanation between simple and lecturer level.", emoji: "🧒", href: "/tutor", group: "Study", status: "soon" },
   { n: 8, id: "voice", title: "Voice tutor", blurb: "Talk to the AI hands-free.", emoji: "🎙️", href: "/tutor/voice", group: "Study", status: "soon" },
-  { n: 9, id: "mistakes", title: "Mistake notebook", blurb: "Every wrong answer saved with the fix and re-tested.", emoji: "📕", href: "/study/mistakes", group: "Study", status: "soon" },
+  { n: 9, id: "mistakes", title: "Mistake notebook", blurb: "Every wrong answer saved with the fix and re-tested.", emoji: "📕", href: "/study/mistakes", group: "Study", status: "live" },
   { n: 10, id: "mindmap", title: "Mind-map maker", blurb: "A mind map from any lesson or your notes.", emoji: "🧠", href: "/study/mindmap", group: "Study", status: "soon" },
   { n: 11, id: "groups", title: "Study groups", blurb: "Shared notebook, goals and a group streak.", emoji: "👥", href: "/groups", group: "Social", status: "soon" },
   { n: 12, id: "ask", title: "Anonymous ask", blurb: "“I don't get this” without anyone knowing it's you.", emoji: "🙈", href: "/ask", group: "Social", status: "soon" },
