@@ -25,6 +25,8 @@ import { Input } from "@/components/ui/input";
 import { useGameState } from "@/components/game/use-game";
 import { LevelCard, BadgeGrid } from "@/components/game/widgets";
 import { GameSettings } from "@/components/game/game-settings";
+import { EquippedTitle } from "@/components/shop/equipped-title";
+import { ActivityHeatmap } from "@/components/activity/activity-heatmap";
 
 export default function ProfilePage() {
   const { game } = useGameState();
@@ -141,6 +143,7 @@ export default function ProfilePage() {
             <p className="text-xs font-semibold text-teal-600 dark:text-teal-400">
               @{user?.username || "choose_handle"}
             </p>
+            <EquippedTitle />
             <CardDescription className="text-xs truncate mt-0.5">{user?.email}</CardDescription>
             <div className="pt-2 flex justify-center">
               <Badge
@@ -356,6 +359,7 @@ export default function ProfilePage() {
         <div className="space-y-6">
           <LevelCard game={game} />
           <BadgeGrid game={game} />
+          {user?.uid && <Card className="p-4 sm:p-5"><ActivityHeatmap uid={user.uid} compact /></Card>}
           <GameSettings game={game} />
         </div>
       )}

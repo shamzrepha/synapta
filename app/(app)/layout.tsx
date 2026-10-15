@@ -4,6 +4,7 @@ import { Topbar } from "@/components/shell/topbar";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { OfflineManager } from "@/components/offline/offline-manager";
 import { TutorLauncher } from "@/components/tutor/tutor-launcher";
+import { ThemeApplier } from "@/components/shop/theme-applier";
 
 export default function AppLayout({
   children,
@@ -21,7 +22,11 @@ export default function AppLayout({
       </div>
       <MobileNav />
       <TutorLauncher />
+<<<<<<< HEAD
       <OfflineManager />
+=======
+      <ThemeApplier />
+>>>>>>> worktree-agent-a08c5f8c2a5f7a3c8
     </div>
   );
 }
