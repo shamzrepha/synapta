@@ -1,5 +1,6 @@
 "use client";
 
+import { SocialInput } from "@/components/feed/social-input";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -553,13 +554,14 @@ export function PostCard({
             </div>
           )}
           <form onSubmit={sendComment} className="flex items-center gap-2">
-            <input
-              ref={inputRef}
+            <SocialInput
+              as="input"
+              inputRef={inputRef as React.MutableRefObject<HTMLInputElement | HTMLTextAreaElement | null>}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
               maxLength={1500}
               placeholder={replyTo ? `Reply to ${replyTo.authorName}…` : post.kind === "question" ? "Write an answer… (@mention someone)" : "Write a comment…"}
-              className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:border-teal-500"
+              className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:border-teal-500"
             />
             <button type="submit" disabled={!draft.trim() || sending} className="h-10 w-10 rounded-xl bg-teal-600 text-white flex items-center justify-center disabled:opacity-40" aria-label="Send comment">
               <Send className="h-4 w-4" />

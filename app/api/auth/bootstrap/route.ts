@@ -14,6 +14,18 @@ const bootstrapBodySchema = z.object({
   photoURL: z.string().nullable().optional(),
 });
 
+/** A handle nobody else uses: mentions and /u/<handle> resolve to exactly one person. */
+async function uniqueUsername(seed: string, uid: string): Promise<string> {
+  const col = adminDb().collection("users");
+  let candidate = seed;
+  for (let i = 0; i < 6; i++) {
+    const clash = await col.where("username", "==", candidate).limit(2).get();
+    if (clash.docs.every((d) => d.id === uid)) return candidate;
+    candidate = `${seed.slice(0, 20)}${i === 0 ? uid.slice(0, 4).toLowerCase().replace(/[^a-z0-9]/g, "x") : Math.floor(1000 + Math.random() * 9000)}`;
+  }
+  return `${seed.slice(0, 16)}_${uid.slice(0, 6).toLowerCase()}`;
+}
+
 function sanitizeUsername(input?: string): string {
   if (!input) return "";
   return input
@@ -90,6 +102,9 @@ export async function POST(req: NextRequest) {
         decoded.name ||
         `user_${uid.slice(0, 6)}`
     ) || `user_${uid.slice(0, 6)}`;
+    // handles must be 3+ characters to be mentionable, and unique
+    const paddedSeed = defaultUsernameSeed.length >= 3 ? defaultUsernameSeed : `${defaultUsernameSeed}_${uid.slice(0, 4).toLowerCase()}`;
+    const handle = await uniqueUsername(paddedSeed, uid);
 
     if (!userDoc.exists) {
       // Create fresh user profile
@@ -103,7 +118,8 @@ export async function POST(req: NextRequest) {
         uid,
         email: email || null,
         displayName: resolvedDisplayName,
-        username: defaultUsernameSeed,
+        username: handle,
+        displayNameLower: String(resolvedDisplayName).toLowerCase(),
         photoURL: photoURL || decoded.picture || null,
         role,
         roleRequest: grantAdmin ? "none" : roleRequest,
@@ -150,9 +166,23 @@ export async function POST(req: NextRequest) {
       // If existing user has no username or legacy placeholder handle, update
       let currentUsername = existing.username;
       if (!currentUsername || currentUsername.includes("alex") || currentUsername.includes("rivera")) {
-        currentUsername = defaultUsernameSeed;
+        currentUsername = handle;
         updates.username = currentUsername;
+      } else {
+        // older accounts: lower-case, 3+ characters and unique, so @mentions find exactly one person
+        const clean = sanitizeUsername(currentUsername);
+        if (clean !== currentUsername || clean.length < 3) {
+          currentUsername = await uniqueUsername(clean.length >= 3 ? clean : paddedSeed, uid);
+          updates.username = currentUsername;
+        } else {
+          const clash = await adminDb().collection("users").where("username", "==", currentUsername).limit(2).get();
+          if (clash.docs.some((d) => d.id !== uid)) {
+            currentUsername = await uniqueUsername(currentUsername, uid);
+            updates.username = currentUsername;
+          }
+        }
       }
+      if (existing.displayNameLower !== String(currentDisplayName || "").toLowerCase()) updates.displayNameLower = String(currentDisplayName || "").toLowerCase();
 
       if (Object.keys(updates).length > 0) {
         await userRef.update(updates);

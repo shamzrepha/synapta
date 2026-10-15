@@ -64,7 +64,8 @@ async function bumpHashtags(tags: string[]) {
       adminDb()
         .collection("hashtagStats")
         .doc(tag)
-        .set({ tag, total: FieldValue.increment(1), lastUsedAt: Timestamp.now(), [`days.${day}`]: FieldValue.increment(1) }, { merge: true })
+        // a nested map, not a "days.<date>" key: set() would store that as a literal field name and trending could never read it
+        .set({ tag, total: FieldValue.increment(1), lastUsedAt: Timestamp.now(), days: { [day]: FieldValue.increment(1) } }, { merge: true })
         .catch(() => null)
     )
   );

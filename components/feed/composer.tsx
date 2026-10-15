@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import { SocialInput } from "@/components/feed/social-input";
 import { HelpCircle, Sparkles, MessageSquare, Link2, ImagePlus, BarChart3, X, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -118,14 +119,14 @@ export function Composer({
     <Card className="p-4 space-y-3">
       <div className="flex gap-3">
         <Avatar name={user?.displayName || "You"} photoURL={user?.photoURL} seed={user?.uid} size={40} />
-        <textarea
+        <SocialInput
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={setText}
           onFocus={() => setFocused(true)}
           rows={expanded ? 3 : 1}
           maxLength={3000}
           placeholder={pollOn ? "Ask your poll question…" : current.placeholder}
-          className="flex-1 resize-none rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm focus:outline-none focus:border-teal-500 focus:bg-white dark:focus:bg-slate-900"
+          className="resize-none rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm focus:outline-none focus:border-teal-500 focus:bg-white dark:focus:bg-slate-900"
         />
       </div>
 

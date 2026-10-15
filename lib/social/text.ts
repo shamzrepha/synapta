@@ -32,3 +32,27 @@ export function linkifySocial(text: string): string {
     })
     .join("");
 }
+
+export interface ActiveToken {
+  kind: "@" | "#";
+  /** text typed after the symbol */
+  query: string;
+  /** index of the symbol in the text */
+  start: number;
+}
+
+/** The @mention or #hashtag the caret is currently inside (for autocomplete), or null. */
+export function activeToken(text: string, caret: number): ActiveToken | null {
+  const before = text.slice(0, caret);
+  const m = /(^|[^\w@#&])([@#])([a-zA-Z0-9_]{0,30})$/.exec(before);
+  if (!m) return null;
+  return { kind: m[2] as "@" | "#", query: m[3], start: before.length - m[3].length - 1 };
+}
+
+/** Replaces the active token with the chosen value (plus a space) and returns the new text and caret. */
+export function applySuggestion(text: string, caret: number, token: ActiveToken, value: string): { text: string; caret: number } {
+  const needsSpace = !/^\s/.test(text.slice(caret));
+  const insert = `${token.kind}${value}${needsSpace ? " " : ""}`;
+  const next = text.slice(0, token.start) + insert + text.slice(caret);
+  return { text: next, caret: token.start + insert.length + (needsSpace ? 0 : 1) };
+}

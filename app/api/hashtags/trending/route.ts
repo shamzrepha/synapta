@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
     const trending = snap.docs
       .map((d) => {
         const data = d.data();
-        const perDay = days.map((day) => (data.days?.[day] as number) || 0);
+        // older posts stored the day under a literal "days.<date>" field; read both shapes
+        const perDay = days.map((day) => ((data.days?.[day] as number | undefined) ?? (data[`days.${day}`] as number | undefined)) || 0);
         return {
           tag: data.tag as string,
           recent: perDay.reduce((a, b) => a + b, 0),
