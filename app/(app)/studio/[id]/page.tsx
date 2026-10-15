@@ -12,7 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { ShareSheet } from "@/components/social/share-sheet";
 import { useLiveChannel } from "@/lib/live/client";
 import { asArray } from "@/lib/api/client";
-import { Viewer3D } from "@/components/studio/viewer3d";
+import { Viewer3D } from "@/components/studio/deferred-viewer3d";
 import { CircuitBench, type CircuitValue } from "@/components/studio/circuit-bench";
 import { CodeEditor } from "@/components/studio/code-editor";
 import { MechPanel } from "@/components/studio/mech-panel";

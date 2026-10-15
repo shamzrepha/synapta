@@ -2,6 +2,7 @@ import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { notify } from "@/lib/notifications/server";
 import { bumpChannels, bumpUserSignal } from "@/lib/live/server";
 import { shareAchievement } from "@/lib/social/feed";
+import { addWeeklyXp } from "@/lib/weekly/server";
 import { levelFromXp } from "./levels";
 import { newlyEarnedBadges, normalizeStats, type PlayerStats } from "./badges";
 import { questsForDay, dayIdFor, type QuestDef } from "./quests";
@@ -90,6 +91,7 @@ async function trackProgressInner(ev: ProgressEvent): Promise<void> {
   let leagueTier = snapshot.leagueTier;
   if (totalXpDelta > 0) {
     leagueTier = await addLeagueXp(ev.uid, totalXpDelta, snapshot.leagueTier, snapshot.leagueLastWeek);
+    try { await addWeeklyXp(ev.uid, totalXpDelta); } catch { /* weekly board is best-effort */ }
   }
 
   // 4. Daily quests

@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { AttachmentCard, type SharedAttachment } from "@/components/social/attachment-card";
 import { ShareSheet } from "@/components/social/share-sheet";
+import { useDataSaver } from "@/components/settings/use-prefs";
 import { useLiveChannel } from "@/lib/live/client";
 import { useToast } from "@/components/ui/toast";
 import { linkifySocial } from "@/lib/social/text";
@@ -114,6 +115,7 @@ function Time({ iso }: { iso: string | null }) {
 }
 
 function ImageGrid({ images, onOpen }: { images: string[]; onOpen: (src: string) => void }) {
+  const dataSaver = useDataSaver();
   if (images.length === 0) return null;
   return (
     <div className={cn("grid gap-1.5 rounded-2xl overflow-hidden", images.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
@@ -124,8 +126,12 @@ function ImageGrid({ images, onOpen }: { images: string[]; onOpen: (src: string)
           onClick={() => onOpen(`/api/media/${p}`)}
           className={cn("relative bg-slate-100 dark:bg-slate-900", images.length === 3 && i === 0 && "row-span-2")}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/media/${p}`} alt="" loading="lazy" className={cn("w-full object-cover", images.length === 1 ? "max-h-[480px]" : "h-48 sm:h-56", images.length === 3 && i === 0 && "h-full")} />
+          {dataSaver ? (
+            <span className="flex h-20 w-full items-center justify-center text-xs font-semibold text-slate-500">Data saver: tap to view image</span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={`/api/media/${p}`} alt="" loading="lazy" decoding="async" className={cn("w-full object-cover", images.length === 1 ? "max-h-[480px]" : "h-48 sm:h-56", images.length === 3 && i === 0 && "h-full")} />
+          )}
         </button>
       ))}
     </div>

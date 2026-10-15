@@ -238,6 +238,7 @@ export default function ProfilePage() {
                   <Button type="submit" size="sm" isLoading={savingProfile} className="text-xs">
                     Save Profile Changes
                   </Button>
+                  <Link href="/settings"><Button type="button" variant="outline" size="sm" className="text-xs">Settings</Button></Link>
                   <Link href="/friends">
                     <Button type="button" variant="outline" size="sm" className="text-xs">
                       <Users className="h-3.5 w-3.5 mr-1 text-teal-600 dark:text-teal-400" /> Go to Friends & Chat

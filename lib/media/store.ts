@@ -58,3 +58,9 @@ export async function loadMedia(path: string): Promise<{ bytes: Buffer; contentT
   const [[buf], [meta]] = await Promise.all([file.download(), file.getMetadata()]);
   return { bytes: buf, contentType: String(meta.contentType || "application/octet-stream") };
 }
+
+/** Removes a stored file (both the Firestore fallback doc and any Cloud Storage object). Best effort. */
+export async function deleteMedia(path: string): Promise<void> {
+  await adminDb().collection("media").doc(mediaDocId(path)).delete().catch(() => null);
+  if (await hasBucket()) await adminBucket().file(path).delete({ ignoreNotFound: true }).catch(() => null);
+}
