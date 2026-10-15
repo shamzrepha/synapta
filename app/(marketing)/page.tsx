@@ -16,10 +16,33 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { SITE_ALT_NAME, SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/site";
 
 export default function LandingPage() {
+  const siteUrl = getSiteUrl();
+  // Structured data so search engines know the site's name (WebSite) and who runs it (Organization)
+  const structuredData = [
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: SITE_NAME,
+      alternateName: [SITE_ALT_NAME, "Sunroot"],
+      url: `${siteUrl}/`,
+      description: SITE_DESCRIPTION,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: `${siteUrl}/`,
+    },
+  ];
   return (
     <div className="min-h-screen bg-[#F7F6F2] dark:bg-[#0B0F14] text-slate-900 dark:text-slate-100 flex flex-col">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
+      />
       {/* Top Navigation */}
       <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/80">
         <div className="max-w-[1200px] mx-auto px-4 h-16 flex items-center justify-between">
