@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { Trash2, Plus, X } from "lucide-react";
-import { CATALOG, CATALOG_BY_TYPE, LED_COLORS, type ComponentDef } from "@/lib/studio/circuit/catalog";
+import { CATALOG, CATALOG_BY_TYPE, LED_COLORS, isButtonLike, type ComponentDef } from "@/lib/studio/circuit/catalog";
 import type { OutputState } from "@/lib/studio/circuit/netlist";
 import type { CircuitPart, Wire } from "@/lib/studio/spec";
 import { cn } from "@/lib/utils";
@@ -27,6 +27,8 @@ interface Props {
   sensorValues: Record<string, number>;
   onSensor: (id: string, value: number) => void;
   highlight?: string[];
+  /** fill the available box (fullscreen stage) instead of scrolling sideways */
+  fit?: boolean;
 }
 
 const W = 900;
@@ -93,6 +95,17 @@ function PartArt({ p, def, out, pressed }: { p: CircuitPart; def: ComponentDef; 
           <line x1={w} y1={h - 10} x2={w} y2={h} stroke="#9ca3af" strokeWidth={2} />
         </g>
       );
+    case "switch":
+      return (
+        <g>
+          <rect width={w} height={h - 14} rx={8} fill="#1f2937" stroke="#6b7280" />
+          <rect x={8} y={(h - 14) / 2 - 7} width={w - 16} height={14} rx={7} fill={pressed ? "#16a34a" : "#374151"} />
+          <circle cx={pressed ? w - 16 : 16} cy={(h - 14) / 2} r={9} fill={pressed ? "#bbf7d0" : "#e5e7eb"} stroke="#111827" />
+          <text x={w / 2} y={h - 16 + 1} textAnchor="middle" fontSize={9} fill="#94a3b8">{pressed ? "ON" : "OFF"}</text>
+          <line x1={0} y1={h - 14} x2={0} y2={h} stroke="#9ca3af" strokeWidth={2} />
+          <line x1={w} y1={h - 14} x2={w} y2={h} stroke="#9ca3af" strokeWidth={2} />
+        </g>
+      );
     case "buzzer":
       return (
         <g>
@@ -153,7 +166,7 @@ function PartArt({ p, def, out, pressed }: { p: CircuitPart; def: ComponentDef; 
   }
 }
 
-export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pressed, onPress, sensorValues, onSensor, highlight = [] }: Props) {
+export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pressed, onPress, sensorValues, onSensor, highlight = [], fit }: Props) {
   const svg = useRef<SVGSVGElement>(null);
   const [pendingPin, setPendingPin] = useState<string | null>(null);
   const [selected, setSelected] = useState<{ kind: "part" | "wire"; id: string } | null>(null);
@@ -193,7 +206,7 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
   const addPart = (type: string) => {
     const def = CATALOG_BY_TYPE[type];
     const ids = new Set(circuit.parts.map((p) => p.id));
-    const prefix = type === "board" ? "board" : type === "led" ? "led" : type === "resistor" ? "r" : type === "button" ? "btn" : type.replace(/_.*/, "");
+    const prefix = type === "board" ? "board" : type === "led" ? "led" : type === "resistor" ? "r" : type === "button" ? "btn" : type === "switch" ? "sw" : type.replace(/_.*/, "");
     const id = type === "board" && !ids.has("board") ? "board" : nextId(prefix, ids);
     const n = circuit.parts.length;
     const part: CircuitPart = { id, type, x: 80 + ((n * 90) % 700), y: type === "board" ? 300 : 40 + Math.floor(n / 8) * 90, props: def.props ? { ...def.props } : undefined };
@@ -214,9 +227,9 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
   const selDef = sel ? CATALOG_BY_TYPE[sel.type] : undefined;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn("flex flex-col gap-2", fit && "h-full min-h-0")}>
       {editable && (
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className={cn("flex items-center gap-1.5", fit ? "flex-nowrap overflow-x-auto shrink-0 pb-1" : "flex-wrap")}>
           {CATALOG.filter((c) => c.type !== "board" || !circuit.parts.some((p) => p.type === "board")).map((c) => (
             <button key={c.type} type="button" onClick={() => addPart(c.type)} title={c.description} className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px] font-semibold hover:border-teal-500">
               <Plus className="h-3 w-3" /> {c.name.replace(/ \(.*\)/, "")}
@@ -230,12 +243,12 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
         </div>
       )}
       {/* On phones the bench keeps a usable size and scrolls sideways, so pins stay big enough to tap */}
-      <div className="relative rounded-2xl overflow-x-auto overflow-y-hidden border border-slate-200 dark:border-slate-800 bg-[#0b1220]">
+      <div className={cn("relative rounded-2xl border border-slate-200 dark:border-slate-800 bg-[#0b1220]", fit ? "flex-1 min-h-0 overflow-hidden" : "overflow-x-auto overflow-y-hidden")}>
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
         <svg
           ref={svg}
           viewBox={`0 0 ${W} ${H}`}
-          className="w-full min-w-[760px] h-auto touch-none select-none"
+          className={cn("w-full touch-none select-none", fit ? "h-full" : "min-w-[760px] h-auto")}
           onPointerMove={(e) => {
             if (!drag || !editable) return;
             const p = toSvg(e);
@@ -269,10 +282,10 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
             return (
               <g key={p.id} transform={`translate(${p.x} ${p.y})`}>
                 <g
-                  style={{ cursor: editable ? "grab" : p.type === "button" ? "pointer" : "default" }}
+                  style={{ cursor: editable ? "grab" : isButtonLike(p.type) ? "pointer" : "default" }}
                   onPointerDown={(e) => {
                     e.stopPropagation();
-                    if (running && p.type === "button") {
+                    if (running && isButtonLike(p.type)) {
                       onPress(p.id, true);
                       (e.target as Element).setPointerCapture?.(e.pointerId);
                       return;
@@ -282,7 +295,7 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
                     setDrag({ id: p.id, dx: pt.x - p.x, dy: pt.y - p.y, moved: false });
                   }}
                   onPointerUp={(e) => {
-                    if (running && p.type === "button") {
+                    if (running && isButtonLike(p.type)) {
                       e.stopPropagation();
                       onPress(p.id, false);
                     }
@@ -390,7 +403,7 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
           })}
         </div>
       )}
-      {running && circuit.parts.some((p) => p.type === "button") && <p className="text-[11px] text-slate-500">Press and hold a button on the bench to push it.</p>}
+      {running && circuit.parts.some((p) => isButtonLike(p.type)) && <p className="text-[11px] text-slate-500">Press and hold a button to push it; tap a switch to flip it. You can do the same on the 3D model.</p>}
     </div>
   );
 }

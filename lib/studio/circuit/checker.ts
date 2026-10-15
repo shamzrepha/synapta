@@ -1,4 +1,4 @@
-import { CATALOG_BY_TYPE, boardPinName, pinDef } from "./catalog";
+import { CATALOG_BY_TYPE, boardPinName, pinDef, isButtonLike } from "./catalog";
 import { Netlist, emptyPinState, netPotential, scanCode, term, type Circuit, type PinState } from "./netlist";
 
 /**
@@ -186,7 +186,7 @@ export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
       }
     }
 
-    if (def.category === "input" && p.type !== "button") {
+    if (def.category === "input" && !isButtonLike(p.type)) {
       const outPin = def.pins.find((x) => x.role === "signalOut")!;
       const bp = nl.boardPinsOn(nl.netOf(term(p.id, outPin.name)));
       if (bp.length === 0) {
@@ -196,7 +196,7 @@ export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
       }
     }
 
-    if (p.type === "button") {
+    if (isButtonLike(p.type)) {
       const pinsA = nl.boardPinsOn(nl.netOf(term(p.id, "a")));
       const pinsB = nl.boardPinsOn(nl.netOf(term(p.id, "b")));
       const sig = [...pinsA, ...pinsB].filter((n) => ["digital", "analog"].includes(pinDef("board", n)?.role || ""));

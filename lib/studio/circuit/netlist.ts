@@ -1,5 +1,5 @@
 import type { CircuitPart, Wire } from "../spec";
-import { CATALOG_BY_TYPE, boardPinName, pinDef } from "./catalog";
+import { CATALOG_BY_TYPE, boardPinName, pinDef, isButtonLike } from "./catalog";
 
 /**
  * Turns parts + wires into electrical nets (union-find), then evaluates a simplified DC model:
@@ -65,7 +65,7 @@ export class Netlist {
       // all ground pins of one board are the same node
       const grounds = def.pins.filter((x) => x.role === "ground" && p.type === "board");
       for (let i = 1; i < grounds.length; i++) this.union(term(p.id, grounds[0].name), term(p.id, grounds[i].name));
-      if (p.type === "button" && pressed.has(p.id)) this.union(term(p.id, "a"), term(p.id, "b"));
+      if (isButtonLike(p.type) && pressed.has(p.id)) this.union(term(p.id, "a"), term(p.id, "b"));
     }
     for (const w of circuit.wires) {
       if (!this.valid(w.from) || !this.valid(w.to)) continue;
@@ -276,7 +276,7 @@ export function readPin(nl: Netlist, pins: PinState, n: number, analog: boolean,
   // A sensor output on this net?
   for (const p of nl.circuit.parts) {
     const def = CATALOG_BY_TYPE[p.type];
-    if (!def || def.category !== "input" || p.type === "button") continue;
+    if (!def || def.category !== "input" || isButtonLike(p.type)) continue;
     const outPin = def.pins.find((x) => x.role === "signalOut");
     if (!outPin || nl.netOf(term(p.id, outPin.name)) !== net) continue;
     const vcc = def.pins.find((x) => x.role === "power");

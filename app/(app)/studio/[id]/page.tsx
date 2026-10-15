@@ -3,7 +3,7 @@
 import React, { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Play, Square, Save, Sparkles, GitFork, Star, Share2, FlaskConical, Loader2, Wand2, Undo2, Redo2, Box, Cpu, Cog, Users, Globe, Lock, GraduationCap } from "lucide-react";
+import { ArrowLeft, Play, Square, Save, Sparkles, GitFork, Star, Share2, FlaskConical, Loader2, Wand2, Undo2, Redo2, Maximize2, Box, Cpu, Cog, Users, Globe, Lock, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,13 @@ import { MechPanel } from "@/components/studio/mech-panel";
 import { GuidePanel, type GuideMode } from "@/components/studio/guide-panel";
 import { HistoryPanel } from "@/components/studio/history-panel";
 import { PartEditor } from "@/components/studio/part-editor";
-import { parseSpec, resolveParts, type DesignSpec } from "@/lib/studio/spec";
+import { BlockEditor } from "@/components/studio/block-editor";
+import { SimStage, type StageLab } from "@/components/studio/sim-stage";
+import { compileBlocks, type BlockProgram } from "@/lib/studio/blocks";
+import { sceneParts } from "@/lib/studio/circuit/to3d";
+import { analyzeMechanism } from "@/lib/studio/mech/gears";
+import { playLift } from "@/lib/studio/mech/playback";
+import { parseSpec, type DesignSpec } from "@/lib/studio/spec";
 import { Netlist, evaluateOutputs, type OutputState } from "@/lib/studio/circuit/netlist";
 import { BoardRuntime, circuitReader, runBehaviorTest, type TestResult } from "@/lib/studio/circuit/runtime";
 import { checkCircuit, nextGaps } from "@/lib/studio/circuit/checker";
@@ -87,6 +93,14 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const [explode, setExplode] = useState(0.4);
   const [mechState, setMechState] = useState({ inputAngle: 0, loadHeight: 0 });
   const [historyVersion, setHistoryVersion] = useState(0);
+  // fullscreen stage (also opened by ?stage=1 when you switch labs from inside it)
+  const [stageOpen, setStageOpen] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("stage") === "1");
+  const [stageView, setStageView] = useState("3d");
+  const [stageSplit, setStageSplit] = useState(true);
+  const [labs, setLabs] = useState<StageLab[]>([]);
+  const typesRef = useRef<Record<string, string>>({});
+  const runningRef = useRef(false);
+  const mechStopRef = useRef<(() => void) | null>(null);
   const [sharing, setSharing] = useState(false);
   // circuit simulation
   const [running, setRunning] = useState(false);
@@ -148,6 +162,16 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     else load({ force: true });
     setHistoryVersion((v) => v + 1);
   });
+
+  useEffect(() => {
+    if (!stageOpen) return;
+    fetch("/api/studio/designs?scope=mine")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.ok) setLabs(asArray<StageLab>(j.data.designs).map((d) => ({ id: d.id, title: d.title, kind: d.kind })));
+      })
+      .catch(() => undefined);
+  }, [stageOpen]);
 
   const edit = (patch: Partial<DesignSpec>) => {
     const cur = workRef.current;
@@ -226,7 +250,18 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const guideMode: GuideMode = design?.challengeId ? "challenge" : mode;
   const canEdit = !!data?.canEdit && !preview;
 
-  const parts3d = useMemo(() => (shown ? resolveParts(shown) : []), [shown]);
+  const parts3d = useMemo(() => (shown ? sceneParts(shown) : []), [shown]);
+  const links = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const p of shown?.circuit?.parts || []) out[p.id] = p.type;
+    return out;
+  }, [shown]);
+  useEffect(() => {
+    typesRef.current = links;
+  }, [links]);
+  useEffect(() => {
+    runningRef.current = running;
+  }, [running]);
   const gaps = useMemo(() => (shown?.circuit ? nextGaps(shown.circuit, shown.code || "") : []), [shown]);
   const issues = useMemo(() => (shown?.circuit ? checkCircuit(shown.circuit, shown.code || "") : []), [shown]);
   const liveSteps = useMemo(() => {
@@ -244,6 +279,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   // ---------- circuit simulation ----------
   const stopSim = useCallback(() => {
     cancelAnimationFrame(rafRef.current);
+    mechStopRef.current?.();
+    mechStopRef.current = null;
     setRunning(false);
   }, []);
 
@@ -262,6 +299,10 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     let printed = 0;
     let lastKey = "";
     let nl = new Netlist(circuit);
+    // a mechanism in the same design turns with the circuit's motor, so one Run drives everything
+    const mech = shown.mechanism;
+    const radPerMetre = mech ? analyzeMechanism(mech).radPerMetre : 0;
+    let shaft = 0;
     const frame = (now: number) => {
       const dt = Math.min(100, now - last);
       last = now;
@@ -271,7 +312,16 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
         lastKey = key;
         nl = new Netlist(circuit, inputsRef.current.pressed);
       }
-      setOutputs(evaluateOutputs(nl, rt.pins));
+      const outs = evaluateOutputs(nl, rt.pins);
+      setOutputs(outs);
+      if (mech) {
+        const m = Object.entries(outs).find(([pid, o]) => typesRef.current[pid] === "dc_motor" && o.on)?.[1];
+        if (m) {
+          shaft += (m.direction || 1) * (0.5 + m.level * 9) * (dt / 1000);
+          const lift = radPerMetre > 0 ? Math.max(0, Math.min(mech.liftHeight, shaft / radPerMetre)) : 0;
+          setMechState({ inputAngle: shaft, loadHeight: lift });
+        }
+      }
       if (rt.serial.length > printed) {
         const add = rt.serial.slice(printed).map((s) => s.text).join("");
         printed = rt.serial.length;
@@ -288,6 +338,32 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   };
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+
+  /** One Run for everything: the circuit + code (which drive the 3D parts and any mechanism), or just the gear rig. */
+  const runAll = () => {
+    if (!shown) return;
+    if (shown.circuit) return startSim();
+    if (shown.mechanism) {
+      stopSim();
+      setRunning(true);
+      mechStopRef.current = playLift(shown.mechanism, setMechState, () => setRunning(false));
+    }
+  };
+
+  /** Buttons are momentary; switches latch. Used by the bench and by clicking the 3D parts. */
+  const press = (pid: string, down: boolean) => {
+    const isSwitch = typesRef.current[pid] === "switch";
+    if (isSwitch && !down) return;
+    if (!runningRef.current && shown?.circuit && down) startSim();
+    const next = new Set(inputsRef.current.pressed);
+    if (isSwitch) {
+      if (next.has(pid)) next.delete(pid);
+      else next.add(pid);
+    } else if (down) next.add(pid);
+    else next.delete(pid);
+    inputsRef.current.pressed = next;
+    setPressed(next);
+  };
 
   const runTests = () => {
     if (!shown?.circuit) return;
@@ -424,6 +500,194 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const errorLine = runError ? Number(/^Line (\d+)/.exec(runError)?.[1]) || null : null;
   const selectedPart = parts3d.find((p) => p.id === selected);
 
+  const liveOutputs = running ? outputs : {};
+  const canRun = !!(shown.circuit || shown.mechanism);
+  const mode3 = shown.codeMode ?? "text";
+  const blocksProgram: BlockProgram = shown.blocks ?? { setup: [], loop: [] };
+  const setBlocks = (b: BlockProgram) => edit({ blocks: b, code: compileBlocks(b), codeMode: "blocks" });
+  const switchCodeMode = (m: "blocks" | "text") => {
+    if (m === "text") return edit({ codeMode: "text" });
+    const hasRaw = !shown.blocks && (shown.code || "").replace(/\s+/g, "").length > 40;
+    if (hasRaw && !window.confirm("Blocks start empty and will replace the code. Your current code stays in History. Continue?")) return;
+    setBlocks(blocksProgram);
+  };
+
+  const runBar = (
+    <div className="flex flex-wrap items-center gap-2">
+      {!running ? (
+        <Button size="sm" onClick={runAll} className="bg-emerald-600 hover:bg-emerald-700">
+          <Play className="h-4 w-4 mr-1" /> Run
+        </Button>
+      ) : (
+        <Button size="sm" variant="outline" onClick={stopSim}>
+          <Square className="h-4 w-4 mr-1" /> Stop
+        </Button>
+      )}
+      {shown.circuit && (
+        <Button size="sm" variant="outline" onClick={runTests} disabled={!shown.tests.length}>
+          <FlaskConical className="h-4 w-4 mr-1" /> Run tests
+        </Button>
+      )}
+      <Button size="sm" variant="outline" onClick={() => setStageOpen(true)} title="Full screen, landscape-friendly simulation">
+        <Maximize2 className="h-4 w-4 mr-1" /> Full screen
+      </Button>
+      {issues.filter((i) => i.severity === "error").length > 0 && (
+        <Badge variant="destructive" className="text-[10px]">{issues.filter((i) => i.severity === "error").length} wiring error(s)</Badge>
+      )}
+      {running && <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> simulating</span>}
+    </div>
+  );
+
+  const serialBlock =
+    shown.circuit && (running || serial) ? (
+      <pre className="rounded-xl bg-black text-emerald-300 text-xs p-3 max-h-40 overflow-auto whitespace-pre-wrap" aria-label="Serial monitor">{serial || "Serial monitor (Serial.println output appears here)"}</pre>
+    ) : null;
+
+  const benchEl = (fit: boolean) =>
+    shown.circuit ? (
+      <CircuitBench
+        circuit={shown.circuit}
+        onChange={(c: CircuitValue) => edit({ circuit: c })}
+        outputs={liveOutputs}
+        running={running}
+        readOnly={!canEdit}
+        pressed={pressed}
+        onPress={press}
+        sensorValues={sensorValues}
+        onSensor={(pid, v) => {
+          inputsRef.current.values[pid] = v;
+          setSensorValues((s) => ({ ...s, [pid]: v }));
+        }}
+        highlight={gaps[0]?.parts || []}
+        fit={fit}
+      />
+    ) : null;
+
+  const benchBlock = shown.circuit ? (
+    <div className="space-y-2">
+      {runError && <p className="rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300 text-sm px-3 py-2 font-mono">{runError}</p>}
+      {benchEl(false)}
+      {serialBlock}
+    </div>
+  ) : null;
+
+  const viewerEl = (cls: string) => (
+    <Viewer3D
+      parts={parts3d}
+      mechanism={shown.mechanism}
+      explode={explode}
+      selectedId={selected}
+      onSelect={setSelected}
+      mechState={mechState}
+      links={links}
+      live={{ outputs: liveOutputs, pressed }}
+      onPress={press}
+      className={cls}
+    />
+  );
+
+  const selectedCard = selectedPart ? (
+    <div className="rounded-xl border border-dashed border-sky-400 p-3 text-sm space-y-1">
+      <p className="font-bold">{selectedPart.name}</p>
+      <p className="text-xs text-slate-500 font-mono">
+        {selectedPart.shape} · {selectedPart.size.map((n) => Math.round(n)).join(" × ")} mm
+      </p>
+      {selectedPart.info?.where && <p><b>Where:</b> {selectedPart.info.where}</p>}
+      {selectedPart.info?.fit && <p><b>Fit:</b> {selectedPart.info.fit}</p>}
+      {selectedPart.info?.material && <p><b>Material:</b> {selectedPart.info.material}</p>}
+      {selectedPart.info?.cost && <p><b>Cost:</b> {selectedPart.info.cost}</p>}
+    </div>
+  ) : null;
+
+  const explodeSlider = parts3d.some((p) => p.explode) ? (
+    <label className="flex items-center gap-2 text-xs font-semibold">
+      Explode
+      <input type="range" min={0} max={100} value={Math.round(explode * 100)} onChange={(e) => setExplode(Number(e.target.value) / 100)} className="flex-1 accent-teal-600" />
+    </label>
+  ) : null;
+
+  const viewerBlock = (
+    <div className="space-y-2">
+      {viewerEl("h-[48vh] min-h-[320px] w-full rounded-2xl border border-slate-200 dark:border-slate-800")}
+      {parts3d.some((p) => p.bind) && shown.circuit && <p className="text-[11px] text-slate-500">Tap a switch or button on the 3D model to use it — it works the same as on the circuit bench.</p>}
+      {explodeSlider}
+      {selectedCard}
+    </div>
+  );
+
+  const codePanel = shown.circuit ? (
+    <div className="space-y-2">
+      <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 p-0.5 text-xs font-semibold">
+        <button type="button" disabled={!canEdit} onClick={() => switchCodeMode("blocks")} className={cn("px-3 py-1.5 rounded-lg", mode3 === "blocks" ? "bg-teal-600 text-white" : "text-slate-500")}>Blocks</button>
+        <button type="button" disabled={!canEdit} onClick={() => switchCodeMode("text")} className={cn("px-3 py-1.5 rounded-lg", mode3 === "text" ? "bg-teal-600 text-white" : "text-slate-500")}>Raw code</button>
+      </div>
+      {mode3 === "blocks" ? (
+        <>
+          <BlockEditor program={blocksProgram} onChange={setBlocks} readOnly={!canEdit} />
+          <details className="text-xs">
+            <summary className="cursor-pointer font-semibold text-slate-500">See the code your blocks make</summary>
+            <pre className="mt-1 rounded-xl bg-[#0b1220] text-slate-100 p-3 overflow-auto font-mono text-[12px]">{shown.code}</pre>
+          </details>
+        </>
+      ) : (
+        <>
+          <CodeEditor value={shown.code || ""} onChange={(v) => edit({ code: v })} errorLine={errorLine} readOnly={!canEdit} />
+          <p className="text-[11px] text-slate-500">
+            Arduino-style JavaScript: setup() runs once, loop() repeats. pinMode, digitalWrite, digitalRead, analogRead, analogWrite, delay, millis, tone, servoWrite, Serial.println. Runs in a safe sandbox.
+          </p>
+        </>
+      )}
+    </div>
+  ) : null;
+
+  const controlsPanel = (
+    <div className="space-y-3 p-3 text-slate-900 dark:text-slate-100">
+      {shown.params.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-sm font-bold">Settings</p>
+          {shown.params.map((p) => (
+            <label key={p.key} className="flex items-center gap-2 text-xs">
+              <span className="w-28 font-semibold">{p.label}</span>
+              <input type="range" min={p.min} max={p.max} step={p.step} value={p.value} disabled={!canEdit} onChange={(e) => edit({ params: shown.params.map((x) => (x.key === p.key ? { ...x, value: Number(e.target.value) } : x)) })} className="flex-1 accent-teal-600" />
+              <span className="font-mono w-20 text-right">{p.value} {p.unit}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      {explodeSlider}
+      {shown.mechanism && <MechPanel mechanism={shown.mechanism} onChange={(m) => edit({ mechanism: m })} readOnly={!canEdit} onAnimate={setMechState} />}
+      {shown.circuit && (
+        <div className="space-y-2">
+          <Button size="sm" variant="outline" onClick={runTests} disabled={!shown.tests.length}>
+            <FlaskConical className="h-4 w-4 mr-1" /> Run tests
+          </Button>
+          {testResults.map((t) => (
+            <p key={t.id} className="text-xs">{t.pass ? "✅" : "❌"} {t.title}{t.pass ? "" : ` — ${t.message}`}</p>
+          ))}
+          {runError && <p className="rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300 text-xs px-3 py-2 font-mono">{runError}</p>}
+          {issues.slice(0, 6).map((i, k) => (
+            <p key={k} className={cn("rounded-xl p-2 text-xs", i.severity === "error" ? "bg-rose-500/10" : "bg-amber-500/10")}>{i.system} · {i.message}</p>
+          ))}
+          {serialBlock}
+        </div>
+      )}
+      {selectedCard}
+    </div>
+  );
+
+  const stageViews = [
+    ...(has3d ? [{ key: "3d", label: "3D", node: <div className="relative h-full w-full">{viewerEl("h-full w-full")}</div> }] : []),
+    ...(shown.circuit ? [{ key: "circuit", label: "Circuit", node: <div className="h-full p-1.5">{benchEl(true)}</div> }] : []),
+    ...(shown.circuit ? [{ key: "code", label: "Code", node: <div className="p-2 text-slate-900 dark:text-slate-100">{codePanel}</div> }] : []),
+    { key: "controls", label: "Controls", node: controlsPanel },
+  ];
+
+  const openLab = async (labId: string) => {
+    if (labId === id) return;
+    if (dirty && !(await save("Saved before switching lab"))) return;
+    router.push(`/studio/${labId}?stage=1`);
+  };
+
   return (
     <div className="space-y-3">
       {/* header */}
@@ -522,84 +786,26 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] items-start">
         {/* stage */}
         <div className="space-y-3 min-w-0">
-          {shown.circuit && (
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                {!running ? (
-                  <Button size="sm" onClick={startSim} className="bg-emerald-600 hover:bg-emerald-700">
-                    <Play className="h-4 w-4 mr-1" /> Run
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={stopSim}>
-                    <Square className="h-4 w-4 mr-1" /> Stop
-                  </Button>
-                )}
-                <Button size="sm" variant="outline" onClick={runTests} disabled={!shown.tests.length}>
-                  <FlaskConical className="h-4 w-4 mr-1" /> Run tests
-                </Button>
-                {issues.filter((i) => i.severity === "error").length > 0 && (
-                  <Badge variant="destructive" className="text-[10px]">{issues.filter((i) => i.severity === "error").length} wiring error(s)</Badge>
-                )}
-                {running && <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> simulating</span>}
-              </div>
-              {runError && <p className="rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300 text-sm px-3 py-2 font-mono">{runError}</p>}
-              <CircuitBench
-                circuit={shown.circuit}
-                onChange={(c: CircuitValue) => edit({ circuit: c })}
-                outputs={running ? outputs : {}}
-                running={running}
-                readOnly={!canEdit}
-                pressed={pressed}
-                onPress={(pid, down) => {
-                  const next = new Set(inputsRef.current.pressed);
-                  if (down) next.add(pid);
-                  else next.delete(pid);
-                  inputsRef.current.pressed = next;
-                  setPressed(next);
-                }}
-                sensorValues={sensorValues}
-                onSensor={(pid, v) => {
-                  inputsRef.current.values[pid] = v;
-                  setSensorValues((s) => ({ ...s, [pid]: v }));
-                }}
-                highlight={gaps[0]?.parts || []}
-              />
-              {(running || serial) && (
-                <pre className="rounded-xl bg-black text-emerald-300 text-xs p-3 max-h-40 overflow-auto whitespace-pre-wrap" aria-label="Serial monitor">{serial || "Serial monitor (Serial.println output appears here)"}</pre>
+          {!stageOpen && (
+            <>
+              {(shown.circuit || shown.mechanism) && runBar}
+              {shown.parts.length > 0 || !shown.circuit ? (
+                <>
+                  {has3d && viewerBlock}
+                  {benchBlock}
+                </>
+              ) : (
+                <>
+                  {benchBlock}
+                  {has3d && viewerBlock}
+                </>
               )}
-            </div>
+            </>
           )}
-          {has3d && (
-            <div className="space-y-2">
-              <Viewer3D
-                parts={parts3d}
-                mechanism={shown.mechanism}
-                explode={explode}
-                selectedId={selected}
-                onSelect={setSelected}
-                mechState={mechState}
-                motors={running ? outputs : undefined}
-                className="h-[48vh] min-h-[320px] w-full rounded-2xl border border-slate-200 dark:border-slate-800"
-              />
-              {parts3d.some((p) => p.explode) && (
-                <label className="flex items-center gap-2 text-xs font-semibold">
-                  Explode
-                  <input type="range" min={0} max={100} value={Math.round(explode * 100)} onChange={(e) => setExplode(Number(e.target.value) / 100)} className="flex-1 accent-teal-600" />
-                </label>
-              )}
-              {selectedPart && (
-                <div className="rounded-xl border border-dashed border-sky-400 p-3 text-sm space-y-1">
-                  <p className="font-bold">{selectedPart.name}</p>
-                  <p className="text-xs text-slate-500 font-mono">
-                    {selectedPart.shape} · {selectedPart.size.map((n) => Math.round(n)).join(" × ")} mm
-                  </p>
-                  {selectedPart.info?.where && <p><b>Where:</b> {selectedPart.info.where}</p>}
-                  {selectedPart.info?.fit && <p><b>Fit:</b> {selectedPart.info.fit}</p>}
-                  {selectedPart.info?.material && <p><b>Material:</b> {selectedPart.info.material}</p>}
-                  {selectedPart.info?.cost && <p><b>Cost:</b> {selectedPart.info.cost}</p>}
-                </div>
-              )}
-            </div>
+          {stageOpen && (
+            <button type="button" onClick={() => setStageOpen(true)} className="w-full rounded-2xl border border-dashed border-teal-500/50 p-6 text-sm text-slate-500">
+              Simulation is open full screen.
+            </button>
           )}
           {shown.summary && <p className="text-sm text-slate-600 dark:text-slate-400">{shown.summary}</p>}
         </div>
@@ -677,14 +883,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
-            {tab === "code" && shown.circuit && (
-              <div className="space-y-2">
-                <CodeEditor value={shown.code || ""} onChange={(v) => edit({ code: v })} errorLine={errorLine} readOnly={!canEdit} />
-                <p className="text-[11px] text-slate-500">
-                  Arduino-style JavaScript: setup() runs once, loop() repeats. pinMode, digitalWrite, digitalRead, analogRead, analogWrite, delay, millis, tone, servoWrite, Serial.println. Runs in a safe sandbox.
-                </p>
-              </div>
-            )}
+            {tab === "code" && codePanel}
 
             {tab === "tests" && (
               <div className="space-y-2">
@@ -741,6 +940,25 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
           </div>
         </Card>
       </div>
+
+      {stageOpen && (
+        <SimStage
+          title={design.title}
+          views={stageViews}
+          view={stageViews.some((v) => v.key === stageView) ? stageView : stageViews[0].key}
+          onView={setStageView}
+          split={stageSplit}
+          onSplit={setStageSplit}
+          running={running}
+          canRun={canRun}
+          onRun={runAll}
+          onStop={stopSim}
+          labs={labs}
+          labId={id}
+          onLab={openLab}
+          onClose={() => setStageOpen(false)}
+        />
+      )}
 
       {sharing && (
         <ShareSheet

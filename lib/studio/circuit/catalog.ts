@@ -107,6 +107,20 @@ export const CATALOG: ComponentDef[] = [
     learn: "arduino push button input pullup",
   },
   {
+    type: "switch",
+    name: "Toggle switch",
+    category: "input",
+    description: "A latching switch: tap it once to turn on, again to turn off. Wire one leg to a pin and the other to GND, then use pinMode(pin, INPUT_PULLUP): the pin reads LOW while the switch is ON.",
+    w: 60,
+    h: 50,
+    pins: [
+      { name: "a", role: "passive", x: 0, y: 1 },
+      { name: "b", role: "passive", x: 1, y: 1 },
+    ],
+    cost: "₦150",
+    learn: "arduino toggle switch input pullup",
+  },
+  {
     type: "buzzer",
     name: "Buzzer",
     category: "output",
@@ -218,6 +232,9 @@ export const CATALOG: ComponentDef[] = [
     learn: "how a dc motor works",
   },
 ];
+
+/** Parts that close a circuit between their legs when pressed / switched on. */
+export const isButtonLike = (type: string): boolean => type === "button" || type === "switch";
 
 export const CATALOG_BY_TYPE: Record<string, ComponentDef> = Object.fromEntries(CATALOG.map((c) => [c.type, c]));
 

@@ -144,3 +144,24 @@ describe("AI edit patches", () => {
     expect(merged.parts[1].shape).toBe("capsule");
   });
 });
+
+import { sceneParts } from "./circuit/to3d";
+describe("one world: circuit, code and 3D", () => {
+  it("every template parses; switch-gears runs and its gears are bound to the motor", () => {
+    for (const t of TEMPLATES) parseSpec(t.spec);
+    const t = parseSpec(getTemplate("switch-gears")!.spec);
+    expect(runBehaviorTest(t.circuit!, t.code || "", t.tests[0]).pass).toBe(true);
+    const scene = sceneParts(t);
+    // the switch, board and driver get generated 3D models; the motor does not (the gears stand for it)
+    expect(scene.some((p) => p.id.startsWith("auto_sw1") && p.bind === "sw1")).toBe(true);
+    expect(scene.some((p) => p.id.startsWith("auto_board"))).toBe(true);
+    expect(scene.filter((p) => p.bind === "m1").length).toBeGreaterThanOrEqual(3);
+    expect(scene.find((p) => p.id === "gear2")!.spinRatio).toBeCloseTo(-0.5);
+    expect(scene.every((p) => p.size.every(Number.isFinite) && p.pos.every(Number.isFinite))).toBe(true);
+  });
+  it("any circuit appears in 3D with no help", () => {
+    const t = parseSpec(getTemplate("traffic-light")!.spec);
+    const scene = sceneParts(t);
+    expect(scene.filter((p) => p.bind).length).toBeGreaterThanOrEqual(3);
+  });
+});

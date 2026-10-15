@@ -1,5 +1,6 @@
 import Interpreter from "js-interpreter";
 import type { BehaviorTest } from "../spec";
+import { isButtonLike } from "./catalog";
 import { Netlist, emptyPinState, evaluateOutputs, readPin, type Circuit, type OutputState, type PinMode, type PinState } from "./netlist";
 
 /**
@@ -216,7 +217,7 @@ export function runBehaviorTest(circuit: Circuit, code: string, test: BehaviorTe
     while (ei < events.length && events[ei].atMs <= t) {
       const ev = events[ei++];
       const part = circuit.parts.find((p) => p.id === ev.part);
-      if (part?.type === "button") {
+      if (part && isButtonLike(part.type)) {
         if (ev.value) inputs.pressed.add(ev.part);
         else inputs.pressed.delete(ev.part);
       } else inputs.values[ev.part] = ev.value;

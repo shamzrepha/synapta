@@ -21,12 +21,33 @@ export interface Viewer3DProps {
   onSelect: (id: string | null) => void;
   /** live simulation state: input shaft angle (rad) and load height (m) */
   mechState?: { inputAngle: number; loadHeight: number };
-  /** live circuit outputs: parts with `spinWith` turn while that motor runs */
-  motors?: Record<string, { on: boolean; level: number; direction?: 1 | -1 }>;
+  /** circuit part id → type, so linked (`bind`) 3D parts know how to behave */
+  links?: Record<string, string>;
+  /** live simulation: outputs of every circuit part and which buttons/switches are pressed */
+  live?: { outputs: Record<string, { on: boolean; level: number; direction?: 1 | -1; angle?: number }>; pressed: Set<string> };
+  /** a linked button/switch part was pressed (down=true) or released in the 3D view */
+  onPress?: (id: string, down: boolean) => void;
   className?: string;
 }
 
 const SELECT = "#ffc24d";
+
+type Role = "light" | "spin" | "press" | "servo" | "pulse";
+const ROLE: Record<string, Role> = { led: "light", dc_motor: "spin", button: "press", switch: "press", servo: "servo", buzzer: "pulse" };
+interface Linked {
+  obj: THREE.Group;
+  bind: string;
+  role: Role;
+  mat: THREE.MeshBasicMaterial;
+  edge: THREE.LineBasicMaterial;
+  baseColor: THREE.Color;
+  baseOpacity: number;
+  basePos: THREE.Vector3;
+  baseRotY: number;
+  ratio: number;
+  axis: THREE.Vector3;
+  shift: THREE.Vector3;
+}
 
 function gearShape(teeth: number, module: number): THREE.Shape {
   const r = (module * teeth) / 2;
@@ -107,7 +128,7 @@ function solid(geo: THREE.BufferGeometry, color: string, opacity: number, select
   return g;
 }
 
-export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, motors, className }: Viewer3DProps) {
+export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, links, live, onPress, className }: Viewer3DProps) {
   const host = useRef<HTMLDivElement>(null);
   const ctx = useRef<{
     renderer: THREE.WebGLRenderer;
@@ -121,15 +142,17 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     ropeTop: THREE.Vector3;
     loadBaseY: number;
     pickables: THREE.Object3D[];
-    spinners: Array<{ obj: THREE.Object3D; motor: string; axis: THREE.Vector3 }>;
+    linked: Linked[];
     fitted: string;
   } | null>(null);
   const mech = useRef(mechState);
-  const motorsRef = useRef(motors);
+  const liveRef = useRef(live);
+  const onPressRef = useRef(onPress);
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
     mech.current = mechState;
-    motorsRef.current = motors;
+    liveRef.current = live;
+    onPressRef.current = onPress;
     onSelectRef.current = onSelect;
   });
 
@@ -152,7 +175,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     scene.add(grid);
     const content = new THREE.Group();
     scene.add(content);
-    ctx.current = { renderer, scene, camera, controls, content, gears: [], load: null, rope: null, ropeTop: new THREE.Vector3(), loadBaseY: 0, pickables: [], spinners: [], fitted: "" };
+    ctx.current = { renderer, scene, camera, controls, content, gears: [], load: null, rope: null, ropeTop: new THREE.Vector3(), loadBaseY: 0, pickables: [], linked: [], fitted: "" };
 
     const resize = () => {
       const w = el.clientWidth;
@@ -170,8 +193,33 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
 
     // Click to select (ignore drags)
     let down: { x: number; y: number } | null = null;
-    const onDown = (e: PointerEvent) => (down = { x: e.clientX, y: e.clientY });
+    let holding: string | null = null;
+    const release = () => {
+      if (holding) onPressRef.current?.(holding, false);
+      holding = null;
+      controls.enabled = true;
+    };
+    const onDown = (e: PointerEvent) => {
+      down = { x: e.clientX, y: e.clientY };
+      const c = ctx.current;
+      if (!c || !onPressRef.current) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const ray = new THREE.Raycaster();
+      ray.setFromCamera(new THREE.Vector2(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), camera);
+      const hit = ray.intersectObjects(c.pickables, false)[0];
+      let o: THREE.Object3D | null = hit?.object || null;
+      while (o && !c.linked.some((l) => l.obj === o)) o = o.parent;
+      const l = c.linked.find((x) => x.obj === o);
+      if (l && l.role === "press") {
+        holding = l.bind;
+        controls.enabled = false; // pressing a switch shouldn't also orbit the camera
+        onPressRef.current(l.bind, true);
+      }
+    };
     const onUp = (e: PointerEvent) => {
+      const wasHolding = !!holding;
+      release();
+      if (wasHolding) return;
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5 || !ctx.current) return;
       const rect = renderer.domElement.getBoundingClientRect();
       const ray = new THREE.Raycaster();
@@ -183,6 +231,8 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     };
     renderer.domElement.addEventListener("pointerdown", onDown);
     renderer.domElement.addEventListener("pointerup", onUp);
+    renderer.domElement.addEventListener("pointerleave", release);
+    renderer.domElement.addEventListener("pointercancel", release);
 
     let raf = 0;
     let lastT = performance.now();
@@ -193,11 +243,30 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
       const nowT = performance.now();
       const dt = Math.min(0.1, (nowT - lastT) / 1000);
       lastT = nowT;
-      const mo = motorsRef.current;
-      if (mo) {
-        for (const sp of c.spinners) {
-          const m = mo[sp.motor];
-          if (m?.on) sp.obj.rotateOnWorldAxis(sp.axis, (m.direction || 1) * (0.5 + m.level * 9) * dt);
+      const lv = liveRef.current;
+      if (lv) {
+        const t = nowT / 1000;
+        for (const l of c.linked) {
+          const out = lv.outputs[l.bind];
+          if (l.role === "spin") {
+            if (out?.on) l.obj.rotateOnWorldAxis(l.axis, (out.direction || 1) * l.ratio * (0.5 + out.level * 9) * dt);
+          } else if (l.role === "light") {
+            const on = !!out?.on;
+            l.mat.opacity = on ? 0.55 + 0.4 * Math.min(1, out!.level || 1) : l.baseOpacity;
+            l.mat.color.set(on ? "#ffffff" : l.baseColor).lerp(l.baseColor, on ? 0.45 : 0);
+            l.edge.color.set(on ? "#ffffff" : l.baseColor);
+            l.obj.scale.setScalar(on ? 1.12 : 1);
+          } else if (l.role === "press") {
+            const down = lv.pressed.has(l.bind);
+            l.obj.position.copy(l.basePos);
+            if (down) l.obj.position.add(l.shift);
+            l.mat.opacity = down ? Math.min(1, l.baseOpacity + 0.3) : l.baseOpacity;
+          } else if (l.role === "servo") {
+            l.obj.rotation.y = l.baseRotY - (((out?.angle ?? 90) - 90) * Math.PI) / 180;
+          } else if (l.role === "pulse") {
+            l.obj.position.set(l.basePos.x + (out?.on ? Math.sin(t * 90) * 0.5 : 0), l.basePos.y, l.basePos.z);
+            l.mat.color.set(out?.on ? "#fbbf24" : l.baseColor);
+          }
         }
       }
       const st = mech.current;
@@ -222,6 +291,8 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
       ro.disconnect();
       renderer.domElement.removeEventListener("pointerdown", onDown);
       renderer.domElement.removeEventListener("pointerup", onUp);
+      renderer.domElement.removeEventListener("pointerleave", release);
+      renderer.domElement.removeEventListener("pointercancel", release);
       controls.dispose();
       renderer.dispose();
       el.removeChild(renderer.domElement);
@@ -245,7 +316,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     c.load = null;
     c.rope = null;
     c.pickables = [];
-    c.spinners = [];
+    c.linked = [];
 
     for (const p of parts) {
       const geo = partGeometry(p);
@@ -256,7 +327,26 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
       g.userData.partId = p.id;
       c.content.add(g);
       c.pickables.push(g.children[0]);
-      if (p.spinWith) c.spinners.push({ obj: g, motor: p.spinWith, axis: new THREE.Vector3(p.spinAxis === "y" ? 1 : 0, 0, 0).set(p.spinAxis === "z" ? 0 : p.spinAxis === "y" ? 0 : 1, p.spinAxis === "y" ? 1 : 0, p.spinAxis === "z" ? 1 : 0) });
+      const bind = p.bind || p.spinWith;
+      const role = bind && links ? ROLE[links[bind]] : undefined;
+      if (bind && role) {
+        const mesh = g.children[0] as THREE.Mesh;
+        const edgeLines = g.children[1] as THREE.LineSegments;
+        c.linked.push({
+          obj: g,
+          bind,
+          role,
+          mat: mesh.material as THREE.MeshBasicMaterial,
+          edge: edgeLines.material as THREE.LineBasicMaterial,
+          baseColor: new THREE.Color(p.color || "#8fd3ff"),
+          baseOpacity: p.opacity ?? 0.15,
+          basePos: g.position.clone(),
+          baseRotY: g.rotation.y,
+          ratio: p.spinRatio ?? 1,
+          axis: new THREE.Vector3(p.spinAxis === "y" ? 0 : p.spinAxis === "z" ? 0 : 1, p.spinAxis === "y" ? 1 : 0, p.spinAxis === "z" ? 1 : 0),
+          shift: new THREE.Vector3(...(p.pressShift || [0, 0, 0])),
+        });
+      }
     }
 
     if (mechanism) {
@@ -370,7 +460,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
         c.camera.updateProjectionMatrix();
       }
     }
-  }, [parts, mechanism, explode, selectedId]);
+  }, [parts, mechanism, explode, selectedId, links]);
 
   return <div ref={host} className={className} style={{ background: "#0b2a5b", position: "relative", overflow: "hidden" }} aria-label="3D model — drag to orbit, scroll or pinch to zoom" />;
 }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { num } from "./expr";
+import { blocksSchema } from "./blocks";
 
 /**
  * A Studio design is data, not code: the AI and learners edit this JSON, one shared viewer draws
@@ -42,9 +43,18 @@ export const part3dSchema = z.object({
   color: z.string().max(20).optional(),
   opacity: z.number().min(0.02).max(1).optional(),
   group: z.string().max(40).optional(),
-  /** spins while this circuit motor (or servo) runs in the simulation, e.g. a wheel */
+  /**
+   * Links this 3D part to a circuit part so they act as one: an LED part glows when the LED is on, a
+   * motor part spins, a button/switch part can be pressed by clicking it, a servo part swings, a buzzer shakes.
+   */
+  bind: z.string().max(24).optional(),
+  /** older name for `bind` on spinning parts */
   spinWith: z.string().max(24).optional(),
   spinAxis: z.enum(["x", "y", "z"]).optional(),
+  /** turns this many times per motor turn (gears: −driver/driven teeth when meshing; may be a formula) */
+  spinRatio: numOrExpr.optional(),
+  /** moves by this much (mm) while the linked button/switch is pressed, e.g. a button cap sinks */
+  pressShift: z.tuple([z.number(), z.number(), z.number()]).optional(),
   explode: z.tuple([z.number(), z.number(), z.number()]).optional(),
   info: z
     .object({
@@ -160,6 +170,9 @@ export const designSpecSchema = z.object({
     })
     .optional(),
   code: z.string().max(20_000).optional(),
+  /** block program; when `codeMode` is "blocks" the code is generated from it */
+  blocks: blocksSchema.optional(),
+  codeMode: z.enum(["blocks", "text"]).optional(),
   mechanism: mechanismSchema.optional(),
   steps: z.array(stepSchema).max(30).default([]),
   tests: z.array(testSchema).max(10).default([]),
@@ -192,7 +205,8 @@ export function paramValues(spec: Pick<DesignSpec, "params">, overrides: Record<
   return out;
 }
 
-export interface ResolvedPart extends Omit<Part3D, "size" | "pos" | "rot" | "teeth"> {
+export interface ResolvedPart extends Omit<Part3D, "size" | "pos" | "rot" | "teeth" | "spinRatio"> {
+  spinRatio?: number;
   size: number[];
   pos: [number, number, number];
   rot?: [number, number, number];
@@ -208,6 +222,7 @@ export function resolveParts(spec: DesignSpec, overrides: Record<string, number>
     pos: [num(p.pos[0], vars), num(p.pos[1], vars), num(p.pos[2], vars)],
     rot: p.rot ? [num(p.rot[0], vars), num(p.rot[1], vars), num(p.rot[2], vars)] : undefined,
     teeth: p.teeth === undefined ? undefined : Math.max(6, Math.min(120, Math.round(num(p.teeth, vars, 20)))),
+    spinRatio: p.spinRatio === undefined ? undefined : num(p.spinRatio, vars, 1),
   }));
 }
 

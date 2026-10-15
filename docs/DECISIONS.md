@@ -151,3 +151,10 @@ This log records architectural and design decisions, trade-offs, and deviations 
 
 ## Decision: Simulation Ideas and Builds Are Scoped to the Subtopic
 - "Generate ideas" and the simulation builder now carry a hard scope rule (`scopeRule` in `lib/kc/context.ts`): teach only the current subtopic and its objectives, never the parent topic, siblings, prerequisites or the wider course; the class's other topic titles are listed as off limits. Uploaded-material excerpts are reduced to short background, and `dropOffTopicIdeas` discards any idea that names another topic without this subtopic's own keywords. Maker Studio's AI-generated topic labs get the same instruction.
+
+## Maker Studio: one world, one Run (circuit + code + 3D)
+- Every circuit part is also a 3D part. Designer-modelled parts link to circuit parts with `bind` (LEDs glow, motors spin with `spinAxis`/`spinRatio` so gears mesh, buttons/switches are clickable in 3D via `pressShift`, servos swing, buzzers shake); anything unbound gets a generated model on a baseboard (`lib/studio/circuit/to3d.ts`). The viewer reads the same simulated outputs as the bench, so 3D and circuit can never disagree.
+- Code is blocks or raw text. Blocks are data (`spec.blocks`) compiled to the same Arduino-style JS (`lib/studio/blocks.ts`), so the AI can write either and both run on the one sandboxed runtime.
+- A latching `switch` part joins the momentary `button`. One Run starts the circuit, drives any mechanism from the motor, or plays the gear lift if there is no circuit.
+- Fullscreen stage (`components/studio/sim-stage.tsx`): a fixed overlay (works on iOS) that also requests browser fullscreen + landscape lock where supported, with 3D / Circuit / Code / Controls views, a split mode, and a lab switcher (`?stage=1` reopens it after switching).
+- AI edits are patches (add/update/remove parts, replace sections) with a plain "can't, because…" reason; blocks and bindings are repaired server-side.

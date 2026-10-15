@@ -1,3 +1,4 @@
+import { compileBlocks, type BlockProgram } from "./blocks";
 import { parseSpec, type DesignKind, type DesignSpec, type DesignSpecInput } from "./spec";
 
 /**
@@ -86,6 +87,14 @@ const box = (id: string, name: string, size: [N, N, N], pos: [N, N, N], explode:
 });
 
 
+const switchBlocks: BlockProgram = {
+  setup: [],
+  loop: [
+    { id: "a1", type: "if", cond: { kind: "pressed", pin: 2 }, then: [{ id: "a2", type: "pwm", pin: 5, value: 200 }], else: [{ id: "a3", type: "pwm", pin: 5, value: 0 }] },
+    { id: "a4", type: "wait", ms: 20 },
+  ],
+};
+
 // ---------- RC car helpers ----------
 const carWheel = (id: string, side: "L" | "R", x: number, z: number) => [
   { id: `${id}_tyre`, name: `${side === "L" ? "Left" : "Right"} wheel ${z > 0 ? "front" : "rear"}`, shape: "torus" as const, size: [17, 5], pos: [x, 22, z] as [N, N, N], rot: [0, 0, 90] as [N, N, N], color: "#475569", opacity: 0.55, group: "Wheels", spinWith: `m${side}`, spinAxis: "x" as const, explode: [x > 0 ? 40 : -40, 0, 0] as [number, number, number], info: { where: `${side === "L" ? "Left" : "Right"} side, ${z > 0 ? "front" : "rear"}`, fit: "Press onto the motor shaft or axle.", cost: "~₦1,500" } },
@@ -95,10 +104,12 @@ function carParts() {
   return [
     { id: "chassis", name: "Chassis plate", shape: "box" as const, size: [90, 6, 170], pos: [0, 24, 0] as [N, N, N], color: "#8fd3ff", opacity: 0.22, group: "Body", explode: [0, -10, 0] as [number, number, number], info: { where: "The base everything mounts on", fit: "3 mm plywood or acrylic, 90 × 170 mm.", cost: "~₦1,500" } },
     { id: "nose", name: "Front marker", shape: "cone" as const, size: [8, 18], pos: [0, 24, 96] as [N, N, N], rot: [90, 0, 0] as [N, N, N], color: "#fbbf24", opacity: 0.4, group: "Body" },
-    { id: "battery", name: "Battery pack", shape: "box" as const, size: [32, 20, 60], pos: [0, 37, -35] as [N, N, N], color: "#f87171", opacity: 0.3, group: "Power", explode: [0, 40, 0] as [number, number, number], info: { where: "Centre-rear on the chassis", fit: "4 × AA holder, strapped down. Heavy parts low and central.", cost: "~₦1,800" } },
-    { id: "uno", name: "Control board", shape: "box" as const, size: [54, 6, 72], pos: [0, 30, 40] as [N, N, N], color: "#5eead4", opacity: 0.3, group: "Electronics", explode: [0, 60, 0] as [number, number, number], info: { where: "Front half of the chassis", fit: "Standoffs under each corner.", cost: "~₦12,000" } },
-    { id: "drvL", name: "Left motor driver", shape: "box" as const, size: [26, 10, 22], pos: [-26, 32, -70] as [N, N, N], color: "#a78bfa", opacity: 0.3, group: "Electronics", explode: [-20, 60, 0] as [number, number, number] },
-    { id: "drvR", name: "Right motor driver", shape: "box" as const, size: [26, 10, 22], pos: [26, 32, -70] as [N, N, N], color: "#a78bfa", opacity: 0.3, group: "Electronics", explode: [20, 60, 0] as [number, number, number] },
+    { id: "battery", name: "Battery pack", shape: "box" as const, size: [32, 20, 40], pos: [0, 37, -62] as [N, N, N], color: "#f87171", opacity: 0.3, group: "Power", explode: [0, 40, 0] as [number, number, number], info: { where: "Centre-rear on the chassis", fit: "4 × AA holder, strapped down. Heavy parts low and central.", cost: "~₦1,800" } },
+    { id: "goCap", name: "Go button", shape: "cylinder" as const, size: [7, 5], pos: [-22, 29.5, -35] as [N, N, N], color: "#22c55e", opacity: 0.6, group: "Controls", bind: "go", pressShift: [0, -2, 0] as [number, number, number], info: { where: "Top of the chassis, rear left", fit: "Click it in 3D: it works like the Go button on the circuit bench.", cost: "~₦100" } },
+    { id: "turnCap", name: "Turn button", shape: "cylinder" as const, size: [7, 5], pos: [22, 29.5, -35] as [N, N, N], color: "#f59e0b", opacity: 0.6, group: "Controls", bind: "turn", pressShift: [0, -2, 0] as [number, number, number], info: { where: "Top of the chassis, rear right", fit: "Hold it while Go is held and the car curves.", cost: "~₦100" } },
+    { id: "uno", name: "Control board", bind: "board", shape: "box" as const, size: [54, 6, 72], pos: [0, 30, 40] as [N, N, N], color: "#5eead4", opacity: 0.3, group: "Electronics", explode: [0, 60, 0] as [number, number, number], info: { where: "Front half of the chassis", fit: "Standoffs under each corner.", cost: "~₦12,000" } },
+    { id: "drvL", name: "Left motor driver", bind: "drvL", shape: "box" as const, size: [26, 10, 22], pos: [-26, 32, -78] as [N, N, N], color: "#a78bfa", opacity: 0.3, group: "Electronics", explode: [-20, 60, 0] as [number, number, number] },
+    { id: "drvR", name: "Right motor driver", bind: "drvR", shape: "box" as const, size: [26, 10, 22], pos: [26, 32, -78] as [N, N, N], color: "#a78bfa", opacity: 0.3, group: "Electronics", explode: [20, 60, 0] as [number, number, number] },
     { id: "motL", name: "Left motor", shape: "cylinder" as const, size: [9, 34], pos: [-37, 22, 50] as [N, N, N], rot: [0, 0, 90] as [N, N, N], color: "#fcd34d", opacity: 0.4, group: "Motors", explode: [-20, 0, 0] as [number, number, number] },
     { id: "motR", name: "Right motor", shape: "cylinder" as const, size: [9, 34], pos: [37, 22, 50] as [N, N, N], rot: [0, 0, 90] as [N, N, N], color: "#fcd34d", opacity: 0.4, group: "Motors", explode: [20, 0, 0] as [number, number, number] },
     ...carWheel("wLf", "L", -58, 50),
@@ -380,6 +391,56 @@ export const TEMPLATES: Template[] = [
       code: carCode,
       steps: carSteps(),
       tests: carTests(),
+    },
+  },
+  {
+    id: "switch-gears",
+    title: "Switch → motor → gears (3D + circuit + code)",
+    kind: "circuit",
+    level: "beginner",
+    tags: ["motors", "gears", "switch", "blocks", "3d"],
+    blurb: "Flip a switch (on the circuit or on the 3D model) and a motor turns two meshing gears. Built with blocks; change the teeth and the ratio changes.",
+    spec: {
+      kind: "circuit",
+      summary: "A latching switch tells the board to power the motor; the motor turns the small gear, which drives the big gear the other way, slower. One Run animates the circuit, the code and the 3D gears together.",
+      params: [
+        { key: "T1", label: "Motor gear teeth", value: 12, min: 8, max: 24, step: 1 },
+        { key: "T2", label: "Output gear teeth", value: 24, min: 12, max: 48, step: 1 },
+      ],
+      parts: [
+        { id: "plate", name: "Base plate", shape: "box", size: ["1.5*T1 + 1.5*T2 + 70", 6, 100], pos: [0, 3, 0], color: "#8fd3ff", opacity: 0.2, group: "Body", info: { where: "Under everything", fit: "3 mm plywood or acrylic." } },
+        { id: "motorBody", name: "Motor", shape: "cylinder", size: [10, 30], pos: ["-(1.5*T1 + 1.5*T2)/2", 21, 0], color: "#fcd34d", opacity: 0.4, group: "Motor", explode: [0, -30, 0], info: { where: "Under the small gear", fit: "Shaft pointing up through the plate into the gear.", cost: "~₦1,500" } },
+        { id: "gear1", name: "Motor gear", shape: "gear", teeth: "T1", size: ["1.5*T1", 8], pos: ["-(1.5*T1 + 1.5*T2)/2", 40, 0], bind: "m1", spinAxis: "y", spinRatio: 1, color: "#fb923c", opacity: 0.4, group: "Gears", explode: [0, 40, 0], info: { where: "On the motor shaft", fit: "Press-fit; module 3 so it meshes with the big gear." } },
+        { id: "gear2", name: "Output gear", shape: "gear", teeth: "T2", size: ["1.5*T2", 8], pos: ["(1.5*T1 + 1.5*T2)/2", 40, 0], bind: "m1", spinAxis: "y", spinRatio: "-T1/T2", color: "#5eead4", opacity: 0.4, group: "Gears", explode: [0, 40, 0], info: { where: "Centre distance = both pitch radii", fit: "Turns the opposite way and slower by T1 ÷ T2." } },
+        { id: "pointer", name: "Output pointer", shape: "box", size: ["1.5*T2 + 6", 3, 4], pos: ["(1.5*T1 + 1.5*T2)/2", 46, 0], bind: "m1", spinAxis: "y", spinRatio: "-T1/T2", color: "#f43f5e", opacity: 0.6, group: "Gears", explode: [0, 60, 0] },
+        { id: "shaft2", name: "Output shaft", shape: "cylinder", size: [3, 22], pos: ["(1.5*T1 + 1.5*T2)/2", 28, 0], color: "#94a3b8", opacity: 0.6, group: "Gears" },
+      ],
+      circuit: {
+        parts: [
+          board,
+          { id: "sw1", type: "switch", label: "Start switch", x: 120, y: 90 },
+          { id: "drv", type: "motor_driver", label: "Motor driver", x: 360, y: 200 },
+          { id: "m1", type: "dc_motor", label: "Motor", x: 360, y: 70 },
+        ],
+        wires: [
+          w("w1", "sw1.a", "board.D2"),
+          w("w2", "sw1.b", "board.GND"),
+          w("w3", "board.5V", "drv.vcc", "#ef4444"),
+          w("w4", "drv.gnd", "board.GND", "#111827"),
+          w("w5", "board.D5", "drv.in", "#3b82f6"),
+          w("w6", "drv.out1", "m1.a"),
+          w("w7", "drv.out2", "m1.b"),
+        ],
+      },
+      codeMode: "blocks",
+      blocks: switchBlocks,
+      code: compileBlocks(switchBlocks),
+      steps: [
+        { id: "x1", title: "Press Run, then flip the switch", detail: "Press Run. Flip the switch on the circuit bench — or tap the switch on the 3D model. The motor turns the small gear, which turns the big gear the other way.", videoQuery: "how gears change speed and direction", check: { kind: "test", testId: "start" } },
+        { id: "x2", title: "Change the gear ratio", detail: "In Controls, change Output gear teeth. Ratio = output teeth ÷ motor teeth. A bigger output gear turns slower but with more torque.", check: { kind: "manual" } },
+        { id: "x3", title: "Edit the blocks", detail: "Open Code → Blocks. Change the power from 200 to 100 and watch the gears slow down. Add a block to make the motor run only while the switch is OFF.", videoQuery: "scratch style block coding arduino", check: { kind: "code" } },
+      ],
+      tests: [{ id: "start", title: "Motor runs only while the switch is ON", durationMs: 1500, inputs: [{ atMs: 400, part: "sw1", value: 1 }, { atMs: 1000, part: "sw1", value: 0 }], expect: { kind: "at", checks: [{ atMs: 200, part: "m1", on: false }, { atMs: 700, part: "m1", on: true }, { atMs: 1300, part: "m1", on: false }] } }],
     },
   },
   {
