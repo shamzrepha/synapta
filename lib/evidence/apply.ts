@@ -1,6 +1,9 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { updateMastery, Activity, OMEGA, MASTERY_THRESHOLD, safeBktParams } from "@/lib/bkt/engine";
 import { ApiError } from "@/lib/api/errors";
+import { trackProgress } from "@/lib/game/progress";
+import { notify } from "@/lib/notifications/server";
+import { shareAchievement } from "@/lib/social/feed";
 
 export interface ApplyEvidenceParams {
   uid: string;
@@ -39,7 +42,7 @@ export async function applyEvidence({
   const evidenceRef = adminDb().collection("evidence").doc();
   const kcRef = adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId);
 
-  return adminDb().runTransaction(async (t) => {
+  const result = await adminDb().runTransaction(async (t): Promise<ApplyEvidenceResult> => {
     // 1. Read KC doc for BKT parameters (enforcing KC existence)
     const kcDoc = await t.get(kcRef);
     if (!kcDoc.exists) {
@@ -205,4 +208,38 @@ export async function applyEvidence({
       crossedMasteryFirstTime,
     };
   });
+
+  // Gamification (levels, quests, badges, leagues, notifications) runs after the mastery
+  // transaction commits and never blocks or fails it.
+  await trackProgress({
+    uid,
+    xpAlreadyApplied: result.xpGained,
+    stats: {
+      evidence: 1,
+      quizAnswered: activity === "quiz" ? 1 : 0,
+      quizCorrect: activity === "quiz" && correct ? 1 : 0,
+      labs: activity === "lab" && correct ? 1 : 0,
+      flashcards: activity === "flashcard" ? 1 : 0,
+      peerHelps: activity === "peer_explain" && correct ? 1 : 0,
+      masteries: result.crossedMasteryFirstTime ? 1 : 0,
+    },
+    reason: `evidence:${activity}`,
+  });
+  if (result.crossedMasteryFirstTime) {
+    try {
+      const kc = await kcRef.get();
+      const title = kc.data()?.title || "a topic";
+      await notify(uid, {
+        type: "mastery",
+        title: `You mastered ${title}! 🏅`,
+        body: "+100 bonus XP",
+        href: `/classes/${classId}/topics/${kcId}`,
+        icon: "🏅",
+      });
+      await shareAchievement(uid, `mastered **${title}** 🏅`, { type: "mastery", classId, kcId });
+    } catch {
+      // Celebration only; mastery itself is already saved
+    }
+  }
+  return result;
 }

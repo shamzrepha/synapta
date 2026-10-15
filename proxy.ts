@@ -9,6 +9,12 @@ const protectedPrefixes = [
   "/lounge",
   "/profile",
   "/admin",
+  "/feed",
+  "/challenges",
+  "/leaderboard",
+  "/sessions",
+  "/notifications",
+  "/friends",
 ];
 
 const authPages = ["/login", "/signup"];

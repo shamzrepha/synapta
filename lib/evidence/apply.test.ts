@@ -2,6 +2,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { applyEvidence } from "./apply";
 import { ApiError } from "@/lib/api/errors";
 
+// Gamification side effects are covered by their own tests
+vi.mock("@/lib/game/progress", () => ({ trackProgress: vi.fn(async () => {}) }));
+vi.mock("@/lib/notifications/server", () => ({ notify: vi.fn(async () => {}) }));
+vi.mock("@/lib/social/feed", () => ({ shareAchievement: vi.fn(async () => {}) }));
+
 // In-memory Firestore mock for transaction testing
 const mockDocs: Record<string, Record<string, unknown>> = {};
 

@@ -55,8 +55,14 @@ export default function ExplorePage() {
 
   // /explore?create=1 (from "Create class" buttons elsewhere) opens the wizard directly
   useEffect(() => {
-    if (!new URLSearchParams(window.location.search).has("create")) return;
-    const t = setTimeout(() => setIsModalOpen(true), 0);
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get("q");
+    const openCreate = params.has("create");
+    if (!q && !openCreate) return;
+    const t = setTimeout(() => {
+      if (q) setSearch(q);
+      if (openCreate) setIsModalOpen(true);
+    }, 0);
     return () => clearTimeout(t);
   }, []);
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);

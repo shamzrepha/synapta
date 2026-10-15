@@ -206,6 +206,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Live channels: counters/timestamps only (no data). Clients listen and refetch via the API.
+    match /liveChannels/{channelId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+
+    // Notifications, quests: owner read, server-written
+    match /users/{userId}/notifications/{notificationId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
     // 14. Bug Reports & Feedback
     match /bugReports/{reportId} {
       allow read: if isAuthenticated() && (resource.data.reporterUid == request.auth.uid || isAdmin());

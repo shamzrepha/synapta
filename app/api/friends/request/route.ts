@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { notify } from "@/lib/notifications/server";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -79,6 +80,14 @@ export async function POST(req: NextRequest) {
       status: "pending",
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
+    });
+
+    await notify(targetUid, {
+      type: "friend",
+      title: `${callerData.displayName || "Someone"} sent you a friend request`,
+      href: "/friends",
+      icon: "👋",
+      actorUid: caller.uid,
     });
 
     return NextResponse.json({
@@ -164,6 +173,15 @@ export async function PATCH(req: NextRequest) {
       });
 
       await batch.commit();
+
+      await notify(fromUid, {
+        type: "friend",
+        title: `${toData.displayName || "Someone"} accepted your friend request`,
+        body: "You can now message each other and compare progress.",
+        href: "/friends",
+        icon: "🤝",
+        actorUid: toUid,
+      });
 
       return NextResponse.json({
         ok: true,

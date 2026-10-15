@@ -22,8 +22,12 @@ import {
 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { useGameState } from "@/components/game/use-game";
+import { LevelCard, BadgeGrid } from "@/components/game/widgets";
+import { GameSettings } from "@/components/game/game-settings";
 
 export default function ProfilePage() {
+  const { game } = useGameState();
   const { user, updateUser } = useUserStore();
   const { refreshUser } = useAuth();
   const { toast } = useToast();
@@ -346,6 +350,14 @@ export default function ProfilePage() {
           </Card>
         </div>
       </div>
+
+      {game && (
+        <div className="space-y-6">
+          <LevelCard game={game} />
+          <BadgeGrid game={game} />
+          <GameSettings game={game} />
+        </div>
+      )}
     </div>
   );
 }

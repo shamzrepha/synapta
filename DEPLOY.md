@@ -54,3 +54,25 @@ npm run verify
 ```
 
 This validates TypeScript compilation, ESLint, Vitest test suites, and CI array guards.
+
+## 4. Live updates, gamification & community features
+
+These features need the latest Firestore rules and indexes deployed:
+
+```bash
+firebase deploy --only firestore:rules,firestore:indexes
+```
+
+- **Rules**: clients may read `liveChannels/*` (counters only, no data) and their own
+  `userSignals/{uid}` and `users/{uid}/notifications/*`. All writes stay server-only.
+- **Indexes**: leagues (`leagueEntries`), feed (`posts`), challenges (`events`) and study sessions
+  (`studySessions`). Index builds take a few minutes; until they finish those lists return an error.
+- **Optional cron** for study-session reminders when nobody has the app open (reminders are also sent
+  automatically whenever anyone views sessions). Add to `vercel.json`:
+
+  ```json
+  { "crons": [{ "path": "/api/jobs/session-reminders", "schedule": "*/5 * * * *" }] }
+  ```
+
+  Vercel sends `Authorization: Bearer $CRON_SECRET`; set `CRON_SECRET` in the project env.
+- Weekly leagues settle lazily (the first time each learner earns XP in a new week), so no cron is needed.

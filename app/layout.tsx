@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -18,6 +18,17 @@ const geistMono = Geist_Mono({
 });
 
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
+
+// Phones, tablets and laptops: scale to device width; respect notches / home indicators
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F7F6F2" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0F14" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: "Synapta — AI-Native Adaptive Learning Platform",

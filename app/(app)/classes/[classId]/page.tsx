@@ -21,7 +21,11 @@ import {
   Zap,
   Compass,
   FileText,
+  MessagesSquare,
+  Crown,
+  Swords,
 } from "lucide-react";
+import { SessionsPanel } from "@/components/sessions/sessions-panel";
 import { formatPL, getMasteryStatus } from "@/lib/utils";
 import { MaterialsUploader } from "@/components/teacher/MaterialsUploader";
 
@@ -494,6 +498,38 @@ export default function ClassOverviewPage({
           </div>
         </Card>
       </div>
+
+      {/* Live class life: sessions, community, rankings */}
+      {(isOwner || enrollmentStatus === "active") && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+          <div className="lg:col-span-2">
+            <SessionsPanel classId={classId} classes={[{ id: classId, title: classData.title }]} title="Class study sessions" compact />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
+            <Link href={`/feed?class=${classId}`}>
+              <Card className="p-4 hover:border-teal-500/50 transition-colors h-full">
+                <MessagesSquare className="h-5 w-5 text-teal-600 mb-1.5" />
+                <p className="font-semibold text-sm">Class feed</p>
+                <p className="text-xs text-slate-500">Ask questions, share wins</p>
+              </Card>
+            </Link>
+            <Link href={`/leaderboard?scope=class&classId=${classId}`}>
+              <Card className="p-4 hover:border-amber-500/50 transition-colors h-full">
+                <Crown className="h-5 w-5 text-amber-500 mb-1.5" />
+                <p className="font-semibold text-sm">Class leaderboard</p>
+                <p className="text-xs text-slate-500">This week&apos;s top learners</p>
+              </Card>
+            </Link>
+            <Link href="/challenges" className="col-span-2 lg:col-span-1">
+              <Card className="p-4 hover:border-rose-500/50 transition-colors h-full">
+                <Swords className="h-5 w-5 text-rose-500 mb-1.5" />
+                <p className="font-semibold text-sm">Challenges</p>
+                <p className="text-xs text-slate-500">Quiz sprints & hackathons</p>
+              </Card>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Knowledge Components Syllabus List */}
       <div className="space-y-4">

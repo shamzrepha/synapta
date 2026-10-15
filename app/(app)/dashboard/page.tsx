@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { MasteryRadar, RadarDataPoint } from "@/components/dashboard/mastery-radar";
 import {
   BrainCircuit,
-  Flame,
-  Zap,
+  Swords,
   BookOpen,
   ArrowRight,
   Compass,
@@ -18,6 +17,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { asArray } from "@/lib/api/client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useGameState } from "@/components/game/use-game";
+import { LevelCard, LeagueCard, QuestsCard } from "@/components/game/widgets";
+import { SessionsPanel } from "@/components/sessions/sessions-panel";
+import type { EventSummary } from "@/components/events/types";
 
 interface EnrolledClass {
   id: string;
@@ -31,6 +35,17 @@ interface EnrolledClass {
 
 export default function DashboardPage() {
   const { user, updateUser } = useUserStore();
+  const { game } = useGameState();
+  const [activeEvents, setActiveEvents] = useState<EventSummary[]>([]);
+
+  useEffect(() => {
+    fetch("/api/events")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.ok) setActiveEvents((j.data.events as EventSummary[]).filter((e) => e.status !== "ended"));
+      })
+      .catch(() => null);
+  }, []);
   const [classes, setClasses] = useState<EnrolledClass[]>([]);
   const [radarData, setRadarData] = useState<RadarDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +80,8 @@ export default function DashboardPage() {
     };
   }, [updateUser]);
 
+  const sessionClasses = asArray(classes).map((c) => ({ id: c.id, title: c.title }));
+
   return (
     <div className="space-y-6">
       {/* Welcome & Overview Header */}
@@ -74,7 +91,11 @@ export default function DashboardPage() {
             Welcome back, {user?.displayName || "Learner"}
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Your Cognitive Digital Twin is active. Latent state updated continuously via Bayesian Knowledge Tracing.
+            {game
+              ? game.quests.every((q) => q.done)
+                ? "All daily quests done — legendary! Come back tomorrow for new ones."
+                : `${game.quests.filter((q) => !q.done).length} daily quest${game.quests.filter((q) => !q.done).length === 1 ? "" : "s"} left today. Keep your 🔥 ${game.streakDays}-day streak alive!`
+              : "Pick up where you left off."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -93,77 +114,71 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase font-semibold">Active Streak</CardDescription>
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-amber-500">{user?.streakDays || 1} Days</span>
-              <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                <Flame className="h-5 w-5" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-slate-500">Study today to keep your streak burning!</p>
-          </CardContent>
-        </Card>
+      {/* Game loop: level, league, daily quests */}
+      {game ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
+          <LevelCard game={game} />
+          <LeagueCard game={game} />
+          <div className="md:col-span-2 xl:col-span-1">
+            <QuestsCard game={game} />
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+        </div>
+      )}
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase font-semibold">Total XP Earned</CardDescription>
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-teal-600 dark:text-teal-400">
-                {user?.xp || 0} XP
-              </span>
-              <div className="h-9 w-9 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-500">
-                <Zap className="h-5 w-5" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-slate-500">Solve interactive labs and quizzes to earn XP</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase font-semibold">Enrolled Courses</CardDescription>
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {classes.length}
-              </span>
-              <div className="h-9 w-9 rounded-xl bg-slate-200/60 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
-                <GraduationCap className="h-5 w-5" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-slate-500">Active learning curriculums</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="text-xs uppercase font-semibold">AI Assistant Quota</CardDescription>
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
-                {((user?.monthlyTokensUsed || 0) / 1000).toFixed(1)}k / {((user?.monthlyTokenLimit || 50000) / 1000).toFixed(0)}k
-              </span>
-              <div className="h-9 w-9 rounded-xl bg-slate-200/60 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300">
-                <BookOpen className="h-5 w-5" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-slate-500">Monthly Socratic tutor tokens</p>
-          </CardContent>
+      {/* What's happening: sessions + challenges */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <SessionsPanel classes={sessionClasses} title="Study sessions" compact />
+        <Card className="p-4 sm:p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="font-bold flex items-center gap-2">
+              <Swords className="h-4 w-4 text-rose-500" /> Challenges
+            </p>
+            <Link href="/challenges" className="text-xs font-semibold text-teal-600 dark:text-teal-400">
+              See all
+            </Link>
+          </div>
+          {activeEvents.length === 0 ? (
+            <p className="text-sm text-slate-500 py-2">No live or upcoming challenges right now.</p>
+          ) : (
+            <ul className="space-y-2">
+              {activeEvents.slice(0, 4).map((ev) => (
+                <li key={ev.id}>
+                  <Link
+                    href={`/challenges/${ev.id}`}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 hover:border-teal-500/50"
+                  >
+                    <span className="text-xl">{ev.kind === "hackathon" ? "🛠️" : "⚡"}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate">{ev.title}</p>
+                      <p className="text-[11px] text-slate-500">{ev.participantCount} joined</p>
+                    </div>
+                    <span
+                      className={
+                        ev.status === "live"
+                          ? "text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500 text-white animate-pulse"
+                          : "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                      }
+                    >
+                      {ev.status === "live" ? "LIVE" : ev.status === "voting" ? "VOTING" : "SOON"}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
 
       {/* Main Content Area */}
-      {classes.length === 0 ? (
+      {loading ? (
+        <Skeleton className="h-48 w-full rounded-2xl" />
+      ) : classes.length === 0 ? (
         /* Clean Zero-Data Onboarding State */
         <Card className="p-8 border-slate-200 dark:border-slate-800 text-center space-y-6">
           <div className="max-w-md mx-auto space-y-3">
