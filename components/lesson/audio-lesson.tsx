@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { readPrefs } from "@/components/settings/use-prefs";
 import { GaplessPlayer, type ClipState } from "@/lib/audio/gapless";
 import { speakDevice, cancelDevice } from "@/lib/audio/device-voice";
 
@@ -106,7 +107,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
       onStatus: () => setClipStatus(Array.from({ length: turnsKey.length }, (_, i) => player.statusOf(i))),
     });
     // Start fetching every line in the background right away, so Play starts instantly
-    player.preload(0);
+    if (!readPrefs().dataSaver) player.preload(0); // data saver: fetch audio only when Play is pressed
     playerRef.current = player;
     return () => {
       player.dispose();

@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { useLiveChannel } from "@/lib/live/client";
 import { formatCountdown, useNow } from "@/components/game/use-game";
 import { LEAGUE_TIERS, PROMOTE_COUNT, DEMOTE_COUNT, MIN_SIZE_FOR_DEMOTION } from "@/lib/game/leagues";
+import { WeeklyBoard } from "@/components/weekly/weekly-board";
 import { asArray } from "@/lib/api/client";
 import { cn, formatNumber } from "@/lib/utils";
 
@@ -64,7 +65,7 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const sc = params.get("scope") as Scope | null;
+    const sc = (params.get("scope") || (params.get("period") === "week" ? "weekly" : null)) as Scope | null;
     const cid = params.get("classId");
     const t = setTimeout(() => {
       if (sc && TABS.some((x) => x.key === sc)) setScope(sc);
@@ -184,7 +185,9 @@ export default function LeaderboardPage() {
         </Card>
       )}
 
-      {loading ? (
+      {scope === "weekly" ? (
+        <WeeklyBoard />
+      ) : loading ? (
         <div className="space-y-2">
           {[0, 1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-14 w-full rounded-xl" />

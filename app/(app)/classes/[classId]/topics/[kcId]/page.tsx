@@ -1,5 +1,6 @@
 "use client";
 
+import { OfflineDownloadButton } from "@/components/offline/download-button";
 import React, { useState, useEffect, use, useRef, useCallback } from "react";
 import Link from "next/link";
 import { TopicLabs } from "@/components/studio/topic-labs";
@@ -376,6 +377,7 @@ export default function TopicPage({
             <div className="flex flex-wrap gap-2 mt-3">
               <ShareButton item={{ type: "topic", id: `${classId}_${kcId}`, title: kc.title, subtitle: "Lesson, simulation & quiz", href: `/classes/${classId}/topics/${kcId}`, emoji: "📚" }} />
               <SaveButton item={{ type: "topic", id: `${classId}_${kcId}`, title: kc.title, subtitle: "Topic", href: `/classes/${classId}/topics/${kcId}` }} />
+              <OfflineDownloadButton url={`/api/classes/${classId}`} title={kc.title} />
             </div>
           </div>
 

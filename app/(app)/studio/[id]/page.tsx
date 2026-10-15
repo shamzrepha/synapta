@@ -14,7 +14,7 @@ import { ExportMenu } from "@/components/studio/export-menu";
 import { WallPublish } from "@/components/studio/wall-publish";
 import { useLiveChannel } from "@/lib/live/client";
 import { asArray } from "@/lib/api/client";
-import { Viewer3D } from "@/components/studio/viewer3d";
+import { Viewer3D } from "@/components/studio/deferred-viewer3d";
 import { CircuitBench, type CircuitValue } from "@/components/studio/circuit-bench";
 import { CodeEditor } from "@/components/studio/code-editor";
 import { MechPanel } from "@/components/studio/mech-panel";

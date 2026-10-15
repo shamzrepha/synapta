@@ -5,7 +5,7 @@ import { BadgeCheck, ExternalLink, Minus, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Viewer3D } from "@/components/studio/viewer3d";
+import { Viewer3D } from "@/components/studio/deferred-viewer3d";
 import { circuitTo3D } from "@/lib/studio/circuit/to3d";
 import { asArray } from "@/lib/api/client";
 import { cn } from "@/lib/utils";

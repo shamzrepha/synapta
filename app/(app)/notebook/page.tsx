@@ -11,6 +11,8 @@ import { extractTextFromFile } from "@/lib/pdf/extractor";
 import { cn } from "@/lib/utils";
 import { useLiveChannel } from "@/lib/live/client";
 import { NotebookBar, type NotebookMeta } from "@/components/notebook/notebook-bar";
+import { OfflineDownloadButton } from "@/components/offline/download-button";
+import { readPrefs } from "@/components/settings/use-prefs";
 import { GaplessPlayer, type ClipState } from "@/lib/audio/gapless";
 import { speakDevice, cancelDevice } from "@/lib/audio/device-voice";
 import {
@@ -521,7 +523,7 @@ export default function NotebookPage() {
       onStatus: () => setPodcastClips(Array.from({ length: dialogue.length }, (_, i) => player.statusOf(i))),
     });
     podcastPlayerRef.current = player;
-    player.preload(0);
+    if (!readPrefs().dataSaver) player.preload(0);
     return () => {
       player.dispose();
       if (podcastPlayerRef.current === player) podcastPlayerRef.current = null;
@@ -651,6 +653,7 @@ export default function NotebookPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {nbId && <OfflineDownloadButton url={`/api/notebooks/${nbId}`} title={nbMeta?.title || "Notebook"} />}
           {canEdit && (
             <Button size="sm" onClick={() => setActiveAddModal(true)} className="text-xs">
               <Plus className="h-4 w-4 mr-1" /> Add Source Document

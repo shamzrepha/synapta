@@ -2,6 +2,7 @@ import React from "react";
 import { Sidebar } from "@/components/shell/sidebar";
 import { Topbar } from "@/components/shell/topbar";
 import { MobileNav } from "@/components/shell/mobile-nav";
+import { OfflineManager } from "@/components/offline/offline-manager";
 import { TutorLauncher } from "@/components/tutor/tutor-launcher";
 
 export default function AppLayout({
@@ -20,6 +21,7 @@ export default function AppLayout({
       </div>
       <MobileNav />
       <TutorLauncher />
+      <OfflineManager />
     </div>
   );
 }
