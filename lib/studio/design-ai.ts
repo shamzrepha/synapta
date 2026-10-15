@@ -21,7 +21,7 @@ const FORMAT = `DESIGN JSON FORMAT (all keys optional except kind):
   "parts": [ // 3D parts in millimetres, Y is up, x/z horizontal; size/pos numbers may be formulas of params like "W / 2 + 10"
     {"id":"base","name":"Base plate","shape":"box"|"cylinder"|"sphere"|"cone"|"torus"|"capsule"|"gear"|"tube"|"prism",
      "size":[...] (box [w,h,d]; cylinder/cone [radius,height]; sphere [radius]; torus [ring radius, tube radius]; capsule [radius,length]; gear [pitch radius, thickness] plus "teeth":20; tube [outer radius,height,inner radius]; prism [radius,height,sides 3-12]),
-     "pos":[x,y,z] (centre of the part),"rot":[deg,deg,deg],"color":"#8fd3ff","opacity":0.15,"group":"Housing","explode":[dx,dy,dz],
+     "pos":[x,y,z] (centre of the part),"rot":[deg,deg,deg],"spinWith":"circuit motor part id (optional: this part spins while that motor runs)","spinAxis":"x"|"y"|"z","color":"#8fd3ff","opacity":0.15,"group":"Housing","explode":[dx,dy,dz],
      "info":{"where":"…","fit":"how to make/fit it","cost":"₦…","material":"…"}}
   ],
   "circuit": {"parts":[{"id":"board","type":"board","x":60,"y":300},{"id":"red","type":"led","label":"Red LED","x":120,"y":60,"props":{"color":"red"}},{"id":"r1","type":"resistor","x":100,"y":180,"props":{"ohms":220}}],
@@ -44,6 +44,7 @@ ${catalogText}
 - Give every part a "group", a believable colour (e.g. metal #94a3b8, wood #b45309, plastic #8fd3ff, rubber #1f2937) and "explode" offsets so the exploded view pulls the assembly apart sensibly (move each part away from the centre along the axis it would come off).
 - Use opacity 0.12–0.35 (they are drawn as blueprint-style solids); info.where/info.fit explain placement and assembly.
 - Worked example (phone stand, abridged): params [{"key":"A","label":"Lean angle","value":70,"min":55,"max":85,"unit":"°"}], parts: base box ["120",8,"90"] at [0,4,0]; back rest box [100,120,6] at [0,64,-30] rot [-(90-A)... use numbers like 20,0,0]; front lip box [100,18,8] at [0,17,30]; rubber feet = four cylinders [6,4] under the corners.
+ROBOTS AND VEHICLES (cars, rovers, fans, arms): give them ALL THREE views in one design with kind "circuit": "parts" for the 3D body (chassis, wheels as torus tyres with rot [0,0,90] plus a thin box spoke so the spin is visible, motors, battery, board), a "circuit" (board + motor_driver per motor + dc_motor + buttons/sensors) and "code". Put "spinWith":"<dc_motor id>","spinAxis":"x" on every wheel part so the 3D wheels turn when the simulated motor runs.
 RULES: circuit bench coordinates x 0–900, y 0–500 (board at about x 60, y 300; parts above it). Every LED needs a resistor in series. Motors go through a motor_driver. Sensors need power and GND. Steps must build understanding in small pieces; end circuits with a behaviour test. Mechanisms: lifting must be physically possible; explain torque, ratio and speed. Assemblies: realistic sizes in mm, every part has info.where and info.fit.`;
 
 const outSchema = z.object({
@@ -143,14 +144,78 @@ Learner level: ${params.level || "beginner"}. Choose the kind that fits best if 
   return askForDesign(prompt, params.userId, SYSTEM);
 }
 
-export async function editDesign(params: { spec: DesignSpec; instruction: string; userId: string }) {
-  const prompt = `CURRENT DESIGN:
+const editSchema = z.object({
+  message: z.string().max(200).optional(),
+  /** set when the request can't be done: say plainly why and what to try instead */
+  cannot: z.string().max(600).optional(),
+  /** new 3D parts to add (same format as design.parts) */
+  addParts: z.array(z.record(z.unknown())).max(60).optional(),
+  /** changes to existing parts: {"id":"wheel1", ...only the fields that change} */
+  updateParts: z.array(z.record(z.unknown())).max(80).optional(),
+  removePartIds: z.array(z.string()).max(80).optional(),
+  /** top-level keys to replace completely: params, circuit, code, mechanism, steps, tests, summary, notes */
+  set: z.record(z.unknown()).optional(),
+});
+
+const EDIT_SYSTEM = `You are Sunroot's Maker Studio engineer editing an EXISTING design a learner already has. You return a small PATCH, never the whole design.
+${FORMAT}
+Return ONLY JSON: {"message":"one-line commit message","cannot":"(only if you truly can't) why, and what to try instead","addParts":[...new 3D parts...],"updateParts":[{"id":"existing id","only":"changed fields"}],"removePartIds":["id"],"set":{"circuit":{...},"code":"...","params":[...]}}.
+Rules for patches:
+- To ADD to the 3D model, put new parts in addParts with new unique ids, positioned relative to the existing parts shown below (use their pos/size so things touch and sit on the right surface). Do not repeat existing parts.
+- To CHANGE a part, use updateParts with its id and just the fields that change. To delete, removePartIds.
+- "set" replaces a whole top-level key; use it for circuit/code/mechanism/steps/tests/params changes and send the COMPLETE new value for that key.
+- Omit anything that doesn't change. Keep ids stable.
+- You CAN add 3D parts to any design kind, including circuits and mechanisms. Only use "cannot" for things that are impossible here (real-world photos, files you cannot generate, physics the simulator doesn't have) and explain why in one or two friendly sentences.`;
+
+type Patch = z.output<typeof editSchema>;
+
+/** Applies an AI patch to a design, returning the merged (unvalidated) spec. */
+export function applyPatch(spec: DesignSpec, patch: Patch): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...(JSON.parse(JSON.stringify(spec)) as Record<string, unknown>), ...(patch.set || {}) };
+  let parts = Array.isArray(out.parts) ? [...(out.parts as Record<string, unknown>[])] : [];
+  const gone = new Set(patch.removePartIds || []);
+  parts = parts.filter((p) => !gone.has(String(p.id)));
+  for (const u of patch.updateParts || []) {
+    const i = parts.findIndex((p) => p.id === u.id);
+    if (i >= 0) parts[i] = { ...parts[i], ...u };
+  }
+  const taken = new Set(parts.map((p) => String(p.id)));
+  for (const a of patch.addParts || []) {
+    let id = String(a.id || `part${taken.size + 1}`).replace(/[^A-Za-z0-9_]/g, "_").slice(0, 30) || "part";
+    while (taken.has(id)) id = `${id}_2`;
+    taken.add(id);
+    parts.push({ ...a, id });
+  }
+  out.parts = parts;
+  return out;
+}
+
+export async function editDesign(params: { spec: DesignSpec; instruction: string; userId: string }): Promise<{ message?: string; spec: DesignSpec; cannot?: string; changed: boolean }> {
+  const base = `CURRENT DESIGN:
 ${JSON.stringify(params.spec).slice(0, 60_000)}
 
-CHANGE REQUEST: ${params.instruction.slice(0, 1500)}
-
-Return the COMPLETE updated design (not a patch). Keep everything that wasn't asked to change, keep ids stable, and update steps/tests if the behaviour changes.`;
-  return askForDesign(prompt, params.userId, SYSTEM);
+CHANGE REQUEST: ${params.instruction.slice(0, 1500)}`;
+  let lastError = "";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await generateWithFallback({
+      task: "studio_build",
+      systemInstruction: EDIT_SYSTEM,
+      userPrompt: attempt === 0 ? base : `${base}\n\nYour previous answer was rejected: ${lastError}. Return a corrected patch.`,
+      schema: editSchema,
+      temperature: 0.4,
+      userId: params.userId,
+    });
+    const patch = res.data!;
+    const touches = !!(patch.addParts?.length || patch.updateParts?.length || patch.removePartIds?.length || (patch.set && Object.keys(patch.set).length));
+    if (!touches) return { spec: params.spec, cannot: patch.cannot || "The AI didn't find anything to change. Try describing the part or change more specifically.", changed: false };
+    try {
+      const spec = parseSpec(repairSpec(applyPatch(params.spec, patch)));
+      return { message: patch.message, spec, cannot: patch.cannot, changed: true };
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : String(e);
+    }
+  }
+  throw new Error(`The AI's change couldn't be applied (${lastError}). Try asking for a smaller change.`);
 }
 
 /** Context the tutor sees: the live design, its issues, gaps and test results. */

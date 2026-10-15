@@ -85,6 +85,100 @@ const box = (id: string, name: string, size: [N, N, N], pos: [N, N, N], explode:
   info,
 });
 
+
+// ---------- RC car helpers ----------
+const carWheel = (id: string, side: "L" | "R", x: number, z: number) => [
+  { id: `${id}_tyre`, name: `${side === "L" ? "Left" : "Right"} wheel ${z > 0 ? "front" : "rear"}`, shape: "torus" as const, size: [17, 5], pos: [x, 22, z] as [N, N, N], rot: [0, 0, 90] as [N, N, N], color: "#475569", opacity: 0.55, group: "Wheels", spinWith: `m${side}`, spinAxis: "x" as const, explode: [x > 0 ? 40 : -40, 0, 0] as [number, number, number], info: { where: `${side === "L" ? "Left" : "Right"} side, ${z > 0 ? "front" : "rear"}`, fit: "Press onto the motor shaft or axle.", cost: "~₦1,500" } },
+  { id: `${id}_spoke`, name: `${side === "L" ? "Left" : "Right"} wheel spoke ${z > 0 ? "front" : "rear"}`, shape: "box" as const, size: [4, 4, 30], pos: [x, 22, z] as [N, N, N], color: "#e2e8f0", opacity: 0.5, group: "Wheels", spinWith: `m${side}`, spinAxis: "x" as const, explode: [x > 0 ? 40 : -40, 0, 0] as [number, number, number] },
+];
+function carParts() {
+  return [
+    { id: "chassis", name: "Chassis plate", shape: "box" as const, size: [90, 6, 170], pos: [0, 24, 0] as [N, N, N], color: "#8fd3ff", opacity: 0.22, group: "Body", explode: [0, -10, 0] as [number, number, number], info: { where: "The base everything mounts on", fit: "3 mm plywood or acrylic, 90 × 170 mm.", cost: "~₦1,500" } },
+    { id: "nose", name: "Front marker", shape: "cone" as const, size: [8, 18], pos: [0, 24, 96] as [N, N, N], rot: [90, 0, 0] as [N, N, N], color: "#fbbf24", opacity: 0.4, group: "Body" },
+    { id: "battery", name: "Battery pack", shape: "box" as const, size: [32, 20, 60], pos: [0, 37, -35] as [N, N, N], color: "#f87171", opacity: 0.3, group: "Power", explode: [0, 40, 0] as [number, number, number], info: { where: "Centre-rear on the chassis", fit: "4 × AA holder, strapped down. Heavy parts low and central.", cost: "~₦1,800" } },
+    { id: "uno", name: "Control board", shape: "box" as const, size: [54, 6, 72], pos: [0, 30, 40] as [N, N, N], color: "#5eead4", opacity: 0.3, group: "Electronics", explode: [0, 60, 0] as [number, number, number], info: { where: "Front half of the chassis", fit: "Standoffs under each corner.", cost: "~₦12,000" } },
+    { id: "drvL", name: "Left motor driver", shape: "box" as const, size: [26, 10, 22], pos: [-26, 32, -70] as [N, N, N], color: "#a78bfa", opacity: 0.3, group: "Electronics", explode: [-20, 60, 0] as [number, number, number] },
+    { id: "drvR", name: "Right motor driver", shape: "box" as const, size: [26, 10, 22], pos: [26, 32, -70] as [N, N, N], color: "#a78bfa", opacity: 0.3, group: "Electronics", explode: [20, 60, 0] as [number, number, number] },
+    { id: "motL", name: "Left motor", shape: "cylinder" as const, size: [9, 34], pos: [-37, 22, 50] as [N, N, N], rot: [0, 0, 90] as [N, N, N], color: "#fcd34d", opacity: 0.4, group: "Motors", explode: [-20, 0, 0] as [number, number, number] },
+    { id: "motR", name: "Right motor", shape: "cylinder" as const, size: [9, 34], pos: [37, 22, 50] as [N, N, N], rot: [0, 0, 90] as [N, N, N], color: "#fcd34d", opacity: 0.4, group: "Motors", explode: [20, 0, 0] as [number, number, number] },
+    ...carWheel("wLf", "L", -58, 50),
+    ...carWheel("wLr", "L", -58, -50),
+    ...carWheel("wRf", "R", 58, 50),
+    ...carWheel("wRr", "R", 58, -50),
+  ];
+}
+function carCircuit() {
+  return {
+    parts: [
+      board,
+      { id: "drvL", type: "motor_driver", label: "Left driver", x: 300, y: 200 },
+      { id: "drvR", type: "motor_driver", label: "Right driver", x: 440, y: 200 },
+      { id: "mL", type: "dc_motor", label: "Left motor", x: 300, y: 70 },
+      { id: "mR", type: "dc_motor", label: "Right motor", x: 440, y: 70 },
+      { id: "go", type: "button", label: "Go", x: 120, y: 120 },
+      { id: "turn", type: "button", label: "Turn", x: 200, y: 120 },
+    ],
+    wires: [
+      w("w1", "board.5V", "drvL.vcc", "#ef4444"),
+      w("w2", "drvL.gnd", "board.GND", "#111827"),
+      w("w3", "board.D5", "drvL.in", "#3b82f6"),
+      w("w4", "drvL.out1", "mL.a"),
+      w("w5", "drvL.out2", "mL.b"),
+      w("w6", "board.5V", "drvR.vcc", "#ef4444"),
+      w("w7", "drvR.gnd", "board.GND", "#111827"),
+      w("w8", "board.D6", "drvR.in", "#22c55e"),
+      w("w9", "drvR.out1", "mR.a"),
+      w("w10", "drvR.out2", "mR.b"),
+      w("w11", "go.a", "board.D2"),
+      w("w12", "go.b", "board.GND"),
+      w("w13", "turn.a", "board.D4"),
+      w("w14", "turn.b", "board.GND"),
+    ],
+  };
+}
+const carCode = `var LEFT = 5;   // PWM pin to the left driver
+var RIGHT = 6;  // PWM pin to the right driver
+var GO = 2;
+var TURN = 4;
+
+function setup() {
+  pinMode(LEFT, OUTPUT);
+  pinMode(RIGHT, OUTPUT);
+  pinMode(GO, INPUT_PULLUP);
+  pinMode(TURN, INPUT_PULLUP);
+}
+
+function loop() {
+  if (digitalRead(GO) == LOW) {
+    analogWrite(LEFT, 220);
+    // running one side slower makes the car curve
+    if (digitalRead(TURN) == LOW) {
+      analogWrite(RIGHT, 70);
+    } else {
+      analogWrite(RIGHT, 220);
+    }
+  } else {
+    analogWrite(LEFT, 0);
+    analogWrite(RIGHT, 0);
+  }
+}
+`;
+function carSteps() {
+  return [
+    { id: "r1", title: "Look at the car in 3D", detail: "Drag to orbit, then move the Explode slider (in the 3D view) to see how the chassis, battery, board, drivers and motors stack. Tap a part to see where it goes.", videoQuery: "how to build a two wheel drive rc car", check: { kind: "manual" as const } },
+    { id: "r2", title: "Add a driver and motor for each side", detail: "A motor draws about 200 mA, far more than a pin can give, so each one needs a motor driver between it and the board. Place two drivers and two DC motors.", videoQuery: "why motors need a motor driver", check: { kind: "parts" as const, type: "dc_motor", min: 2 } },
+    { id: "r3", title: "Wire power, signal and motor", detail: "Driver VCC → 5V, GND → GND, IN → a PWM pin (D5 left, D6 right), OUT1/OUT2 → the motor's two legs.", videoQuery: "arduino l298n dc motor wiring", check: { kind: "wired" as const, part: "mL" } },
+    { id: "r4", title: "Add Go and Turn buttons", detail: "One leg of each button to a pin (D2, D4), the other to GND, then use INPUT_PULLUP.", check: { kind: "parts" as const, type: "button", min: 2 } },
+    { id: "r5", title: "Code it, press Run and watch the wheels", detail: "analogWrite(pin, 0–255) sets motor speed. Hold Go and the wheels in the 3D view should spin; hold Turn too and the car should curve because one side runs slower.", videoQuery: "arduino analogWrite pwm motor speed", check: { kind: "test" as const, testId: "go" } },
+    { id: "r6", title: "Stretch: add reverse", detail: "Swap which driver output goes to which motor leg (or add a third button) and make the car back up.", check: { kind: "manual" as const } },
+  ];
+}
+function carTests() {
+  return [
+    { id: "go", title: "Both motors run while Go is held", durationMs: 1500, inputs: [{ atMs: 400, part: "go", value: 1 }, { atMs: 1000, part: "go", value: 0 }], expect: { kind: "at" as const, checks: [{ atMs: 200, part: "mL", on: false }, { atMs: 700, part: "mL", on: true }, { atMs: 700, part: "mR", on: true }, { atMs: 1300, part: "mR", on: false }] } },
+  ];
+}
+
 export const TEMPLATES: Template[] = [
   {
     id: "traffic-light",
@@ -260,6 +354,32 @@ export const TEMPLATES: Template[] = [
         { id: "c1", title: "Explore the stack", detail: "Drag the Explode slider and tap each part to see where it goes.", videoQuery: "how HEPA air purifier works", check: { kind: "manual" } },
         { id: "c2", title: "Resize it", detail: "Change the unit width — every panel and filter resizes with it.", check: { kind: "manual" } },
       ],
+    },
+  },
+  {
+    id: "rc-car",
+    title: "RC car: 3D body, circuit and code",
+    kind: "circuit",
+    level: "intermediate",
+    tags: ["robotics", "3d", "circuit", "code", "motors"],
+    blurb: "Build a two-motor car in three views: see the body in 3D, wire the motors through drivers, then code it and watch the wheels turn.",
+    starter: {
+      kind: "circuit",
+      summary: "A two-motor car. The 3D view shows the body; wire the drivers and motors on the bench, then write the code that drives them.",
+      parts: carParts(),
+      circuit: { parts: [board], wires: [] },
+      code: "function setup() {\n  \n}\n\nfunction loop() {\n  \n}\n",
+      steps: carSteps(),
+      tests: carTests(),
+    },
+    spec: {
+      kind: "circuit",
+      summary: "A two-motor car. Each side's motor gets its own driver so the board can steer by running one side slower than the other.",
+      parts: carParts(),
+      circuit: carCircuit(),
+      code: carCode,
+      steps: carSteps(),
+      tests: carTests(),
     },
   },
   {

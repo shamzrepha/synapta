@@ -21,6 +21,8 @@ export interface Viewer3DProps {
   onSelect: (id: string | null) => void;
   /** live simulation state: input shaft angle (rad) and load height (m) */
   mechState?: { inputAngle: number; loadHeight: number };
+  /** live circuit outputs: parts with `spinWith` turn while that motor runs */
+  motors?: Record<string, { on: boolean; level: number; direction?: 1 | -1 }>;
   className?: string;
 }
 
@@ -105,7 +107,7 @@ function solid(geo: THREE.BufferGeometry, color: string, opacity: number, select
   return g;
 }
 
-export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, className }: Viewer3DProps) {
+export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, motors, className }: Viewer3DProps) {
   const host = useRef<HTMLDivElement>(null);
   const ctx = useRef<{
     renderer: THREE.WebGLRenderer;
@@ -119,12 +121,15 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     ropeTop: THREE.Vector3;
     loadBaseY: number;
     pickables: THREE.Object3D[];
+    spinners: Array<{ obj: THREE.Object3D; motor: string; axis: THREE.Vector3 }>;
     fitted: string;
   } | null>(null);
   const mech = useRef(mechState);
+  const motorsRef = useRef(motors);
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
     mech.current = mechState;
+    motorsRef.current = motors;
     onSelectRef.current = onSelect;
   });
 
@@ -147,7 +152,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     scene.add(grid);
     const content = new THREE.Group();
     scene.add(content);
-    ctx.current = { renderer, scene, camera, controls, content, gears: [], load: null, rope: null, ropeTop: new THREE.Vector3(), loadBaseY: 0, pickables: [], fitted: "" };
+    ctx.current = { renderer, scene, camera, controls, content, gears: [], load: null, rope: null, ropeTop: new THREE.Vector3(), loadBaseY: 0, pickables: [], spinners: [], fitted: "" };
 
     const resize = () => {
       const w = el.clientWidth;
@@ -180,10 +185,21 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     renderer.domElement.addEventListener("pointerup", onUp);
 
     let raf = 0;
+    let lastT = performance.now();
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const c = ctx.current;
       if (!c) return;
+      const nowT = performance.now();
+      const dt = Math.min(0.1, (nowT - lastT) / 1000);
+      lastT = nowT;
+      const mo = motorsRef.current;
+      if (mo) {
+        for (const sp of c.spinners) {
+          const m = mo[sp.motor];
+          if (m?.on) sp.obj.rotateOnWorldAxis(sp.axis, (m.direction || 1) * (0.5 + m.level * 9) * dt);
+        }
+      }
       const st = mech.current;
       if (st) {
         for (const g of c.gears) g.obj.rotation.z = st.inputAngle * g.factor + g.phase;
@@ -229,6 +245,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     c.load = null;
     c.rope = null;
     c.pickables = [];
+    c.spinners = [];
 
     for (const p of parts) {
       const geo = partGeometry(p);
@@ -239,6 +256,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
       g.userData.partId = p.id;
       c.content.add(g);
       c.pickables.push(g.children[0]);
+      if (p.spinWith) c.spinners.push({ obj: g, motor: p.spinWith, axis: new THREE.Vector3(p.spinAxis === "y" ? 1 : 0, 0, 0).set(p.spinAxis === "z" ? 0 : p.spinAxis === "y" ? 0 : 1, p.spinAxis === "y" ? 1 : 0, p.spinAxis === "z" ? 1 : 0) });
     }
 
     if (mechanism) {

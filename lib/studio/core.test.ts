@@ -120,3 +120,27 @@ describe("3D templates", () => {
     }
   });
 });
+
+import { getTemplate } from "./templates";
+import { runBehaviorTest } from "./circuit/runtime";
+import { checkCircuit } from "./circuit/checker";
+
+describe("RC car template", () => {
+  it("has 3D parts, a clean circuit and passing code", () => {
+    const t = parseSpec(getTemplate("rc-car")!.spec);
+    expect(t.parts.some((p) => p.spinWith === "mL")).toBe(true);
+    expect(checkCircuit(t.circuit!, t.code || "").filter((i) => i.severity === "error")).toEqual([]);
+    expect(runBehaviorTest(t.circuit!, t.code || "", t.tests[0]).pass).toBe(true);
+  });
+});
+
+import { applyPatch } from "./design-ai";
+describe("AI edit patches", () => {
+  it("adds, updates and removes 3D parts without rewriting the rest", () => {
+    const spec = parseSpec({ kind: "assembly", parts: [{ id: "a", name: "A", size: [10, 10, 10], pos: [0, 5, 0] }, { id: "b", name: "B", size: [5, 5, 5], pos: [0, 15, 0] }] });
+    const merged = parseSpec(repairSpec(applyPatch(spec, { updateParts: [{ id: "a", color: "#ff0000" }], removePartIds: ["b"], addParts: [{ id: "a", name: "Handle", shape: "capsule", size: [4, 30], pos: [0, 30, 0] }] })));
+    expect(merged.parts.map((p) => p.id)).toEqual(["a", "a_2"]);
+    expect(merged.parts[0].color).toBe("#ff0000");
+    expect(merged.parts[1].shape).toBe("capsule");
+  });
+});

@@ -42,6 +42,9 @@ export const part3dSchema = z.object({
   color: z.string().max(20).optional(),
   opacity: z.number().min(0.02).max(1).optional(),
   group: z.string().max(40).optional(),
+  /** spins while this circuit motor (or servo) runs in the simulation, e.g. a wheel */
+  spinWith: z.string().max(24).optional(),
+  spinAxis: z.enum(["x", "y", "z"]).optional(),
   explode: z.tuple([z.number(), z.number(), z.number()]).optional(),
   info: z
     .object({

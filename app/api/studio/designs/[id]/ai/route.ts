@@ -28,8 +28,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
     const out = await editDesign({ spec: parseSpec(data.spec), instruction, userId: caller.uid });
+    if (!out.changed) return NextResponse.json({ ok: true, data: { changed: false, note: out.cannot } });
     const r = await commitDesign({ id, user: caller, spec: out.spec, parentId: data.headCommitId, message: `AI: ${out.message || instruction}`.slice(0, 200), source: "ai" });
-    return NextResponse.json({ ok: true, data: r });
+    return NextResponse.json({ ok: true, data: { ...r, changed: true, note: out.cannot } });
   } catch (error) {
     return handleAuthError(error);
   }

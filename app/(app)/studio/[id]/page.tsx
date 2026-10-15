@@ -3,7 +3,7 @@
 import React, { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Play, Square, Save, Sparkles, GitFork, Star, Share2, FlaskConical, Loader2, Wand2, Box, Cpu, Cog, Users, Globe, Lock, GraduationCap } from "lucide-react";
+import { ArrowLeft, Play, Square, Save, Sparkles, GitFork, Star, Share2, FlaskConical, Loader2, Wand2, Undo2, Redo2, Box, Cpu, Cog, Users, Globe, Lock, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +64,8 @@ async function fetchDesign(id: string): Promise<{ ok: true; data: Payload } | { 
   }
 }
 
+const clock = () => Date.now();
+
 export default function StudioEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { toast } = useToast();
@@ -97,6 +99,15 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const inputsRef = useRef({ pressed: new Set<string>(), values: {} as Record<string, number> });
   const rafRef = useRef(0);
 
+  // undo / redo of unsaved edits (saved versions live in History)
+  const workRef = useRef<DesignSpec | null>(null);
+  const hist = useRef({ past: [] as DesignSpec[], future: [] as DesignSpec[], lastAt: 0, lastKey: "" });
+  const [histCount, setHistCount] = useState({ undo: 0, redo: 0 });
+  const syncHist = () => setHistCount({ undo: hist.current.past.length, redo: hist.current.future.length });
+  useEffect(() => {
+    workRef.current = work;
+  }, [work]);
+
   const dirtyRef = useRef(false);
   const markDirty = useCallback((v: boolean) => {
     dirtyRef.current = v;
@@ -116,7 +127,11 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
         try {
           const spec = parseSpec(r.data.spec);
           setWork((cur) => (cur && !opts.force && dirtyRef.current ? cur : spec));
-          if (opts.force) markDirty(false);
+          if (opts.force) {
+            markDirty(false);
+            hist.current = { past: [], future: [], lastAt: 0, lastKey: "" };
+            setHistCount({ undo: 0, redo: 0 });
+          }
         } catch (e) {
           setError(e instanceof Error ? e.message : "This design is damaged.");
         }
@@ -135,11 +150,75 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   });
 
   const edit = (patch: Partial<DesignSpec>) => {
-    setWork((w) => (w ? { ...w, ...patch } : w));
+    const cur = workRef.current;
+    if (!cur) return;
+    const h = hist.current;
+    const key = Object.keys(patch).sort().join(",");
+    const now = clock();
+    // typing / dragging a slider in quick succession is one undo step
+    if (!(h.past.length && key === h.lastKey && now - h.lastAt < 800)) {
+      h.past.push(cur);
+      if (h.past.length > 100) h.past.shift();
+    }
+    h.lastKey = key;
+    h.lastAt = now;
+    h.future = [];
+    const next = { ...cur, ...patch };
+    workRef.current = next;
+    setWork(next);
     markDirty(true);
+    syncHist();
     // Editing stops the simulation so it never runs stale wiring/code
     if (running) stopSim();
   };
+
+  const undo = useCallback(() => {
+    const h = hist.current;
+    const prev = h.past.pop();
+    const cur = workRef.current;
+    if (!prev || !cur) return;
+    h.future.push(cur);
+    h.lastKey = "";
+    workRef.current = prev;
+    setWork(prev);
+    markDirty(true);
+    syncHist();
+    cancelAnimationFrame(rafRef.current);
+    setRunning(false);
+  }, [markDirty]);
+
+  const redo = useCallback(() => {
+    const h = hist.current;
+    const next = h.future.pop();
+    const cur = workRef.current;
+    if (!next || !cur) return;
+    h.past.push(cur);
+    h.lastKey = "";
+    workRef.current = next;
+    setWork(next);
+    markDirty(true);
+    syncHist();
+    cancelAnimationFrame(rafRef.current);
+    setRunning(false);
+  }, [markDirty]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      const k = e.key.toLowerCase();
+      if (k === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      } else if (k === "y" || (k === "z" && e.shiftKey)) {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
 
   const shown = preview || work;
   const design = data?.design;
@@ -252,12 +331,16 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     setAiBusy(true);
     try {
       const j = await fetch(`/api/studio/designs/${id}/ai`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction }) }).then((r) => r.json());
-      if (j.ok) {
+      if (j.ok && j.data.changed === false) {
+        toast({ title: "The AI couldn't do that", description: j.data.note || "Try describing the change differently.", variant: "amber" });
+      } else if (j.ok) {
         setAiText("");
         await load({ force: true });
         setHistoryVersion((v) => v + 1);
-        toast({ title: "AI updated the design", description: asArray<string>(j.data.diff?.lines).slice(0, 3).join(" · "), variant: "success" });
-      } else toast({ title: "AI couldn't change it", description: j.error?.message, variant: "destructive" });
+        toast({ title: "AI updated the design", description: [...asArray<string>(j.data.diff?.lines).slice(0, 3), j.data.note].filter(Boolean).join(" · "), variant: "success" });
+      } else toast({ title: "AI couldn't change it", description: j.error?.message || "The AI service didn't answer. Try again in a moment.", variant: "destructive" });
+    } catch {
+      toast({ title: "AI couldn't change it", description: "Couldn't reach the AI service. Check your connection and try again.", variant: "destructive" });
     } finally {
       setAiBusy(false);
     }
@@ -376,6 +459,16 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
           <Share2 className="h-4 w-4" />
         </Button>
         {canEdit && (
+          <>
+            <Button size="sm" variant="outline" onClick={undo} disabled={histCount.undo === 0} aria-label="Undo" title="Undo (Ctrl+Z)">
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant="outline" onClick={redo} disabled={histCount.redo === 0} aria-label="Redo" title="Redo (Ctrl+Y)">
+              <Redo2 className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+        {canEdit && (
           <Button size="sm" onClick={() => save()} isLoading={saving} disabled={!dirty}>
             <Save className="h-4 w-4 mr-1" /> {dirty ? "Save version" : "Saved"}
           </Button>
@@ -485,6 +578,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
                 selectedId={selected}
                 onSelect={setSelected}
                 mechState={mechState}
+                motors={running ? outputs : undefined}
                 className="h-[48vh] min-h-[320px] w-full rounded-2xl border border-slate-200 dark:border-slate-800"
               />
               {parts3d.some((p) => p.explode) && (
