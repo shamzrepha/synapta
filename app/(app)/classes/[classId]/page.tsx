@@ -26,6 +26,8 @@ import {
   Swords,
 } from "lucide-react";
 import { SessionsPanel } from "@/components/sessions/sessions-panel";
+import { ClassPlanCard } from "@/components/teacher/class-plan-card";
+import type { ClassroomPlan } from "@/components/teacher/classroom-plan";
 import { formatPL, getMasteryStatus } from "@/lib/utils";
 import { MaterialsUploader } from "@/components/teacher/MaterialsUploader";
 
@@ -58,6 +60,9 @@ interface ClassDetail {
   buildClarifications?: string[];
   resumeAt?: string;
   joinCode?: string;
+  level?: string;
+  durationWeeks?: number;
+  recommendedPlan?: ClassroomPlan;
 }
 
 interface ClassPayload {
@@ -498,6 +503,14 @@ export default function ClassOverviewPage({
           </div>
         </Card>
       </div>
+
+      {(isOwner || user?.role === "admin") && (
+        <ClassPlanCard
+          classId={classId}
+          initialPlan={classData.recommendedPlan || null}
+          classInfo={{ title: classData.title, subject: classData.subject, description: classData.description, level: classData.level, durationWeeks: classData.durationWeeks }}
+        />
+      )}
 
       {/* Live class life: sessions, community, rankings */}
       {(isOwner || enrollmentStatus === "active") && (

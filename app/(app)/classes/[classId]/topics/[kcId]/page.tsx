@@ -33,6 +33,9 @@ import { formatPL, getMasteryStatus, cn } from "@/lib/utils";
 import { LAB_REGISTRY } from "@/components/labs";
 import { AiSimulation } from "@/components/labs/ai-simulation";
 import { QuizPlayer } from "@/components/quiz/quiz-player";
+import { AudioLesson } from "@/components/lesson/audio-lesson";
+import { PracticeBankTools } from "@/components/lesson/practice-bank-tools";
+import { ReadAloud } from "@/components/ui/read-aloud";
 
 interface KcDetails {
   id: string;
@@ -195,22 +198,31 @@ export default function TopicPage({
     setLoadingCards(true);
     setCardsError(null);
     try {
-      const res = await fetch("/api/ai/flashcards", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId, kcId, count: 10 }),
-      });
-      const data = await res.json();
-      if (data.ok && Array.isArray(data.data?.cards) && data.data.cards.length > 0) {
-        setFlashcards(data.data.cards);
-        setCurrentCardIndex(0);
-        setIsFlipped(false);
-        setDeckDone(false);
-      } else {
-        setCardsError(data.error?.message || "Couldn't generate flashcards right now.");
+      // The first deck on a topic prepares its ~40-card bank; others wait for it
+      for (let attempt = 0; attempt < 24; attempt++) {
+        const res = await fetch("/api/ai/flashcards", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ classId, kcId, count: 10 }),
+        });
+        const data = await res.json().catch(() => null);
+        if (data?.ok && Array.isArray(data.data?.cards) && data.data.cards.length > 0) {
+          setFlashcards(data.data.cards);
+          setCurrentCardIndex(0);
+          setIsFlipped(false);
+          setDeckDone(false);
+          return;
+        }
+        if (data?.error?.code === "BANK_GENERATING") {
+          await new Promise((r) => setTimeout(r, 5000));
+          continue;
+        }
+        setCardsError(data?.error?.message || "Couldn't load flashcards right now.");
+        return;
       }
+      setCardsError("Still preparing flashcards for this topic. Please try again in a minute.");
     } catch {
-      setCardsError("Network error while generating flashcards.");
+      setCardsError("Network error while loading flashcards.");
     } finally {
       setLoadingCards(false);
     }
@@ -376,6 +388,7 @@ export default function TopicPage({
           {/* LEARN */}
           {activeTab === "learn" && (
             <div className="space-y-4">
+              {!lessonIsThin && <AudioLesson classId={classId} kcId={kcId} />}
               <Card className="p-6 md:p-8">
                 {lessonBusy && lessonIsThin ? (
                   <div className="space-y-4">
@@ -425,6 +438,7 @@ export default function TopicPage({
                       </Button>
                     </div>
                   )}
+                  <PracticeBankTools classId={classId} kcId={kcId} />
                 </Card>
               )}
 
@@ -672,7 +686,10 @@ export default function TopicPage({
                     >
                       {m.role === "model" && !m.isError ? (
                         m.text ? (
-                          <MarkdownRenderer content={m.text} />
+                          <>
+                            <MarkdownRenderer content={m.text} />
+                            {!isStreamingTutor && <ReadAloud text={m.text} />}
+                          </>
                         ) : (
                           <span className="inline-flex gap-1 py-1">
                             <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" />

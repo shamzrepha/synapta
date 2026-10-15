@@ -22,6 +22,11 @@ export const createClassSchema = z.object({
   visibility: z.enum(["public", "private"]).default("public"),
   status: z.enum(["draft", "published", "archived"]).default("published"),
   buildState: z.enum(["empty", "drafting", "ready", "needs_review"]).default("empty"),
+  /** Narrated two-voice audio lesson for every topic (free neural voices, generated once per topic) */
+  audioLessons: z.boolean().default(true),
+  narratorVoice: z.enum(["female", "male"]).default("female"),
+  /** AI classroom plan chosen in the wizard (kept for the teacher to revisit) */
+  recommendedPlan: z.record(z.unknown()).optional(),
 });
 
 export const updateClassSchema = z.object({
@@ -34,6 +39,8 @@ export const updateClassSchema = z.object({
   visibility: z.enum(["public", "private"]).optional(),
   status: z.enum(["draft", "published", "archived"]).optional(),
   buildState: z.enum(["empty", "drafting", "ready", "needs_review"]).optional(),
+  audioLessons: z.boolean().optional(),
+  narratorVoice: z.enum(["female", "male"]).optional(),
 });
 
 export const joinRequestDecisionSchema = z.object({

@@ -22,8 +22,10 @@ import {
   Clock,
   Sparkles,
   X,
+  Headphones,
 } from "lucide-react";
 import { asArray } from "@/lib/api/client";
+import { ClassroomPlanView, outlineToText, type ClassroomPlan } from "@/components/teacher/classroom-plan";
 
 interface ClassItem {
   id: string;
@@ -74,6 +76,10 @@ export default function ExplorePage() {
   const [createAudienceTags, setCreateAudienceTags] = useState<string[]>([]);
   const [seedText, setSeedText] = useState("");
   const [buildWithAi, setBuildWithAi] = useState(true);
+  const [audioLessons, setAudioLessons] = useState(true);
+  const [narratorVoice, setNarratorVoice] = useState<"female" | "male">("female");
+  const [plan, setPlan] = useState<ClassroomPlan | null>(null);
+  const [recommending, setRecommending] = useState(false);
   const [createVisibility, setCreateVisibility] = useState<"public" | "private">("public");
   const [isCreating, setIsCreating] = useState(false);
   const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -158,6 +164,35 @@ export default function ExplorePage() {
     }
   };
 
+  const getRecommendations = async () => {
+    if (!createTitle || !createSubject) {
+      toast({ title: "Add a title and subject first", variant: "destructive" });
+      return;
+    }
+    setRecommending(true);
+    try {
+      const res = await fetch("/api/classes/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: createTitle,
+          subject: createSubject,
+          description: createDescription,
+          level: createLevel,
+          durationWeeks: createWeeks,
+          seedText: seedText || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) setPlan(data.data);
+      else toast({ title: "Couldn't get recommendations", description: data.error?.message, variant: "destructive" });
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setRecommending(false);
+    }
+  };
+
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!createTitle || !createSubject || !createDescription) return;
@@ -177,6 +212,9 @@ export default function ExplorePage() {
           visibility: createVisibility,
           status: buildWithAi ? "draft" : "published",
           buildState: buildWithAi ? "drafting" : "empty",
+          audioLessons,
+          narratorVoice,
+          ...(plan ? { recommendedPlan: plan } : {}),
         }),
       });
       const data = await res.json();
@@ -601,6 +639,37 @@ export default function ExplorePage() {
                     )}
                   </div>
 
+                  <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-3 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-bold text-indigo-900 dark:text-indigo-200">Not sure what to build?</p>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                          The AI reads your description and any outline or notes above, then recommends topics, simulations, quiz sprints and more.
+                        </p>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" onClick={getRecommendations} isLoading={recommending}>
+                        <Sparkles className="h-3.5 w-3.5 mr-1" /> {plan ? "Refresh ideas" : "Get AI recommendations"}
+                      </Button>
+                    </div>
+                    {plan && (
+                      <>
+                        <div className="max-h-[45vh] overflow-y-auto pr-1">
+                          <ClassroomPlanView plan={plan} compact />
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            const outline = outlineToText(plan);
+                            setSeedText((prev) => (prev.trim() ? `${outline}\n\n${prev}` : outline));
+                          }}
+                        >
+                          Use this outline
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
                   <div className="flex items-center justify-between pt-2">
                     <Button type="button" variant="ghost" onClick={() => setWizardStep(1)}>
                       ← Back
@@ -633,6 +702,38 @@ export default function ExplorePage() {
                       />
                       <span>Build my class with AI automatically</span>
                     </label>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl border border-purple-500/30 bg-purple-500/5 space-y-2">
+                    <label className="flex items-center justify-between gap-3 cursor-pointer">
+                      <span>
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-purple-900 dark:text-purple-100">
+                          <Headphones className="h-4 w-4" /> Audio lessons
+                        </span>
+                        <span className="block text-[11px] text-slate-600 dark:text-slate-400">
+                          Every topic gets a narrated teacher–student conversation students can listen to (free neural voices, recorded once per topic).
+                        </span>
+                      </span>
+                      <input type="checkbox" checked={audioLessons} onChange={(e) => setAudioLessons(e.target.checked)} className="h-4 w-4 rounded text-purple-600" />
+                    </label>
+                    {audioLessons && (
+                      <div className="flex gap-2">
+                        {(["female", "male"] as const).map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => setNarratorVoice(v)}
+                            className={`flex-1 p-2 rounded-lg border text-[11px] font-semibold ${
+                              narratorVoice === v
+                                ? "border-purple-500 bg-purple-500/10 text-purple-900 dark:text-purple-200"
+                                : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
+                            }`}
+                          >
+                            {v === "female" ? "Lead voice: Ms. Nova (female)" : "Lead voice: Mr. Ade (male)"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">

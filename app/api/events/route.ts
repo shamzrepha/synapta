@@ -5,8 +5,8 @@ import { ApiError, parseJson } from "@/lib/api/errors";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { executeStructuredAiTask, AiGenerationError } from "@/lib/ai/router";
-import { buildQuizPrompt, normalizeQuizQuestions, rawQuizResponseSchema } from "@/lib/quiz/normalize";
-import { loadKcGroundingContext } from "@/lib/kc/context";
+import { buildQuizPrompt, normalizeQuizQuestions, rawQuizResponseSchema, type NormalizedQuizQuestion } from "@/lib/quiz/normalize";
+import { ensureQuizBank, pickForLearner, reshuffleOptions } from "@/lib/practice/bank";
 import { sanitizeUntrustedPromptText } from "@/lib/ai/scrub";
 import { getActiveStudentUids, getMyClassIds } from "@/lib/classes/members";
 import { notifyMany } from "@/lib/notifications/server";
@@ -93,26 +93,27 @@ export async function POST(req: NextRequest) {
 
     let questionCount: number | null = null;
     if (body.kind === "quiz_sprint") {
-      // Generate and verify the question set up front so the sprint starts instantly
-      let contextText = sanitizeUntrustedPromptText([body.topic, body.description].filter(Boolean).join("\n\n"), 6000);
-      let title = body.topic || body.title;
-      if (body.classId && body.kcId) {
-        const ctx = await loadKcGroundingContext(body.classId, body.kcId);
-        contextText = ctx.contextText;
-        title = ctx.kcTitle;
-      }
-      if (!contextText.trim()) throw new ApiError(400, "VALIDATION", "Add a topic so the AI knows what to ask.");
+      // Prepare and verify the question set up front so the sprint starts instantly
       const count = body.questionCount ?? 10;
-      const prompt = buildQuizPrompt({ kcTitle: title, contextText, count: Math.min(25, count + 3) });
-      const result = await executeStructuredAiTask({
-        task: "structured_spec",
-        systemInstruction: prompt.systemInstruction,
-        userPrompt: prompt.userPrompt,
-        schema: rawQuizResponseSchema,
-        userId: caller.uid,
-        estimatedTokens: 450 * count,
-      });
-      const questions = normalizeQuizQuestions(result.data.questions, { maxQuestions: count });
+      let questions: NormalizedQuizQuestion[];
+      if (body.classId && body.kcId) {
+        // Class topic: draw from its stored question bank (no extra AI cost once the bank exists)
+        const bank = await ensureQuizBank({ classId: body.classId, kcId: body.kcId, userId: caller.uid });
+        questions = pickForLearner(bank, [], count).picked.map((q) => reshuffleOptions(q));
+      } else {
+        const contextText = sanitizeUntrustedPromptText([body.topic, body.description].filter(Boolean).join("\n\n"), 6000);
+        if (!contextText.trim()) throw new ApiError(400, "VALIDATION", "Add a topic so the AI knows what to ask.");
+        const prompt = buildQuizPrompt({ kcTitle: body.topic || body.title, contextText, count: Math.min(25, count + 3) });
+        const result = await executeStructuredAiTask({
+          task: "structured_spec",
+          systemInstruction: prompt.systemInstruction,
+          userPrompt: prompt.userPrompt,
+          schema: rawQuizResponseSchema,
+          userId: caller.uid,
+          estimatedTokens: 450 * count,
+        });
+        questions = normalizeQuizQuestions(result.data.questions, { maxQuestions: count });
+      }
       if (questions.length < 5) throw new AiGenerationError("The AI's questions didn't pass our checks. Please try again.");
       await ref.collection("private").doc("questions").set({ questions });
       questionCount = questions.length;

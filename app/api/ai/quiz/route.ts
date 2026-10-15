@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
-import { executeStructuredAiTask, AiGenerationError } from "@/lib/ai/router";
-import { loadKcGroundingContext } from "@/lib/kc/context";
-import { buildQuizPrompt, normalizeQuizQuestions, rawQuizResponseSchema } from "@/lib/quiz/normalize";
+import { ensureQuizBank, pickForLearner, reshuffleOptions } from "@/lib/practice/bank";
+import { getSeen, setSeen } from "@/lib/practice/history";
 import { z } from "zod";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Only the very first request for a topic generates the bank (3 parallel AI batches)
+export const maxDuration = 120;
 
 const quizInputSchema = z.object({
   classId: z.string().min(1),
@@ -17,50 +17,30 @@ const quizInputSchema = z.object({
   focus: z.enum(["mixed", "conceptual", "calculation", "application"]).default("mixed"),
 });
 
+/**
+ * Builds a learner's quiz from the topic's stored question bank (60+ verified questions,
+ * generated once). Learners see unseen questions first; no AI call per quiz.
+ */
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
     const body = await req.json();
     const parsed = quizInputSchema.safeParse(body);
-
     if (!parsed.success) {
       return NextResponse.json(
         { ok: false, error: { code: "VALIDATION", message: parsed.error.issues[0]?.message || "Invalid input" } },
         { status: 400 }
       );
     }
-
     const { classId, kcId, count, focus } = parsed.data;
-
     await assertClassAccess(caller, classId, "view");
 
-    const ctx = await loadKcGroundingContext(classId, kcId);
+    const bank = await ensureQuizBank({ classId, kcId, userId: caller.uid });
+    const seen = await getSeen(caller.uid, kcId, "quiz");
+    const { picked, seen: nextSeen } = pickForLearner(bank, seen, count, Math.random, focus === "mixed" ? undefined : (q) => q.focus === focus);
+    await setSeen(caller.uid, kcId, "quiz", nextSeen);
 
-    // Ask for a small buffer: questions that fail answer verification are dropped, not shown.
-    const requested = Math.min(20, count + Math.max(2, Math.ceil(count * 0.25)));
-    const { systemInstruction, userPrompt } = buildQuizPrompt({
-      kcTitle: ctx.kcTitle,
-      contextText: ctx.contextText,
-      count: requested,
-      level: ctx.level,
-      focus,
-    });
-
-    const result = await executeStructuredAiTask({
-      task: "structured_spec",
-      systemInstruction,
-      userPrompt,
-      schema: rawQuizResponseSchema,
-      userId: caller.uid,
-      estimatedTokens: 400 * requested,
-    });
-
-    const questions = normalizeQuizQuestions(result.data.questions, { maxQuestions: count });
-    if (questions.length < 3) {
-      throw new AiGenerationError("The AI's quiz didn't pass our answer checks. Please try generating again.");
-    }
-
-    // Server-side session holds the answers; the client only ever sees questions + options.
+    const questions = picked.map((q) => reshuffleOptions(q));
     const sessionRef = adminDb().collection("quizSessions").doc();
     await sessionRef.set({
       sessionId: sessionRef.id,
@@ -72,19 +52,13 @@ export async function POST(req: NextRequest) {
       createdAt: new Date(),
     });
 
-    const clientQuestions = questions.map((q, idx) => ({
-      id: idx,
-      question: q.question,
-      options: q.options,
-      difficulty: q.difficulty,
-    }));
-
     return NextResponse.json({
       ok: true,
       data: {
         sessionId: sessionRef.id,
-        questions: clientQuestions,
-        tokensUsed: result.tokensIn + result.tokensOut,
+        questions: questions.map((q, idx) => ({ id: idx, question: q.question, options: q.options, difficulty: q.difficulty })),
+        bankSize: bank.length,
+        freshCount: Math.max(0, bank.length - seen.length),
       },
     });
   } catch (error) {

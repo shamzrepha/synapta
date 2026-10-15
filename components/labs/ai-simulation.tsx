@@ -16,6 +16,7 @@ import {
   Undo2,
   PencilLine,
   History,
+  Lightbulb,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,11 @@ interface ClientSimulation {
 }
 
 type BuildMode = "create" | "edit";
+
+interface SimIdeas {
+  ideas: Array<{ title: string; pitch: string; howItWorks: string; challenge: string; learningGoal: string }>;
+  improvements: string[];
+}
 
 export interface AiSimulationProps {
   classId: string;
@@ -109,6 +115,8 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
   const [designerTab, setDesignerTab] = useState<"change" | "restart">("change");
   const [buildMode, setBuildMode] = useState<BuildMode>("create");
   const [undoing, setUndoing] = useState(false);
+  const [ideas, setIdeas] = useState<SimIdeas | null>(null);
+  const [loadingIdeas, setLoadingIdeas] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
   const [goalReached, setGoalReached] = useState<{ score?: number; level?: number } | null>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
@@ -250,6 +258,50 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
     }
   };
 
+  const suggest = async () => {
+    setLoadingIdeas(true);
+    try {
+      const res = await fetch(`${base}/recommend`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) setIdeas(data.data);
+      else toast({ title: "Couldn't get ideas", description: data.error?.message, variant: "destructive" });
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setLoadingIdeas(false);
+    }
+  };
+
+  const ideaButton = (
+    <Button type="button" size="sm" variant="outline" onClick={suggest} isLoading={loadingIdeas}>
+      <Lightbulb className="h-4 w-4 mr-1 text-amber-500" /> {ideas ? "More ideas" : "Suggest ideas"}
+    </Button>
+  );
+
+  const ideaCards = ideas && ideas.ideas.length > 0 && (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {ideas.ideas.map((idea, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() =>
+            setInstructions(
+              [`${idea.title} — ${idea.pitch}`, idea.howItWorks && `How it works: ${idea.howItWorks}`, idea.challenge && `Challenge: ${idea.challenge}`, idea.learningGoal && `Learning goal: ${idea.learningGoal}`]
+                .filter(Boolean)
+                .join("\n")
+            )
+          }
+          className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-3 hover:border-indigo-500 transition-colors space-y-1"
+        >
+          <p className="text-sm font-semibold">{idea.title}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-400">{idea.pitch}</p>
+          {idea.challenge && <p className="text-[11px] text-amber-700 dark:text-amber-300">🎯 {idea.challenge}</p>}
+          <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">Use this idea →</p>
+        </button>
+      ))}
+    </div>
+  );
+
   const undo = async () => {
     setUndoing(true);
     try {
@@ -331,6 +383,11 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
 
   const createPanel = (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-slate-600 dark:text-slate-400">Describe it yourself, or let the AI suggest concepts from the topic and your uploaded documents.</p>
+        {canManage && ideaButton}
+      </div>
+      {ideaCards}
       <Textarea
         value={instructions}
         onChange={(e) => setInstructions(e.target.value)}
@@ -397,8 +454,12 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
                 placeholder={`e.g. "Make the ball red and twice as big", "Add a wind slider in level 2", "Rename 'Fire' to 'Launch'"`}
                 className="text-sm"
               />
+              <div className="flex flex-wrap items-center gap-2">
+                {ideaButton}
+                {ideas && ideas.improvements.length > 0 && <span className="text-[11px] text-slate-500">AI-suggested improvements:</span>}
+              </div>
               <div className="flex flex-wrap gap-1.5">
-                {QUICK_EDITS.map((q) => (
+                {[...(ideas?.improvements || []), ...QUICK_EDITS].map((q) => (
                   <button
                     key={q}
                     type="button"

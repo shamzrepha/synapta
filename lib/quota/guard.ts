@@ -98,7 +98,8 @@ export async function recordTokenUsage(
   const usageRef = adminDb().collection("usage").doc(usageDocId);
 
   await adminDb().runTransaction(async (t) => {
-    const userDoc = await t.get(userRef);
+    // Firestore requires every read in a transaction to happen before any write
+    const [userDoc, usageDoc] = await Promise.all([t.get(userRef), t.get(usageRef)]);
     const userData = userDoc.data();
     const storedPeriod = userData?.usagePeriod || "";
 
@@ -115,7 +116,6 @@ export async function recordTokenUsage(
       });
     }
 
-    const usageDoc = await t.get(usageRef);
     if (usageDoc.exists) {
       t.update(usageRef, {
         tokensIn: FieldValue.increment(tokensIn),

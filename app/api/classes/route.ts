@@ -17,6 +17,9 @@ export async function POST(req: NextRequest) {
       visibility,
       status,
       buildState,
+      audioLessons,
+      narratorVoice,
+      recommendedPlan,
     } = await parseJson(req, createClassSchema);
 
     // Fetch teacher display name
@@ -42,6 +45,9 @@ export async function POST(req: NextRequest) {
       visibility: visibility || "public",
       status: status || (buildState === "drafting" ? "draft" : "published"),
       buildState: buildState || "empty",
+      audioLessons: audioLessons !== false,
+      narratorVoice: narratorVoice || "female",
+      ...(recommendedPlan && JSON.stringify(recommendedPlan).length < 60000 ? { recommendedPlan } : {}),
       joinCode: await (async () => {
         let code = generateSecureJoinCode();
         for (let attempts = 0; attempts < 3; attempts++) {

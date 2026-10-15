@@ -244,3 +244,19 @@ export async function generateGeminiVoice({
     return null;
   }
 }
+
+/** Synthesises text with a specific Edge neural voice (free, no API key). Returns MP3 bytes. */
+export async function synthesizeEdgeVoice(text: string, voice: string): Promise<Buffer | null> {
+  if (!text || !text.trim()) return null;
+  try {
+    const communicate = new Communicate(text.trim(), { voice });
+    const chunks: Buffer[] = [];
+    for await (const chunk of communicate.stream()) {
+      if (chunk.type === "audio" && chunk.data) chunks.push(chunk.data);
+    }
+    return chunks.length ? Buffer.concat(chunks) : null;
+  } catch (err) {
+    console.warn(`[voice] Edge TTS failed for voice "${voice}":`, err instanceof Error ? err.message : err);
+    return null;
+  }
+}

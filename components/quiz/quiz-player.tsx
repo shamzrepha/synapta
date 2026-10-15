@@ -52,29 +52,40 @@ export function QuizPlayer({ classId, kcId, onEvidence }: QuizPlayerProps) {
   const [results, setResults] = useState<Record<number, AnswerResult>>({});
   const [finished, setFinished] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bankSize, setBankSize] = useState<number | null>(null);
 
   const startQuiz = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/ai/quiz", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId, kcId, count, focus }),
-      });
-      const data = await res.json();
-      if (data.ok && Array.isArray(data.data?.questions) && data.data.questions.length > 0) {
-        setSessionId(data.data.sessionId);
-        setQuestions(data.data.questions);
-        setCurrent(0);
-        setSelected(null);
-        setResults({});
-        setFinished(false);
-      } else {
-        setError(data.error?.message || "Couldn't generate a quiz right now. Please try again.");
+      // The first quiz on a topic prepares its 60+ question bank; others wait for it
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const res = await fetch("/api/ai/quiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ classId, kcId, count, focus }),
+        });
+        const data = await res.json().catch(() => null);
+        if (data?.ok && Array.isArray(data.data?.questions) && data.data.questions.length > 0) {
+          setSessionId(data.data.sessionId);
+          setQuestions(data.data.questions);
+          setBankSize(data.data.bankSize || null);
+          setCurrent(0);
+          setSelected(null);
+          setResults({});
+          setFinished(false);
+          return;
+        }
+        if (data?.error?.code === "BANK_GENERATING") {
+          await new Promise((r) => setTimeout(r, 5000));
+          continue;
+        }
+        setError(data?.error?.message || "Couldn't load a quiz right now. Please try again.");
+        return;
       }
+      setError("Still preparing questions for this topic. Please try again in a minute.");
     } catch {
-      setError("Network error while generating the quiz.");
+      setError("Network error while loading the quiz.");
     } finally {
       setLoading(false);
     }
@@ -158,7 +169,7 @@ export function QuizPlayer({ classId, kcId, onEvidence }: QuizPlayerProps) {
         <div>
           <h3 className="font-bold text-lg">Practice quiz</h3>
           <p className="text-xs text-slate-500 mt-1">
-            Questions are generated from this topic&apos;s lesson and your teacher&apos;s materials. Every answer updates your mastery.
+            Drawn from this topic&apos;s bank of 60+ checked questions — new ones first, so every quiz is different. Every answer updates your mastery.
           </p>
         </div>
         <div className="space-y-2">
@@ -214,7 +225,9 @@ export function QuizPlayer({ classId, kcId, onEvidence }: QuizPlayerProps) {
   if (loading) {
     return (
       <div className="space-y-4 py-4">
-        <p className="text-xs text-slate-500 text-center">Writing and checking {count} questions…</p>
+        <p className="text-xs text-slate-500 text-center">
+          Loading your quiz… (the first quiz on a topic prepares 60+ checked questions, which takes about 30 seconds)
+        </p>
         <Skeleton className="h-24 w-full rounded-2xl" />
         <Skeleton className="h-12 w-full rounded-xl" />
         <Skeleton className="h-12 w-full rounded-xl" />
@@ -235,6 +248,7 @@ export function QuizPlayer({ classId, kcId, onEvidence }: QuizPlayerProps) {
           <h3 className="text-2xl font-extrabold">
             {correct} / {total} correct
           </h3>
+          {bankSize ? <p className="text-[11px] text-slate-400">Question bank: {bankSize} questions</p> : null}
           <p className="text-sm text-slate-500">
             {pct >= 80 ? "Excellent work — you really know this." : pct >= 50 ? "Good progress. Review the ones you missed below." : "Keep going — read the explanations, then try a fresh quiz."}
           </p>

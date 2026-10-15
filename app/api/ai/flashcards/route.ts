@@ -1,74 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
-import { loadKcGroundingContext } from "@/lib/kc/context";
-import { checkRateLimitAndQuota, recordTokenUsage } from "@/lib/quota/guard";
-import { generateStructuredJson } from "@/lib/gemini/client";
-import { getFlashcardsPrompt } from "@/lib/gemini/prompts";
-import { flashcardSchema, type Flashcard } from "@/lib/gemini/schemas";
+import { ensureFlashcardBank, pickForLearner } from "@/lib/practice/bank";
+import { getSeen, setSeen } from "@/lib/practice/history";
 import { z } from "zod";
 
 export const runtime = "nodejs";
-
-// Accept whatever number of valid cards the model returns instead of failing the whole deck
-const lenientFlashcardsSchema = z.preprocess(
-  (val) => (Array.isArray(val) ? { cards: val } : val),
-  z.object({ cards: z.array(flashcardSchema).min(1).max(30) })
-);
+export const maxDuration = 90;
 
 const flashcardsInputSchema = z.object({
   classId: z.string().min(1),
   kcId: z.string().min(1),
-  count: z.number().int().min(1).max(15).default(10),
+  count: z.number().int().min(1).max(30).default(10),
 });
 
+/** Deals a learner a deck from the topic's stored flashcard bank (generated once, ~40 cards). */
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
     const body = await req.json();
     const parsed = flashcardsInputSchema.safeParse(body);
-
     if (!parsed.success) {
       return NextResponse.json(
         { ok: false, error: { code: "VALIDATION", message: parsed.error.issues[0]?.message || "Invalid input" } },
         { status: 400 }
       );
     }
-
     const { classId, kcId, count } = parsed.data;
-
-    // Verify caller has permission to view this class
     await assertClassAccess(caller, classId, "view");
 
-    // Ground cards in the lesson AND the most relevant parts of the teacher's materials
-    const ctx = await loadKcGroundingContext(classId, kcId);
-    const kcTitle = ctx.kcTitle;
-    const lessonMarkdown = ctx.contextText;
-
-    // Rate limit and token quota check
-    await checkRateLimitAndQuota(caller.uid, 1200);
-
-    const { systemInstruction, userPrompt } = getFlashcardsPrompt({
-      kcTitle,
-      lessonMarkdown,
-      count,
-    });
-
-    const { data, tokensIn, tokensOut } = await generateStructuredJson({
-      systemInstruction,
-      userPrompt,
-      schema: lenientFlashcardsSchema as unknown as z.ZodType<{ cards: Flashcard[] }>,
-    });
-
-    // Record token usage
-    await recordTokenUsage(caller.uid, tokensIn, tokensOut);
+    const bank = await ensureFlashcardBank({ classId, kcId, userId: caller.uid });
+    const seen = await getSeen(caller.uid, kcId, "cards");
+    const { picked, seen: nextSeen } = pickForLearner(bank, seen, count);
+    await setSeen(caller.uid, kcId, "cards", nextSeen);
 
     return NextResponse.json({
       ok: true,
-      data: {
-        cards: data.cards,
-        tokensUsed: tokensIn + tokensOut,
-      },
+      data: { cards: picked.map((c) => ({ front: c.front, back: c.back })), bankSize: bank.length },
     });
   } catch (error) {
     return handleAuthError(error);
