@@ -22,11 +22,8 @@ export default function AppLayout({
       </div>
       <MobileNav />
       <TutorLauncher />
-<<<<<<< HEAD
       <OfflineManager />
-=======
       <ThemeApplier />
->>>>>>> worktree-agent-a08c5f8c2a5f7a3c8
     </div>
   );
 }
