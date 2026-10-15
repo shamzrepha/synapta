@@ -18,6 +18,7 @@ const TYPE_LABEL: Record<string, { label: string; emoji: string }> = {
   room: { label: "Study room", emoji: "🚪" },
   event: { label: "Challenge", emoji: "⚔️" },
   notebook: { label: "Notebook", emoji: "📓" },
+  design: { label: "Maker Studio design", emoji: "🛠️" },
   badge: { label: "Achievement", emoji: "🏆" },
   topic: { label: "Topic", emoji: "📚" },
   session: { label: "Study session", emoji: "📅" },

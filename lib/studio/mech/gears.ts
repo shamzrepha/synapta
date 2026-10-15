@@ -52,6 +52,7 @@ export interface SimSample {
 }
 
 export interface SimResult extends MechAnalysis {
+  liftHeight: number;
   reached: boolean;
   timeToLift: number | null;
   maxSpeed: number;
@@ -173,5 +174,5 @@ export function simulateLift(m: Mechanism, maxSeconds = 120): SimResult {
     : a.canLift
       ? `Too slow — only ${h.toFixed(2)} m in ${maxSeconds} s. Less reduction would be faster.`
       : `Can't lift: needs ${a.holdTorque.toFixed(2)} N·m at the input, but it only gives ${stall.toFixed(2)} N·m.`;
-  return { ...a, reached, timeToLift, maxSpeed, samples, score, verdict };
+  return { ...a, liftHeight: m.liftHeight, reached, timeToLift, maxSpeed, samples, score, verdict };
 }

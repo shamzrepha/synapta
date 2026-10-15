@@ -15,7 +15,7 @@ export const MAX_GROUP_MEMBERS = 50;
 export const MESSAGE_REACTIONS = ["👍", "❤️", "😂", "😮", "🎉", "🙏"] as const;
 
 export const attachmentSchema = z.object({
-  type: z.enum(["post", "room", "event", "notebook", "badge", "topic", "session", "profile", "class"]),
+  type: z.enum(["post", "room", "event", "notebook", "badge", "topic", "session", "profile", "class", "design"]),
   id: z.string().max(200),
   title: z.string().max(200),
   subtitle: z.string().max(300).optional().default(""),
