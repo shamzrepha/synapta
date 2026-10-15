@@ -16,6 +16,7 @@ import {
   Bookmark,
   Sparkles,
   Wrench,
+  LayoutGrid,
 } from "lucide-react";
 
 export interface NavItem {
@@ -36,6 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Study Hub", href: "/notebook", icon: BookOpen, roles: ALL, group: "learn" },
   { label: "Review", href: "/classes/heatmap", icon: RotateCw, roles: ALL, group: "learn" },
   { label: "Explore", href: "/explore", icon: Compass, roles: ALL, group: "learn" },
+  { label: "All features", href: "/more", icon: LayoutGrid, roles: ALL, group: "learn" },
   { label: "Community", href: "/feed", icon: Newspaper, roles: ALL, group: "social" },
   { label: "Messages", href: "/messages", icon: MessageCircle, roles: ALL, group: "social" },
   { label: "Challenges", href: "/challenges", icon: Swords, roles: ALL, group: "social" },

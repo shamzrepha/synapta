@@ -1,0 +1,26 @@
+# Building a Sunroot feature (read this first)
+
+Stack: Next.js 16 App Router, React 19, TypeScript, Firebase (Firestore via the **admin SDK in API routes**), Gemini through `lib/ai/router.ts`. The repo is a git worktree of `shamzrepha/synapta`; you commit on your own branch and never push.
+
+## Where things go (do not touch other people's files)
+- Pages: `app/(app)/<route>/page.tsx` (client pages are fine). API: `app/api/<name>/.../route.ts`. Pure logic: `lib/<name>/*.ts` **with vitest tests next to it**. UI: `components/<name>/*.tsx`.
+- Shared files you may edit **only** as described: `lib/features/registry.ts` — flip your own entry's `status` to `"live"` (one-line edit, nothing else). Everything else shared (nav, proxy, firestore.rules, firestore.indexes.json, lib/ai/tasks.ts, package.json) is **off limits** — ask for what you need in your final report instead. New top-level routes are already allow-listed in `proxy.ts` and listed in the registry with the hrefs you must use.
+- No new npm packages. No new composite Firestore indexes: read with at most one `where` + simple `orderBy` on the same field, or fetch a bounded set (`limit(200)`) and filter/sort in memory.
+
+## Conventions you must follow
+- API routes: `export const runtime = "nodejs"`; `const caller = await requireUser(req)` (lib/auth/requireUser); body via `parseJson(req, zodSchema)` (lib/api/errors); throw `new ApiError(status, "CODE", "message")`; wrap in try/catch → `return handleAuthError(error)`; respond `NextResponse.json({ ok: true, data })`. Rate-limit anything that calls AI or writes often: `checkRateLimit(req, { uid, keyPrefix, limit, windowMs })`. Firestore: `adminDb()` from `@/lib/firebase/admin`. Route files may only export HTTP handlers/`runtime`/`maxDuration`.
+- Client: fetch your own `/api/...`; **always** wrap fetched lists with `asArray(...)` (`@/lib/api/client`) before `.map`. Toasts: `useToast` (`@/components/ui/toast`). UI kit: `@/components/ui/{button,card,badge,skeleton,avatar,input,textarea}`; icons from lucide-react (check the icon name exists; `Youtube` doesn't). Match the existing look (teal accent, `rounded-2xl border`, dark-mode classes, mobile-first: 16px gutters, no horizontal scroll, tap targets ≥ 36px).
+- Lint rules that bite (React 19 compiler): don't call `setState` synchronously inside `useEffect` (initialise with lazy `useState(() => …)` or set state in async callbacks); don't write `ref.current` during render; don't call impure functions (`Date.now()`, `Math.random()`) during render (move into handlers/helpers); no `const self = this`; hooks before any early return. Run `npx eslint <your files>` and fix errors (warnings are fine).
+- AI: `generateWithFallback({ task, systemInstruction, userPrompt, schema, temperature, userId })` from `@/lib/ai/router`. **Reuse an existing task key** (see `lib/ai/tasks.ts`: tutor_chat, structured_spec, long_document, flashcard_gen, quiz_gen, card_gen, study_guide, explain_selection, notebook_mindmap, lesson_notes, grading_high_stakes, assignment_author, studio_build, voice_tts, transcribe …). Always give a zod `schema` for JSON answers and treat model output as untrusted (clamp lengths, validate ids). Put prompts in `lib/<name>/prompts.ts` and keep them short and strict. Never put user text outside `<USER_INPUT>` delimiters in a prompt.
+- Existing building blocks you should reuse instead of rebuilding: `lib/game/progress.ts` (`trackProgress` for XP/quests/streaks), `lib/notifications/server.ts` (`notify`, `notifyMany`), `lib/live/server.ts` + `lib/live/client.ts` (`useLiveChannel`) for realtime, `lib/social/profile.ts` (`getPublicProfiles`), `lib/media/store.ts` + `app/api/media` (uploads), `lib/fsrs/scheduler.ts` (spaced repetition), `lib/cards`, `lib/notebook*`, `lib/quiz`, `lib/studio/*` (Maker Studio), `components/feed/*` (posts, composer, SocialInput for @/# autocomplete). **Read the existing code for your area first** — several features already exist in part; extend, don't duplicate.
+- Security: every route checks the caller; students may only read/write their own data or data shared with them; teacher-only routes check `caller.role`; never trust client-sent uids; never return other users' private fields (email!).
+- Data you create: put it under your own collection names prefixed by feature (e.g. `flashcardDecks`). Store `createdAt` as ISO strings or Firestore Timestamps consistently with nearby code.
+
+## Done means
+1. Works end to end for a signed-in student on a phone-sized screen (no console errors).
+2. `npx tsc --noEmit` clean, `npx eslint <files>` has no errors, vitest tests for the pure logic pass (`npx vitest run lib/<name>`).
+3. Registry entry set to `"live"`.
+4. `git add -A && git commit` on your branch with a clear message. Delete `AGENTS.md` and `.next/dev` if they appear. Do **not** run `next build` (the worktree shares node_modules by symlink); do not push; do not open PRs.
+5. Final report (short): what shipped per feature, file list, any shared-file change you need from the integrator, known limits.
+
+Scope: build a **solid, simple v1** of each assigned feature — real data flow and a good mobile UI — not a research project. If something truly needs infrastructure you can't touch (e.g. a Firestore index), degrade gracefully (in-memory filtering) and say so.
