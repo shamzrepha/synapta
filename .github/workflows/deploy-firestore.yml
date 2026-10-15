@@ -1,0 +1,81 @@
+name: Deploy Firestore rules & indexes
+
+# Runs `firebase deploy --only firestore:rules,firestore:indexes` without a laptop.
+# Start it from GitHub (web or mobile app): Actions → "Deploy Firestore rules & indexes" → Run workflow.
+# It also runs automatically when firestore.rules / firestore.indexes.json change on main.
+#
+# Credentials (repo Settings → Secrets and variables → Actions), either:
+#   FIREBASE_SERVICE_ACCOUNT  – the whole service-account JSON file, or
+#   FIREBASE_ADMIN_CLIENT_EMAIL + FIREBASE_ADMIN_PRIVATE_KEY (same values as in Vercel)
+# Optional: FIREBASE_ADMIN_PROJECT_ID (defaults to the project in the JSON, then synapta-learning).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+      - firestore.indexes.json
+      - firebase.json
+
+concurrency:
+  group: deploy-firestore
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to Firebase
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Write service account credentials
+        id: creds
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SA_EMAIL: ${{ secrets.FIREBASE_ADMIN_CLIENT_EMAIL }}
+          SA_KEY: ${{ secrets.FIREBASE_ADMIN_PRIVATE_KEY }}
+          SA_PROJECT: ${{ secrets.FIREBASE_ADMIN_PROJECT_ID }}
+        run: |
+          node <<'EOF'
+          const fs = require("fs");
+          const out = `${process.env.RUNNER_TEMP}/firebase-sa.json`;
+          let sa = null;
+          if (process.env.SA_JSON && process.env.SA_JSON.trim()) {
+            sa = JSON.parse(process.env.SA_JSON);
+          } else if (process.env.SA_EMAIL && process.env.SA_KEY) {
+            sa = {
+              type: "service_account",
+              project_id: process.env.SA_PROJECT || "synapta-learning",
+              client_email: process.env.SA_EMAIL.trim(),
+              // Vercel-style keys often carry literal \n sequences and surrounding quotes
+              private_key: process.env.SA_KEY.trim().replace(/^"|"$/g, "").replace(/\\n/g, "\n"),
+              token_uri: "https://oauth2.googleapis.com/token",
+            };
+          }
+          if (!sa) {
+            console.error("::error::Add the FIREBASE_SERVICE_ACCOUNT secret, or FIREBASE_ADMIN_CLIENT_EMAIL + FIREBASE_ADMIN_PRIVATE_KEY (see the comments at the top of this workflow).");
+            process.exit(1);
+          }
+          fs.writeFileSync(out, JSON.stringify(sa), { mode: 0o600 });
+          const project = process.env.SA_PROJECT || sa.project_id || "synapta-learning";
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `file=${out}\nproject=${project}\n`);
+          console.log(`Deploying to project: ${project} as ${sa.client_email}`);
+          EOF
+
+      - name: Deploy rules and indexes
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.creds.outputs.file }}
+        run: npx --yes firebase-tools@15.32.1 deploy --only firestore:rules,firestore:indexes --project "${{ steps.creds.outputs.project }}" --non-interactive
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f "${{ runner.temp }}/firebase-sa.json"

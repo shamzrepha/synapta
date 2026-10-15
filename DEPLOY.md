@@ -104,3 +104,16 @@ generation, the heavy build models, the free Edge voices and Gemini TTS, and sho
 answered and how long it took. If a row fails, its message says why (missing/invalid
 `GEMINI_API_KEY`, quota, or a voice provider being unreachable). Old model IDs left in
 `GEMINI_MODEL_*` env vars are ignored automatically when Google has shut them down.
+
+## 7. Deploying Firestore rules & indexes without a laptop
+
+The **Deploy Firestore rules & indexes** GitHub Action runs the same `firebase deploy` from GitHub.
+
+1. Add credentials once (GitHub → repo → Settings → Secrets and variables → Actions → New repository secret):
+   `FIREBASE_ADMIN_CLIENT_EMAIL` and `FIREBASE_ADMIN_PRIVATE_KEY` with the same values as in Vercel
+   (or `FIREBASE_SERVICE_ACCOUNT` containing a whole service-account JSON file).
+2. GitHub → Actions → **Deploy Firestore rules & indexes** → **Run workflow**.
+
+It also runs automatically whenever `firestore.rules` or `firestore.indexes.json` change on `main`.
+If it fails with a permission error, give that service account the **Firebase Admin** role in
+Google Cloud console → IAM.
