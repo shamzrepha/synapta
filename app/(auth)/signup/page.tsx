@@ -42,7 +42,7 @@ export default function SignupPage() {
       } else if (msg.includes("auth/operation-not-allowed")) {
         setError("Email/Password sign-in is not enabled yet in your Firebase project. Please enable it in Firebase Console under Authentication > Sign-in method.");
       } else if (msg.includes("auth/unauthorized-domain")) {
-        setError("This domain is not authorized in Firebase Auth. Add synapta-zeta.vercel.app under Firebase Console > Authentication > Settings > Authorized domains.");
+        setError("This domain is not authorized in Firebase Auth. Add sunrootlearn.vercel.app under Firebase Console > Authentication > Settings > Authorized domains.");
       } else if (msg.includes("Cloud Firestore API") || msg.includes("FIRESTORE_DISABLED")) {
         setError("Cloud Firestore is not initialized yet in your Firebase Console. Please go to https://console.firebase.google.com/project/synapta-learning/firestore and click 'Create database'.");
       } else {
