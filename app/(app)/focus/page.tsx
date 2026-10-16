@@ -111,7 +111,7 @@ export default function FocusHomePage() {
       {rooms.length > 0 && (
         <Card className="p-4 sm:p-5 space-y-2">
           <p className="font-bold">Your rooms</p>
-          {rooms.map((r) => (
+          {asArray(rooms).map((r) => (
             <Link key={r.code} href={`/focus/${r.code}`} className="flex items-center justify-between gap-2 min-h-11 rounded-xl border border-slate-200 dark:border-slate-800 px-3">
               <span className="min-w-0">
                 <span className="block text-sm font-semibold truncate">{r.title}</span>

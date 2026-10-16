@@ -44,7 +44,7 @@ export function ClassSelect({
       className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
     >
       <option value="">Choose a class…</option>
-      {classes.map((c) => (
+      {asArray(classes).map((c) => (
         <option key={c.id} value={c.id}>
           {c.title}
         </option>

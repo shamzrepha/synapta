@@ -80,7 +80,7 @@ export function TopicPicker({
             }}
           >
             <option value="">From my own text…</option>
-            {classes.map((c) => (
+            {asArray(classes).map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
               </option>

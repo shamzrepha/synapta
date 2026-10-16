@@ -201,7 +201,7 @@ function NewDeck({ onCreated }: { onCreated: () => void }) {
           <div className="space-y-2">
             <select className={select} value={classId} onChange={(e) => { setClassId(e.target.value); setKcId(""); }} aria-label="Class">
               <option value="">Choose a class…</option>
-              {sources.classes.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+              {asArray(sources.classes).map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
             </select>
             <select className={select} value={kcId} onChange={(e) => setKcId(e.target.value)} disabled={!classId} aria-label="Lesson">
               <option value="">Choose a lesson…</option>

@@ -118,7 +118,7 @@ function NewExam({ today, onDone }: { today: string; onDone: (created: boolean) 
         <div className="space-y-1.5">
           <p className="text-xs text-slate-500">Include all topics from your classes (uses your mastery to find weak spots)</p>
           <div className="flex flex-wrap gap-1.5">
-            {classes.map((c) => (
+            {asArray(classes).map((c) => (
               <button key={c.id} type="button" onClick={() => setPicked((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id].slice(0, 5)))} className={cn("rounded-full px-3 py-1.5 text-xs font-semibold border", picked.includes(c.id) ? "bg-teal-600 text-white border-teal-600" : "border-slate-200 dark:border-slate-700")}>{c.title}</button>
             ))}
           </div>

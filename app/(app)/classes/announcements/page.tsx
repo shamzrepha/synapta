@@ -119,7 +119,7 @@ function Composer({ classes, onPosted }: { classes: ClassOpt[]; onPosted: () => 
     <Card>
       <CardContent className="space-y-3 p-4">
         <select value={classId} onChange={(e) => setClassId(e.target.value)} aria-label="Class" className="h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900">
-          {classes.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+          {asArray(classes).map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
         <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={140} />
         <Textarea rows={4} placeholder="Write your announcement…" value={body} onChange={(e) => setBody(e.target.value)} maxLength={5000} />

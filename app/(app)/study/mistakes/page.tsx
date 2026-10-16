@@ -109,7 +109,7 @@ export default function MistakesPage() {
         <div className="flex gap-2">
           <select className={select} value={classId} onChange={(e) => setClassId(e.target.value)} aria-label="Filter by class">
             <option value="">All classes</option>
-            {data.classes.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+            {asArray(data.classes).map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
           <select className={select} value={topic} onChange={(e) => setTopic(e.target.value)} aria-label="Filter by topic">
             <option value="">All topics</option>
