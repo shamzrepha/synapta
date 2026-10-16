@@ -78,11 +78,11 @@ const TUTOR_STARTERS = [
 ];
 
 const TAB_HINT: Record<Tab, string> = {
-  learn: "Read the lesson first.",
-  simulate: "Play with the idea on screen — change things and see what happens.",
+  learn: "Read the lesson, or press play to listen to it as a short podcast.",
+  simulate: "An interactive lab: change things on screen and see what happens.",
   build: "Build a small circuit or machine for this topic in Maker Studio, then test it with simulated physics. Your build is saved in My designs under Make.",
-  flashcards: "Quick cards to remember the key points.",
-  quiz: "Check what you have learned. Wrong answers go to your review list.",
+  flashcards: "Quick flashcards to remember the key points.",
+  quiz: "Prove you have got it. Your answers update your mastery score, and wrong ones go to your review list.",
   tutor: "Ask the AI anything about this topic.",
 };
 
@@ -365,21 +365,25 @@ export default function TopicPage({
   const masteryStatus = getMasteryStatus(currentPL, attempts);
   const ClassicLab = kc.lab && kc.lab.type !== "none" ? LAB_REGISTRY[kc.lab.type] : undefined;
 
-  const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode; onOpen?: () => void }> = [
-    { key: "learn", label: "Learn", icon: <BookOpen className="h-4 w-4" /> },
-    { key: "simulate", label: "Try it", icon: <Gamepad2 className="h-4 w-4" /> },
-    { key: "build", label: "Build & test", icon: <Wrench className="h-4 w-4" /> },
+  const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode; step?: number; onOpen?: () => void }> = [
+    { key: "learn", label: "Read & listen", step: 1, icon: <BookOpen className="h-4 w-4" /> },
+    { key: "simulate", label: "Try it", step: 2, icon: <Gamepad2 className="h-4 w-4" /> },
     {
       key: "flashcards",
-      label: "Flashcards",
+      label: "Practice",
+      step: 3,
       icon: <Layers className="h-4 w-4" />,
       onOpen: () => {
         if (flashcards.length === 0 && !loadingCards) handleLoadFlashcards();
       },
     },
-    { key: "quiz", label: "Quiz", icon: <HelpCircle className="h-4 w-4" /> },
+    { key: "quiz", label: "Prove it", step: 4, icon: <HelpCircle className="h-4 w-4" /> },
+    { key: "build", label: "Build & test", icon: <Wrench className="h-4 w-4" /> },
     { key: "tutor", label: "AI Tutor", icon: <MessageSquare className="h-4 w-4" /> },
   ];
+  const stepTabs = tabs.filter((t) => t.step);
+  const stepNow = stepTabs.findIndex((t) => t.key === activeTab);
+  const nextStep = stepNow >= 0 ? stepTabs[stepNow + 1] : undefined;
 
   return (
     <div className="space-y-6">
@@ -422,11 +426,21 @@ export default function TopicPage({
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
                 )}
               >
-                {t.icon} {t.label}
+                {t.step ? <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-black/10 dark:bg-white/15 text-[11px] font-bold">{t.step}</span> : t.icon} {t.label}
               </button>
             ))}
           </div>
-          <p className="text-xs text-slate-500 -mt-2">{TAB_HINT[activeTab]}</p>
+          <div className="flex flex-wrap items-center gap-2 -mt-2">
+            <p className="text-xs text-slate-500 flex-1 min-w-0">
+              {stepNow >= 0 && <b className="text-teal-700 dark:text-teal-300">Step {stepNow + 1} of {stepTabs.length}. </b>}
+              {TAB_HINT[activeTab]}
+            </p>
+            {nextStep && (
+              <Button size="sm" variant="outline" onClick={() => { setActiveTab(nextStep.key); nextStep.onOpen?.(); }}>
+                Next: {nextStep.label} →
+              </Button>
+            )}
+          </div>
 
           {/* LEARN */}
           {activeTab === "learn" && (

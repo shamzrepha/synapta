@@ -286,7 +286,7 @@ export default function ClassHeatmapPage({
           Class Mastery Heatmap
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          {data.class.title} &bull; Latent Cognitive Digital Twin Mastery \(P(L)\) across all enrolled students
+          {data.class.title} &bull; Mastery score across all enrolled students
         </p>
       </div>
 
@@ -615,7 +615,7 @@ export default function ClassHeatmapPage({
         </Card>
       )}
 
-      {/* STUDENT COGNITIVE TWIN DRILL-DOWN MODAL */}
+      {/* STUDENT SKILL MAP DRILL-DOWN MODAL */}
       {selectedStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
@@ -631,7 +631,7 @@ export default function ClassHeatmapPage({
                       {selectedStudent.displayName}
                     </h3>
                     <Badge variant="outline" className="text-xs">
-                      Cognitive Twin
+                      Skill Map
                     </Badge>
                   </div>
                   <p className="text-xs text-slate-500">{selectedStudent.email}</p>
@@ -706,7 +706,7 @@ export default function ClassHeatmapPage({
               <div className="p-4 rounded-2xl border border-teal-500/20 bg-teal-500/5 dark:bg-teal-950/20 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-bold text-teal-700 dark:text-teal-300">
                   <BrainCircuit className="h-4 w-4" />
-                  <span>AI Cognitive Twin Pedagogical Recommendation</span>
+                  <span>AI teaching recommendation</span>
                 </div>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
                   {selectedStudent.averagePL >= 0.85

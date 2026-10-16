@@ -271,7 +271,7 @@ export default function QuestMapPage({
             Curriculum Quest Map
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Bayesian prerequisite graph. Concepts unlock sequentially as you demonstrate latent mastery.
+            Your topic map. Topics unlock one after another as you master the ones before them.
           </p>
         </div>
 
@@ -399,7 +399,7 @@ export default function QuestMapPage({
                   New to this course? Take the Placement Diagnostic
                 </h4>
                 <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                  10 quick questions will calibrate your Bayesian prior mastery and unlock concepts you already know.
+                  10 quick questions find what you already know, so you can skip ahead.
                 </p>
               </div>
             </div>
@@ -546,7 +546,7 @@ export default function QuestMapPage({
                   <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800 space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-slate-600 dark:text-slate-300">
-                        Bayesian Mastery Probability
+                        Mastery score
                       </span>
                       <span className="font-bold text-teal-600 dark:text-teal-400">
                         {selectedNode.pL}%

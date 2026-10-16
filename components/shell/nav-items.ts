@@ -1,4 +1,4 @@
-import { Home, GraduationCap, Compass, User, ShieldCheck, Bookmark, Wrench, BookOpen, Users, LayoutGrid } from "lucide-react";
+import { Home, GraduationCap, User, ShieldCheck, Bookmark, BookOpen, Users, LayoutGrid } from "lucide-react";
 
 export interface NavItem {
   label: string;
@@ -17,37 +17,35 @@ export interface NavItem {
 const ALL = ["student", "teacher", "admin"] as Array<"student" | "teacher" | "admin">;
 
 /**
- * Six places, each with a plain name. Everything else lives inside one of the hub pages
- * (Study, Community) or inside the area itself, so nothing is scattered.
+ * Four places, each with a plain name. Everything else lives inside one of them: classes and finding a class
+ * share one page (tabs), study tools and the maker studio share one hub, and the social pages share one hub.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { label: "Home", href: "/dashboard", hint: "Start here", icon: Home, roles: ALL, group: "main", primary: true },
+  { label: "Home", href: "/dashboard", hint: "Your daily path", icon: Home, roles: ALL, group: "main", primary: true },
   {
     label: "My classes",
     href: "/classes/manage",
-    hint: "Classes you joined",
+    hint: "Your courses · find new ones",
     icon: GraduationCap,
     roles: ALL,
     group: "main",
     primary: true,
-    match: ["/classes"],
+    match: ["/classes", "/explore"],
   },
-  { label: "Find a class", href: "/explore", hint: "Join a new one", icon: Compass, roles: ALL, group: "main" },
   {
-    label: "Study",
+    label: "Notebook & Studio",
     href: "/study",
-    hint: "AI tutor, notes, practice",
+    hint: "Study alone · build things",
     icon: BookOpen,
     roles: ALL,
     group: "main",
     primary: true,
-    match: ["/tutor", "/notebook", "/focus", "/experiments", "/goals", "/report", "/quests", "/streak", "/shop"],
+    match: ["/notebook", "/studio", "/tutor", "/focus", "/experiments", "/goals", "/report", "/quests", "/streak", "/shop"],
   },
-  { label: "Make", href: "/studio", hint: "Build & simulate projects", icon: Wrench, roles: ALL, group: "main", primary: true },
   {
     label: "Community",
     href: "/community",
-    hint: "Friends, chat, challenges",
+    hint: "Study together",
     icon: Users,
     roles: ALL,
     group: "main",
@@ -68,4 +66,4 @@ export function isActivePath(pathname: string, href: string, match: string[] = [
 }
 
 /** Top-level destinations: no back button there. */
-export const ROOT_PATHS = ["/dashboard", "/classes/manage", "/explore", "/study", "/studio", "/community", "/profile", "/more", "/saved"];
+export const ROOT_PATHS = ["/dashboard", "/classes/manage", "/explore", "/study", "/community", "/profile", "/more", "/saved"];

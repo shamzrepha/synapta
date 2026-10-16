@@ -13,7 +13,7 @@ import { useLiveChannel } from "@/lib/live/client";
 import { NotebookBar, type NotebookMeta } from "@/components/notebook/notebook-bar";
 import { OfflineDownloadButton } from "@/components/offline/download-button";
 import { readPrefs } from "@/components/settings/use-prefs";
-import { GaplessPlayer, type ClipState } from "@/lib/audio/gapless";
+import { ClipPlayer, type ClipState } from "@/lib/audio/clip-player";
 import {
   BookOpen,
   FileText,
@@ -154,7 +154,7 @@ export default function NotebookPage() {
   const [studioVoiceEnabled, setStudioVoiceEnabled] = useState(true);
   const [loadingTurnAudio, setLoadingTurnAudio] = useState(false);
   const [podcastClips, setPodcastClips] = useState<ClipState[]>([]);
-  const podcastPlayerRef = useRef<GaplessPlayer | null>(null);
+  const podcastPlayerRef = useRef<ClipPlayer | null>(null);
 
   // Study Guide, Flashcards, Quiz Artifacts State
   const [studyGuideMarkdown, setStudyGuideMarkdown] = useState<string | null>(null);
@@ -491,7 +491,7 @@ export default function NotebookPage() {
   useEffect(() => {
     if (!deepDiveEpisode) return;
     const dialogue = deepDiveEpisode.dialogue;
-    const player = new GaplessPlayer({
+    const player = new ClipPlayer({
       count: dialogue.length,
       fetchClip: async (i) => {
         if (!studioVoiceEnabled) return null; // "Browser TTS" mode: every line is read by the device voices

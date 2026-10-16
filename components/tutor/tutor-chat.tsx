@@ -5,6 +5,7 @@ import { Send, Sparkles, Volume2, Square, Trash2, Loader2, GraduationCap } from 
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { asArray } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
+import { createSpeaker, type Speaker } from "@/lib/audio/speak";
 import { ExplainLevelToggle, useExplainLevel } from "@/components/study/explain-level-toggle";
 
 interface Msg {
@@ -97,6 +98,7 @@ export function TutorChat({
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [level, setLevel] = useExplainLevel();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const speaker = useRef<Speaker | null>(null);
   const key = storageKey(classId, kcId);
 
   useEffect(() => {
@@ -121,9 +123,7 @@ export function TutorChat({
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages]);
 
-  useEffect(() => () => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
-  }, []);
+  useEffect(() => () => speaker.current?.stop(), []);
 
   const send = async (raw: string) => {
     const text = raw.trim();
@@ -160,17 +160,18 @@ export function TutorChat({
   };
 
   const speak = (m: Msg) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
+    speaker.current ||= createSpeaker();
+    speaker.current.stop();
     if (speakingId === m.id) {
       setSpeakingId(null);
       return;
     }
-    const u = new SpeechSynthesisUtterance(m.text.replace(/\$\$?([^$]+)\$\$?/g, "$1").replace(/[*_`#>]/g, ""));
-    u.onend = () => setSpeakingId(null);
-    u.onerror = () => setSpeakingId(null);
     setSpeakingId(m.id);
-    window.speechSynthesis.speak(u);
+    speaker.current.say(
+      m.text,
+      () => setSpeakingId(null),
+      () => setSpeakingId(null)
+    );
   };
 
   const clear = () => {

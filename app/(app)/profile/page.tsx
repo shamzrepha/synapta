@@ -126,7 +126,7 @@ export default function ProfilePage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          Account Profile & Cognitive Twin
+          Account Profile & Skill Map
         </h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
           Manage your role, token limits, and view your current learning attributes.
@@ -346,7 +346,7 @@ export default function ProfilePage() {
                 <span className="font-mono text-[11px]">{user?.email || "Not linked"}</span>
               </div>
               <div className="flex justify-between py-1.5">
-                <span className="font-medium">Cross-Device Twin State:</span>
+                <span className="font-medium">Synced across your devices:</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Synced via Cloud Firestore
                 </span>

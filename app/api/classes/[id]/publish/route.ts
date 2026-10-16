@@ -27,7 +27,7 @@ export async function POST(
           ok: false,
           error: {
             code: "EMPTY_COURSE",
-            message: "Cannot publish course: At least one Knowledge Component must exist in the curriculum.",
+            message: "Cannot publish course: At least one topic must exist in the curriculum.",
           },
         },
         { status: 400 }

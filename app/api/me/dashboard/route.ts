@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
       const rawPL = typeof m.pL === "number" ? m.pL : 0.2;
       const percentPL = Math.round(rawPL * 100);
       const kc = kcsMap.get(m.kcId);
-      const fullName = kc?.title || m.kcTitle || m.kcId || "Knowledge Component";
+      const fullName = kc?.title || m.kcTitle || m.kcId || "Topic";
       const subject = fullName.length > 18 ? `${fullName.slice(0, 15)}...` : fullName;
 
       radarData.push({

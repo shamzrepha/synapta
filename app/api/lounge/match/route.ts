@@ -109,11 +109,11 @@ export async function POST(req: NextRequest) {
 
       let matchReason = "Available Study Partner";
       if (pL >= MASTERY_THRESHOLD) {
-        matchReason = `Mastered Topic (${masteryPercentage}% P(L)) — High-impact peer mentor`;
+        matchReason = `Mastered Topic (${masteryPercentage}% mastery) — High-impact peer mentor`;
       } else if (pL >= 0.70) {
-        matchReason = `Competent Concept Mastery (${masteryPercentage}% P(L)) — Ready to explain`;
+        matchReason = `Competent Concept Mastery (${masteryPercentage}% mastery) — Ready to explain`;
       } else {
-        matchReason = `Collaborative Co-Learner (${masteryPercentage}% P(L)) — Study together`;
+        matchReason = `Collaborative Co-Learner (${masteryPercentage}% mastery) — Study together`;
       }
 
       matches.push({

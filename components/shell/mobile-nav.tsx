@@ -64,7 +64,7 @@ export function MobileNav() {
         className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-slate-200/80 bg-white/95 backdrop-blur-lg dark:border-slate-800/80 dark:bg-slate-950/95 pb-[env(safe-area-inset-bottom)]"
         aria-label="Mobile navigation"
       >
-        <div className="grid grid-cols-6 h-16">
+        <div className="grid grid-cols-5 h-16">
           {primary.map((item) => {
             const Icon = item.icon;
             const active = isActivePath(pathname, item.href, item.match);

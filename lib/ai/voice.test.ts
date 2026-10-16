@@ -47,8 +47,8 @@ describe("lib/ai/voice default Edge neural voice", () => {
     const alex = await generateGeminiVoice({ text: "Hello there", speaker: "Alex" });
     const sam = await generateGeminiVoice({ text: "Hi Alex", speaker: "Sam" });
     expect(alex?.mimeType).toBe("audio/mpeg");
-    expect(alex?.voiceName).toContain("Jenny");
-    expect(sam?.voiceName).toContain("Guy");
+    expect(alex?.voiceName).toContain("Aria");
+    expect(sam?.voiceName).toContain("Andrew");
     edgeState.fail = true;
   });
 });
@@ -145,6 +145,31 @@ describe("two distinct podcast hosts", () => {
     await synthesizeEdgeVoice("one", "en-US-JennyNeural", 50);
     await synthesizeEdgeVoice("two", "en-US-JennyNeural", 50);
     expect(edgeAvailable()).toBe(false);
+    resetVoiceBreakers();
+  });
+});
+
+describe("synthesizeSpeech (real neural voice, never the browser voice)", () => {
+  it("uses the fast free neural voice first", async () => {
+    const { synthesizeSpeech, resetVoiceBreakers } = await import("./voice");
+    resetVoiceBreakers();
+    edgeState.fail = false;
+    const clip = await synthesizeSpeech("Hello there", "female");
+    expect(clip?.engine).toBe("edge");
+    expect(clip?.mimeType).toBe("audio/mpeg");
+    edgeState.fail = true;
+    resetVoiceBreakers();
+  });
+
+  it("returns null instead of falling back to anything robotic when every engine fails", async () => {
+    const { synthesizeSpeech, resetVoiceBreakers } = await import("./voice");
+    resetVoiceBreakers();
+    edgeState.fail = true;
+    const prev = process.env.ELEVENLABS_API_KEY;
+    delete process.env.ELEVENLABS_API_KEY;
+    const clip = await synthesizeSpeech("Hello there", "male");
+    expect(clip === null || clip.engine === "gemini").toBe(true);
+    if (prev) process.env.ELEVENLABS_API_KEY = prev;
     resetVoiceBreakers();
   });
 });

@@ -65,7 +65,7 @@ export default function ClassHeatmapIndexPage() {
           Select Class Heatmap
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Choose a course below to inspect the BKT Cognitive Digital Twin heatmap and student mastery matrix.
+          Choose a course below to see the mastery heatmap for your students.
         </p>
       </div>
 
@@ -79,7 +79,7 @@ export default function ClassHeatmapIndexPage() {
               No classes created yet
             </h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-              Create a class and publish your syllabus to unlock class-wide Cognitive Twin mastery matrices.
+              Create a class and publish your syllabus to unlock the class-wide mastery heatmap.
             </p>
           </div>
           <Link href="/classes/manage">

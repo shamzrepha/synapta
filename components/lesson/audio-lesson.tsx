@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { readPrefs } from "@/components/settings/use-prefs";
-import { GaplessPlayer, type ClipState } from "@/lib/audio/gapless";
+import { ClipPlayer, type ClipState } from "@/lib/audio/clip-player";
 
 interface Turn {
   speaker: "teacher" | "student";
@@ -55,7 +55,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [expanded, setExpanded] = useState(false);
-  const playerRef = useRef<GaplessPlayer | null>(null);
+  const playerRef = useRef<ClipPlayer | null>(null);
   const transcriptRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
@@ -77,7 +77,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
 
   useEffect(() => {
     if (!turnsKey) return;
-    const player = new GaplessPlayer({
+    const player = new ClipPlayer({
       count: turnsKey.length,
       fetchClip: async (i) => {
         if (turnsKey[i] !== "1") return null;

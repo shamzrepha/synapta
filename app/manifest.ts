@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Sunroot — AI-Native Adaptive Learning Platform",
     short_name: "Sunroot",
-    description: "Adaptive cognitive tutoring powered by digital twins and Bayesian Knowledge Tracing",
+    description: "Adaptive learning that tracks what you have mastered and adapts your lessons",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#0B0F14",

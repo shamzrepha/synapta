@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api/errors";
 import { generateWithFallback, AiGenerationError } from "@/lib/ai/router";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
 import { loadKcGroundingContext } from "@/lib/kc/context";
-import { synthesizeEdgeVoice, synthesizeGeminiTts } from "@/lib/ai/voice";
+import { synthesizeSpeech } from "@/lib/ai/voice";
 import { z } from "zod";
 
 /**
@@ -16,8 +16,8 @@ import { z } from "zod";
 const LOCK_MS = 4 * 60 * 1000;
 
 export const VOICES = {
-  female: { teacher: "en-US-JennyNeural", student: "en-US-GuyNeural" },
-  male: { teacher: "en-US-GuyNeural", student: "en-US-JennyNeural" },
+  female: { teacher: "en-US-AriaNeural", student: "en-US-BrianMultilingualNeural" },
+  male: { teacher: "en-US-AndrewMultilingualNeural", student: "en-US-AvaMultilingualNeural" },
 } as const;
 
 const scriptSchema = z.preprocess(
@@ -74,14 +74,6 @@ export async function getAudioLesson(classId: string, kcId: string): Promise<Aud
   };
 }
 
-const EDGE_TIMEOUT_MS = 8000;
-/** Gemini TTS answers in a few seconds to ~half a minute for a long turn; the teacher's recording can wait for it */
-const GEMINI_TIMEOUT_MS = 45000;
-/** Expressive AI voices (Gemini); the free Edge voices are only the second choice */
-const GEMINI_VOICES: Record<string, { teacher: string; student: string }> = {
-  female: { teacher: "Kore", student: "Puck" },
-  male: { teacher: "Charon", student: "Leda" },
-};
 /** A Firestore document holds under 1 MiB, so a clip is stored as ≤ 600 KB pieces (base64 adds a third) */
 const PART_BYTES = 600_000;
 
@@ -124,26 +116,16 @@ export async function recordedTurns(classId: string, kcId: string, version: numb
 }
 
 /**
- * Speaks one turn: the expressive Gemini AI voice first, then the free Edge neural voice if Gemini is
- * unavailable. Only the teacher's recording calls this; students are served the saved file.
+ * Speaks one turn as a real audio file: a fast free neural voice first, ElevenLabs when a key is set, Gemini TTS
+ * last. Only the teacher's recording calls this; students are served the saved file.
  */
 async function synthesizeTurn(text: string, role: "teacher" | "student", style: "female" | "male"): Promise<TurnAudio | null> {
-  const engine = (process.env.VOICE_ENGINE || "auto").toLowerCase();
-  const gemini = async (): Promise<TurnAudio | null> => {
-    const g = await synthesizeGeminiTts(text, (GEMINI_VOICES[style] || GEMINI_VOICES.female)[role], GEMINI_TIMEOUT_MS);
-    return g ? { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType } : null;
-  };
-  const edge = async (): Promise<TurnAudio | null> => {
-    const voices = VOICES[style] || VOICES.female;
-    const mp3 = await synthesizeEdgeVoice(text, voices[role], EDGE_TIMEOUT_MS);
-    return mp3 ? { audio: mp3, mimeType: "audio/mpeg" } : null;
-  };
-  const order = engine === "edge" ? [edge, gemini] : [gemini, edge];
-  for (const f of order) {
-    const r = await f();
-    if (r) return r;
-  }
-  return null;
+  const voices = VOICES[style] || VOICES.female;
+  const edgeName = voices[role];
+  // the speaker's gender follows the voice: female style = female teacher + male student, and the reverse
+  const gender: "female" | "male" = /^en-\w+-(Aria|Jenny|Ava|Sonia)/.test(edgeName) ? "female" : "male";
+  const clip = await synthesizeSpeech(text, gender, edgeName);
+  return clip ? { audio: clip.audio, mimeType: clip.mimeType } : null;
 }
 
 /**

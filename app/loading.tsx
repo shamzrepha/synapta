@@ -14,7 +14,7 @@ export default function Loading() {
           Loading Sunroot
         </p>
         <p className="text-[11px] text-slate-400 dark:text-slate-500">
-          Syncing cognitive twin state...
+          Loading your skill map…
         </p>
       </div>
     </div>

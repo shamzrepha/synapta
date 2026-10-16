@@ -5,8 +5,8 @@ import { Loader2, Mic, MicOff, Repeat, Send, Square, Volume2 } from "lucide-reac
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { ExplainLevelToggle, useExplainLevel } from "@/components/study/explain-level-toggle";
 import { useToast } from "@/components/ui/toast";
-import { pickDeviceVoices } from "@/lib/audio/gapless";
-import { chunkForSpeech, cleanForSpeech, collectTranscript, getRecognitionCtor, type RecognitionLike } from "@/lib/voice/speech";
+import { createSpeaker, type Speaker } from "@/lib/audio/speak";
+import { collectTranscript, getRecognitionCtor, type RecognitionLike } from "@/lib/voice/speech";
 import { cn } from "@/lib/utils";
 
 interface Msg {
@@ -34,6 +34,7 @@ export function VoiceTutor() {
   const recRef = useRef<RecognitionLike | null>(null);
   const heardRef = useRef("");
   const speakToken = useRef(0);
+  const speaker = useRef<Speaker | null>(null);
   const emptyRuns = useRef(0);
   const handsFreeRef = useRef(false);
   const messagesRef = useRef<Msg[]>([]);
@@ -61,43 +62,34 @@ export function VoiceTutor() {
     () => () => {
       speakToken.current++;
       recRef.current?.abort();
-      window.speechSynthesis?.cancel();
+      speaker.current?.stop();
     },
     []
   );
 
   const stopSpeaking = () => {
     speakToken.current++;
-    window.speechSynthesis?.cancel();
+    speaker.current?.stop();
     setSpeaking(false);
   };
 
   const speak = (markdown: string, onDone: () => void) => {
-    const synth = window.speechSynthesis;
-    const text = cleanForSpeech(markdown);
-    if (!synth || !text) return onDone();
-    synth.cancel();
+    speaker.current ||= createSpeaker();
     const token = ++speakToken.current;
-    const voices = synth.getVoices();
-    const picked = pickDeviceVoices(voices.map((v) => ({ name: v.name, lang: v.lang })));
-    const voice = picked ? voices[picked.female] : undefined;
-    const chunks = chunkForSpeech(text);
     setSpeaking(true);
-    chunks.forEach((c, i) => {
-      const u = new SpeechSynthesisUtterance(c);
-      if (voice) u.voice = voice;
-      u.lang = voice?.lang || navigator.language || "en-US";
-      const finish = () => {
+    speaker.current.say(
+      markdown,
+      () => {
         if (token !== speakToken.current) return; // stopped or superseded
-        if (i === chunks.length - 1) {
-          setSpeaking(false);
-          onDone();
-        }
-      };
-      u.onend = finish;
-      u.onerror = finish;
-      synth.speak(u);
-    });
+        setSpeaking(false);
+        onDone();
+      },
+      () => {
+        if (token !== speakToken.current) return;
+        setSpeaking(false);
+        toast({ title: "The voice is busy", description: "Read the answer on screen, or ask again in a moment.", variant: "amber" });
+      }
+    );
   };
 
   const listen = () => {

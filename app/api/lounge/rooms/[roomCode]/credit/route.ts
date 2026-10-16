@@ -58,7 +58,7 @@ export async function POST(
       throw new ApiError(
         400,
         "MISSING_CONTEXT",
-        "This study room is not linked to a specific classroom and knowledge component."
+        "This study room is not linked to a specific classroom and topic."
       );
     }
 

@@ -406,7 +406,7 @@ export default function TeacherContentStudioPage({
                   </div>
 
                   <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">
-                    {item.kcTitle || "Knowledge Component Module"}
+                    {item.kcTitle || "Topic"}
                   </h3>
 
                   <p className="text-xs text-slate-500 line-clamp-2">
@@ -475,7 +475,7 @@ export default function TeacherContentStudioPage({
             <form onSubmit={handleGenerate} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Target Knowledge Component
+                  Target topic
                 </label>
                 <select
                   value={genKcId}

@@ -37,8 +37,8 @@ export function pcmToWav(
  * conversation is easy to follow, whichever engine ends up speaking.
  */
 export const HOSTS = {
-  alex: { gender: "female", edge: "en-US-JennyNeural", edgeName: "Jenny (Studio Neural)", gemini: "Kore", eleven: "21m00Tcm4TlvDq8ikWAM", elevenName: "Rachel (ElevenLabs)", slot: "A" },
-  sam: { gender: "male", edge: "en-US-GuyNeural", edgeName: "Guy (Studio Neural)", gemini: "Puck", eleven: "pNInz6obpgDQGcFmaJgB", elevenName: "Adam (ElevenLabs)", slot: "B" },
+  alex: { gender: "female", edge: "en-US-AriaNeural", edgeName: "Aria (Studio Neural)", gemini: "Kore", eleven: "21m00Tcm4TlvDq8ikWAM", elevenName: "Rachel (ElevenLabs)", slot: "A" },
+  sam: { gender: "male", edge: "en-US-AndrewMultilingualNeural", edgeName: "Andrew (Studio Neural)", gemini: "Puck", eleven: "pNInz6obpgDQGcFmaJgB", elevenName: "Adam (ElevenLabs)", slot: "B" },
 } as const;
 
 export function hostFor(speaker: string) {
@@ -282,6 +282,54 @@ export async function synthesizeGeminiTts(text: string, voiceName: string, timeo
   }
   console.warn("[voice] Gemini TTS unavailable for all models");
   return null;
+}
+
+/** Fast free neural voices (Microsoft Edge), tried first everywhere. */
+export const EDGE_VOICES = {
+  female: ["en-US-AriaNeural", "en-US-JennyNeural", "en-US-AvaMultilingualNeural", "en-GB-SoniaNeural"],
+  male: ["en-US-AndrewMultilingualNeural", "en-US-BrianMultilingualNeural", "en-US-GuyNeural", "en-GB-RyanNeural"],
+} as const;
+
+export interface SpeechClip {
+  audio: Buffer;
+  mimeType: string;
+  engine: "edge" | "elevenlabs" | "gemini";
+}
+
+/**
+ * One line of speech as a real audio file. Fast free neural voice first (4 s), then ElevenLabs when a key is
+ * set, then Gemini TTS as the last resort. Never the browser's robot voice. Returns null when every engine failed.
+ */
+export async function synthesizeSpeech(text: string, gender: "female" | "male", edgeVoice?: string): Promise<SpeechClip | null> {
+  const clean = text.trim();
+  if (!clean) return null;
+  const voices = EDGE_VOICES[gender];
+  const edge = await synthesizeEdgeVoice(clean, edgeVoice || voices[0], 4_000);
+  if (edge) return { audio: edge, mimeType: "audio/mpeg", engine: "edge" };
+  // a second Edge voice costs little and covers a single voice being throttled
+  if (!edgeVoice && edgeAvailable()) {
+    const alt = await synthesizeEdgeVoice(clean, voices[1], 4_000);
+    if (alt) return { audio: alt, mimeType: "audio/mpeg", engine: "edge" };
+  }
+  const key = process.env.ELEVENLABS_API_KEY;
+  if (key) {
+    try {
+      const id = gender === "female" ? HOSTS.alex.eleven : HOSTS.sam.eleven;
+      const res = await withVoiceTimeout(
+        fetch(`https://api.elevenlabs.io/v1/text-to-speech/${id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "xi-api-key": key },
+          body: JSON.stringify({ text: clean, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
+        }).then(async (r) => (r.ok ? Buffer.from(await r.arrayBuffer()) : null)),
+        8_000
+      );
+      if (res) return { audio: res, mimeType: "audio/mpeg", engine: "elevenlabs" };
+    } catch {
+      /* fall through to Gemini */
+    }
+  }
+  const g = await synthesizeGeminiTts(clean, gender === "female" ? HOSTS.alex.gemini : HOSTS.sam.gemini, 12_000);
+  return g ? { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType, engine: "gemini" } : null;
 }
 
 /** Synthesises text with a specific Edge neural voice (free, no API key). Returns MP3 bytes. */

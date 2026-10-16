@@ -53,7 +53,7 @@ export default function LandingPage() {
             <div className="flex flex-col">
               <span className="font-bold text-lg tracking-tight">Sunroot</span>
               <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                Cognitive Twin LMS
+                Adaptive Learning
               </span>
             </div>
           </Link>
@@ -63,7 +63,7 @@ export default function LandingPage() {
               Features
             </a>
             <a href="#twin" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-              Cognitive Twin
+              Skill Map
             </a>
             <a href="#roles" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
               Roles
@@ -102,7 +102,7 @@ export default function LandingPage() {
           </h1>
 
           <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Sunroot builds a real-time <strong>Cognitive Digital Twin</strong> for every learner using Bayesian Knowledge Tracing. Seamlessly unified with in-situ simulation labs, source-grounded AI, and peer study lounges.
+            Sunroot builds a live <strong>Skill Map</strong> for every learner that tracks what you have mastered and adapts your lessons to you. It brings together interactive labs, AI study notes with sources, and study rooms with friends.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -119,7 +119,7 @@ export default function LandingPage() {
             </Link>
           </div>
 
-          {/* Cognitive Twin Preview Card */}
+          {/* Skill Map preview card */}
           <div className="pt-8 max-w-4xl mx-auto">
             <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-6 shadow-xl backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/70 text-left">
               <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800 pb-4 mb-6">
@@ -128,8 +128,8 @@ export default function LandingPage() {
                     CT
                   </div>
                   <div>
-                    <h2 className="font-semibold text-sm">Cognitive Digital Twin — Live Mastery State</h2>
-                    <p className="text-xs text-slate-500">Live Bayesian Posterior Probability: P(L)</p>
+                    <h2 className="font-semibold text-sm">My Skill Map — your mastery right now</h2>
+                    <p className="text-xs text-slate-500">Your mastery score for each topic</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -198,14 +198,14 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-2">
                 <BrainCircuit className="h-6 w-6" />
               </div>
-              <CardTitle>Adaptive Tutoring & BKT</CardTitle>
+              <CardTitle>Adaptive Tutoring</CardTitle>
               <CardDescription>
-                Probabilistic cognitive state modeling for every Knowledge Component.
+                A mastery score for every topic, so you always know what to study next.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
               <p>
-                Every quiz answer, flashcard flip, and lab experiment continuously updates your latent mastery probability \(P(L)\) via the Bayesian Knowledge Tracing engine.
+                Every quiz answer, flashcard and lab you complete updates your mastery score, and your lessons adapt to it.
               </p>
               <ul className="space-y-2 pt-2 text-xs">
                 <li className="flex items-center gap-2">
@@ -230,7 +230,7 @@ export default function LandingPage() {
               <div className="h-12 w-12 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2">
                 <Cpu className="h-6 w-6" />
               </div>
-              <CardTitle>In-Situ Simulation Labs</CardTitle>
+              <CardTitle>Interactive Labs</CardTitle>
               <CardDescription>
                 Hands-on interactive virtual apparatus embedded directly in topics.
               </CardDescription>
@@ -314,8 +314,8 @@ export default function LandingPage() {
               </div>
               <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
                 <li>• Enroll in public classes or request private access</li>
-                <li>• Real-time Cognitive Twin & mastery radar</li>
-                <li>• In-situ simulations, flashcards, & AI quizzes</li>
+                <li>• Your Skill Map and mastery radar</li>
+                <li>• Interactive labs, flashcards and AI quizzes</li>
                 <li>• Earn XP, streak days, and join peer lounges</li>
               </ul>
             </div>
@@ -334,7 +334,7 @@ export default function LandingPage() {
                 <li>• AI Syllabus Synthesis via Gemini</li>
                 <li>• Manage public/private classes and join requests</li>
                 <li>• Live class mastery heatmap (students x KCs)</li>
-                <li>• Track token quotas and drill into student twins</li>
+                <li>• Track token quotas and see each student&apos;s skill map</li>
               </ul>
             </div>
 

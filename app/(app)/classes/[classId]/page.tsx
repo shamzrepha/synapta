@@ -447,7 +447,7 @@ export default function ClassOverviewPage({
                 <Users className="h-3.5 w-3.5" /> {classData.studentCount} students enrolled
               </span>
               <span className="flex items-center gap-1">
-                <Layers className="h-3.5 w-3.5" /> {kcs.length} Knowledge Components
+                <Layers className="h-3.5 w-3.5" /> {kcs.length} Topics
               </span>
               {classData.joinCode && (isOwner || user?.role === "admin") && (
                 <>
@@ -496,7 +496,7 @@ export default function ClassOverviewPage({
         }}
       />
 
-      {/* Progress & Twin Status Metric */}
+      {/* Progress metric */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-4 flex items-center justify-between">
           <div>
@@ -512,7 +512,7 @@ export default function ClassOverviewPage({
 
         <Card className="p-4 flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 block">Knowledge Components Mastered</span>
+            <span className="text-xs text-slate-500 block">Topics Mastered</span>
             <span className="text-xl font-bold text-slate-900 dark:text-slate-100">
               {kcs.filter((kc) => (masteryMap[kc.id] ?? 0.2) >= 0.95).length} / {kcs.length}
             </span>
@@ -524,7 +524,7 @@ export default function ClassOverviewPage({
 
         <Card className="p-4 flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 block">Active BKT Twin Model</span>
+            <span className="text-xs text-slate-500 block">Your mastery tracking is on</span>
             <span className="text-xl font-bold text-amber-500">
               {kcs.filter((kc) => isKcUnlocked(kc)).length} Unlocked
             </span>
@@ -575,13 +575,13 @@ export default function ClassOverviewPage({
         </div>
       )}
 
-      {/* Knowledge Components Syllabus List */}
+      {/* Topics syllabus list */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold tracking-tight">Syllabus & Knowledge Components</h2>
+            <h2 className="text-lg font-bold tracking-tight">Syllabus & Topics</h2>
             <p className="text-xs text-slate-500">
-              Atomic concepts organized by dependency. Topics unlock when prerequisites reach P(L) ≥ 70%.
+              Atomic concepts organized by dependency. Topics unlock when the topics before them reach a 70% mastery score.
             </p>
           </div>
         </div>
@@ -650,7 +650,7 @@ export default function ClassOverviewPage({
                   {/* Right Action Button & Progress */}
                   <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 dark:border-slate-800">
                     <div className="text-right hidden sm:block">
-                      <span className="text-[10px] text-slate-400 block uppercase font-semibold">Mastery P(L)</span>
+                      <span className="text-[10px] text-slate-400 block uppercase font-semibold">Mastery score</span>
                       <div className="w-24 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mt-1">
                         <div
                           className={`h-full rounded-full ${

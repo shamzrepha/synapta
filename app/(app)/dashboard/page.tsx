@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGameState } from "@/components/game/use-game";
 import { LevelCard, LeagueCard, QuestsCard } from "@/components/game/widgets";
 import { AchievementPrompts } from "@/components/feed/achievement-prompts";
+import { HomeHero } from "@/components/home/home-hero";
 import { SessionsPanel } from "@/components/sessions/sessions-panel";
 import type { EventSummary } from "@/components/events/types";
 
@@ -114,6 +115,8 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      <HomeHero role={user?.role} classes={asArray(classes).map((c) => ({ id: c.id, title: c.title }))} loading={loading} />
 
       <section aria-label="What do you want to do?" className="space-y-2">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">What do you want to do?</h2>

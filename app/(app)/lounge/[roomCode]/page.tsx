@@ -289,7 +289,7 @@ export default function LoungeRoomPage({
 
         toast({
           title: "🎉 PEER EXPLANATION CREDITED!",
-          description: "+40 XP awarded to peer! BKT Cognitive Twin accelerated with Omega = 2.0 weighting.",
+          description: "+40 XP awarded to your peer, and their mastery score gets a boost.",
           variant: "success",
         });
       } else {
@@ -420,12 +420,12 @@ export default function LoungeRoomPage({
                     Peer Explanation Verification
                   </h4>
                   <p className="text-[11px] text-slate-500">
-                    Did a peer explain a concept clearly? Credit them to accelerate their Cognitive Twin.
+                    Did a peer explain a concept clearly? Credit them to boost their mastery score.
                   </p>
                 </div>
               </div>
               <Badge variant="amber" className="text-[10px] shrink-0">
-                +40 XP &bull; &Omega;=2.0
+                +40 XP
               </Badge>
             </div>
 

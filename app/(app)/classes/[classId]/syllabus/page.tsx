@@ -92,7 +92,7 @@ export default function SyllabusEditorPage({
         setKcs(data.data.kcs);
         toast({
           title: "Syllabus Synthesized!",
-          description: `Generated ${data.data.kcs.length} Knowledge Components using Gemini.`,
+          description: `Generated ${data.data.kcs.length} Topics using Gemini.`,
           variant: "success",
         });
         setIsAiModalOpen(false);
@@ -128,7 +128,7 @@ export default function SyllabusEditorPage({
       const data = await res.json();
       if (data.ok) {
         setKcs((prev) => prev.map((k) => (k.id === editingKc.id ? editingKc : k)));
-        toast({ title: "Saved!", description: "Knowledge Component updated.", variant: "success" });
+        toast({ title: "Saved!", description: "Topic updated.", variant: "success" });
         setEditingKc(null);
       } else {
         toast({
@@ -150,7 +150,7 @@ export default function SyllabusEditorPage({
     try {
       await fetch(`/api/classes/${classId}/kcs/${kcId}`, { method: "DELETE" });
       setKcs((prev) => prev.filter((k) => k.id !== kcId));
-      toast({ title: "Deleted", description: "Knowledge Component removed." });
+      toast({ title: "Deleted", description: "Topic removed." });
     } catch {
       setKcs((prev) => prev.filter((k) => k.id !== kcId));
     }
@@ -186,10 +186,10 @@ export default function SyllabusEditorPage({
           <div className="space-y-1">
             <Badge variant="outline" className="text-xs mb-1">Curriculum Architect</Badge>
             <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-slate-100">
-              Syllabus & Knowledge Components: {classTitle}
+              Syllabus & Topics: {classTitle}
             </h1>
             <p className="text-xs text-slate-500">
-              {kcs.length} Knowledge Components configured in dependency order.
+              {kcs.length} Topics configured in dependency order.
             </p>
           </div>
         </CardContent>
@@ -237,7 +237,7 @@ export default function SyllabusEditorPage({
                   variant="ghost"
                   className="text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                   onClick={() => handleDeleteKc(kc.id)}
-                  aria-label="Delete Knowledge Component"
+                  aria-label="Delete Topic"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
@@ -309,7 +309,7 @@ export default function SyllabusEditorPage({
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Edit3 className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-                <h3 className="font-bold text-lg">Edit Knowledge Component</h3>
+                <h3 className="font-bold text-lg">Edit Topic</h3>
               </div>
               <button onClick={() => setEditingKc(null)} className="text-slate-400 hover:text-slate-600 p-1">
                 <X className="h-5 w-5" />
@@ -352,7 +352,7 @@ export default function SyllabusEditorPage({
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">In-Situ Lab Simulation</label>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Interactive lab</label>
                   <select
                     value={editingKc.lab?.type || "none"}
                     onChange={(e) =>
@@ -373,7 +373,7 @@ export default function SyllabusEditorPage({
 
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    BKT Learn Probability: pT
+                    Learning speed (how fast students pick this up)
                   </label>
                   <Input
                     type="number"

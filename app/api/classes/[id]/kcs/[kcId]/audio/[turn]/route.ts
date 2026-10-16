@@ -30,13 +30,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       clip = await readClip(classId, kcId, meta.version, index);
     }
     if (!clip) return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "No audio" } }, { status: 404 });
-    return new NextResponse(new Uint8Array(clip.audio), {
-      headers: {
-        "Content-Type": clip.mimeType,
-        "Content-Length": String(clip.audio.length),
-        "Cache-Control": "private, max-age=86400",
-      },
-    });
+    // A saved clip never changes for a given version (the player asks for ?v=<version>), so browsers keep it for
+    // good, and Range requests (seeking, iOS Safari, resuming) get proper partial responses.
+    const total = clip.audio.length;
+    const headers: Record<string, string> = {
+      "Content-Type": clip.mimeType,
+      "Accept-Ranges": "bytes",
+      "Cache-Control": "private, max-age=31536000, immutable",
+    };
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get("range") || "");
+    if (range && (range[1] || range[2])) {
+      let start = range[1] ? Number(range[1]) : total - Number(range[2]);
+      let end = range[1] && range[2] ? Number(range[2]) : total - 1;
+      start = Math.max(0, start);
+      end = Math.min(total - 1, end);
+      if (start > end || start >= total) {
+        return new NextResponse(null, { status: 416, headers: { ...headers, "Content-Range": `bytes */${total}` } });
+      }
+      const part = clip.audio.subarray(start, end + 1);
+      return new NextResponse(new Uint8Array(part), { status: 206, headers: { ...headers, "Content-Range": `bytes ${start}-${end}/${total}`, "Content-Length": String(part.length) } });
+    }
+    return new NextResponse(new Uint8Array(clip.audio), { headers: { ...headers, "Content-Length": String(total) } });
   } catch (error) {
     return handleAuthError(error);
   }

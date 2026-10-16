@@ -43,7 +43,7 @@ export async function POST(
     const kcDoc = await kcRef.get();
     if (!kcDoc.exists) {
       return NextResponse.json(
-        { ok: false, error: { code: "NOT_FOUND", message: "Knowledge Component not found" } },
+        { ok: false, error: { code: "NOT_FOUND", message: "Topic not found" } },
         { status: 404 }
       );
     }

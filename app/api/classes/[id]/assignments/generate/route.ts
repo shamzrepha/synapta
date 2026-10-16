@@ -54,7 +54,7 @@ export async function POST(
     const selectedKcs = allKcs.filter((k) => selectedKcIds.includes(k.id));
     if (selectedKcs.length === 0) {
       return NextResponse.json(
-        { ok: false, error: { code: "BAD_REQUEST", message: "No matching knowledge components found in this class" } },
+        { ok: false, error: { code: "BAD_REQUEST", message: "No matching topics found in this class" } },
         { status: 400 }
       );
     }

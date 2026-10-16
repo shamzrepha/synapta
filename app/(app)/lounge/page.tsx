@@ -129,7 +129,7 @@ function LoungeHubContent() {
     }
   };
 
-  // Run BKT Peer Matching Algorithm
+  // Look for study partners
   const handleRunMatch = async () => {
     if (!selectedClassId || !selectedKcId) {
       toast({ title: "Incomplete", description: "Select a class and topic to match peers.", variant: "amber" });
@@ -157,7 +157,7 @@ function LoungeHubContent() {
         }
       }
     } catch {
-      toast({ title: "Matching Error", description: "Could not query peer digital twins.", variant: "destructive" });
+      toast({ title: "Matching Error", description: "Could not look for study partners.", variant: "destructive" });
     } finally {
       setMatchingLoading(false);
     }
@@ -256,7 +256,7 @@ function LoungeHubContent() {
         <div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">Peer Learning Hub</Badge>
-            <Badge variant="amber" className="text-xs">BKT Omega = 2.0 (+40 XP)</Badge>
+            <Badge variant="amber" className="text-xs">+40 XP</Badge>
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-1">
             Peer Study Lounge
@@ -294,17 +294,17 @@ function LoungeHubContent() {
 
       {/* Quick Action Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Card 1: Intelligent BKT Matchmaker */}
+        {/* Card 1: Study partner matchmaker */}
         <Card className="p-5 border-teal-500/30 bg-teal-50/30 dark:bg-teal-950/20 flex flex-col justify-between space-y-4">
           <div className="space-y-2">
             <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
               <BrainCircuit className="h-5 w-5" />
             </div>
             <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
-              Cognitive Twin Matchmaker
+              Study Partner Matchmaker
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Struggling with a topic? Our engine searches for classmates with <strong>P(L) &ge; 85%</strong> to guide you through derivations.
+              Struggling with a topic? Our engine searches for classmates with <strong>a mastery score of 85% or more</strong> to guide you through derivations.
             </p>
           </div>
           <Button
@@ -357,7 +357,7 @@ function LoungeHubContent() {
               Peer Teaching XP Bonus
             </h3>
             <p className="text-xs text-slate-500 leading-relaxed">
-              Explaining a concept to a classmate is the highest form of learning. Earn <strong>+40 XP</strong> and double your BKT transition rate (\(\Omega = 2.0\)).
+              Explaining a concept to a classmate is the highest form of learning. Earn <strong>+40 XP</strong> and boost your classmate&apos;s mastery score.
             </p>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
@@ -485,7 +485,7 @@ function LoungeHubContent() {
 
               <div>
                 <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  Focus Knowledge Component
+                  Focus topic
                 </label>
                 <select
                   value={selectedKcId}
@@ -538,7 +538,7 @@ function LoungeHubContent() {
                               variant={peer.isMastered ? "emerald" : peer.pL >= 0.7 ? "default" : "secondary"}
                               className="text-[10px]"
                             >
-                              {peer.masteryPercentage}% P(L)
+                              {peer.masteryPercentage}% mastery
                             </Badge>
                           </div>
                           <p className="text-[11px] text-slate-500">{peer.matchReason}</p>
