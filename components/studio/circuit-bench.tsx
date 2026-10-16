@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
-import { Trash2, Plus, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Trash2, Plus, X, ZoomIn, ZoomOut, Maximize } from "lucide-react";
+import { GestureToggle, useGestureLock } from "./gesture-lock";
 import { CATALOG, CATALOG_BY_TYPE, LED_COLORS, isButtonLike, type ComponentDef } from "@/lib/studio/circuit/catalog";
 import type { OutputState } from "@/lib/studio/circuit/netlist";
 import type { CircuitPart, Wire } from "@/lib/studio/spec";
@@ -267,6 +268,64 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
   const editable = !readOnly && !running;
   const byId = useMemo(() => new Map(circuit.parts.map((p) => [p.id, p])), [circuit.parts]);
 
+  // --- view: pan + zoom (pinch, ctrl/⌘-wheel, buttons) so a phone-sized screen can reach every pin ---
+  const gesture = useGestureLock(!!fit);
+  const box = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [view, setView] = useState<{ cx: number; cy: number; s: number } | null>(null); // null = fit to the parts
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ dist: number; s: number } | null>(null);
+  const panning = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
+  const fitView = useMemo(() => {
+    const defs = circuit.parts.map((p) => ({ p, d: CATALOG_BY_TYPE[p.type] })).filter((x) => x.d);
+    if (!defs.length || !size.w || !size.h) return { cx: W / 2, cy: H / 2, s: size.w ? size.w / W : 1 };
+    const x0 = Math.min(...defs.map(({ p }) => p.x)) - 30;
+    const y0 = Math.min(...defs.map(({ p }) => p.y)) - 30;
+    const x1 = Math.max(...defs.map(({ p, d }) => p.x + d.w)) + 30;
+    const y1 = Math.max(...defs.map(({ p, d }) => p.y + d.h)) + 40;
+    const s = Math.min(size.w / (x1 - x0), size.h / (y1 - y0), 2.2);
+    return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, s };
+  }, [circuit.parts, size]);
+  const v = view ?? fitView;
+  const vbW = size.w ? size.w / v.s : W;
+  const vbH = size.h ? size.h / v.s : H;
+  const viewBox = `${v.cx - vbW / 2} ${v.cy - vbH / 2} ${vbW} ${vbH}`;
+  const zoomAt = (factor: number, px?: number, py?: number) => {
+    const cur = view ?? fitView;
+    const s = Math.max(0.25, Math.min(4, cur.s * factor));
+    if (px === undefined || py === undefined) return setView({ ...cur, s });
+    // keep the world point under the fingers where it is
+    const wx = cur.cx + (px - size.w / 2) / cur.s;
+    const wy = cur.cy + (py - size.h / 2) / cur.s;
+    setView({ cx: wx - (px - size.w / 2) / s, cy: wy - (py - size.h / 2) / s, s });
+  };
+
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // ctrl/⌘ + wheel (and trackpad pinch) zooms; in the full-screen stage the plain wheel does too
+  const zoomRef = useRef(zoomAt);
+  useEffect(() => {
+    zoomRef.current = zoomAt;
+  });
+  useEffect(() => {
+    const el = svg.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey || fit)) return;
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      zoomRef.current(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [fit]);
+
   const toSvg = (e: React.PointerEvent) => {
     const s = svg.current!;
     const pt = s.createSVGPoint();
@@ -321,9 +380,9 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
   return (
     <div className={cn("flex flex-col gap-2", fit && "h-full min-h-0")}>
       {editable && (
-        <div className={cn("flex items-center gap-1.5", fit ? "flex-nowrap overflow-x-auto shrink-0 pb-1" : "flex-wrap")}>
+        <div className={cn("flex items-center gap-1.5 flex-nowrap overflow-x-auto shrink-0 pb-1 sm:pb-0", !fit && "sm:flex-wrap sm:overflow-visible")}>
           {CATALOG.filter((c) => c.type !== "board" || !circuit.parts.some((p) => p.type === "board")).map((c) => (
-            <button key={c.type} type="button" onClick={() => addPart(c.type)} title={c.description} className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px] font-semibold hover:border-teal-500">
+            <button key={c.type} type="button" onClick={() => addPart(c.type)} title={c.description} className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-2 sm:py-1 text-xs sm:text-[11px] font-semibold hover:border-teal-500 active:bg-teal-500/10 whitespace-nowrap">
               <Plus className="h-3 w-3" /> {c.name.replace(/ \(.*\)/, "")}
             </button>
           ))}
@@ -335,22 +394,76 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
         </div>
       )}
       {/* On phones the bench keeps a usable size and scrolls sideways, so pins stay big enough to tap */}
-      <div className={cn("relative rounded-2xl border border-slate-200 dark:border-slate-800 bg-[#0b1220]", fit ? "flex-1 min-h-0 overflow-hidden" : "overflow-x-auto overflow-y-hidden")}>
+      <div
+        ref={box}
+        className={cn("relative rounded-2xl border border-slate-200 dark:border-slate-800 bg-[#0b1220] overflow-hidden", fit ? "flex-1 min-h-0" : "h-[58vh] min-h-[300px] max-h-[620px] sm:h-[420px]")}
+        onPointerDownCapture={(e) => {
+          pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (pointers.current.size === 2) {
+            const [a, b] = Array.from(pointers.current.values());
+            pinch.current = { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, s: (view ?? fitView).s };
+            setDrag(null);
+            panning.current = null;
+          }
+        }}
+        onPointerMoveCapture={(e) => {
+          if (!pointers.current.has(e.pointerId)) return;
+          pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+          if (pinch.current && pointers.current.size >= 2) {
+            const [a, b] = Array.from(pointers.current.values());
+            const r = box.current!.getBoundingClientRect();
+            const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+            const cur = view ?? fitView;
+            const target = pinch.current.s * (dist / pinch.current.dist);
+            zoomAt(target / cur.s, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+          }
+        }}
+        onPointerUpCapture={(e) => {
+          pointers.current.delete(e.pointerId);
+          if (pointers.current.size < 2) pinch.current = null;
+        }}
+        onPointerCancelCapture={(e) => {
+          pointers.current.delete(e.pointerId);
+          pinch.current = null;
+          panning.current = null;
+          setDrag(null);
+        }}
+      >
         <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
         <svg
           ref={svg}
-          viewBox={`0 0 ${W} ${H}`}
-          className={cn("w-full touch-none select-none", fit ? "h-full" : "min-w-[760px] h-auto")}
+          viewBox={viewBox}
+          className="h-full w-full select-none"
+          style={{ touchAction: gesture.interactive ? "none" : "pan-y" }}
+          onPointerDown={(e) => {
+            // one finger / the mouse on empty bench slides the view
+            if (e.target !== svg.current || !gesture.interactive || pointers.current.size > 1) return;
+            const cur = view ?? fitView;
+            panning.current = { x: e.clientX, y: e.clientY, cx: cur.cx, cy: cur.cy };
+          }}
           onPointerMove={(e) => {
-            if (!drag || !editable) return;
+            if (panning.current && !drag && pointers.current.size < 2) {
+              const cur = view ?? fitView;
+              const dx = (e.clientX - panning.current.x) / cur.s;
+              const dy = (e.clientY - panning.current.y) / cur.s;
+              if (Math.abs(dx) + Math.abs(dy) > 2) setView({ ...cur, cx: panning.current.cx - dx, cy: panning.current.cy - dy });
+              return;
+            }
+            if (!drag || !editable || pinch.current) return;
             const p = toSvg(e);
             const x = Math.max(0, Math.min(W - 20, p.x - drag.dx));
             const y = Math.max(0, Math.min(H - 20, p.y - drag.dy));
             if (!drag.moved) setDrag({ ...drag, moved: true });
             onChange({ ...circuit, parts: circuit.parts.map((pp) => (pp.id === drag.id ? { ...pp, x: Math.round(x), y: Math.round(y) } : pp)) });
           }}
-          onPointerUp={() => setDrag(null)}
-          onPointerLeave={() => setDrag(null)}
+          onPointerUp={() => {
+            setDrag(null);
+            panning.current = null;
+          }}
+          onPointerLeave={() => {
+            setDrag(null);
+            panning.current = null;
+          }}
           onClick={(e) => {
             if (e.target === svg.current) {
               setSelected(null);
@@ -363,7 +476,7 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
               <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1e293b" strokeWidth="1" />
             </pattern>
           </defs>
-          <rect width={W} height={H} fill="url(#bench-grid)" pointerEvents="none" />
+          <rect x={-3000} y={-3000} width={6000 + W} height={6000 + H} fill="url(#bench-grid)" pointerEvents="none" />
 
           {/* parts */}
           {circuit.parts.map((p) => {
@@ -382,7 +495,7 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
                       (e.target as Element).setPointerCapture?.(e.pointerId);
                       return;
                     }
-                    if (!editable) return;
+                    if (!editable || !gesture.interactive) return;
                     const pt = toSvg(e);
                     setDrag({ id: p.id, dx: pt.x - p.x, dy: pt.y - p.y, moved: false });
                   }}
@@ -411,8 +524,8 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
                   const labelBelow = p.type === "board" && pin.y >= 1;
                   return (
                     <g key={pin.name} onClick={(e) => { e.stopPropagation(); clickPin(t); }} style={{ cursor: editable ? "crosshair" : "default" }}>
-                      <circle cx={px} cy={py} r={11} fill="transparent" />
-                      <circle cx={px} cy={py} r={isPending ? 7 : 4.5} fill={isPending ? "#14b8a6" : color} stroke="#0b1220" strokeWidth={1.5} />
+                      <circle cx={px} cy={py} r={Math.min(16, Math.max(11, 22 / v.s))} fill="transparent" />
+                      <circle cx={px} cy={py} r={(isPending ? 7 : 4.5) * Math.min(1.8, Math.max(1, 0.9 / v.s))} fill={isPending ? "#14b8a6" : color} stroke="#0b1220" strokeWidth={1.5} />
                       {p.type === "board" ? (
                         <text x={px} y={labelBelow ? py + 16 : py - 9} textAnchor="middle" fontSize={8.5} fill="#e2e8f0" fontFamily="monospace">{pin.name}{pin.pwm ? "~" : ""}</text>
                       ) : (
@@ -448,6 +561,19 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
             );
           })}
         </svg>
+        <div className="absolute bottom-2 right-2 z-10 flex flex-col gap-1.5">
+          {[
+            { label: "Zoom in", icon: <ZoomIn className="h-5 w-5" />, on: () => zoomAt(1.3) },
+            { label: "Zoom out", icon: <ZoomOut className="h-5 w-5" />, on: () => zoomAt(1 / 1.3) },
+            { label: "Fit to the parts", icon: <Maximize className="h-5 w-5" />, on: () => setView(null) },
+          ].map((b) => (
+            <button key={b.label} type="button" onClick={b.on} aria-label={b.label} title={b.label} className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900/85 text-white border border-white/30 shadow-lg active:bg-slate-700">
+              {b.icon}
+            </button>
+          ))}
+        </div>
+        {gesture.canToggle && <GestureToggle active={gesture.active} onChange={gesture.setActive} className="absolute top-2 right-2 z-10" />}
+        {gesture.canToggle && !gesture.active && !pendingPin && <p className="pointer-events-none absolute bottom-2 left-2 z-10 max-w-[60%] rounded-lg bg-slate-900/70 px-2 py-1 text-[10px] text-white">Swipe scrolls the page · tap pins to wire · tap Move &amp; zoom to drag parts</p>}
         {pendingPin && <div className="absolute top-2 left-2 rounded-lg bg-teal-600 text-white text-xs font-semibold px-2 py-1">Wiring from {pendingPin} — tap another pin</div>}
       </div>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { ImmersiveContext } from "./gesture-lock";
 import React, { useEffect, useState } from "react";
 import { Columns2, Maximize2, Minimize2, Play, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -110,6 +111,7 @@ export function SimStage({
   };
 
   return (
+    <ImmersiveContext.Provider value>
     <div className="fixed inset-0 z-[80] flex flex-col bg-slate-950 text-slate-100" role="dialog" aria-label="Simulation stage">
       <div className="flex shrink-0 items-center gap-1.5 border-b border-white/10 px-2 py-1.5 [padding-left:max(0.5rem,env(safe-area-inset-left))] [padding-right:max(0.5rem,env(safe-area-inset-right))]">
         <button type="button" onClick={onClose} aria-label="Exit full screen" className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20">
@@ -170,5 +172,6 @@ export function SimStage({
         {right && <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-[#F7F6F2] text-slate-900 dark:bg-[#0B0F14] dark:text-slate-100" key={right.key}>{right.node}</div>}
       </div>
     </div>
+    </ImmersiveContext.Provider>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { GestureToggle, useGestureLock } from "./gesture-lock";
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -210,6 +211,8 @@ function solid(geo: THREE.BufferGeometry, color: string, opacity: number, select
 
 export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, links, live, onPress, world, follow, joints, className }: Viewer3DProps) {
   const host = useRef<HTMLDivElement>(null);
+  const gesture = useGestureLock();
+  const interactiveRef = useRef(gesture.interactive);
   const ctx = useRef<{
     renderer: THREE.WebGLRenderer;
     scene: THREE.Scene;
@@ -285,7 +288,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     const release = () => {
       if (holding) onPressRef.current?.(holding, false);
       holding = null;
-      controls.enabled = true;
+      controls.enabled = interactiveRef.current;
     };
     const onDown = (e: PointerEvent) => {
       down = { x: e.clientX, y: e.clientY };
@@ -415,6 +418,15 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
       ctx.current = null;
     };
   }, []);
+
+  // On phones the page scrolls over the model until "Move & zoom" is on, so it never traps a swipe
+  useEffect(() => {
+    interactiveRef.current = gesture.interactive;
+    const c = ctx.current;
+    if (!c) return;
+    c.renderer.domElement.style.touchAction = gesture.interactive ? "none" : "pan-y";
+    c.controls.enabled = gesture.interactive;
+  }, [gesture.interactive]);
 
   // Rebuild content when the design changes
   useEffect(() => {
@@ -595,5 +607,23 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     }
   }, [parts, mechanism, explode, selectedId, links, world?.track, joints?.defs]);
 
-  return <div ref={host} className={className} style={{ background: "#0b2a5b", position: "relative", overflow: "hidden" }} aria-label="3D model — drag to orbit, scroll or pinch to zoom" />;
+  const zoomBy = (f: number) => {
+    const c = ctx.current;
+    if (!c) return;
+    const off = c.camera.position.clone().sub(c.controls.target);
+    const len = Math.min(c.camera.far * 0.5, Math.max(c.camera.near * 5, off.length() * f));
+    c.camera.position.copy(c.controls.target).add(off.setLength(len));
+  };
+  const btn = "flex h-10 w-10 items-center justify-center rounded-full bg-slate-900/85 text-white border border-white/30 text-lg font-bold shadow-lg";
+  return (
+    <div className={className} style={{ position: "relative", overflow: "hidden" }}>
+      <div ref={host} style={{ background: "#0b2a5b", position: "absolute", inset: 0, overflow: "hidden" }} aria-label="3D model — drag to orbit, scroll or pinch to zoom" />
+      <div className="absolute bottom-2 right-2 z-10 flex flex-col gap-1.5">
+        <button type="button" className={btn} onClick={() => zoomBy(0.75)} aria-label="Zoom in">+</button>
+        <button type="button" className={btn} onClick={() => zoomBy(1.35)} aria-label="Zoom out">−</button>
+      </div>
+      {gesture.canToggle && <GestureToggle active={gesture.active} onChange={gesture.setActive} className="absolute top-2 right-2 z-10" />}
+      {gesture.canToggle && !gesture.active && <p className="pointer-events-none absolute bottom-2 left-2 z-10 max-w-[55%] rounded-lg bg-slate-900/70 px-2 py-1 text-[10px] text-white">Swipe scrolls the page · tap Move &amp; zoom to turn the model</p>}
+    </div>
+  );
 }
