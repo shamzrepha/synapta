@@ -14,7 +14,6 @@ import { z } from "zod";
  */
 
 const LOCK_MS = 4 * 60 * 1000;
-const MAX_TURN_BYTES = 700_000; // Firestore doc limit is 1 MiB (base64 adds ~33%)
 
 export const VOICES = {
   female: { teacher: "en-US-JennyNeural", student: "en-US-GuyNeural" },

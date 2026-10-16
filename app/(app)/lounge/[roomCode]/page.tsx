@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use, useRef, useCallback } from "react";
+import React, { useState, useEffect, use, useRef } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";

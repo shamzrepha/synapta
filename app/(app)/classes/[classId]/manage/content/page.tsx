@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/toast";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,18 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Sparkles,
   CheckCircle2,
-  XCircle,
-  Clock,
   ArrowLeft,
-  DollarSign,
-  Zap,
-  Filter,
   Check,
   X,
   Edit,
-  Plus,
-  RefreshCw,
-} from "lucide-react";
+  Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { REPRESENTATIONS, Representation, REPRESENTATION_METADATA } from "@/lib/teacher/representations";
 

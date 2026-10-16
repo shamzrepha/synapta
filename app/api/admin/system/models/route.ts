@@ -4,10 +4,8 @@ import {
   getModelsHealthReport,
   markModelExhausted,
   markModelInvalid,
-  recordModelUsage,
   clearModelExhausted,
-  clearAllModelExhaustion,
-} from "@/lib/ai/health";
+  clearAllModelExhaustion } from "@/lib/ai/health";
 import {
   classifyProviderError,
   getDynamicModelConfig,
@@ -138,7 +136,7 @@ export async function POST(req: NextRequest) {
 
     const startTime = Date.now();
     try {
-      const { text, inTokens, outTokens, latencyMs } = await testSingleModel(model);
+      const { text, latencyMs } = await testSingleModel(model);
 
       return NextResponse.json({
         ok: true,

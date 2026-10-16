@@ -20,12 +20,9 @@ import {
   Printer,
   Trash2,
   Eye,
-  AlertCircle,
   Cpu,
   Layers,
-  X,
-  Send,
-} from "lucide-react";
+  X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface KcOption {

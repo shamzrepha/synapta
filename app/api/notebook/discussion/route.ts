@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { generateWithFallback } from "@/lib/ai/router";
-import { checkRateLimitAndQuota, recordTokenUsage, QuotaError } from "@/lib/quota/guard";
+import { checkRateLimitAndQuota, QuotaError } from "@/lib/quota/guard";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sources, topic } = parsed.data;
+    const { sources } = parsed.data;
 
     await checkRateLimitAndQuota(caller.uid, 600);
 

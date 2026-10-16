@@ -72,7 +72,6 @@ export function buildPath({
   kcs: KcPlanNode[];
   masteryMap: Record<string, number>;
 }): Array<{ kc: KcPlanNode; currentPL: number; isUnlocked: boolean; activity: PlannedActivity }> {
-  const kcMap = new Map<string, KcPlanNode>(kcs.map((k) => [k.id, k]));
 
   // Count downstream dependents for each KC (unlock power)
   const dependentCount = new Map<string, number>();

@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-require-imports
 const P = require("../../public/sw-policy.js") as {
   isNeverCache: (u: string) => boolean;
   isStaticAsset: (u: string) => boolean;

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { generateWithFallback } from "@/lib/ai/router";
 import { chunkText, retrieveRelevantChunks, TextChunk } from "@/lib/notebook/retrieval";
-import { checkRateLimitAndQuota, recordTokenUsage, QuotaError } from "@/lib/quota/guard";
+import { checkRateLimitAndQuota, QuotaError } from "@/lib/quota/guard";
 import { z } from "zod";
 
 export const runtime = "nodejs";

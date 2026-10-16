@@ -33,13 +33,9 @@ import {
   AlertTriangle,
   FileText,
   Clock,
-  Layers,
   Activity,
-  Globe,
-  Lock,
   Save,
-  RotateCcw,
-} from "lucide-react";
+  RotateCcw } from "lucide-react";
 
 interface AdminUserItem {
   uid: string;

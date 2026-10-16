@@ -13,7 +13,6 @@ import {
   Lock,
   Unlock,
   CheckCircle2,
-  Clock,
   Sparkles,
   BrainCircuit,
   ArrowRight,
@@ -25,8 +24,7 @@ import {
   List,
   Map as MapIcon,
   X,
-  ExternalLink,
-} from "lucide-react";
+  ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MapNode {
@@ -437,7 +435,7 @@ export default function QuestMapPage({
 
             {/* Stepped Quest Nodes Rendering */}
             <div className="space-y-8 py-4 relative">
-              {nodes.map((node, index) => {
+              {nodes.map((node) => {
                 const isSelected = selectedNode?.id === node.id;
                 const isFocus = teacherNote?.todayFocusKcId === node.id;
 

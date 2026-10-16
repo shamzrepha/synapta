@@ -157,7 +157,6 @@ export async function generateGeminiVoice({
   }
 
   const host = hostFor(speaker);
-  const isAlex = host.slot === "A";
   const voiceName: string = host.gemini;
 
   // Tier 2: ElevenLabs API (if ELEVENLABS_API_KEY configured)

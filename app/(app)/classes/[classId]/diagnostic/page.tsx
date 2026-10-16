@@ -4,7 +4,7 @@ import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,11 +13,7 @@ import {
   CheckCircle2,
   XCircle,
   ArrowRight,
-  BrainCircuit,
-  Compass,
-  RotateCcw,
-  BookOpen,
-} from "lucide-react";
+  Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DiagnosticQuestion {
