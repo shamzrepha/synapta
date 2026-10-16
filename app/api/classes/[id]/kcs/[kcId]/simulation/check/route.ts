@@ -4,6 +4,8 @@ import { assertClassAccess } from "@/lib/auth/classAccess";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { applyEvidence } from "@/lib/evidence/apply";
 import { getStoredSimulation } from "@/lib/sim/store";
+import { adminDb } from "@/lib/firebase/admin";
+import { simulationForStudents } from "@/lib/classes/live";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -26,7 +28,9 @@ export async function POST(
     const access = await assertClassAccess(caller, classId, "view");
     const { selectedOptionIndex } = await parseJson(req, checkSchema);
 
-    const sim = await getStoredSimulation(classId, kcId);
+    // Students are graded against the version they were shown (the pushed one)
+    const kc = (await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get()).data() || {};
+    const sim = access.canMutate ? await getStoredSimulation(classId, kcId) : await simulationForStudents(classId, kcId, kc);
     const q = sim?.checkQuestion;
     if (!q) {
       throw new ApiError(404, "NO_CHECK", "This simulation has no check question.");

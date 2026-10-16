@@ -180,6 +180,22 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
     }
   };
 
+  const missing = lesson ? lesson.turns.filter((t) => !t.hasAudio).length : 0;
+  const recordMissing = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recordMissing: true }) });
+      const data = await res.json().catch(() => null);
+      if (data?.ok) {
+        setPayload((p) => (p ? { ...p, lesson: data.data.lesson } : p));
+        const left = (data.data.lesson.turns as Turn[]).filter((t) => !t.hasAudio).length;
+        toast({ title: left ? `${left} line${left > 1 ? "s" : ""} still missing — try again` : "Every line is recorded 🎧", variant: left ? "amber" : "success" });
+      } else toast({ title: "Couldn't record", description: data?.error?.message, variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   if (!payload) return null;
   if (!lesson && !payload.canGenerate && !(payload.lesson?.status === "generating")) return null;
 
@@ -223,6 +239,16 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
           )}
         </div>
 
+        {lesson && payload.canManage && (
+          <p className={cn("mt-3 text-xs flex flex-wrap items-center gap-2", missing ? "text-amber-700 dark:text-amber-300" : "text-slate-500")}>
+            {missing ? `${lesson.turns.length - missing}/${lesson.turns.length} lines recorded — the rest would play in a robot voice.` : `All ${lesson.turns.length} lines are recorded and saved once — every student replays the same files.`}
+            {missing > 0 && (
+              <Button size="sm" variant="outline" onClick={recordMissing} isLoading={generating}>
+                Record missing lines
+              </Button>
+            )}
+          </p>
+        )}
         {lesson && (
           <div className="mt-3 flex items-center gap-2">
             <button type="button" onClick={() => jump(index - 1)} className="p-2 rounded-lg hover:bg-white/60 dark:hover:bg-slate-900" aria-label="Previous">

@@ -8,8 +8,9 @@ import { z } from "zod";
 
 /**
  * Narrated audio lessons: the AI writes a short two-voice conversation (a teacher and a curious
- * student) from the topic's lesson + materials, then free neural voices read it. Generated ONCE per
- * topic and stored, so every learner replays it at no AI or TTS cost.
+ * student) from the topic's lesson + materials, then expressive AI voices (Gemini TTS, with free Edge
+ * neural voices as the backup) read it. The teacher records it ONCE; every clip is saved, and students
+ * replay the saved files — no AI or TTS cost per listener. Students hear the version the teacher pushed.
  */
 
 const LOCK_MS = 4 * 60 * 1000;
@@ -74,55 +75,117 @@ export async function getAudioLesson(classId: string, kcId: string): Promise<Aud
   };
 }
 
-const EDGE_TIMEOUT_MS = 7000;
-const GEMINI_TIMEOUT_MS = 12000;
-const FAILURE_COOLDOWN_MS = 10 * 60 * 1000;
-/** Gemini voices used when the free Edge voices are unreachable */
+const EDGE_TIMEOUT_MS = 8000;
+/** Gemini TTS answers in a few seconds to ~half a minute for a long turn; the teacher's recording can wait for it */
+const GEMINI_TIMEOUT_MS = 45000;
+/** Expressive AI voices (Gemini); the free Edge voices are only the second choice */
 const GEMINI_VOICES: Record<string, { teacher: string; student: string }> = {
   female: { teacher: "Kore", student: "Puck" },
   male: { teacher: "Charon", student: "Leda" },
 };
+/** Gemini TTS follows a plain-language direction before the text, which is what makes it sound alive instead of flat */
+const DIRECTION: Record<"teacher" | "student", string> = {
+  teacher: "Say this warmly and expressively, like a brilliant, friendly teacher who loves the subject, with natural pauses and emphasis: ",
+  student: "Say this with curious, upbeat energy, like a bright student thinking out loud: ",
+};
+/** A Firestore document holds under 1 MiB, so a clip is stored as ≤ 600 KB pieces (base64 adds a third) */
+const PART_BYTES = 600_000;
 
 export interface TurnAudio {
   audio: Buffer;
   mimeType: string;
 }
 
-/**
- * Returns a turn's audio, recording it on first request and caching it for every later listener.
- * Free Edge neural voices first, then Gemini TTS; both are time-boxed. On failure we remember it
- * briefly and the player falls back to the device's voice, so "Listen" never hangs.
- */
-export async function getOrSynthesizeTurn(classId: string, kcId: string, index: number): Promise<TurnAudio | null> {
+const clipId = (version: number, index: number) => `c${version}_${index}`;
+
+/** Saves a recorded clip once so every learner replays the same file (no AI or TTS cost per listener). */
+async function saveClip(classId: string, kcId: string, version: number, index: number, clip: TurnAudio) {
   const col = audioCol(classId, kcId);
-  const ref = col.doc(`turn_${index}`);
-  const snap = await ref.get();
-  const d = snap.data();
-  if (typeof d?.audioBase64 === "string") return { audio: Buffer.from(d.audioBase64, "base64"), mimeType: d.mimeType || "audio/mpeg" };
-  if (d?.failedAt && Date.now() - d.failedAt.toMillis() < FAILURE_COOLDOWN_MS) return null;
+  const id = clipId(version, index);
+  const parts = Math.max(1, Math.ceil(clip.audio.length / PART_BYTES));
+  await Promise.all(
+    Array.from({ length: parts }, (_, k) =>
+      col.doc(`${id}_${k}`).set({ kind: "part", version, audioBase64: clip.audio.subarray(k * PART_BYTES, (k + 1) * PART_BYTES).toString("base64") })
+    )
+  );
+  await col.doc(id).set({ kind: "clip", version, parts, bytes: clip.audio.length, mimeType: clip.mimeType, savedAt: Timestamp.now() });
+}
 
-  const meta = await getAudioLesson(classId, kcId);
-  const turn = meta?.turns[index];
-  if (!meta || !turn) return null;
-  const role = turn.speaker === "teacher" ? "teacher" : "student";
-  const voices = VOICES[meta.voiceStyle] || VOICES.female;
+/** A saved clip, or null when this turn hasn't been recorded. Never synthesises. */
+export async function readClip(classId: string, kcId: string, version: number, index: number): Promise<TurnAudio | null> {
+  const col = audioCol(classId, kcId);
+  const id = clipId(version, index);
+  const head = await col.doc(id).get();
+  const h = head.data();
+  if (!h || !Number.isInteger(h.parts)) return null;
+  const parts = await Promise.all(Array.from({ length: h.parts as number }, (_, k) => col.doc(`${id}_${k}`).get()));
+  if (parts.some((p) => typeof p.data()?.audioBase64 !== "string")) return null;
+  return { audio: Buffer.concat(parts.map((p) => Buffer.from(p.data()!.audioBase64 as string, "base64"))), mimeType: h.mimeType || "audio/wav" };
+}
 
-  let result: TurnAudio | null = null;
-  const mp3 = await synthesizeEdgeVoice(turn.text, voices[role], EDGE_TIMEOUT_MS);
-  if (mp3) result = { audio: mp3, mimeType: "audio/mpeg" };
-  if (!result) {
-    const g = await synthesizeGeminiTts(turn.text, (GEMINI_VOICES[meta.voiceStyle] || GEMINI_VOICES.female)[role], GEMINI_TIMEOUT_MS);
-    if (g) result = { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType };
+export async function recordedTurns(classId: string, kcId: string, version: number, count: number): Promise<boolean[]> {
+  const col = audioCol(classId, kcId);
+  const heads = await Promise.all(Array.from({ length: count }, (_, i) => col.doc(clipId(version, i)).get()));
+  return heads.map((h) => h.exists);
+}
+
+/**
+ * Speaks one turn: the expressive Gemini AI voice first, then the free Edge neural voice if Gemini is
+ * unavailable. Only the teacher's recording calls this; students are served the saved file.
+ */
+async function synthesizeTurn(text: string, role: "teacher" | "student", style: "female" | "male"): Promise<TurnAudio | null> {
+  const engine = (process.env.VOICE_ENGINE || "auto").toLowerCase();
+  const gemini = async (): Promise<TurnAudio | null> => {
+    const g = await synthesizeGeminiTts(`${DIRECTION[role]}${text}`, (GEMINI_VOICES[style] || GEMINI_VOICES.female)[role], GEMINI_TIMEOUT_MS);
+    return g ? { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType } : null;
+  };
+  const edge = async (): Promise<TurnAudio | null> => {
+    const voices = VOICES[style] || VOICES.female;
+    const mp3 = await synthesizeEdgeVoice(text, voices[role], EDGE_TIMEOUT_MS);
+    return mp3 ? { audio: mp3, mimeType: "audio/mpeg" } : null;
+  };
+  const order = engine === "edge" ? [edge, gemini] : [gemini, edge];
+  for (const f of order) {
+    const r = await f();
+    if (r) return r;
   }
-  if (!result) {
-    await ref.set({ failedAt: Timestamp.now() }).catch(() => null);
-    return null;
+  return null;
+}
+
+/**
+ * Records the turns of a lesson version that don't have a saved clip yet (concurrency 3, with a time budget so a
+ * long lesson never loses what it already recorded). Returns which turns are recorded afterwards.
+ */
+export async function recordTurns(classId: string, kcId: string, meta: AudioLessonMeta, budgetMs = 230_000): Promise<boolean[]> {
+  const have = await recordedTurns(classId, kcId, meta.version, meta.turns.length);
+  const todo = have.map((ok, i) => (ok ? -1 : i)).filter((i) => i >= 0);
+  const deadline = Date.now() + budgetMs;
+  let next = 0;
+  const worker = async () => {
+    while (next < todo.length && Date.now() < deadline) {
+      const i = todo[next++];
+      const turn = meta.turns[i];
+      const clip = await synthesizeTurn(turn.text, turn.speaker === "teacher" ? "teacher" : "student", meta.voiceStyle);
+      if (clip) {
+        await saveClip(classId, kcId, meta.version, i, clip).catch(() => null);
+        have[i] = true;
+      }
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  return have;
+}
+
+/** Drops clips of versions that are neither the newest nor the one students are currently listening to. */
+export async function pruneClips(classId: string, kcId: string, keep: number[]) {
+  const col = audioCol(classId, kcId);
+  const snap = await col.get();
+  const stale = snap.docs.filter((d) => d.id !== "meta" && d.id !== "live" && typeof d.data().version === "number" && !keep.includes(d.data().version));
+  for (let i = 0; i < stale.length; i += 400) {
+    const batch = adminDb().batch();
+    stale.slice(i, i + 400).forEach((d) => batch.delete(d.ref));
+    await batch.commit().catch(() => null);
   }
-  // Cache when it fits in a Firestore doc; larger clips are still served, just re-synthesised later
-  if (result.audio.length <= MAX_TURN_BYTES) {
-    await ref.set({ audioBase64: result.audio.toString("base64"), mimeType: result.mimeType, bytes: result.audio.length }).catch(() => null);
-  }
-  return result;
 }
 
 /** Strips Markdown/LaTeX so text reads naturally aloud and in the transcript. */
@@ -186,22 +249,24 @@ Return JSON only: {"title":"...","turns":[{"speaker":"teacher","text":"..."},{"s
 
     const turns = result.data.turns.map((t) => ({ speaker: t.speaker as "teacher" | "student", text: speakable(t.text) }));
 
-    // Clear clips from any previous version; new clips are recorded on first play (see getOrSynthesizeTurn)
-    const prevCount = Array.isArray(prev?.turns) ? prev!.turns.length : 0;
-    await Promise.all(Array.from({ length: Math.max(prevCount, turns.length) }, (_, i) => col.doc(`turn_${i}`).delete().catch(() => null)));
-
-    const meta: AudioLessonMeta = {
+    const version = (prev?.version || 0) + 1;
+    const draft: AudioLessonMeta = {
       status: "ready",
       title: result.data.title || `${ctx.kcTitle} — audio lesson`,
-      // Audio is recorded just-in-time per turn; the player falls back to the device voice if needed
-      turns: turns.map((t) => ({ ...t, hasAudio: true })),
+      turns: turns.map((t) => ({ ...t, hasAudio: false })),
       teacherName,
       studentName,
       voiceStyle,
-      version: (prev?.version || 0) + 1,
+      version,
       error: null,
     };
+    // Record the whole podcast now, once, on the teacher's side. Every learner then replays the saved files.
+    const recorded = await recordTurns(params.classId, params.kcId, draft);
+    const meta: AudioLessonMeta = { ...draft, turns: draft.turns.map((t, i) => ({ ...t, hasAudio: recorded[i] })) };
     await metaRef.set({ ...meta, generatingAt: null, generatedAt: Timestamp.now(), generatedBy: params.userId });
+    // Keep the version students are on until the teacher pushes the new one
+    const liveSnap = await col.doc("live").get();
+    await pruneClips(params.classId, params.kcId, [version, liveSnap.exists ? Number(liveSnap.data()?.version) : -1]);
     return meta;
   } catch (err) {
     await metaRef

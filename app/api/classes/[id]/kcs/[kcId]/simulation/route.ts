@@ -1,5 +1,6 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { isPublished } from "@/lib/classes/published";
+import { simulationForStudents } from "@/lib/classes/live";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
@@ -21,7 +22,8 @@ export async function GET(
     const access = await assertClassAccess(caller, classId, "view");
     const kcSnap = await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get();
     const published = access.canMutate || isPublished(kcSnap.data(), "simulation");
-    const sim = published ? await getStoredSimulation(classId, kcId) : null;
+    // Teachers see their working copy; students see the version that was pushed
+    const sim = access.canMutate ? await getStoredSimulation(classId, kcId) : published ? await simulationForStudents(classId, kcId, kcSnap.data() || {}) : null;
     const canManage = access.canMutate;
     return NextResponse.json({
       ok: true,

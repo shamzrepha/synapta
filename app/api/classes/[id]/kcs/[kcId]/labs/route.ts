@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { bumpChannel } from "@/lib/live/server";
 import { getActiveStudentUids } from "@/lib/classes/members";
 import { notifyMany } from "@/lib/notifications/server";
-import { kcRef, newLabId, nowIso, readLabs, type Lab } from "@/lib/studio/labs";
+import { kcRef, newLabId, nowIso, readLabs, snapshotLabDesign, type Lab } from "@/lib/studio/labs";
 import { createDesign } from "@/lib/studio/store";
 import { getTemplate, templateStart } from "@/lib/studio/templates";
 import { generateDesign } from "@/lib/studio/design-ai";
@@ -79,10 +79,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (body.action === "publish") {
       const target = labs.find((l) => l.id === body.labId);
       if (!target) throw new ApiError(404, "NOT_FOUND", "Lab not found");
-      if (target.published !== body.published) {
-        await ref.update({ labs: labs.map((l) => (l.id === body.labId ? { ...l, published: body.published } : l)) });
-        if (body.published) notify = target;
-      }
+      // Pushing (again) freezes the teacher's current design as what new students start from; edits stay private until then
+      const live = body.published ? await snapshotLabDesign(caller, classId, kcId, target) : {};
+      await ref.update({ labs: labs.map((l) => (l.id === body.labId ? { ...l, ...live, published: body.published } : l)) });
+      if (body.published && !target.published) notify = target;
     } else if (body.action === "remove") {
       await ref.update({ labs: labs.filter((l) => l.id !== body.labId) });
     } else if (body.action === "add") {
@@ -93,11 +93,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         // Students need to read it to start their copy
         await d.ref.update({ classId, kcId, visibility: d.data()!.visibility === "public" ? "public" : "class" });
         const spec = parseSpec(d.data()!.spec);
-        lab = { id: newLabId(), title: body.title, goal: body.goal ?? "", templateId: null, designId: body.designId, kind: spec.kind, stepCount: spec.steps.length, dueAt: body.dueAt || null, published: false, createdAt: nowIso() };
+        lab = { id: newLabId(), title: body.title, goal: body.goal ?? "", templateId: null, designId: body.designId, liveDesignId: null, kind: spec.kind, stepCount: spec.steps.length, dueAt: body.dueAt || null, published: false, createdAt: nowIso() };
       } else {
         const t = getTemplate(body.templateId || "");
         if (!t) throw new ApiError(400, "VALIDATION", "Pick a template or one of your designs.");
-        lab = { id: newLabId(), title: body.title, goal: body.goal ?? "", templateId: t.id, designId: null, kind: t.kind, stepCount: templateStart(t).steps.length, dueAt: body.dueAt || null, published: false, createdAt: nowIso() };
+        lab = { id: newLabId(), title: body.title, goal: body.goal ?? "", templateId: t.id, designId: null, liveDesignId: null, kind: t.kind, stepCount: templateStart(t).steps.length, dueAt: body.dueAt || null, published: false, createdAt: nowIso() };
       }
       await ref.update({ labs: [...labs, lab] });
     } else {
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         userId: caller.uid,
       });
       const designId = await createDesign({ user: caller, title: out.title, spec: out.spec, source: "ai", message: `AI lab for “${k.title}”`, visibility: "class", classId, kcId });
-      lab = { id: newLabId(), title: out.title, goal: out.spec.summary.slice(0, 500), templateId: null, designId, kind: out.spec.kind, stepCount: out.spec.steps.length, dueAt: null, published: false, createdAt: nowIso() };
+      lab = { id: newLabId(), title: out.title, goal: out.spec.summary.slice(0, 500), templateId: null, designId, liveDesignId: null, kind: out.spec.kind, stepCount: out.spec.steps.length, dueAt: null, published: false, createdAt: nowIso() };
       await ref.update({ labs: [...labs, lab] });
     }
 

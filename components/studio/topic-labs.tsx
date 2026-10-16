@@ -202,7 +202,7 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
                         {ICON[lab.kind]} {lab.title}
                         {data.canManage && (
                           <span className={cn("text-[10px] font-bold rounded-full px-2 py-0.5", lab.published === false ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300")}>
-                            {lab.published === false ? "DRAFT · students can't see it" : "PUBLISHED"}
+                            {lab.published === false ? "DRAFT · students can't see it" : "LIVE"}
                           </span>
                         )}
                       </p>
@@ -225,9 +225,16 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
                         {lab.myDesignId ? (complete ? "Open" : "Continue") : "Start lab"}
                       </Button>
                       {data.canManage && (
-                        <Button size="sm" variant={lab.published === false ? "default" : "outline"} isLoading={busy === `pub-${lab.id}`} onClick={() => post({ action: "publish", labId: lab.id, published: lab.published === false }, `pub-${lab.id}`)}>
-                          {lab.published === false ? "Publish" : "Unpublish"}
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button size="sm" variant={lab.published === false ? "default" : "outline"} isLoading={busy === `pub-${lab.id}`} onClick={() => post({ action: "publish", labId: lab.id, published: true }, `pub-${lab.id}`)}>
+                            {lab.published === false ? "Push to students" : "Push update"}
+                          </Button>
+                          {lab.published !== false && (
+                            <Button size="sm" variant="outline" isLoading={busy === `off-${lab.id}`} onClick={() => post({ action: "publish", labId: lab.id, published: false }, `off-${lab.id}`)}>
+                              Take offline
+                            </Button>
+                          )}
+                        </div>
                       )}
                       {data.canManage && (
                         <div className="flex gap-1">

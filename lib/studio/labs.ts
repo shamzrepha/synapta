@@ -17,6 +17,8 @@ export const labSchema = z.object({
   goal: z.string().max(500).default(""),
   templateId: z.string().nullable().default(null),
   designId: z.string().nullable().default(null),
+  /** the frozen copy of `designId` students start from; updated when the teacher pushes, so edits stay private until then */
+  liveDesignId: z.string().nullable().default(null),
   kind: z.enum(["circuit", "mechanism", "assembly"]),
   stepCount: z.number().int().default(0),
   dueAt: z.string().nullable().default(null),
@@ -45,7 +47,7 @@ export async function startLab(user: AuthUser, classId: string, kcId: string, la
   let spec;
   let forkedFrom = null;
   if (lab.designId) {
-    const src = await db.collection("designs").doc(lab.designId).get();
+    const src = await db.collection("designs").doc(lab.liveDesignId || lab.designId).get();
     if (!src.exists) throw new ApiError(404, "NOT_FOUND", "This lab's design was removed by the teacher.");
     spec = parseSpec(src.data()!.spec);
     forkedFrom = { id: lab.designId, title: String(src.data()!.title), ownerName: String(src.data()!.ownerName), commitId: String(src.data()!.headCommitId) };
@@ -67,6 +69,26 @@ export async function startLab(user: AuthUser, classId: string, kcId: string, la
     forkedFrom,
     labId: `${classId}/${kcId}/${lab.id}`,
   });
+}
+
+/** On push, freezes the teacher's design as the copy students start from. Template labs are already fixed. */
+export async function snapshotLabDesign(user: AuthUser, classId: string, kcId: string, lab: Lab): Promise<{ liveDesignId?: string | null }> {
+  if (!lab.designId) return {};
+  const src = await adminDb().collection("designs").doc(lab.designId).get();
+  if (!src.exists) return {};
+  const liveDesignId = await createDesign({
+    user,
+    title: lab.title,
+    spec: parseSpec(src.data()!.spec),
+    source: "fork",
+    message: `Pushed to students: “${lab.title}”`,
+    visibility: "class",
+    classId,
+    kcId,
+    templateId: null,
+    forkedFrom: null,
+  });
+  return { liveDesignId };
 }
 
 export function newLabId(): string {

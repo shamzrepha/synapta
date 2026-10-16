@@ -29,8 +29,10 @@ type KcLike = object | undefined | null;
 export function publishMapOf(kc: KcLike): PublishMap {
   const raw = (kc as { contentPublished?: unknown } | undefined | null)?.contentPublished;
   if (!raw || typeof raw !== "object") return { lesson: true, audio: true, simulation: true, practice: true };
+  // `true` = reads the working copy (older topics), an object = a pushed snapshot
   const m = raw as Partial<Record<PublishKey, unknown>>;
-  return { lesson: m.lesson === true, audio: m.audio === true, simulation: m.simulation === true, practice: m.practice === true };
+  const on = (v: unknown) => v === true || (!!v && typeof v === "object");
+  return { lesson: on(m.lesson), audio: on(m.audio), simulation: on(m.simulation), practice: on(m.practice) };
 }
 
 export function isPublished(kc: KcLike, key: PublishKey): boolean {

@@ -355,7 +355,6 @@ export default function TopicPage({
   }
 
   const pub: PublishState = kc.published ?? { lesson: true, audio: true, simulation: true, practice: true };
-  const labDrafts = canManage && Array.isArray((kc as unknown as { labs?: unknown }).labs) ? ((kc as unknown as { labs: Array<{ published?: boolean }> }).labs).filter((l) => l.published === false).length : 0;
   const notPublished = (what: string) => (
     <Card className="p-8 text-center space-y-1">
       <p className="text-3xl" aria-hidden>🕓</p>
@@ -405,15 +404,7 @@ export default function TopicPage({
             </div>
           </div>
 
-          {canManage && (
-            <PublishBar
-              classId={classId}
-              kcId={kcId}
-              state={pub}
-              labDrafts={labDrafts}
-              onChanged={(next, labsPublished) => setKc((prev) => (prev ? { ...prev, published: next, ...(labsPublished === undefined ? {} : { labs: ((prev as { labs?: Array<Record<string, unknown>> }).labs || []).map((l) => ({ ...l, published: labsPublished })) }) } as KcDetails : prev))}
-            />
-          )}
+          {canManage && <PublishBar classId={classId} kcId={kcId} refreshKey={`${activeTab}-${lessonBusy ? 1 : 0}`} />}
 
           {/* Tabs: scrollable on phones */}
           <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-1 overflow-x-auto -mx-1 px-1">

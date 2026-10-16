@@ -1,4 +1,5 @@
 import { publishMapOf } from "@/lib/classes/published";
+import { lessonForStudents } from "@/lib/classes/live";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { getClassAccess, assertClassAccess } from "@/lib/auth/classAccess";
@@ -73,9 +74,10 @@ export async function GET(
       const published = publishMapOf(kc);
       if (access.canMutate) return { ...kc, published } as typeof k;
       const labs = Array.isArray(kc.labs) ? (kc.labs as Array<{ published?: boolean }>).filter((l) => l.published !== false) : kc.labs;
-      const { contentPublished: _omit, ...rest } = kc;
+      const { contentPublished: _omit, liveLessonMarkdown: _live, ...rest } = kc;
       void _omit;
-      return { ...rest, labs, published, ...(published.lesson ? {} : { lessonMarkdown: "" }) } as typeof k;
+      void _live;
+      return { ...rest, labs, published, lessonMarkdown: lessonForStudents(kc) } as typeof k;
     });
 
     // Load caller's mastery for these KCs

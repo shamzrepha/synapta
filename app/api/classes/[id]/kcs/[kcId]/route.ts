@@ -1,4 +1,5 @@
 import { publishMapOf } from "@/lib/classes/published";
+import { lessonForStudents } from "@/lib/classes/live";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
@@ -47,8 +48,9 @@ export async function GET(
     const published = publishMapOf(data);
     if (access.canMutate) return NextResponse.json({ ok: true, data: { id: kcDoc.id, ...data, published } });
     // Students only get what the teacher published
-    const { contentPublished: _omit, labs, ...rest } = data;
+    const { contentPublished: _omit, liveLessonMarkdown: _live, labs, ...rest } = data;
     void _omit;
+    void _live;
     return NextResponse.json({
       ok: true,
       data: {
@@ -56,7 +58,7 @@ export async function GET(
         ...rest,
         labs: Array.isArray(labs) ? labs.filter((l: { published?: boolean }) => l.published !== false) : labs,
         published,
-        ...(published.lesson ? {} : { lessonMarkdown: "" }),
+        lessonMarkdown: lessonForStudents(data),
       },
     });
   } catch (error) {

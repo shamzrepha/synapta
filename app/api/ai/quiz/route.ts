@@ -4,7 +4,8 @@ import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { assertPublished } from "@/lib/classes/published";
-import { ensureQuizBank, readQuizBank, pickForLearner, reshuffleOptions } from "@/lib/practice/bank";
+import { quizBankForStudents } from "@/lib/classes/live";
+import { ensureQuizBank, pickForLearner, reshuffleOptions } from "@/lib/practice/bank";
 import { getSeen, setSeen } from "@/lib/practice/history";
 import { z } from "zod";
 
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     else {
       const kcSnap = await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get();
       assertPublished(false, kcSnap.data(), "practice");
-      bank = await readQuizBank(classId, kcId);
+      bank = await quizBankForStudents(classId, kcId, kcSnap.data() || {});
       if (!bank.length) throw new ApiError(404, "NOT_READY", "Your teacher hasn't prepared the quiz yet.");
     }
     const seen = await getSeen(caller.uid, kcId, "quiz");

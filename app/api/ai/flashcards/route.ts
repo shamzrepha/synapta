@@ -4,7 +4,8 @@ import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { assertPublished } from "@/lib/classes/published";
-import { ensureFlashcardBank, readFlashcardBank, pickForLearner } from "@/lib/practice/bank";
+import { flashcardBankForStudents } from "@/lib/classes/live";
+import { ensureFlashcardBank, pickForLearner } from "@/lib/practice/bank";
 import { getSeen, setSeen } from "@/lib/practice/history";
 import { z } from "zod";
 
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     else {
       const kcSnap = await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get();
       assertPublished(false, kcSnap.data(), "practice");
-      bank = await readFlashcardBank(classId, kcId);
+      bank = await flashcardBankForStudents(classId, kcId, kcSnap.data() || {});
       if (!bank.length) throw new ApiError(404, "NOT_READY", "Your teacher hasn't prepared the flashcards yet.");
     }
     const seen = await getSeen(caller.uid, kcId, "cards");
