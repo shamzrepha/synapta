@@ -72,6 +72,15 @@ const TUTOR_STARTERS = [
   "Quiz me with one question",
 ];
 
+const TAB_HINT: Record<Tab, string> = {
+  learn: "Read the lesson first.",
+  simulate: "Play with the idea on screen — change things and see what happens.",
+  build: "Build a small circuit or machine for this topic in Maker Studio, then test it with simulated physics. Your build is saved in My designs under Make.",
+  flashcards: "Quick cards to remember the key points.",
+  quiz: "Check what you have learned. Wrong answers go to your review list.",
+  tutor: "Ask the AI anything about this topic.",
+};
+
 export default function TopicPage({
   params,
 }: {
@@ -344,8 +353,8 @@ export default function TopicPage({
 
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode; onOpen?: () => void }> = [
     { key: "learn", label: "Learn", icon: <BookOpen className="h-4 w-4" /> },
-    { key: "simulate", label: "Simulate", icon: <Gamepad2 className="h-4 w-4" /> },
-    { key: "build", label: "Build lab", icon: <Wrench className="h-4 w-4" /> },
+    { key: "simulate", label: "Try it", icon: <Gamepad2 className="h-4 w-4" /> },
+    { key: "build", label: "Build & test", icon: <Wrench className="h-4 w-4" /> },
     {
       key: "flashcards",
       label: "Flashcards",
@@ -401,6 +410,7 @@ export default function TopicPage({
               </button>
             ))}
           </div>
+          <p className="text-xs text-slate-500 -mt-2">{TAB_HINT[activeTab]}</p>
 
           {/* LEARN */}
           {activeTab === "learn" && (

@@ -292,10 +292,10 @@ export default function ExplorePage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
             <Compass className="h-7 w-7 text-teal-600 dark:text-teal-400" />
-            Explore Courses & Labs
+            Find your class
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Browse public classes or manage your enrolled learning tracks.
+            Browse classes, tap one, and join. Your joined classes are under “My classes”.
           </p>
         </div>
 

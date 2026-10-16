@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Search, Flame, Sun, Moon, LogOut, MessageSquare, User, Bell, BrainCircuit, Bookmark } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
+import { ArrowLeft, Search, Flame, Sun, Moon, LogOut, MessageSquare, User, Bell, BrainCircuit, Bookmark } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useTheme } from "@/components/providers/theme-provider";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -11,6 +11,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useRealtime } from "@/components/providers/realtime-provider";
 import { levelFromXp } from "@/lib/game/levels";
 import { formatNumber } from "@/lib/utils";
+import { ROOT_PATHS } from "./nav-items";
 
 export function Topbar() {
   const { user } = useUserStore();
@@ -18,6 +19,13 @@ export function Topbar() {
   const { signOut } = useAuth();
   const { dmUnread } = useRealtime();
   const router = useRouter();
+  const pathname = usePathname();
+  const canGoBack = !ROOT_PATHS.includes(pathname);
+  const goBack = () => {
+    // go to the previous page when there is one in this tab, otherwise up one level
+    if (typeof window !== "undefined" && window.history.length > 1) router.back();
+    else router.push(pathname.split("/").slice(0, -1).join("/") || "/dashboard");
+  };
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
@@ -36,7 +44,12 @@ export function Topbar() {
     <header className="sticky top-0 z-30 flex h-14 md:h-16 w-full items-center justify-between gap-2 border-b border-slate-200/80 bg-white/85 px-3 md:px-4 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/85">
       {/* Left: brand on phones (sidebar is hidden there), search from sm up */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
-        <Link href="/dashboard" className="md:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white" aria-label="Home">
+        {canGoBack && (
+          <button type="button" onClick={goBack} className="flex h-9 shrink-0 items-center gap-1 rounded-xl border border-slate-200 px-2.5 text-sm font-semibold hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-900" aria-label="Go back">
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Back</span>
+          </button>
+        )}
+        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white`} aria-label="Home">
           <BrainCircuit className="h-5 w-5" />
         </Link>
         <Link href="/search" className="sm:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800" aria-label="Search">

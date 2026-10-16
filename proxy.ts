@@ -24,6 +24,7 @@ const protectedPrefixes = [
   "/search",
   "/more",
   "/study",
+  "/community",
   "/focus",
   "/groups",
   "/ask",

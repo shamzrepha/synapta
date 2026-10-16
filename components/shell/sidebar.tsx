@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isActivePath } from "./nav-items";
 import { useRealtime } from "@/components/providers/realtime-provider";
 
-const GROUP_LABEL: Record<string, string> = { learn: "Learn", social: "Together", account: "You" };
+const GROUP_LABEL: Record<string, string> = { main: "Menu", account: "You" };
 
 /**
  * Desktop/tablet navigation. Tablets (md) get an icon rail automatically; laptops (lg+) get the full
@@ -49,14 +49,14 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 p-2.5 overflow-y-auto space-y-4">
-        {(["learn", "social", "account"] as const).map((group) => (
+        {(["main", "account"] as const).map((group) => (
           <div key={group} className="space-y-1">
             <p className={cn("px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400", label)}>{GROUP_LABEL[group]}</p>
             {items
               .filter((i) => i.group === group)
               .map((item) => {
                 const Icon = item.icon;
-                const active = isActivePath(pathname, item.href);
+                const active = isActivePath(pathname, item.href, item.match);
                 return (
                   <Link
                     key={item.href}
@@ -71,7 +71,10 @@ export function Sidebar() {
                     )}
                   >
                     <Icon className={cn("h-5 w-5 shrink-0", active ? "text-teal-600 dark:text-teal-400" : "text-slate-400")} />
-                    <span className={cn("truncate", label)}>{item.label}</span>
+                    <span className={cn("min-w-0 flex-1", label)}>
+                      <span className="block truncate">{item.label}</span>
+                      {item.hint && group === "main" && <span className="block truncate text-[10px] font-normal text-slate-400">{item.hint}</span>}
+                    </span>
                     {item.href === "/messages" && dmUnread > 0 && (
                       <span className="absolute top-1.5 left-7 lg:static lg:ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">
                         {dmUnread > 99 ? "99+" : dmUnread}

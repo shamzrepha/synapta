@@ -57,18 +57,23 @@ export default function TeacherClassesListPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
             <GraduationCap className="h-7 w-7 text-amber-500" />
-            My Managed Classes
+            My classes
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Teacher cockpit: oversee enrollments, syllabus components, and class mastery heatmaps.
+            Open a class to study its topics, or manage it if you teach it.
           </p>
         </div>
 
-        <Link href="/explore?create=1">
-          <Button size="sm">
-            <Plus className="h-4 w-4 mr-1.5" /> Create New Class
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/explore">
+            <Button size="sm" variant="outline">Find a class</Button>
+          </Link>
+          <Link href="/explore?create=1">
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-1.5" /> Create a class
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {loading ? (

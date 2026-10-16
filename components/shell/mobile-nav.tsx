@@ -3,18 +3,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, GraduationCap, Newspaper, Swords, LayoutGrid, X } from "lucide-react";
+import { LayoutGrid, X } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useRealtime } from "@/components/providers/realtime-provider";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isActivePath } from "./nav-items";
 
-const PRIMARY = [
-  { label: "Home", href: "/dashboard", icon: Home },
-  { label: "Classes", href: "/classes/manage", icon: GraduationCap },
-  { label: "Community", href: "/feed", icon: Newspaper },
-  { label: "Challenges", href: "/challenges", icon: Swords },
-];
+const PRIMARY = NAV_ITEMS.filter((i) => i.primary);
 
 /** Phone navigation: four primary tabs plus a "More" sheet with everything else. */
 export function MobileNav() {
@@ -23,8 +18,9 @@ export function MobileNav() {
   const { unreadCount } = useRealtime();
   const [open, setOpen] = useState(false);
   const role = user?.role || "student";
-  const more = NAV_ITEMS.filter((i) => i.roles.includes(role) && !PRIMARY.some((p) => p.href === i.href));
-  const moreActive = more.some((i) => isActivePath(pathname, i.href));
+  const primary = PRIMARY.filter((i) => i.roles.includes(role));
+  const more = NAV_ITEMS.filter((i) => i.roles.includes(role) && !i.primary);
+  const moreActive = more.some((i) => isActivePath(pathname, i.href, i.match));
 
   return (
     <>
@@ -35,7 +31,7 @@ export function MobileNav() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
-              <p className="font-bold">More</p>
+              <p className="font-bold">More places</p>
               <button onClick={() => setOpen(false)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Close menu">
                 <X className="h-5 w-5" />
               </button>
@@ -43,7 +39,7 @@ export function MobileNav() {
             <div className="grid grid-cols-3 gap-2">
               {more.map((item) => {
                 const Icon = item.icon;
-                const active = isActivePath(pathname, item.href);
+                const active = isActivePath(pathname, item.href, item.match);
                 return (
                   <Link
                     key={item.href}
@@ -68,10 +64,10 @@ export function MobileNav() {
         className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-slate-200/80 bg-white/95 backdrop-blur-lg dark:border-slate-800/80 dark:bg-slate-950/95 pb-[env(safe-area-inset-bottom)]"
         aria-label="Mobile navigation"
       >
-        <div className="grid grid-cols-5 h-16">
-          {PRIMARY.map((item) => {
+        <div className="grid grid-cols-6 h-16">
+          {primary.map((item) => {
             const Icon = item.icon;
-            const active = isActivePath(pathname, item.href);
+            const active = isActivePath(pathname, item.href, item.match);
             return (
               <Link
                 key={item.href}

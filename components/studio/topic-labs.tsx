@@ -109,7 +109,7 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex-1 min-w-0">
           <p className="font-bold flex items-center gap-2"><Wrench className="h-5 w-5 text-teal-600" /> Build labs</p>
-          <p className="text-xs text-slate-500">Learn {topicTitle} by building it: wire, code, simulate and test — no parts needed.</p>
+          <p className="text-xs text-slate-500">Learn {topicTitle} by building it: wire, code, simulate and test — no parts needed. This is the same Maker Studio you see under “Make”; your copy is saved in your designs.</p>
         </div>
         {data.canManage && (
           <Button size="sm" onClick={() => setAdding((v) => !v)}>

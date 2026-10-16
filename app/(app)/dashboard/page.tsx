@@ -103,17 +103,35 @@ export default function DashboardPage() {
           <Link href="/explore">
             <Button size="sm">
               <Compass className="h-4 w-4 mr-1.5" />
-              Explore Courses
+              Find a class
             </Button>
           </Link>
-          <Link href="/friends">
+          <Link href="/community">
             <Button size="sm" variant="outline">
               <Users className="h-4 w-4 mr-1.5" />
-              Friends & Chat
+              Community
             </Button>
           </Link>
         </div>
       </div>
+
+      <section aria-label="What do you want to do?" className="space-y-2">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">What do you want to do?</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { e: "🎓", t: "Go to my classes", d: "Lessons, quizzes, labs", h: "/classes/manage" },
+            { e: "✨", t: "Get help studying", d: "AI tutor, notes, practice", h: "/study" },
+            { e: "🛠️", t: "Build something", d: "Circuits, robots, 3D", h: "/studio" },
+            { e: "💬", t: "Meet people", d: "Friends, chat, challenges", h: "/community" },
+          ].map((x) => (
+            <Link key={x.h} href={x.h} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-teal-500">
+              <span className="text-2xl" aria-hidden>{x.e}</span>
+              <p className="font-bold text-sm mt-1">{x.t}</p>
+              <p className="text-xs text-slate-500">{x.d}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <AchievementPrompts max={2} />
 
@@ -189,10 +207,10 @@ export default function DashboardPage() {
               <BrainCircuit className="h-8 w-8" />
             </div>
             <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Your Cognitive Journey Begins Here
+              Welcome! Here is where to start
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              You aren&apos;t enrolled in any classes yet. Join a course in the explore directory or connect with your teacher to activate your latent Bayesian Knowledge Tracing model.
+              You haven&apos;t joined a class yet. Do these three things, in any order — each one opens by tapping its card.
             </p>
           </div>
 
@@ -204,30 +222,30 @@ export default function DashboardPage() {
               <div className="h-9 w-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                 <Compass className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">1. Join a Class</h3>
-              <p className="text-xs text-slate-500 mt-1">Browse courses with interactive simulation labs and syllabus trees.</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">1. Find your class</h3>
+              <p className="text-xs text-slate-500 mt-1">Search for your class or ask your teacher for its code, then tap Join.</p>
             </Link>
 
             <Link
-              href="/friends"
+              href="/community"
               className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-teal-500/50 hover:shadow-md transition-all group"
             >
               <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                 <Users className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">2. Add Friends</h3>
-              <p className="text-xs text-slate-500 mt-1">Search for peers by @username, connect, and direct message in real time.</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">2. Meet people</h3>
+              <p className="text-xs text-slate-500 mt-1">Add classmates, chat, and join study sessions.</p>
             </Link>
 
             <Link
-              href="/notebook"
+              href="/study"
               className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-teal-500/50 hover:shadow-md transition-all group"
             >
               <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                 <BookOpen className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">3. Notebook Studio</h3>
-              <p className="text-xs text-slate-500 mt-1">Generate multi-speaker podcast discussions and study guides from your notes.</p>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">3. Study with AI</h3>
+              <p className="text-xs text-slate-500 mt-1">Ask the AI tutor, make notes, flashcards and practice quizzes.</p>
             </Link>
           </div>
         </Card>
