@@ -55,11 +55,15 @@ function make(durations: Array<number | null>, extra: Record<string, unknown> = 
       const d = durations[i];
       return Promise.resolve(d === null ? null : bytes(d));
     },
-    speakFallback: (i, _rate, done) => {
-      events.spoken.push(i);
-      (extra.onSpeak as ((done: () => void) => void) | undefined)?.(done);
-    },
-    cancelFallback: () => undefined,
+    ...(extra.noFallback
+      ? {}
+      : {
+          speakFallback: (i: number, _rate: number, done: () => void) => {
+            events.spoken.push(i);
+            (extra.onSpeak as ((done: () => void) => void) | undefined)?.(done);
+          },
+          cancelFallback: () => undefined,
+        }),
     onIndex: (i) => events.index.push(i),
     onBuffering: (b) => events.buffering.push(b),
     onEnd: () => events.ended++,
@@ -68,6 +72,19 @@ function make(durations: Array<number | null>, extra: Record<string, unknown> = 
 }
 
 describe("GaplessPlayer", () => {
+  it("never falls back to a robot voice: a line with no recording is skipped", async () => {
+    const { player, ctx, events } = make([1, null, 1], { noFallback: true });
+    player.preload(0);
+    await flush();
+    player.play(0);
+    await flush();
+    ctx.time = 5;
+    player.tick();
+    await flush();
+    expect(events.spoken).toEqual([]);
+    expect(ctx.sources).toHaveLength(2); // line 0 and line 2 were played; line 1 was skipped
+  });
+
   it("fetches many lines at once in the background, not one at a time", async () => {
     const { player, calls, pending } = make([2, 2, 2, 2, 2], { manual: true });
     player.preload(0);

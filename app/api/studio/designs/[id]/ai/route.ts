@@ -21,6 +21,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (limited) return limited;
     const { instruction } = await parseJson(req, z.object({ instruction: z.string().trim().min(3).max(1500) }));
     const { data } = await loadDesign(id, caller, "edit");
+    // A class lab is the teacher's lesson: students build it themselves, the AI building for them is the teacher's job
+    if (data.classId && caller.role === "student") {
+      throw new ApiError(403, "LAB_NO_AI_BUILD", "In a class lab you build it yourself. Use the guided steps, or ask the tutor for a hint.");
+    }
     if (data.challengeId) {
       const ev = await adminDb().collection("events").doc(data.challengeId).get();
       if (ev.exists && statusOf(ev.data()!) !== "ended") {

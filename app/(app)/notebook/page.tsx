@@ -14,7 +14,6 @@ import { NotebookBar, type NotebookMeta } from "@/components/notebook/notebook-b
 import { OfflineDownloadButton } from "@/components/offline/download-button";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { GaplessPlayer, type ClipState } from "@/lib/audio/gapless";
-import { speakDevice, cancelDevice } from "@/lib/audio/device-voice";
 import {
   BookOpen,
   FileText,
@@ -507,13 +506,6 @@ export default function NotebookPage() {
           return null;
         }
       },
-      // Device voice: Alex is the female host, Sam the male host
-      speakFallback: (i, rate, done) => {
-        const t = dialogueRef.current[i];
-        if (!t) return done();
-        speakDevice(t.text, t.speaker === "Alex" ? "female" : "male", rate, done);
-      },
-      cancelFallback: cancelDevice,
       onIndex: setCurrentTurnIndex,
       onBuffering: setLoadingTurnAudio,
       onEnd: () => {
@@ -527,7 +519,6 @@ export default function NotebookPage() {
     return () => {
       player.dispose();
       if (podcastPlayerRef.current === player) podcastPlayerRef.current = null;
-      cancelDevice();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [episodeKey, studioVoiceEnabled]);
@@ -556,14 +547,9 @@ export default function NotebookPage() {
 
   const stopAudio = () => {
     podcastPlayerRef.current?.stop();
-    cancelDevice();
     setIsPlayingAudio(false);
     setCurrentTurnIndex(0);
   };
-
-  useEffect(() => {
-    return () => cancelDevice();
-  }, []);
 
   // Studio Artifacts Generation
   const handleGenerateStudyGuide = async () => {

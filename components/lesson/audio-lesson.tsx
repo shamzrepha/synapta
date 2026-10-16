@@ -8,7 +8,6 @@ import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { GaplessPlayer, type ClipState } from "@/lib/audio/gapless";
-import { speakDevice, cancelDevice } from "@/lib/audio/device-voice";
 
 interface Turn {
   speaker: "teacher" | "student";
@@ -89,15 +88,6 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
           return null;
         }
       },
-      speakFallback: (i, rate, done) => {
-        const t = turnsRef.current[i];
-        if (!t) return done();
-        // In the "female" style the teacher is female; in the "male" style the teacher is male
-        const teacherFemale = styleRef.current === "female";
-        const female = t.speaker === "teacher" ? teacherFemale : !teacherFemale;
-        speakDevice(t.text, female ? "female" : "male", rate, done);
-      },
-      cancelFallback: cancelDevice,
       onIndex: (i) => setIndex(i),
       onBuffering: setBuffering,
       onEnd: () => {
@@ -112,7 +102,6 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
     return () => {
       player.dispose();
       playerRef.current = null;
-      cancelDevice();
     };
   }, [base, version, turnsKey]);
 

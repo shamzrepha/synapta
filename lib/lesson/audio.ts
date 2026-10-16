@@ -9,7 +9,7 @@ import { z } from "zod";
 /**
  * Narrated audio lessons: the AI writes a short two-voice conversation (a teacher and a curious
  * student) from the topic's lesson + materials, then expressive AI voices (Gemini TTS, with free Edge
- * neural voices as the backup) read it. The teacher records it ONCE; every clip is saved, and students
+ * neural voices as the backup; the text is sent as written, because any instruction put in front of it is read aloud) read it. The teacher records it ONCE; every clip is saved, and students
  * replay the saved files — no AI or TTS cost per listener. Students hear the version the teacher pushed.
  */
 
@@ -82,11 +82,6 @@ const GEMINI_VOICES: Record<string, { teacher: string; student: string }> = {
   female: { teacher: "Kore", student: "Puck" },
   male: { teacher: "Charon", student: "Leda" },
 };
-/** Gemini TTS follows a plain-language direction before the text, which is what makes it sound alive instead of flat */
-const DIRECTION: Record<"teacher" | "student", string> = {
-  teacher: "Say this warmly and expressively, like a brilliant, friendly teacher who loves the subject, with natural pauses and emphasis: ",
-  student: "Say this with curious, upbeat energy, like a bright student thinking out loud: ",
-};
 /** A Firestore document holds under 1 MiB, so a clip is stored as ≤ 600 KB pieces (base64 adds a third) */
 const PART_BYTES = 600_000;
 
@@ -135,7 +130,7 @@ export async function recordedTurns(classId: string, kcId: string, version: numb
 async function synthesizeTurn(text: string, role: "teacher" | "student", style: "female" | "male"): Promise<TurnAudio | null> {
   const engine = (process.env.VOICE_ENGINE || "auto").toLowerCase();
   const gemini = async (): Promise<TurnAudio | null> => {
-    const g = await synthesizeGeminiTts(`${DIRECTION[role]}${text}`, (GEMINI_VOICES[style] || GEMINI_VOICES.female)[role], GEMINI_TIMEOUT_MS);
+    const g = await synthesizeGeminiTts(text, (GEMINI_VOICES[style] || GEMINI_VOICES.female)[role], GEMINI_TIMEOUT_MS);
     return g ? { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType } : null;
   };
   const edge = async (): Promise<TurnAudio | null> => {

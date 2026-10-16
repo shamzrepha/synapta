@@ -27,7 +27,12 @@ import { JointRig } from "@/lib/studio/twin/joints";
 import { resolveTrack } from "@/lib/studio/drive/track";
 import { PartEditor } from "@/components/studio/part-editor";
 import { SourcesPanel } from "@/components/studio/sources-panel";
-import { BlockEditor } from "@/components/studio/block-editor";
+import dynamic from "next/dynamic";
+import { useUserStore } from "@/lib/store/use-user-store";
+import { emptyBlockly, programToBlockly } from "@/lib/studio/blockly/convert";
+
+// the Scratch-style editor is large, so it loads only when a lab is opened in blocks
+const BlocklyEditor = dynamic(() => import("@/components/studio/blockly-editor").then((m) => m.BlocklyEditor), { ssr: false, loading: () => <Skeleton className="h-[62vh] min-h-[360px] rounded-2xl" /> });
 import { SimStage, type StageLab } from "@/components/studio/sim-stage";
 import { compileBlocks, type BlockProgram } from "@/lib/studio/blocks";
 import { cppProblems, looksLikeCpp } from "@/lib/studio/cpp";
@@ -259,11 +264,21 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
 
   const shown = preview || work;
   const design = data?.design;
+  const { user: me } = useUserStore();
+  // In a class lab a student builds the lesson themselves: no AI building for them, no sharing the work out of the class
+  const labStudent = !!design?.classId && me?.role === "student";
   // Challenge entries are always Socratic
   const guideMode: GuideMode = design?.challengeId ? "challenge" : mode;
   const canEdit = !!data?.canEdit && !preview;
 
   const parts3d = useMemo(() => (shown ? sceneParts(shown) : []), [shown]);
+  // The block workspace to show: the one saved with the sketch while the sketch still matches it, else the
+  // AI's / template's block program converted to stacked blocks, else an empty workspace.
+  const blocklyState = useMemo<object>(() => {
+    if (shown?.blockly && shown.blockly.code === shown.code) return shown.blockly.state;
+    if (shown?.blocks) return programToBlockly(shown.blocks);
+    return emptyBlockly();
+  }, [shown]);
   const idleDrive = useMemo(() => (shown?.robot && shown.world ? new DriveSim(shown.robot, resolveTrack(shown.world)) : null), [shown]);
   const idleRig = useMemo(() => (shown && shown.joints.length ? new JointRig(shown.joints) : null), [shown]);
   const activeRig = rig && shown && rig.joints === shown.joints ? rig : idleRig;
@@ -533,7 +548,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     { key: "tests", label: `Tests${testResults.length ? ` ${testResults.filter((t) => t.pass).length}/${testResults.length}` : ""}`, show: !!shown.circuit },
     { key: "sources", label: "Sources", show: !!shown.circuit || !!shown.research },
     { key: "history", label: `History (${design.commitCount})`, show: true },
-    { key: "share", label: "Share", show: true },
+    { key: "share", label: "Share", show: !labStudent },
   ];
   const errorLine = runError ? Number(/^Line (\d+)/.exec(runError)?.[1]) || null : null;
   const selectedPart = parts3d.find((p) => p.id === selected);
@@ -541,13 +556,17 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const liveOutputs = running ? outputs : {};
   const canRun = !!(shown.circuit || shown.mechanism);
   const mode3 = shown.codeMode ?? "text";
-  const blocksProgram: BlockProgram = shown.blocks ?? { setup: [], loop: [] };
-  const setBlocks = (b: BlockProgram) => edit({ blocks: b, code: compileBlocks(b), codeMode: "blocks" });
+  const onBlocksChange = (state: object, code: string) => edit({ blockly: { state: state as Record<string, unknown>, code }, blocks: undefined, code, codeMode: "blocks" });
   const switchCodeMode = (m: "blocks" | "text") => {
     if (m === "text") return edit({ codeMode: "text" });
-    const hasRaw = !shown.blocks && (shown.code || "").replace(/\s+/g, "").length > 40;
+    const hasRaw = !shown.blocks && !(shown.blockly && shown.blockly.code === shown.code) && (shown.code || "").replace(/\s+/g, "").length > 40;
     if (hasRaw && !window.confirm("Blocks start empty and will replace the code. Your current code stays in History. Continue?")) return;
-    setBlocks(blocksProgram);
+    if (hasRaw || (!shown.blocks && !shown.blockly)) {
+      const empty = "void setup() {\n}\n\nvoid loop() {\n}\n";
+      return edit({ codeMode: "blocks", blocks: undefined, code: empty, blockly: { state: emptyBlockly() as unknown as Record<string, unknown>, code: empty } });
+    }
+    const code = shown.blocks && !shown.blockly ? compileBlocks(shown.blocks) : shown.code;
+    edit({ codeMode: "blocks", ...(code !== shown.code ? { code } : {}) });
   };
 
   const loadSketch = async (f: File | undefined) => {
@@ -697,9 +716,9 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
       </div>
       {mode3 === "blocks" ? (
         <>
-          <BlockEditor program={blocksProgram} onChange={setBlocks} readOnly={!canEdit} />
+          <BlocklyEditor key={canEdit ? "edit" : "view"} state={blocklyState} readOnly={!canEdit} onChange={onBlocksChange} />
           <details className="text-xs">
-            <summary className="cursor-pointer font-semibold text-slate-500">See the code your blocks make</summary>
+            <summary className="cursor-pointer font-semibold text-slate-500">See the code your blocks make (you can also switch to Raw code and edit it)</summary>
             <pre className="mt-1 rounded-xl bg-[#0b1220] text-slate-100 p-3 overflow-auto font-mono text-[12px]">{shown.code}</pre>
           </details>
         </>
@@ -804,13 +823,17 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
         <Button size="sm" variant="outline" onClick={star} aria-label={data.starred ? "Unstar" : "Star"}>
           <Star className={cn("h-4 w-4", data.starred && "fill-amber-400 text-amber-400")} /> <span className="ml-1">{design.starCount}</span>
         </Button>
-        <Button size="sm" variant="outline" onClick={fork}>
-          <GitFork className="h-4 w-4 mr-1" /> Fork
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setSharing(true)}>
-          <Share2 className="h-4 w-4" />
-        </Button>
-        <ExportMenu designId={id} title={design.title} author={design.ownerName} spec={shown} />
+        {!labStudent && (
+          <>
+            <Button size="sm" variant="outline" onClick={fork}>
+              <GitFork className="h-4 w-4 mr-1" /> Fork
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setSharing(true)}>
+              <Share2 className="h-4 w-4" />
+            </Button>
+            <ExportMenu designId={id} title={design.title} author={design.ownerName} spec={shown} />
+          </>
+        )}
         <Link href={`/studio/${id}/guide`} className="hidden sm:inline-flex h-9 items-center rounded-md border border-slate-300 dark:border-slate-700 px-3 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800" title="Printable real-build guide">
           Build guide
         </Link>
@@ -852,7 +875,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
       )}
 
       {/* AI command bar */}
-      {canEdit && (
+      {canEdit && !labStudent && (
         <form
           onSubmit={(e) => {
             e.preventDefault();

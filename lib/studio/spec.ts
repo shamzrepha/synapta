@@ -275,6 +275,11 @@ export const designSpecSchema = z.object({
   code: z.string().max(20_000).optional(),
   /** block program; when `codeMode` is "blocks" the code is generated from it */
   blocks: blocksSchema.optional(),
+  /** the drag-and-snap (Blockly) workspace and the sketch it made; used only while `code` still equals that sketch */
+  blockly: z
+    .object({ state: z.record(z.unknown()), code: z.string().max(20_000) })
+    .refine((b) => JSON.stringify(b.state).length <= 120_000, "That block program is too large")
+    .optional(),
   codeMode: z.enum(["blocks", "text"]).optional(),
   mechanism: mechanismSchema.optional(),
   joints: z.array(jointSchema).max(16).default([]),

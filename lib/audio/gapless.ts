@@ -37,11 +37,11 @@ export interface ContextLike {
 
 export interface GaplessOptions {
   count: number;
-  /** Encoded audio (mp3/wav) for a line, or null when it can't be voiced (device voice reads it). */
+  /** Encoded audio (mp3/wav) for a line, or null when this line has no saved recording. */
   fetchClip: (index: number) => Promise<ArrayBuffer | null>;
-  /** Read a line with the device voice, calling `done` when finished. */
-  speakFallback: (index: number, rate: number, done: () => void) => void;
-  cancelFallback: () => void;
+  /** Optional stand-in for a line with no recording. Left out, a line without a recording is skipped (never read by a robot voice). */
+  speakFallback?: (index: number, rate: number, done: () => void) => void;
+  cancelFallback?: () => void;
   onIndex: (index: number) => void;
   onBuffering: (buffering: boolean) => void;
   onEnd: () => void;
@@ -139,7 +139,7 @@ export class GaplessPlayer {
     void this.ctx?.suspend();
     if (this.fallbackIndex !== null) {
       // can't pause device speech mid-sentence reliably: re-read the line on resume
-      this.o.cancelFallback();
+      this.o.cancelFallback?.();
       this.next = this.fallbackIndex;
       this.fallbackIndex = null;
     }
@@ -323,13 +323,22 @@ export class GaplessPlayer {
         this.schedule(this.next, clip.buf, start);
         this.next++;
       } else if (clip.state === "failed") {
-        // the device voice can't overlap the clips: wait until what's queued has finished
+        if (!this.o.speakFallback) {
+          // no recording and no stand-in voice: skip the line once what's queued has played
+          if (this.sched.length === 0) {
+            this.next++;
+            this.setCurrent(this.next);
+            continue;
+          }
+          break;
+        }
+        // a stand-in voice can't overlap the clips: wait until what's queued has finished
         if (this.sched.length === 0) {
           const i = this.next;
           this.next++;
           this.fallbackIndex = i;
           this.setCurrent(i);
-          this.o.speakFallback(i, this.rate, () => {
+          this.o.speakFallback!(i, this.rate, () => {
             if (this.fallbackIndex !== i) return;
             this.fallbackIndex = null;
             this.pump();
@@ -388,7 +397,7 @@ export class GaplessPlayer {
     }
     this.sched = [];
     if (this.fallbackIndex !== null) {
-      this.o.cancelFallback();
+      this.o.cancelFallback?.();
       this.fallbackIndex = null;
     }
   }
