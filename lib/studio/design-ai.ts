@@ -5,6 +5,7 @@ import { checkCircuit, nextGaps } from "./circuit/checker";
 import { analyzeMechanism } from "./mech/gears";
 import { parseSpec, type DesignKind, type DesignSpec } from "./spec";
 import { blocksSchema, compileBlocks, type Block } from "./blocks";
+import { inputProblems, repairInputUse } from "./input-check";
 import { enforceParts, groundingBlock, verifyProblems, type PartSelection, type Research } from "./ai-build";
 import { shopIndex } from "./parts/shop";
 
@@ -265,6 +266,14 @@ async function askForDesign(prompt: string, userId: string, system: string, opts
           /* keep the first design; the problems are reported */
         }
       }
+      // Still ignoring its knob or sensor after the retry: fix that directly so the lab reads its input
+      if (opts.verify && problems.some((p) => p.startsWith("INPUT "))) {
+        const repaired = repairInputUse(spec);
+        if (repaired && inputProblems(repaired).length === 0) {
+          spec = repaired;
+          problems = verifyProblems(spec);
+        }
+      }
       return { title: out.title, message: out.message, spec, removed: removedAll, problems };
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
@@ -279,7 +288,7 @@ Return ONLY JSON: {"title": "...", "message": "one-line commit message", "spec":
 
 export async function generateDesign(params: { prompt: string; kind?: DesignKind; level?: string; userId: string; parts?: PartSelection[]; research?: Research | null }) {
   const prompt = `Create a ${params.kind ? `${params.kind} ` : ""}design for: ${params.prompt.slice(0, 1500)}
-Learner level: ${params.level || "beginner"}. Choose the kind that fits best if not given (electronics with code → circuit; gears/levers/lifting with no electronics → mechanism; physical product/enclosure/structure → assembly). If the idea has BOTH electronics and a physical body that moves (cars, robots, motorised gears, fans, lamps with switches), use kind "circuit" and give the 3D body (parts), the circuit and the code together, with moving parts bound to the circuit motors/LEDs/switches so one Run animates everything. Beginners get "codeMode":"blocks" with a block program. A wheeled robot that should follow a line, drive a track or move on its own MUST use "robot" + "world" (ROBOTS WITH PHYSICS) with body "auto" so it is assembled correctly and really drives in the simulation; include a "drive" check step. Include 4–8 guided steps with checks and, for circuits, at least one behaviour test.`;
+Learner level: ${params.level || "beginner"}. Choose the kind that fits best if not given (electronics with code → circuit; gears/levers/lifting with no electronics → mechanism; physical product/enclosure/structure → assembly). If the idea has BOTH electronics and a physical body that moves (cars, robots, motorised gears, fans, lamps with switches), use kind "circuit" and give the 3D body (parts), the circuit and the code together, with moving parts bound to the circuit motors/LEDs/switches so one Run animates everything. EVERY circuit lab gets "codeMode":"blocks" with a block program (students open it as Scratch-style blocks and can switch to raw code); use raw "code" only for things blocks cannot express (stepper, OLED, DHT11, MPU-6050, servo sweeps with variables). Anything a knob, potentiometer or sensor controls MUST read that input in the program (readAnalog → map → pwm with "expr"): a fixed guessed value is a failed lab. A wheeled robot that should follow a line, drive a track or move on its own MUST use "robot" + "world" (ROBOTS WITH PHYSICS) with body "auto" so it is assembled correctly and really drives in the simulation; include a "drive" check step. Include 4–8 guided steps with checks and, for circuits, at least one behaviour test.`;
   const selected = params.parts?.length ? params.parts.map((p) => p.type) : undefined;
   const bom = params.parts?.length ? `\nBILL OF MATERIALS the learner will build with: ${params.parts.map((p) => `${p.qty} × ${p.type}`).join(", ")}. Use these quantities.` : "";
   const system = `${SYSTEM}\n\n${groundingBlock({ types: selected || [], research: params.research })}`;

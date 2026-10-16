@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { generateWithFallback } from "@/lib/ai/router";
 import { CATALOG_BY_TYPE } from "./circuit/catalog";
+import { inputProblems } from "./input-check";
 import { checkCircuit } from "./circuit/checker";
 import { runAllTests } from "./verify";
 import { libraryDigest } from "./parts/library";
@@ -187,6 +188,7 @@ export function verifyProblems(spec: DesignSpec): string[] {
   if (spec.circuit) {
     for (const i of checkCircuit(spec.circuit, spec.code || "")) if (i.severity === "error") out.push(`${i.system}: ${i.message}`);
     for (const r of runAllTests(spec)) if (!r.pass) out.push(`TEST FAILED “${r.title}”: ${r.message}`);
+    out.unshift(...inputProblems(spec));
   }
   return out.slice(0, 10);
 }
