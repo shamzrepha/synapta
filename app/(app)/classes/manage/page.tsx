@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { asArray } from "@/lib/api/client";
+import { useUserStore } from "@/lib/store/use-user-store";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ interface ClassSummary {
 }
 
 export default function TeacherClassesListPage() {
+  const { user } = useUserStore();
+  const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const [classes, setClasses] = useState<ClassSummary[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -68,11 +71,13 @@ export default function TeacherClassesListPage() {
           <Link href="/explore">
             <Button size="sm" variant="outline">Find a class</Button>
           </Link>
-          <Link href="/explore?create=1">
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-1.5" /> Create a class
-            </Button>
-          </Link>
+          {isTeacher && (
+            <Link href="/explore?create=1">
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-1.5" /> Create a class
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -88,17 +93,23 @@ export default function TeacherClassesListPage() {
           </div>
           <div>
             <h3 className="font-bold text-base text-slate-800 dark:text-slate-200">
-              No managed classes yet
+              {isTeacher ? "No classes yet" : "You haven't joined a class yet"}
             </h3>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-              Create your first class in the course explore catalog to start enrolling students, generating syllabus DAGs, and tracking cognitive heatmaps.
+              {isTeacher ? "Create your first class to start enrolling students, preparing lessons and tracking mastery." : "Find your class and join it with your teacher's code, or ask your teacher to approve you."}
             </p>
           </div>
-          <Link href="/explore?create=1">
-            <Button size="sm">
-              <Plus className="h-4 w-4 mr-1.5" /> Create Your First Class
-            </Button>
-          </Link>
+          {isTeacher ? (
+            <Link href="/explore?create=1">
+              <Button size="sm">
+                <Plus className="h-4 w-4 mr-1.5" /> Create Your First Class
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/explore">
+              <Button size="sm">Find your class</Button>
+            </Link>
+          )}
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -132,19 +143,23 @@ export default function TeacherClassesListPage() {
               <CardFooter className="pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2">
                 <Link href={`/classes/${c.id}`} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full text-xs">
-                    View Syllabus
+                    {isTeacher ? "View Syllabus" : "Open class"}
                   </Button>
                 </Link>
-                <Link href={`/classes/${c.id}/heatmap`}>
-                  <Button variant="outline" size="sm" className="text-xs">
-                    <Activity className="h-3.5 w-3.5 mr-1 text-teal-500" /> Heatmap
-                  </Button>
-                </Link>
-                <Link href={`/classes/${c.id}/manage`}>
-                  <Button size="sm" className="text-xs">
-                    <Settings className="h-3.5 w-3.5 mr-1" /> Roster
-                  </Button>
-                </Link>
+                {isTeacher && (
+                  <Link href={`/classes/${c.id}/heatmap`}>
+                    <Button variant="outline" size="sm" className="text-xs">
+                      <Activity className="h-3.5 w-3.5 mr-1 text-teal-500" /> Heatmap
+                    </Button>
+                  </Link>
+                )}
+                {isTeacher && (
+                  <Link href={`/classes/${c.id}/manage`}>
+                    <Button size="sm" className="text-xs">
+                      <Settings className="h-3.5 w-3.5 mr-1" /> Roster
+                    </Button>
+                  </Link>
+                )}
               </CardFooter>
             </Card>
           ))}

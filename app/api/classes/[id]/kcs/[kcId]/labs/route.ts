@@ -23,7 +23,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const { id: classId, kcId } = await params;
     const caller = await requireUser(req);
     const access = await assertClassAccess(caller, classId, "view");
-    const labs = await readLabs(classId, kcId);
+    const allLabs = await readLabs(classId, kcId);
+    const labs = access.canMutate ? allLabs : allLabs.filter((l) => l.published);
     const db = adminDb();
     const mine = await db.collection("designs").where("ownerUid", "==", caller.uid).where("kcId", "==", kcId).get();
     const myByLab = new Map(mine.docs.filter((d) => d.data().labId).map((d) => [String(d.data().labId), d]));
@@ -58,6 +59,7 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("add"), title: z.string().trim().min(2).max(100), goal: z.string().trim().max(500).default(""), templateId: z.string().max(60).optional(), designId: z.string().max(80).optional(), dueAt: z.string().datetime().nullish() }),
   z.object({ action: z.literal("generate"), focus: z.string().trim().max(500).default(""), level: z.string().max(20).default("beginner") }),
   z.object({ action: z.literal("remove"), labId: z.string() }),
+  z.object({ action: z.literal("publish"), labId: z.string(), published: z.boolean() }),
 ]);
 
 /** Teachers add labs (from a template, one of their designs, or AI-generated for the topic) or remove them. */
@@ -72,8 +74,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!kc.exists) throw new ApiError(404, "NOT_FOUND", "Topic not found");
     const labs = await readLabs(classId, kcId);
     let lab: Lab | null = null;
+    let notify: Lab | null = null;
 
-    if (body.action === "remove") {
+    if (body.action === "publish") {
+      const target = labs.find((l) => l.id === body.labId);
+      if (!target) throw new ApiError(404, "NOT_FOUND", "Lab not found");
+      if (target.published !== body.published) {
+        await ref.update({ labs: labs.map((l) => (l.id === body.labId ? { ...l, published: body.published } : l)) });
+        if (body.published) notify = target;
+      }
+    } else if (body.action === "remove") {
       await ref.update({ labs: labs.filter((l) => l.id !== body.labId) });
     } else if (body.action === "add") {
       if (labs.length >= 12) throw new ApiError(409, "LIMIT", "Up to 12 labs per topic.");
@@ -83,11 +93,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         // Students need to read it to start their copy
         await d.ref.update({ classId, kcId, visibility: d.data()!.visibility === "public" ? "public" : "class" });
         const spec = parseSpec(d.data()!.spec);
-        lab = { id: newLabId(), title: body.title, goal: body.goal ?? "", templateId: null, designId: body.designId, kind: spec.kind, stepCount: spec.steps.length, dueAt: body.dueAt || null, createdAt: nowIso() };
+        lab = { id: newLabId(), title: body.title, goal: body.goal ?? "", templateId: null, designId: body.designId, kind: spec.kind, stepCount: spec.steps.length, dueAt: body.dueAt || null, published: false, createdAt: nowIso() };
       } else {
         const t = getTemplate(body.templateId || "");
         if (!t) throw new ApiError(400, "VALIDATION", "Pick a template or one of your designs.");
-        lab = { id: newLabId(), title: body.title, goal: body.goal ?? "", templateId: t.id, designId: null, kind: t.kind, stepCount: templateStart(t).steps.length, dueAt: body.dueAt || null, createdAt: nowIso() };
+        lab = { id: newLabId(), title: body.title, goal: body.goal ?? "", templateId: t.id, designId: null, kind: t.kind, stepCount: templateStart(t).steps.length, dueAt: body.dueAt || null, published: false, createdAt: nowIso() };
       }
       await ref.update({ labs: [...labs, lab] });
     } else {
@@ -101,13 +111,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         userId: caller.uid,
       });
       const designId = await createDesign({ user: caller, title: out.title, spec: out.spec, source: "ai", message: `AI lab for “${k.title}”`, visibility: "class", classId, kcId });
-      lab = { id: newLabId(), title: out.title, goal: out.spec.summary.slice(0, 500), templateId: null, designId, kind: out.spec.kind, stepCount: out.spec.steps.length, dueAt: null, createdAt: nowIso() };
+      lab = { id: newLabId(), title: out.title, goal: out.spec.summary.slice(0, 500), templateId: null, designId, kind: out.spec.kind, stepCount: out.spec.steps.length, dueAt: null, published: false, createdAt: nowIso() };
       await ref.update({ labs: [...labs, lab] });
     }
 
-    if (lab) {
+    if (notify) {
       const uids = await getActiveStudentUids(classId).catch(() => [] as string[]);
-      await notifyMany(uids, { type: "system", title: `New build lab: ${lab.title}`, body: `In “${kc.data()!.title}” — build and test it in Maker Studio`, href: `/classes/${classId}/topics/${kcId}?tab=build`, icon: "🛠️" }).catch(() => null);
+      await notifyMany(uids, { type: "system", title: `New build lab: ${notify.title}`, body: `In “${kc.data()!.title}” — build and test it in Maker Studio`, href: `/classes/${classId}/topics/${kcId}?tab=build`, icon: "🛠️" }).catch(() => null);
     }
     await bumpChannel(`kc:${classId}:${kcId}`);
     return NextResponse.json({ ok: true, data: { lab } });

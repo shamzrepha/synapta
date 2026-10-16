@@ -16,6 +16,7 @@ interface LabRow {
   goal: string;
   kind: "circuit" | "mechanism" | "assembly";
   stepCount: number;
+  published?: boolean;
   dueAt: string | null;
   myDesignId: string | null;
   myDone: number;
@@ -185,7 +186,7 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
 
       {data.labs.length === 0 ? (
         <Card className="p-8 text-center text-sm text-slate-500">
-          {data.canManage ? "No labs yet. Add a guided build or let the AI design one for this topic." : "Your teacher hasn't added build labs to this topic yet. Use the ideas below to build your own."}
+          {data.canManage ? "No labs yet. Add a guided build or let the AI design one for this topic." : "Your teacher hasn't published a build lab for this topic yet. You'll get a notification when one is ready. (Want to build something of your own? Open Make from the menu.)"}
         </Card>
       ) : (
         <ol className="space-y-3">
@@ -197,7 +198,14 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
                   <div className="flex items-start gap-3">
                     <span className="h-8 w-8 shrink-0 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-sm font-bold">{i + 1}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="font-bold flex items-center gap-1.5">{ICON[lab.kind]} {lab.title}</p>
+                      <p className="font-bold flex items-center gap-1.5 flex-wrap">
+                        {ICON[lab.kind]} {lab.title}
+                        {data.canManage && (
+                          <span className={cn("text-[10px] font-bold rounded-full px-2 py-0.5", lab.published === false ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300")}>
+                            {lab.published === false ? "DRAFT · students can't see it" : "PUBLISHED"}
+                          </span>
+                        )}
+                      </p>
                       {lab.goal && <p className="text-xs text-slate-500">{lab.goal}</p>}
                       <div className="mt-1.5 flex items-center gap-2">
                         <div className="h-1.5 w-32 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
@@ -216,6 +224,11 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
                       <Button size="sm" onClick={() => start(lab)} isLoading={busy === lab.id}>
                         {lab.myDesignId ? (complete ? "Open" : "Continue") : "Start lab"}
                       </Button>
+                      {data.canManage && (
+                        <Button size="sm" variant={lab.published === false ? "default" : "outline"} isLoading={busy === `pub-${lab.id}`} onClick={() => post({ action: "publish", labId: lab.id, published: lab.published === false }, `pub-${lab.id}`)}>
+                          {lab.published === false ? "Publish" : "Unpublish"}
+                        </Button>
+                      )}
                       {data.canManage && (
                         <div className="flex gap-1">
                           <button type="button" onClick={() => setRosterFor(rosterFor === lab.id ? null : lab.id)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Student progress">
@@ -257,11 +270,11 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
         </ol>
       )}
 
-      <Card className="p-4 space-y-3 border-violet-500/30">
+      {data.canManage && <Card className="p-4 space-y-3 border-violet-500/30">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex-1 min-w-0">
-            <p className="font-bold flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-violet-500" /> Not sure what to build?</p>
-            <p className="text-xs text-slate-500">Get AI ideas for small builds that teach {topicTitle}. Pick one and Maker Studio plans the parts and builds it with you.</p>
+            <p className="font-bold flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-violet-500" /> Need lab ideas?</p>
+            <p className="text-xs text-slate-500">AI ideas for builds that teach {topicTitle}. Add one and it is created as a draft lab — review it, then publish it for your students.</p>
           </div>
           <Button size="sm" onClick={suggest} isLoading={ideasBusy} className="bg-violet-600 hover:bg-violet-700">
             {ideas ? "More ideas" : "Suggest ideas"}
@@ -275,14 +288,14 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
                 <p className="font-bold text-sm flex items-center gap-1.5">{ICON[idea.kind] || ICON.circuit} {idea.title}</p>
                 <p className="text-xs text-slate-500 flex-1">{idea.pitch}</p>
                 {idea.parts.length > 0 && <p className="text-[10px] text-slate-400">Parts: {idea.parts.join(", ")}</p>}
-                <Button size="sm" variant="outline" onClick={() => router.push(`/studio/new?prompt=${encodeURIComponent(idea.buildPrompt)}`)}>
-                  Build this
+                <Button size="sm" variant="outline" isLoading={busy === `idea-${idea.title}`} onClick={() => post({ action: "generate", focus: idea.buildPrompt }, `idea-${idea.title}`)}>
+                  Add as a draft lab
                 </Button>
               </div>
             ))}
           </div>
         )}
-      </Card>
+      </Card>}
     </div>
   );
 }

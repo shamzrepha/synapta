@@ -1,3 +1,5 @@
+import { adminDb } from "@/lib/firebase/admin";
+import { isPublished } from "@/lib/classes/published";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
@@ -17,15 +19,18 @@ export async function GET(
     const { id: classId, kcId } = await params;
     const caller = await requireUser(req);
     const access = await assertClassAccess(caller, classId, "view");
-    const sim = await getStoredSimulation(classId, kcId);
+    const kcSnap = await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get();
+    const published = access.canMutate || isPublished(kcSnap.data(), "simulation");
+    const sim = published ? await getStoredSimulation(classId, kcId) : null;
     const canManage = access.canMutate;
     return NextResponse.json({
       ok: true,
       data: {
         simulation: toClientSimulation(sim, { includeInstructions: canManage }),
         canManage,
-        // Students can trigger the very first build so a topic is never left without a simulation
-        canGenerate: canManage || ((access.isEnrolled || access.isOwner) && (!sim || !sim.html)),
+        published,
+        // Only the teacher builds simulations; students see them once published
+        canGenerate: canManage
       },
     });
   } catch (error) {
@@ -52,9 +57,9 @@ export async function POST(
     const body = await parseJson(req, generateSchema);
 
     const canManage = access.canMutate;
-    if (!canManage && !access.isEnrolled) {
+    if (!canManage) {
       return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Enroll in this class to use its simulations." } },
+        { ok: false, error: { code: "FORBIDDEN", message: "Only the teacher builds the simulation. You'll see it once it's published." } },
         { status: 403 }
       );
     }

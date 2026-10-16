@@ -14,8 +14,7 @@ const bodySchema = z.object({
 });
 
 /**
- * Writes the full lesson for a topic. Students may trigger this once for a topic that only has a
- * build-time stub; teachers can regenerate (optionally with instructions) at any time.
+ * Writes the full lesson for a topic. Only the teacher generates (students never spend AI on it); the lesson stays a draft until published. Teachers can regenerate (optionally with instructions) at any time.
  */
 export async function POST(
   req: NextRequest,
@@ -27,9 +26,9 @@ export async function POST(
     const access = await assertClassAccess(caller, classId, "view");
     const body = await parseJson(req, bodySchema);
 
-    if (!access.canMutate && !access.isEnrolled) {
+    if (!access.canMutate) {
       return NextResponse.json(
-        { ok: false, error: { code: "FORBIDDEN", message: "Enroll in this class to generate lessons." } },
+        { ok: false, error: { code: "FORBIDDEN", message: "Only the teacher writes lessons. You'll see it here once it's published." } },
         { status: 403 }
       );
     }

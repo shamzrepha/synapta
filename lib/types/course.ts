@@ -13,6 +13,8 @@ export interface KnowledgeComponent {
   difficulty?: "introductory" | "intermediate" | "advanced";
   status: "draft" | "published";
   sourceMaterialIds?: string[];
+  /** which generated content students can see; absent on older topics (= all published) */
+  contentPublished?: Record<"lesson" | "audio" | "simulation" | "practice", boolean>;
   createdAt?: unknown;
   updatedAt?: unknown;
 }

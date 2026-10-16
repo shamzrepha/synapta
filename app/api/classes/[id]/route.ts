@@ -1,3 +1,4 @@
+import { publishMapOf } from "@/lib/classes/published";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { getClassAccess, assertClassAccess } from "@/lib/auth/classAccess";
@@ -66,6 +67,16 @@ export async function GET(
     if (role === "student" || role === "visitor") {
       kcs = kcs.filter((k) => (k as { status?: string }).status !== "draft" && (k as { status?: string }).status !== "archived");
     }
+    // Students only get what the teacher published: drafts (lecture note, labs) never leave the server
+    kcs = kcs.map((k) => {
+      const kc = k as Record<string, unknown> & { id: string };
+      const published = publishMapOf(kc);
+      if (access.canMutate) return { ...kc, published } as typeof k;
+      const labs = Array.isArray(kc.labs) ? (kc.labs as Array<{ published?: boolean }>).filter((l) => l.published !== false) : kc.labs;
+      const { contentPublished: _omit, ...rest } = kc;
+      void _omit;
+      return { ...rest, labs, published, ...(published.lesson ? {} : { lessonMarkdown: "" }) } as typeof k;
+    });
 
     // Load caller's mastery for these KCs
     const masteryMap: Record<string, number> = {};

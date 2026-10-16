@@ -11,9 +11,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id: classId, kcId, labId } = await params;
     const caller = await requireUser(req);
-    await assertClassAccess(caller, classId, "view");
+    const access = await assertClassAccess(caller, classId, "view");
     const lab = (await readLabs(classId, kcId)).find((l) => l.id === labId);
-    if (!lab) throw new ApiError(404, "NOT_FOUND", "Lab not found");
+    if (!lab || (!lab.published && !access.canMutate)) throw new ApiError(404, "NOT_FOUND", "Lab not found");
     const designId = await startLab(caller, classId, kcId, lab);
     return NextResponse.json({ ok: true, data: { designId } });
   } catch (error) {

@@ -36,6 +36,7 @@ import { LAB_REGISTRY } from "@/components/labs";
 import { AiSimulation } from "@/components/labs/ai-simulation";
 import { QuizPlayer } from "@/components/quiz/quiz-player";
 import { AudioLesson } from "@/components/lesson/audio-lesson";
+import { PublishBar } from "@/components/lesson/publish-bar";
 import { PracticeBankTools } from "@/components/lesson/practice-bank-tools";
 import { ReadAloud } from "@/components/ui/read-aloud";
 import { ShareButton, SaveButton } from "@/components/social/share-button";
@@ -48,7 +49,11 @@ interface KcDetails {
   objectives?: string[];
   prerequisiteIds?: string[];
   lab?: { type: string; config?: Record<string, unknown> };
+  /** what the teacher has published (teachers also see drafts) */
+  published?: PublishState;
 }
+
+type PublishState = Record<"lesson" | "audio" | "simulation" | "practice", boolean>;
 
 interface FlashcardItem {
   front: string;
@@ -207,11 +212,12 @@ export default function TopicPage({
 
   useEffect(() => {
     if (!kc || autoLessonTried.current) return;
-    if (lessonIsThin && (isEnrolled || canManage)) {
+    // Only the teacher writes lessons; students wait for the published version
+    if (lessonIsThin && canManage) {
       autoLessonTried.current = true;
       generateLesson();
     }
-  }, [kc, lessonIsThin, isEnrolled, canManage, generateLesson]);
+  }, [kc, lessonIsThin, canManage, generateLesson]);
 
   // Flashcards
   const handleLoadFlashcards = async () => {
@@ -348,6 +354,15 @@ export default function TopicPage({
     );
   }
 
+  const pub: PublishState = kc.published ?? { lesson: true, audio: true, simulation: true, practice: true };
+  const labDrafts = canManage && Array.isArray((kc as unknown as { labs?: unknown }).labs) ? ((kc as unknown as { labs: Array<{ published?: boolean }> }).labs).filter((l) => l.published === false).length : 0;
+  const notPublished = (what: string) => (
+    <Card className="p-8 text-center space-y-1">
+      <p className="text-3xl" aria-hidden>🕓</p>
+      <p className="font-bold">Not published yet</p>
+      <p className="text-sm text-slate-500">Your teacher is still preparing the {what}. You&apos;ll get a notification when it&apos;s ready.</p>
+    </Card>
+  );
   const masteryStatus = getMasteryStatus(currentPL, attempts);
   const ClassicLab = kc.lab && kc.lab.type !== "none" ? LAB_REGISTRY[kc.lab.type] : undefined;
 
@@ -390,6 +405,16 @@ export default function TopicPage({
             </div>
           </div>
 
+          {canManage && (
+            <PublishBar
+              classId={classId}
+              kcId={kcId}
+              state={pub}
+              labDrafts={labDrafts}
+              onChanged={(next, labsPublished) => setKc((prev) => (prev ? { ...prev, published: next, ...(labsPublished === undefined ? {} : { labs: ((prev as { labs?: Array<Record<string, unknown>> }).labs || []).map((l) => ({ ...l, published: labsPublished })) }) } as KcDetails : prev))}
+            />
+          )}
+
           {/* Tabs: scrollable on phones */}
           <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-1 overflow-x-auto -mx-1 px-1">
             {tabs.map((t) => (
@@ -415,7 +440,8 @@ export default function TopicPage({
           {/* LEARN */}
           {activeTab === "learn" && (
             <div className="space-y-4">
-              {!lessonIsThin && <AudioLesson classId={classId} kcId={kcId} />}
+              {(canManage || pub.audio) && !lessonIsThin && <AudioLesson classId={classId} kcId={kcId} />}
+              {!canManage && !pub.lesson ? notPublished("lecture note") : (
               <Card className="p-6 md:p-8">
                 {lessonBusy && lessonIsThin ? (
                   <div className="space-y-4">
@@ -440,6 +466,7 @@ export default function TopicPage({
                   </div>
                 )}
               </Card>
+              )}
 
               {canManage && (
                 <Card className="p-4 space-y-3">
@@ -518,7 +545,8 @@ export default function TopicPage({
           )}
 
           {/* SIMULATE */}
-          {activeTab === "simulate" && (
+          {activeTab === "simulate" && !canManage && !pub.simulation && notPublished("simulation")}
+          {activeTab === "simulate" && (canManage || pub.simulation) && (
             <Card className="p-4 md:p-6 space-y-4">
               <AiSimulation classId={classId} kcId={kcId} topicTitle={kc.title} onEvidence={applyEvidenceUpdate} />
 
@@ -568,7 +596,8 @@ export default function TopicPage({
           )}
 
           {/* FLASHCARDS */}
-          {activeTab === "flashcards" && (
+          {activeTab === "flashcards" && !canManage && !pub.practice && notPublished("flashcards")}
+          {activeTab === "flashcards" && (canManage || pub.practice) && (
             <Card className="p-6 space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
@@ -659,7 +688,8 @@ export default function TopicPage({
           {/* QUIZ */}
           {activeTab === "build" && <TopicLabs classId={classId} kcId={kcId} topicTitle={kc.title} />}
 
-          {activeTab === "quiz" && (
+          {activeTab === "quiz" && !canManage && !pub.practice && notPublished("quiz")}
+          {activeTab === "quiz" && (canManage || pub.practice) && (
             <Card className="p-4 md:p-6">
               <QuizPlayer classId={classId} kcId={kcId} onEvidence={applyEvidenceUpdate} />
             </Card>

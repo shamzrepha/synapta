@@ -1,3 +1,4 @@
+import { draftMap } from "@/lib/classes/published";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { KnowledgeComponent } from "@/lib/types/course";
 import { safeBktParams } from "@/lib/bkt/engine";
@@ -44,6 +45,7 @@ export async function createKc(
     difficulty: parsed.difficulty,
     status: parsed.status,
     sourceMaterialIds: parsed.sourceMaterialIds || [],
+    contentPublished: draftMap(),
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   };

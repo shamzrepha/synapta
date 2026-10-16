@@ -178,6 +178,19 @@ export async function ensureFlashcardBank(params: { classId: string; kcId: strin
   }
 }
 
+/** What is already stored, never generating. Students are served from this. */
+export async function readQuizBank(classId: string, kcId: string): Promise<BankQuestion[]> {
+  const snap = await practiceRef(classId, kcId, "quizBank").get();
+  const q = snap.exists ? snap.data()?.questions : null;
+  return Array.isArray(q) ? (q as BankQuestion[]) : [];
+}
+
+export async function readFlashcardBank(classId: string, kcId: string): Promise<BankCard[]> {
+  const snap = await practiceRef(classId, kcId, "flashcardBank").get();
+  const c = snap.exists ? snap.data()?.cards : null;
+  return Array.isArray(c) ? (c as BankCard[]) : [];
+}
+
 export async function getBankSizes(classId: string, kcId: string): Promise<{ questions: number; cards: number }> {
   const [q, c] = await Promise.all([
     practiceRef(classId, kcId, "quizBank").get(),

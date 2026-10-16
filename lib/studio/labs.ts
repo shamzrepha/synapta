@@ -20,6 +20,8 @@ export const labSchema = z.object({
   kind: z.enum(["circuit", "mechanism", "assembly"]),
   stepCount: z.number().int().default(0),
   dueAt: z.string().nullable().default(null),
+  /** a lab the teacher is still preparing is hidden from students; labs saved before this flag count as published */
+  published: z.boolean().default(true),
   createdAt: z.string(),
 });
 export type Lab = z.output<typeof labSchema>;

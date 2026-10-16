@@ -1,3 +1,4 @@
+import { publishMapOf } from "@/lib/classes/published";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
@@ -31,7 +32,7 @@ export async function GET(
   try {
     const { id, kcId } = await params;
     const caller = await requireUser(req);
-    await assertClassAccess(caller, id, "view");
+    const access = await assertClassAccess(caller, id, "view");
 
     const kcRef = adminDb().collection("classes").doc(id).collection("kcs").doc(kcId);
     const kcDoc = await kcRef.get();
@@ -42,9 +43,21 @@ export async function GET(
       );
     }
 
+    const data = kcDoc.data()!;
+    const published = publishMapOf(data);
+    if (access.canMutate) return NextResponse.json({ ok: true, data: { id: kcDoc.id, ...data, published } });
+    // Students only get what the teacher published
+    const { contentPublished: _omit, labs, ...rest } = data;
+    void _omit;
     return NextResponse.json({
       ok: true,
-      data: { id: kcDoc.id, ...kcDoc.data() },
+      data: {
+        id: kcDoc.id,
+        ...rest,
+        labs: Array.isArray(labs) ? labs.filter((l: { published?: boolean }) => l.published !== false) : labs,
+        published,
+        ...(published.lesson ? {} : { lessonMarkdown: "" }),
+      },
     });
   } catch (error) {
     return handleAuthError(error);

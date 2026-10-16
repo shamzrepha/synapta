@@ -152,6 +152,21 @@ export default function ClassOverviewPage({
     return () => clearInterval(t);
   }, [buildState, loadData, toast]);
 
+  const [isPublishingAll, setIsPublishingAll] = useState(false);
+  const publishAllContent = async (published: boolean) => {
+    if (published && !window.confirm("Publish every topic's lecture note, podcast, simulation, practice and labs to your students? Drafts you haven't reviewed will go live too.")) return;
+    setIsPublishingAll(true);
+    try {
+      const res = await fetch(`/api/classes/${classId}/publish-content`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ published }) });
+      const data = await res.json();
+      toast(data.ok ? { title: published ? "All content published" : "All content hidden from students", variant: "success" } : { title: "Couldn't update", description: data.error?.message, variant: "destructive" });
+    } catch {
+      toast({ title: "Couldn't update", variant: "destructive" });
+    } finally {
+      setIsPublishingAll(false);
+    }
+  };
+
   const handlePublish = async () => {
     setIsPublishing(true);
     try {
@@ -302,6 +317,9 @@ export default function ClassOverviewPage({
               {/* Teacher Studio management buttons */}
               {(isOwner || user?.role === "admin") && (
                 <>
+                  <Button variant="outline" size="sm" className="text-xs" onClick={() => publishAllContent(true)} isLoading={isPublishingAll}>
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1 text-emerald-600" /> Publish all content
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -397,9 +415,9 @@ export default function ClassOverviewPage({
                   </ul>
                 )}
                 <ol className="text-xs space-y-1 text-emerald-900/80 dark:text-emerald-100/80 list-decimal list-inside">
-                  <li>Open any topic below to preview it — lessons and simulations are generated on first open.</li>
+                  <li>Open each topic and prepare its lecture note, podcast, simulation, flashcards and quiz — the AI work happens once, on your side.</li>
                   <li>Adjust topics in the syllabus editor or upload more material if something is missing.</li>
-                  <li>Publish when you&apos;re happy.</li>
+                  <li>Publish the class, then publish each topic&apos;s content when you&apos;re happy with it (students only see what you publish).</li>
                 </ol>
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handlePublish} isLoading={isPublishing}>
