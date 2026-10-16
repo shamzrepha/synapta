@@ -346,7 +346,7 @@ export function emptySpec(kind: DesignKind): DesignSpec {
     kind,
     summary: "",
     circuit: kind === "circuit" ? { parts: [{ id: "board", type: "board", x: 80, y: 120 }], wires: [] } : undefined,
-    code: kind === "circuit" ? "function setup() {\n  \n}\n\nfunction loop() {\n  \n}\n" : undefined,
+    code: kind === "circuit" ? "void setup() {\n  \n}\n\nvoid loop() {\n  \n}\n" : undefined,
     mechanism:
       kind === "mechanism"
         ? { input: { kind: "motor" }, stages: [{ driverTeeth: 12, drivenTeeth: 36 }], load: { mass: 2 } }

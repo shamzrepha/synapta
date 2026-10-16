@@ -1,3 +1,4 @@
+import { cppToJs } from "../cpp";
 import type { CircuitPart, Wire } from "../spec";
 import { CATALOG_BY_TYPE, boardPinName, pinDef, isButtonLike } from "./catalog";
 import { l298Drop, tb6612Drop, ttCurrentAt } from "../parts/library";
@@ -499,6 +500,7 @@ export function readPin(nl0: Netlist, pins: PinState, n: number, analog: boolean
 
 /** Pins the program touches, found by reading the source (resolves `var RED = 13;`). */
 export function scanCode(code: string): { writes: Set<number>; reads: Set<number>; modes: Map<number, string>; hasLoop: boolean; hasSetup: boolean; hasDelay: boolean } {
+  code = cppToJs(code);
   const consts = new Map<string, number>();
   for (const m of code.matchAll(/(?:var|let|const|#define)\s+([A-Za-z_]\w*)\s*=?\s*(A[0-5]|\d+)\b/g)) {
     consts.set(m[1], m[2].startsWith("A") ? 14 + Number(m[2].slice(1)) : Number(m[2]));

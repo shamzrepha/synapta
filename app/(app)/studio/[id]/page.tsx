@@ -3,7 +3,7 @@
 import React, { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Play, Square, Save, Sparkles, GitFork, Star, Share2, FlaskConical, Loader2, Wand2, Undo2, Redo2, Maximize2, Box, Cpu, Cog, Users, Globe, Lock, GraduationCap } from "lucide-react";
+import { ArrowLeft, Play, Square, Save, Sparkles, GitFork, Star, Share2, FlaskConical, Loader2, Wand2, Undo2, Redo2, Maximize2, Box, Cpu, Cog, Users, Globe, Lock, GraduationCap, Upload, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,7 @@ import { SourcesPanel } from "@/components/studio/sources-panel";
 import { BlockEditor } from "@/components/studio/block-editor";
 import { SimStage, type StageLab } from "@/components/studio/sim-stage";
 import { compileBlocks, type BlockProgram } from "@/lib/studio/blocks";
+import { cppProblems, looksLikeCpp } from "@/lib/studio/cpp";
 import { sceneParts } from "@/lib/studio/circuit/to3d";
 import { analyzeMechanism } from "@/lib/studio/mech/gears";
 import { playLift } from "@/lib/studio/mech/playback";
@@ -86,6 +87,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const router = useRouter();
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const uploadRef = useRef<HTMLInputElement>(null);
   const [work, setWork] = useState<DesignSpec | null>(null);
   const [dirty, setDirty] = useState(false);
   const [stale, setStale] = useState(false);
@@ -548,6 +550,23 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     setBlocks(blocksProgram);
   };
 
+  const loadSketch = async (f: File | undefined) => {
+    if (!f) return;
+    if (f.size > 100_000) return toast({ title: "That file is too big", description: "Sketches up to 100 KB can be loaded.", variant: "destructive" });
+    const text = await f.text();
+    edit({ code: text, codeMode: "text" });
+    toast({ title: `Loaded ${f.name}`, description: "Press Run to try it on this circuit." });
+  };
+  const downloadSketch = () => {
+    const blob = new Blob([shown.code || ""], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${(design?.title || "sketch").replace(/[^\w-]+/g, "_")}.ino`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  const sketchProblems = mode3 === "text" ? cppProblems(shown.code || "") : [];
+
   const runBar = (
     <div className="flex flex-wrap items-center gap-2">
       {!running ? (
@@ -686,9 +705,22 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
         </>
       ) : (
         <>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 font-semibold">{looksLikeCpp(shown.code || "") ? "Arduino C++ (.ino)" : "Arduino-style JavaScript"}</span>
+            <input ref={uploadRef} type="file" accept=".ino,.cpp,.c,.h,.txt,.js,text/plain" className="hidden" onChange={(e) => { loadSketch(e.target.files?.[0]); e.target.value = ""; }} />
+            <Button type="button" size="sm" variant="outline" disabled={!canEdit} onClick={() => uploadRef.current?.click()}>
+              <Upload className="h-3.5 w-3.5 mr-1" /> Upload sketch
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={downloadSketch}>
+              <Download className="h-3.5 w-3.5 mr-1" /> Download .ino
+            </Button>
+          </div>
           <CodeEditor value={shown.code || ""} onChange={(v) => edit({ code: v })} errorLine={errorLine} readOnly={!canEdit} />
+          {sketchProblems.map((q) => (
+            <p key={`${q.line}${q.message}`} className="text-[11px] text-amber-600">Line {q.line}: {q.message}</p>
+          ))}
           <p className="text-[11px] text-slate-500">
-            Arduino-style JavaScript: setup() runs once, loop() repeats. pinMode, digitalWrite, digitalRead, analogRead, analogWrite, delay, millis, tone, servoWrite, Serial.println. Runs in a safe sandbox.
+            Write it like a real Arduino sketch: <code>void setup()</code> runs once, <code>void loop()</code> repeats. Typed variables, #define, arrays, functions and Servo work. pinMode, digitalWrite/Read, <b>analogRead</b> (0–1023 from knobs and sensors), <b>analogWrite</b> (0–255), map, constrain, delay, millis, tone, Serial.println. Paste or upload your own code, edit it, then press <b>Run</b>.
           </p>
         </>
       )}

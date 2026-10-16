@@ -1,5 +1,6 @@
 import Interpreter from "js-interpreter";
 import type { BehaviorTest } from "../spec";
+import { cppToJs } from "../cpp";
 import { boardPinName, isButtonLike } from "./catalog";
 import { ULN_ON_VOLTS, newStepperState, stepperUpdate, type StepperState } from "./stepper";
 import { Netlist, emptyPinState, evaluateOutputs, i2cWired, netPotential, readPin, term, type Circuit, type OutputState, type PinMode, type PinState } from "./netlist";
@@ -21,8 +22,12 @@ const STEP_MS = 0.002;
 // One line, so error line numbers match the user's code (line = reported − 1)
 const PRELUDE =
   "var HIGH=1,LOW=0,INPUT='INPUT',OUTPUT='OUTPUT',INPUT_PULLUP='INPUT_PULLUP',A0=14,A1=15,A2=16,A3=17,A4=18,A5=19,LED_BUILTIN=13;" +
-  "var Serial={begin:function(){},print:function(x){__print(String(x))},println:function(x){__print((x===undefined?'':String(x))+'\\n')}};" +
-  "function map(x,a,b,c,d){return (x-a)*(d-c)/(b-a)+c}function constrain(x,a,b){return x<a?a:x>b?b:x}" +
+  "var Serial={begin:function(){},available:function(){return 0},read:function(){return -1},print:function(x){__print(String(x))},println:function(x){__print((x===undefined?'':String(x))+'\\n')}};" +
+  // map() is integer maths on a real Arduino (it truncates), so a pot → LED dimmer behaves the same here
+  "function __trunc(x){return x<0?Math.ceil(x):Math.floor(x)}function __int(x){return typeof x==='number'?(isFinite(x)?__trunc(x):0):x}function __arr(n,v){var a=[];for(var i=0;i<n;i++)a.push(v);return a}" +
+  "function map(x,a,b,c,d){if(b===a)return c;return __trunc((x-a)*(d-c)/(b-a))+c}function constrain(x,a,b){return x<a?a:x>b?b:x}" +
+  "function min(a,b){return a<b?a:b}function max(a,b){return a>b?a:b}function abs(x){return x<0?-x:x}function sq(x){return x*x}function sqrt(x){return Math.sqrt(x)}function pow(a,b){return Math.pow(a,b)}function radians(d){return d*Math.PI/180}function degrees(r){return r*180/Math.PI}var PI=Math.PI,DEC=10,HEX=16,BIN=2,F=function(s){return s};" +
+  "function randomSeed(){}function digitalPinToInterrupt(p){return p}function Servo(){this.p=-1}Servo.prototype.attach=function(p){this.p=p;pinMode(p,OUTPUT);return 1};Servo.prototype.write=function(a){servoWrite(this.p,a)};Servo.prototype.detach=function(){};" +
   "function random(a,b){if(b===undefined){b=a;a=0}return Math.floor(a+Math.random()*(b-a))}" +
   // stepperRun(in1,in2,in3,in4,steps,msPerStep): half-step sequence for a 28BYJ-48 on a ULN2003 board (negative steps reverse)
   "var __HS=[[1,0,0,0],[1,1,0,0],[0,1,0,0],[0,1,1,0],[0,0,1,0],[0,0,1,1],[0,0,0,1],[1,0,0,1]],__SI={};" +
@@ -99,7 +104,7 @@ export class BoardRuntime {
     code: string,
     private readonly read: PinReader
   ) {
-    const program = PRELUDE + toEs5(code) + "\n;if(typeof setup==='function')setup();if(typeof loop==='function'){while(true){loop();}}";
+    const program = PRELUDE + toEs5(cppToJs(code)) + "\n;if(typeof setup==='function')setup();if(typeof loop==='function'){while(true){loop();}}";
     try {
       this.interp = new Interpreter(program, (it, global) => {
         const fn = (name: string, f: (...a: never[]) => unknown) => it.setProperty(global, name, it.createNativeFunction(f));

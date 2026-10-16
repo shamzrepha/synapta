@@ -22,6 +22,15 @@ interface LabRow {
   roster: Array<{ uid: string; name: string; designId: string; done: number }> | null;
 }
 
+interface Idea {
+  title: string;
+  pitch: string;
+  kind: "circuit" | "mechanism" | "assembly";
+  level: string;
+  buildPrompt: string;
+  parts: string[];
+}
+
 const ICON = { circuit: <Cpu className="h-4 w-4 text-emerald-600" />, mechanism: <Cog className="h-4 w-4 text-amber-600" />, assembly: <Box className="h-4 w-4 text-sky-600" /> };
 
 const TEMPLATES = [
@@ -60,6 +69,21 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
   const [focus, setFocus] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [rosterFor, setRosterFor] = useState<string | null>(null);
+  const [ideas, setIdeas] = useState<Idea[] | null>(null);
+  const [ideasBusy, setIdeasBusy] = useState(false);
+
+  const suggest = async () => {
+    setIdeasBusy(true);
+    try {
+      const j = await fetch("/api/studio/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic: topicTitle }) }).then((r) => r.json());
+      if (j.ok) setIdeas(asArray<Idea>(j.data.ideas));
+      else toast({ title: "Couldn't think of ideas just now", description: j.error?.message, variant: "destructive" });
+    } catch {
+      toast({ title: "Couldn't think of ideas just now", variant: "destructive" });
+    } finally {
+      setIdeasBusy(false);
+    }
+  };
 
   const refresh = useCallback(() => fetchLabs(classId, kcId).then((d) => d && setData(d)), [classId, kcId]);
   useEffect(() => {
@@ -161,7 +185,7 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
 
       {data.labs.length === 0 ? (
         <Card className="p-8 text-center text-sm text-slate-500">
-          {data.canManage ? "No labs yet. Add a guided build or let the AI design one for this topic." : "Your teacher hasn't added build labs to this topic yet. Try Maker Studio's starter projects meanwhile."}
+          {data.canManage ? "No labs yet. Add a guided build or let the AI design one for this topic." : "Your teacher hasn't added build labs to this topic yet. Use the ideas below to build your own."}
         </Card>
       ) : (
         <ol className="space-y-3">
@@ -232,6 +256,33 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
           })}
         </ol>
       )}
+
+      <Card className="p-4 space-y-3 border-violet-500/30">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="font-bold flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-violet-500" /> Not sure what to build?</p>
+            <p className="text-xs text-slate-500">Get AI ideas for small builds that teach {topicTitle}. Pick one and Maker Studio plans the parts and builds it with you.</p>
+          </div>
+          <Button size="sm" onClick={suggest} isLoading={ideasBusy} className="bg-violet-600 hover:bg-violet-700">
+            {ideas ? "More ideas" : "Suggest ideas"}
+          </Button>
+        </div>
+        {ideas && ideas.length === 0 && <p className="text-xs text-slate-500">No ideas came back — try again.</p>}
+        {ideas && ideas.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {ideas.map((idea) => (
+              <div key={idea.title} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3 space-y-1.5 flex flex-col">
+                <p className="font-bold text-sm flex items-center gap-1.5">{ICON[idea.kind] || ICON.circuit} {idea.title}</p>
+                <p className="text-xs text-slate-500 flex-1">{idea.pitch}</p>
+                {idea.parts.length > 0 && <p className="text-[10px] text-slate-400">Parts: {idea.parts.join(", ")}</p>}
+                <Button size="sm" variant="outline" onClick={() => router.push(`/studio/new?prompt=${encodeURIComponent(idea.buildPrompt)}`)}>
+                  Build this
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

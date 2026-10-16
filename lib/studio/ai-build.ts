@@ -190,3 +190,50 @@ export function verifyProblems(spec: DesignSpec): string[] {
   }
   return out.slice(0, 10);
 }
+
+// ---------------------------------------------------------------- lab ideas for a class topic
+
+export const ideasSchema = z.object({
+  ideas: z
+    .array(
+      z.object({
+        title: z.string().max(80),
+        /** one or two sentences on what they will build and what it teaches about the topic */
+        pitch: z.string().max(300),
+        kind: z.enum(["circuit", "mechanism", "assembly"]).default("circuit"),
+        level: z.enum(["beginner", "intermediate", "advanced"]).default("beginner"),
+        /** what goes into the Maker Studio planner to start this build */
+        buildPrompt: z.string().max(300),
+        /** the shop parts it needs, for the preview */
+        parts: z.array(z.string().max(30)).max(8).default([]),
+      })
+    )
+    .max(8),
+});
+export type LabIdeas = z.output<typeof ideasSchema>;
+
+const IDEAS_SYSTEM = `You suggest small hands-on builds a student can make and test in Sunroot's Maker Studio simulator (circuits with code, gear mechanisms, or 3D assemblies) that teach ONE class topic.
+RULES
+- Every idea must clearly teach the topic, be doable in 15–45 minutes, and work with ONLY parts from THE SHOP.
+- Give a spread: one easy first build, one that uses a knob or sensor (analogRead), one that needs a decision (if/else) or motion.
+- "buildPrompt" is a plain instruction a beginner could type, e.g. "a night light that turns on when the room gets dark, using a light sensor and an LED".
+- "parts" are shop part types only.
+Return ONLY JSON: {"ideas":[{"title":"…","pitch":"…","kind":"circuit","level":"beginner","buildPrompt":"…","parts":["led","resistor"]}]}.
+
+THE SHOP
+${shopIndex()}`;
+
+export async function suggestLabIdeas(params: { topic: string; description?: string; level?: string; userId: string }): Promise<LabIdeas["ideas"]> {
+  const res = await generateWithFallback({
+    task: "studio_build",
+    systemInstruction: IDEAS_SYSTEM,
+    userPrompt: `Class topic: ${params.topic.slice(0, 120)}\n${params.description ? `About it: ${params.description.slice(0, 400)}\n` : ""}Learner level: ${params.level || "beginner"}. Suggest 4 builds.`,
+    schema: ideasSchema,
+    temperature: 0.6,
+    userId: params.userId,
+  });
+  return res.data!.ideas
+    .map((i) => ({ ...i, parts: i.parts.filter((t) => !!CATALOG_BY_TYPE[t]) }))
+    .filter((i) => i.title.trim() && i.buildPrompt.trim().length >= 4)
+    .slice(0, 5);
+}
