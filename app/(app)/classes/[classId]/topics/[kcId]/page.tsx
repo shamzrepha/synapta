@@ -369,7 +369,7 @@ export default function TopicPage({
 
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode; step?: number; onOpen?: () => void }> = [
     { key: "learn", label: "Read & listen", step: 1, icon: <BookOpen className="h-4 w-4" /> },
-    { key: "simulate", label: "Watch & play", step: 2, icon: <Gamepad2 className="h-4 w-4" /> },
+    { key: "simulate", label: "Simulation", step: 2, icon: <Gamepad2 className="h-4 w-4" /> },
     {
       key: "flashcards",
       label: "Flashcards",

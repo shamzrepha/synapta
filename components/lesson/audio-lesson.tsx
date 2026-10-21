@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Headphones, Play, Pause, SkipBack, SkipForward, Loader2, RotateCw, Sparkles } from "lucide-react";
+import { Headphones, Play, Pause, SkipBack, SkipForward, Loader2, RotateCw, Sparkles, Pencil, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -134,6 +134,59 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
     playerRef.current?.jump(clamped);
   };
 
+  const [editing, setEditing] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [recordingNote, setRecordingNote] = useState("");
+
+  /**
+   * A long podcast is voiced part by part. One request records what fits in its time, so keep asking for the rest until
+   * every line has its voice (or it stops making progress), instead of leaving the teacher to press a button again.
+   */
+  const keepRecording = async (start: Lesson) => {
+    let current = start;
+    let stuck = 0;
+    for (let round = 0; round < 8; round++) {
+      const left = current.turns.filter((t) => !t.hasAudio).length;
+      if (!left) break;
+      setRecordingNote(`Voicing the last ${left} line${left > 1 ? "s" : ""}…`);
+      try {
+        const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recordMissing: true }) });
+        const data = await res.json().catch(() => null);
+        if (!data?.ok) break;
+        const next = data.data.lesson as Lesson;
+        const nowLeft = next.turns.filter((t) => !t.hasAudio).length;
+        stuck = nowLeft >= left ? stuck + 1 : 0;
+        current = next;
+        setPayload((p) => (p ? { ...p, lesson: next } : p));
+        if (stuck >= 2) break;
+      } catch {
+        break;
+      }
+    }
+    setRecordingNote("");
+  };
+
+  /** Removes one line, or rewrites it and re-voices just that line. */
+  const editLine = async (body: { removeTurn?: number; updateTurn?: { index: number; text: string } }) => {
+    setGenerating(true);
+    stopAll();
+    setPlaying(false);
+    try {
+      const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await res.json().catch(() => null);
+      if (data?.ok) {
+        setPayload((p) => (p ? { ...p, lesson: data.data.lesson } : p));
+        setEditing(null);
+        toast({ title: body.removeTurn !== undefined ? "Line removed" : "Line updated and re-voiced", description: "Push when you're happy with it so students get the change.", variant: "success" });
+        await keepRecording(data.data.lesson as Lesson);
+      } else toast({ title: "Couldn't change the podcast", description: data?.error?.message || "Try again in a moment.", variant: "destructive" });
+    } catch {
+      toast({ title: "Couldn't change the podcast", description: "Check your connection and try again.", variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const [focus, setFocus] = useState("");
   const [showFocus, setShowFocus] = useState(false);
 
@@ -150,6 +203,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
         setPayload((p) => (p ? { ...p, lesson: data.data.lesson } : p));
         setFocus("");
         toast({ title: "Added to the podcast 🎧", description: "Press play to hear the new part. Push it when you're happy with it.", variant: "success" });
+        await keepRecording(data.data.lesson as Lesson);
       } else toast({ title: "Couldn't add to the podcast", description: data?.error?.message || "Try again in a moment.", variant: "destructive" });
     } catch {
       toast({ title: "Couldn't add to the podcast", description: "Check your connection and try again.", variant: "destructive" });
@@ -174,6 +228,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
           setPayload((p) => (p ? { ...p, lesson: data.data.lesson } : p));
           setIndex(0);
           toast({ title: "Audio lesson ready 🎧", variant: "success" });
+          await keepRecording(data.data.lesson as Lesson);
           return;
         }
         if (data?.error?.code === "AUDIO_GENERATING" || data?.error?.code === "AUDIO_EXISTS" || !data) {
@@ -252,6 +307,11 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
           )}
         </div>
 
+        {recordingNote && (
+          <p className="mt-3 text-xs flex items-center gap-2 text-indigo-700 dark:text-indigo-300" role="status">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> {recordingNote}
+          </p>
+        )}
         {lesson && payload.canManage && (
           <p className={cn("mt-3 text-xs flex flex-wrap items-center gap-2", missing ? "text-amber-700 dark:text-amber-300" : "text-slate-500")}>
             {missing ? `${lesson.turns.length - missing}/${lesson.turns.length} lines recorded. The rest stay silent until they are recorded.` : `All ${lesson.turns.length} lines are recorded and saved once — every student replays the same files.`}
@@ -318,7 +378,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
               data-turn={i}
               onClick={() => jump(i)}
               className={cn(
-                "flex gap-2 rounded-xl p-2 cursor-pointer transition-colors",
+                "flex flex-wrap gap-2 rounded-xl p-2 cursor-pointer transition-colors",
                 i === index ? "bg-teal-500/10" : "hover:bg-slate-50 dark:hover:bg-slate-900"
               )}
             >
@@ -332,8 +392,36 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
               </span>
               <p className={cn("text-sm leading-relaxed", i === index ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400")}>
                 <span className="font-semibold">{t.speaker === "teacher" ? lesson.teacherName : lesson.studentName}: </span>
-                {t.text}
+                {editing === i ? null : t.text}
+                {!t.hasAudio && <span className="ml-1 text-[10px] font-bold text-amber-600">not voiced yet</span>}
               </p>
+              {payload.canManage && editing !== i && (
+                <span className="ml-auto flex shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" aria-label={`Edit line ${i + 1}`} disabled={generating} onClick={() => { setEditing(i); setEditText(t.text); }} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove line ${i + 1}`}
+                    disabled={generating || lesson.turns.length <= 2}
+                    onClick={() => { if (window.confirm("Remove this line from the podcast?")) editLine({ removeTurn: i }); }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              )}
+              {editing === i && (
+                <div className="basis-full space-y-2" onClick={(e) => e.stopPropagation()}>
+                  <textarea value={editText} onChange={(e) => setEditText(e.target.value)} maxLength={1600} rows={4} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-sm" aria-label={`Text of line ${i + 1}`} />
+                  <div className="flex gap-2">
+                    <Button size="sm" disabled={editText.trim().length < 2 || generating} isLoading={generating} onClick={() => editLine({ updateTurn: { index: i, text: editText.trim() } })}>
+                      Save &amp; re-voice this line
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ol>

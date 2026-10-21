@@ -16,37 +16,8 @@ import { normalizeQuizQuestions, type NormalizedQuizQuestion } from "@/lib/quiz/
 
 export const MAX_SIM_HTML_BYTES = 400_000;
 
-export const SIM_CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'";
-
-/** Runs inside the sandbox; the parent only listens to messages from this exact iframe. */
-export const SIM_BRIDGE_SCRIPT = `<script>
-(function () {
-  function send(type, detail) {
-    try { parent.postMessage({ source: "sunroot-sim", type: type, detail: detail || null }, "*"); } catch (e) {}
-    try { parent.postMessage({ source: "synapta-sim", type: type, detail: detail || null }, "*"); } catch (e) {}
-  }
-  var bridge = {
-    complete: function (detail) { send("goal_complete", detail); },
-    progress: function (detail) { send("progress", detail); }
-  };
-  window.sunroot = bridge;
-  window.synapta = bridge;
-  window.addEventListener("error", function (e) { send("runtime_error", { message: String((e && e.message) || "Script error") }); });
-  // Sandboxed (opaque-origin) frames throw on storage access; give generated code a harmless stand-in.
-  try { window.localStorage.getItem("x"); } catch (e) {
-    var mem = {};
-    var fake = { getItem: function (k) { return k in mem ? mem[k] : null; }, setItem: function (k, v) { mem[k] = String(v); }, removeItem: function (k) { delete mem[k]; }, clear: function () { mem = {}; } };
-    try { Object.defineProperty(window, "localStorage", { value: fake }); Object.defineProperty(window, "sessionStorage", { value: fake }); } catch (e2) {}
-  }
-  window.alert = function (m) { send("progress", { message: String(m) }); };
-  window.confirm = function () { return true; };
-  window.prompt = function () { return null; };
-})();
-</script>`;
-
-/** Everything we add to the model's document. Kept as one exact string so edits can remove it again. */
-export const SIM_HEAD_INJECT = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${SIM_CSP}"><meta name="viewport" content="width=device-width, initial-scale=1">${SIM_BRIDGE_SCRIPT}`;
+import { SIM_CSP, SIM_BRIDGE_SCRIPT, SIM_HEAD_INJECT } from "./inject";
+export { SIM_CSP, SIM_BRIDGE_SCRIPT, SIM_HEAD_INJECT };
 
 /** Returns the simulation's own code, without our CSP/bridge, so the AI edits only what it wrote. */
 export function stripHostInjection(html: string): string {
@@ -102,7 +73,14 @@ OUTPUT FORMAT (strict):
   The checkQuestion tests understanding the learner gains BY USING the simulation (e.g. predict what happens when a variable changes). Exactly 4 options, exactly one correct.
 
 HARD TECHNICAL RULES:
-1. Everything inline: one <style> and one or more inline <script> blocks. NO external URLs of any kind (no CDNs, fonts, images, fetch, XHR, WebSocket). Draw with <canvas> 2D or inline SVG. Images only as data: URIs if truly needed.
+1. Everything inline: one <style> and one or more inline <script> blocks. NO external URLs of any kind (no CDNs, fonts, images, fetch, XHR, WebSocket, no <script src>). Images only as data: URIs if truly needed.
+1b. LOOK: for anything physical or spatial (circuits, machines, forces, motion, optics, geometry, anatomy, structures) build a SOLID, LIT 3D scene, the same look as our Maker Studio, using the pre-loaded globals (do not import or load them):
+   - \`THREE\` (three.js) and \`SimKit3D\`. Start with: const kit = SimKit3D.create(document.getElementById("stage")); // "stage" is a div you size with CSS (e.g. height: 60vh). It gives you studio lighting, soft shadows, a grid floor and drag-to-orbit/zoom for free.
+   - kit.box(w,h,d,color), kit.cylinder(r,h,color), kit.sphere(r,color), kit.tube([[x,y,z],...], radius, color) add lit, shadow-casting parts (1 unit = 1 metre or 1 cm, your choice, keep objects 1-10 units so the default camera frames them). kit.material(color,{emissive,emissiveIntensity}) for glowing parts. kit.lookAt(x,y,z,distance) frames the scene.
+   - Animate inside kit.onFrame((dt, t) => { ... }) using real physics; never a second requestAnimationFrame loop for the 3D scene.
+   - Parts must look like the real thing (a resistor with colour bands, a lens, a spring coil, a pendulum bob on a rod), not plain blocks. Never use wireframes or transparent boxes.
+   - Put sliders, buttons, readouts and the goal as normal HTML overlaid on or beside the stage. Do NOT use <canvas> 2D for physical scenes.
+   For abstract topics (algorithms, economics, timelines, graphs, plots) use <canvas> 2D or inline SVG instead; you can also add a small 2D graph beside a 3D scene.
 2. Do NOT use localStorage, sessionStorage, cookies, alert(), confirm(), prompt(), window.open or forms that submit.
 3. Responsive: the page fills 100% of the frame width; the main stage keeps a sensible aspect ratio and re-renders on window resize. Must work at 360px wide (phones) and on wide screens. Support mouse AND touch (pointer events).
 4. Smooth animation with requestAnimationFrame and a real time step (dt). Pause/Play and Reset buttons.
@@ -251,7 +229,8 @@ export function sanitizeSimulationHtml(input: string): string {
 }
 
 export function looksLikeRunnableSimulation(html: string): boolean {
-  return /<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]{200,}?<\/script>/i.test(html) && /<(canvas|svg)\b/i.test(html);
+  // a 3D simulation draws into a canvas that SimKit3D creates, so the page itself may have no <canvas> tag
+  return /<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]{200,}?<\/script>/i.test(html) && (/<(canvas|svg)\b/i.test(html) || /\bSimKit3D\b|\bTHREE\./.test(html));
 }
 
 /** Full pipeline from raw model text to a stored simulation. Returns null if the output is unusable. */

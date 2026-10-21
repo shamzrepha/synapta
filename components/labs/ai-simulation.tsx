@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
+import { frameHtmlFor } from "@/lib/sim/runtime3d";
 import {
   Sparkles,
   Maximize2,
@@ -118,6 +119,23 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
   const [ideas, setIdeas] = useState<SimIdeas | null>(null);
   const [loadingIdeas, setLoadingIdeas] = useState(false);
   const [frameKey, setFrameKey] = useState(0);
+  // the html shown in the frame: 3D simulations get the Maker Studio 3D runtime added (the sandbox can't load it itself)
+  const [frameHtml, setFrameHtml] = useState<string | null>(null);
+  const simHtml = sim?.html;
+  useEffect(() => {
+    if (!simHtml) return;
+    let alive = true;
+    const t = setTimeout(() => {
+      if (alive) setFrameHtml(null);
+      frameHtmlFor(simHtml)
+        .then((h) => alive && setFrameHtml(h))
+        .catch(() => alive && setFrameHtml(simHtml));
+    }, 0);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [simHtml]);
   const [goalReached, setGoalReached] = useState<{ score?: number; level?: number } | null>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [showHowTo, setShowHowTo] = useState(true);
@@ -610,17 +628,23 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
       )}
 
       <div ref={stageRef} className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-[#0b0f14] shadow-lg">
-        <iframe
-          key={frameKey}
-          ref={frameRef}
-          title={sim.title || `${topicTitle} simulation`}
-          srcDoc={sim.html}
-          // allow-scripts WITHOUT allow-same-origin: the simulation runs in an opaque origin and
-          // cannot read cookies, storage or anything in the app.
-          sandbox="allow-scripts allow-pointer-lock"
-          referrerPolicy="no-referrer"
-          className="w-full h-[min(75vh,640px)] min-h-[420px] block bg-[#0b0f14]"
-        />
+        {frameHtml ? (
+          <iframe
+            key={frameKey}
+            ref={frameRef}
+            title={sim.title || `${topicTitle} simulation`}
+            srcDoc={frameHtml}
+            // allow-scripts WITHOUT allow-same-origin: the simulation runs in an opaque origin and
+            // cannot read cookies, storage or anything in the app.
+            sandbox="allow-scripts allow-pointer-lock"
+            referrerPolicy="no-referrer"
+            className="w-full h-[min(75vh,640px)] min-h-[420px] block bg-[#0b0f14]"
+          />
+        ) : (
+          <div className="w-full h-[min(75vh,640px)] min-h-[420px] flex items-center justify-center text-xs text-slate-400" role="status">
+            Loading the simulation…
+          </div>
+        )}
       </div>
 
       {runtimeError && (
