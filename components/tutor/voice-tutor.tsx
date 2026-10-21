@@ -7,6 +7,7 @@ import { ExplainLevelToggle, useExplainLevel } from "@/components/study/explain-
 import { useToast } from "@/components/ui/toast";
 import { createSpeaker, type Speaker } from "@/lib/audio/speak";
 import { collectTranscript, getRecognitionCtor, type RecognitionLike } from "@/lib/voice/speech";
+import { MIC_HELP, checkMic, problemFromRecognitionError, type MicHelp } from "@/lib/voice/mic";
 import { cn } from "@/lib/utils";
 
 interface Msg {
@@ -30,6 +31,9 @@ export function VoiceTutor() {
   const [interim, setInterim] = useState("");
   const [handsFree, setHandsFree] = useState(false);
   const [typed, setTyped] = useState("");
+  // why the microphone isn't working, with what to do about it
+  const [micIssue, setMicIssue] = useState<MicHelp | null>(null);
+  const checking = useRef(false);
 
   const recRef = useRef<RecognitionLike | null>(null);
   const heardRef = useRef("");
@@ -92,10 +96,22 @@ export function VoiceTutor() {
     );
   };
 
-  const listen = () => {
+  const listen = async () => {
     const Ctor = getRecognitionCtor(window);
-    if (!Ctor || recRef.current) return;
+    if (!Ctor || recRef.current || checking.current) return;
     stopSpeaking();
+    // Ask the browser for the microphone first: this shows the permission prompt and tells us exactly what is wrong
+    // (blocked for the site, no microphone, another app using it) instead of a vague "blocked" later.
+    checking.current = true;
+    const mic = await checkMic();
+    checking.current = false;
+    if (!mic.ok) {
+      setMicIssue({ problem: mic.problem, title: mic.title, help: mic.help });
+      setHandsFree(false);
+      return;
+    }
+    setMicIssue(null);
+    if (recRef.current) return;
     const rec = new Ctor();
     rec.lang = navigator.language || "en-US";
     rec.continuous = false;
@@ -109,10 +125,11 @@ export function VoiceTutor() {
     };
     rec.onerror = (e) => {
       failed = true;
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
-        toast({ title: "Microphone blocked", description: "Allow microphone access, or type your question instead.", variant: "destructive" });
+      const problem = problemFromRecognitionError(e.error);
+      if (problem && problem !== "unknown") {
+        setMicIssue(MIC_HELP[problem]);
         setHandsFree(false);
-      } else if (e.error !== "no-speech" && e.error !== "aborted") {
+      } else if (problem === "unknown") {
         toast({ title: "Couldn't hear that", description: "Try again or type your question.", variant: "amber" });
       }
     };
@@ -238,6 +255,20 @@ export function VoiceTutor() {
       </div>
 
       <div className="border-t border-slate-100 dark:border-slate-800 p-3 space-y-3">
+        {micIssue && (
+          <div role="alert" className="rounded-xl border border-rose-300 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/40 p-3 text-sm space-y-2">
+            <p className="font-bold text-rose-700 dark:text-rose-300">{micIssue.title}</p>
+            <p className="text-xs text-rose-700/90 dark:text-rose-200/90 leading-relaxed">{micIssue.help}</p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => { setMicIssue(null); listen(); }} className="h-9 px-3 rounded-lg bg-rose-600 text-white text-xs font-semibold">
+                Check again
+              </button>
+              <button type="button" onClick={() => setMicIssue(null)} className="h-9 px-3 rounded-lg border border-rose-300 dark:border-rose-800 text-xs font-semibold text-rose-700 dark:text-rose-300">
+                I&apos;ll type instead
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-center gap-4">
           {speaking ? (
             <button type="button" onClick={stopSpeaking} className="h-12 px-4 rounded-full border border-rose-300 text-rose-600 text-sm font-semibold flex items-center gap-2">
