@@ -216,8 +216,10 @@ export type LabIdeas = z.output<typeof ideasSchema>;
 
 const IDEAS_SYSTEM = `You suggest small hands-on builds a student can make and test in Sunroot's Maker Studio simulator (circuits with code, gear mechanisms, or 3D assemblies) that teach ONE class topic.
 RULES
+- Think like a real teacher planning a practical for this exact topic: what would they bring into the room and demonstrate or let students build? Every idea must be a REAL-LIFE, practical thing a teacher would actually show (a working model of how something in the world works), not a generic gadget. Name the real-world object it models.
 - Every idea must clearly teach the topic, be doable in 15–45 minutes, and work with ONLY parts from THE SHOP.
-- Give a spread: one easy first build, one that uses a knob or sensor (analogRead), one that needs a decision (if/else) or motion.
+- Fit the KIND to the topic. A mechanical or physical topic (forces, levers, gears, pulleys, structures, simple machines) gets "mechanism" or "assembly" ideas with NO electronics and NO code. Only use "circuit" when electronics or programming really is the topic (circuits, sensors, control, automation). Never add a board, LED or code to an idea just to fill it in.
+- Give a spread that suits the topic: an easy first build, then one that goes deeper (a measurement, a knob or sensor, or a decision) only if it belongs to the topic.
 - "buildPrompt" is a plain instruction a beginner could type, e.g. "a night light that turns on when the room gets dark, using a light sensor and an LED".
 - "parts" are shop part types only.
 Return ONLY JSON: {"ideas":[{"title":"…","pitch":"…","kind":"circuit","level":"beginner","buildPrompt":"…","parts":["led","resistor"]}]}.

@@ -97,8 +97,10 @@ export async function GET(req: NextRequest) {
 
       if (caller.role === "teacher" || caller.role === "admin") {
         // Teacher view: get classes they created or co-teach, PLUS any classes they are actively enrolled in
+        const isAdminCaller = caller.role === "admin";
         const [ownedSnap, coSnap, enrollmentsSnap] = await Promise.all([
-          adminDb().collection("classes").where("teacherId", "==", caller.uid).get(),
+          // an administrator sees every class (they can open, edit and publish any of them)
+          isAdminCaller ? adminDb().collection("classes").limit(500).get() : adminDb().collection("classes").where("teacherId", "==", caller.uid).get(),
           adminDb().collection("classes").where("coTeacherIds", "array-contains", caller.uid).get(),
           adminDb().collection("enrollments").where("uid", "==", caller.uid).where("status", "==", "active").get(),
         ]);
@@ -106,6 +108,14 @@ export async function GET(req: NextRequest) {
         const classMap = new Map<string, Record<string, unknown>>();
         for (const doc of ownedSnap.docs) {
           classMap.set(doc.id, { id: doc.id, ...doc.data(), isOwner: true, userEnrollmentStatus: "none" });
+        }
+        if (isAdminCaller) {
+          // classes the admin joined as a student keep their student status
+          for (const e of enrollmentsSnap.docs) {
+            const cid = e.data().classId as string;
+            const cur = classMap.get(cid);
+            if (cur && cur.teacherId !== caller.uid) classMap.set(cid, { ...cur, isOwner: true, userEnrollmentStatus: "active" });
+          }
         }
         for (const doc of coSnap.docs) {
           classMap.set(doc.id, { id: doc.id, ...doc.data(), isOwner: true, userEnrollmentStatus: "none" });
@@ -175,7 +185,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Default: explore scope (retrieves published classes with limit 50)
-    const snap = await adminDb().collection("classes").limit(50).get();
+    const snap = await adminDb().collection("classes").limit(caller?.role === "admin" ? 500 : 50).get();
 
     // Map user enrollment status if signed in
     const userEnrollments: Record<string, string> = {};

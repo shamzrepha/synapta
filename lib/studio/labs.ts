@@ -4,7 +4,8 @@ import { ApiError } from "@/lib/api/errors";
 import type { AuthUser } from "@/lib/auth/requireUser";
 import { createDesign } from "./store";
 import { getTemplate, templateStart } from "./templates";
-import { parseSpec } from "./spec";
+import { parseSpec, type DesignSpec } from "./spec";
+import { proofSpec } from "./proof";
 
 /**
  * Class topic labs: a topic is broken into small build "worlds" (subtopic labs). Each lab points
@@ -39,35 +40,53 @@ export async function readLabs(classId: string, kcId: string): Promise<Lab[]> {
   return raw.map((l: unknown) => labSchema.safeParse(l)).filter((r: { success: boolean }) => r.success).map((r: { data?: Lab }) => r.data!);
 }
 
-/** The caller's own copy of a lab, creating it on first start. */
-export async function startLab(user: AuthUser, classId: string, kcId: string, lab: Lab): Promise<string> {
-  const db = adminDb();
-  const existing = await db.collection("designs").where("ownerUid", "==", user.uid).where("labId", "==", `${classId}/${kcId}/${lab.id}`).limit(1).get();
-  if (!existing.empty) return existing.docs[0].id;
-  let spec;
-  let forkedFrom = null;
+/** The teacher's version of a lab (the pushed snapshot when there is one). Never shown to a learner doing "Prove it". */
+async function labReference(lab: Lab): Promise<{ spec: DesignSpec; forkedFrom: { id: string; title: string; ownerName: string; commitId: string } | null }> {
   if (lab.designId) {
-    const src = await db.collection("designs").doc(lab.liveDesignId || lab.designId).get();
+    const src = await adminDb().collection("designs").doc(lab.liveDesignId || lab.designId).get();
     if (!src.exists) throw new ApiError(404, "NOT_FOUND", "This lab's design was removed by the teacher.");
-    spec = parseSpec(src.data()!.spec);
-    forkedFrom = { id: lab.designId, title: String(src.data()!.title), ownerName: String(src.data()!.ownerName), commitId: String(src.data()!.headCommitId) };
-  } else {
-    const t = getTemplate(lab.templateId || "");
-    if (!t) throw new ApiError(404, "NOT_FOUND", "Lab template not found");
-    spec = templateStart(t, true);
+    return {
+      spec: parseSpec(src.data()!.spec),
+      forkedFrom: { id: lab.designId, title: String(src.data()!.title), ownerName: String(src.data()!.ownerName), commitId: String(src.data()!.headCommitId) },
+    };
+  }
+  const t = getTemplate(lab.templateId || "");
+  if (!t) throw new ApiError(404, "NOT_FOUND", "Lab template not found");
+  return { spec: templateStart(t, true), forkedFrom: null };
+}
+
+/** Marks a design as the "rebuild it yourself" copy of a lab, so it never collides with the guided copy. */
+export const proofLabKey = (classId: string, kcId: string, labId: string) => `${classId}/${kcId}/${labId}~proof`;
+
+/**
+ * The caller's own copy of a lab, creating it on first start. With `proof`, the copy starts from an empty bench and the
+ * learner has to buy, place, wire and program everything themselves.
+ */
+export async function startLab(user: AuthUser, classId: string, kcId: string, lab: Lab, opts: { proof?: boolean } = {}): Promise<string> {
+  const db = adminDb();
+  const labKey = opts.proof ? proofLabKey(classId, kcId, lab.id) : `${classId}/${kcId}/${lab.id}`;
+  const existing = await db.collection("designs").where("ownerUid", "==", user.uid).where("labId", "==", labKey).limit(1).get();
+  if (!existing.empty) return existing.docs[0].id;
+  const ref = await labReference(lab);
+  let spec = ref.spec;
+  if (opts.proof) {
+    const empty = proofSpec(spec);
+    if (!empty) throw new ApiError(409, "PROOF_UNAVAILABLE", "This build can't be rebuilt from scratch yet. Use Build & test for it.");
+    spec = empty;
   }
   return createDesign({
     user,
-    title: lab.title,
+    title: opts.proof ? `Prove it: ${lab.title}` : lab.title,
     spec,
-    source: lab.designId ? "fork" : "template",
-    message: `Started lab “${lab.title}”`,
+    source: opts.proof ? "template" : lab.designId ? "fork" : "template",
+    message: opts.proof ? `Started “${lab.title}” from an empty bench` : `Started lab “${lab.title}”`,
     visibility: "class",
     classId,
     kcId,
-    templateId: lab.templateId,
-    forkedFrom,
-    labId: `${classId}/${kcId}/${lab.id}`,
+    templateId: opts.proof ? null : lab.templateId,
+    // the learner's rebuild never points back at the teacher's design
+    forkedFrom: opts.proof ? null : ref.forkedFrom,
+    labId: labKey,
   });
 }
 

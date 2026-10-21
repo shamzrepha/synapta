@@ -164,8 +164,20 @@ class ArduinoGenerator extends Blockly.CodeGenerator {
       .getVariableMap().getAllVariables()
       .map((v) => `int ${this.nameDB_!.getName(v.getId(), Blockly.Names.NameType.VARIABLE)} = 0;\n`)
       .join("");
-    const code = `${vars}${vars ? "\n" : ""}void setup() {\n${pinLines}${setupBody}}\n\nvoid loop() {\n${loopBody}}\n`;
+    const functions = tops
+      .filter((b) => b.type === "procedures_defnoreturn" || b.type === "procedures_defreturn")
+      .map((b) => this.functionToCode(b as ProcBlock))
+      .join("\n");
+    const code = `${vars}${vars ? "\n" : ""}${functions}${functions ? "\n" : ""}void setup() {\n${pinLines}${setupBody}}\n\nvoid loop() {\n${loopBody}}\n`;
     return code;
+  }
+
+  private functionToCode(b: Blockly.Block & { getProcedureDef(): [string, string[], boolean] }): string {
+    const [name, args, returns] = b.getProcedureDef();
+    const params = args.map((a) => `int ${this.nameDB_!.getName(a, Blockly.Names.NameType.VARIABLE)}`).join(", ");
+    const body = this.statementToCode(b, "STACK");
+    const ret = returns ? `${this.INDENT}return ${this.valueToCode(b, "RETURN", 99) || "0"};\n` : "";
+    return `${returns ? "int" : "void"} ${this.nameDB_!.getName(name, Blockly.Names.NameType.PROCEDURE)}(${params}) {\n${body}${ret}}\n`;
   }
 
   override scrub_(block: Blockly.Block, code: string, thisOnly?: boolean): string {
@@ -264,6 +276,48 @@ forBlock["math_random_int"] = (b) => [`random(${val(b, "FROM", "1")}, ${val(b, "
 forBlock["variables_get"] = (b) => [G.getVariableName(b.getFieldValue("VAR")), ATOM];
 forBlock["variables_set"] = (b) => `${G.getVariableName(b.getFieldValue("VAR"))} = ${val(b, "VALUE")};\n`;
 forBlock["text"] = (b) => [JSON.stringify(String(b.getFieldValue("TEXT") ?? "")), ATOM];
+forBlock["text_join"] = (b) => {
+  const n = (b as unknown as { itemCount_?: number }).itemCount_ ?? 2;
+  const parts = Array.from({ length: n }, (_, i) => `String(${G.valueToCode(b, `ADD${i}`, NONE) || '""'})`);
+  return [parts.length ? `(${parts.join(" + ")})` : '""', ATOM];
+};
+
+// more of Blockly's standard maths and logic
+forBlock["math_change"] = (b) => `${G.getVariableName(b.getFieldValue("VAR"))} += ${val(b, "DELTA", "1")};\n`;
+forBlock["math_single"] = (b) => {
+  const x = val(b, "NUM");
+  const f: Record<string, string> = { ROOT: `sqrt(${x})`, ABS: `abs(${x})`, NEG: `(-${x})`, LN: `log(${x})`, LOG10: `(log(${x}) / log(10))`, EXP: `exp(${x})`, POW10: `pow(10, ${x})` };
+  return [f[b.getFieldValue("OP")] || x, ATOM];
+};
+forBlock["math_round"] = (b) => {
+  const fn = ({ ROUND: "round", ROUNDUP: "ceil", ROUNDDOWN: "floor" } as Record<string, string>)[b.getFieldValue("OP")] || "round";
+  return [`${fn}(${val(b, "NUM")})`, ATOM];
+};
+forBlock["math_trig"] = (b) => {
+  const fn = ({ SIN: "sin", COS: "cos", TAN: "tan" } as Record<string, string>)[b.getFieldValue("OP")] || "sin";
+  return [`${fn}(radians(${val(b, "NUM")}))`, ATOM];
+};
+forBlock["math_constant"] = (b) => [b.getFieldValue("CONSTANT") === "E" ? "2.718281828" : "PI", ATOM];
+forBlock["math_number_property"] = (b) => {
+  const n = val(b, "NUMBER_TO_CHECK");
+  const p = b.getFieldValue("PROPERTY");
+  const e: Record<string, string> = { EVEN: `(${n} % 2 == 0)`, ODD: `(${n} % 2 != 0)`, POSITIVE: `(${n} > 0)`, NEGATIVE: `(${n} < 0)`, DIVISIBLE_BY: `(${n} % ${val(b, "DIVISOR", "1")} == 0)` };
+  return [e[p] || "false", ATOM];
+};
+forBlock["logic_ternary"] = (b) => [`(${val(b, "IF", "false")} ? ${val(b, "THEN")} : ${val(b, "ELSE")})`, ATOM];
+
+// functions (Blockly's standard "procedure" blocks): written before setup() as typed C++ functions
+type ProcBlock = Blockly.Block & { getProcedureDef(): [string, string[], boolean]; getProcedureCall(): string; arguments_?: string[]; hasReturnValue_?: boolean };
+const procName = (n: string) => G.nameDB_!.getName(n, Blockly.Names.NameType.PROCEDURE);
+const callArgs = (b: Blockly.Block) => ((b as ProcBlock).arguments_ || []).map((_, i) => val(b, `ARG${i}`)).join(", ");
+forBlock["procedures_defnoreturn"] = () => null;
+forBlock["procedures_defreturn"] = () => null;
+forBlock["procedures_callnoreturn"] = (b) => `${procName((b as ProcBlock).getProcedureCall())}(${callArgs(b)});\n`;
+forBlock["procedures_callreturn"] = (b) => [`${procName((b as ProcBlock).getProcedureCall())}(${callArgs(b)})`, ATOM];
+forBlock["procedures_ifreturn"] = (b) => {
+  const hasValue = !!(b as ProcBlock).hasReturnValue_;
+  return `if (${val(b, "CONDITION", "false")}) {\n${G.INDENT}return${hasValue ? ` ${val(b, "VALUE")}` : ""};\n}\n`;
+};
 
 /** A workspace state (as saved by Blockly) → the Arduino sketch it makes. Works without a browser. */
 export function blocklyToCode(state: unknown): string {
@@ -288,7 +342,7 @@ export function toolbox(): Blockly.utils.toolbox.ToolboxInfo {
       { kind: "category", name: "Pins", colour: String(COLOURS.pins), contents: [block("io_digital_write"), block("io_analog_write", { inputs: { VALUE: num(200) } }), block("io_analog_read"), block("io_digital_read"), block("io_button")] },
       { kind: "category", name: "Wait", colour: String(COLOURS.wait), contents: [block("io_delay", { inputs: { MS: num(1000) } }), block("io_wait_until"), block("io_millis")] },
       { kind: "category", name: "Control", colour: String(COLOURS.loops), contents: [block("controls_if"), block("controls_if", { extraState: { hasElse: true } }), block("controls_repeat_ext", { inputs: { TIMES: num(3) } }), block("controls_whileUntil"), block("controls_for", { inputs: { FROM: num(1), TO: num(10), BY: num(1) } }), block("controls_flow_statements")] },
-      { kind: "category", name: "Logic", colour: String(COLOURS.logic), contents: [block("logic_compare"), block("logic_operation"), block("logic_negate"), block("logic_boolean")] },
+      { kind: "category", name: "Logic", colour: String(COLOURS.logic), contents: [block("logic_compare"), block("logic_operation"), block("logic_negate"), block("logic_boolean"), block("logic_ternary")] },
       {
         kind: "category",
         name: "Math",
@@ -300,12 +354,18 @@ export function toolbox(): Blockly.utils.toolbox.ToolboxInfo {
           block("io_map", { inputs: { IN_LOW: num(0), IN_HIGH: num(1023), OUT_LOW: num(0), OUT_HIGH: num(255) } }),
           block("math_constrain", { inputs: { LOW: num(0), HIGH: num(255) } }),
           block("math_random_int", { inputs: { FROM: num(1), TO: num(100) } }),
+          block("math_single", { inputs: { NUM: num(9) } }),
+          block("math_round", { inputs: { NUM: num(3.7) } }),
+          block("math_trig", { inputs: { NUM: num(45) } }),
+          block("math_number_property", { inputs: { NUMBER_TO_CHECK: num(7) } }),
+          block("math_constant"),
           block("code_expr"),
         ],
       },
       { kind: "category", name: "Variables", colour: String(COLOURS.vars), custom: "VARIABLE" },
+      { kind: "category", name: "Functions", colour: "290", custom: "PROCEDURE" },
       { kind: "category", name: "Sound & motion", colour: String(COLOURS.sound), contents: [block("io_tone", { inputs: { HZ: num(440) } }), block("io_notone"), block("io_servo", { inputs: { ANGLE: num(90) } })] },
-      { kind: "category", name: "Message", colour: String(COLOURS.text), contents: [block("io_print"), block("text")] },
+      { kind: "category", name: "Message", colour: String(COLOURS.text), contents: [block("io_print"), block("text"), block("text_join")] },
     ],
   };
 }

@@ -6,7 +6,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { notify, notifyMany } from "@/lib/notifications/server";
 import { z } from "zod";
 
-const bodySchema = z.object({ code: z.string().trim().max(40).optional() }).default({});
+const bodySchema = z.object({ code: z.string().trim().max(40).optional(), as: z.enum(["student", "teacher"]).optional() }).default({});
 
 export const runtime = "nodejs";
 
@@ -19,6 +19,7 @@ export async function POST(
     const caller = await requireUser(req);
     const parsedBody = bodySchema.safeParse(await req.json().catch(() => ({})));
     const inviteCode = parsedBody.success ? parsedBody.data.code?.toUpperCase() || "" : "";
+    const joinAs = parsedBody.success ? parsedBody.data.as || "student" : "student";
 
     const rateLimitRes = await checkRateLimit(req, {
       keyPrefix: "class_join",
@@ -48,11 +49,22 @@ export async function POST(
       }
 
       const isCoTeacher = Array.isArray(classData.coTeacherIds) && classData.coTeacherIds.includes(caller.uid);
-      if (classData.teacherId === caller.uid || isCoTeacher || caller.role === "admin") {
+      const isAdmin = caller.role === "admin";
+
+      // Administrators can step into any class as a co-teacher
+      if (joinAs === "teacher") {
+        if (!isAdmin) throw new ApiError(403, "FORBIDDEN", "Only administrators can join a class as a teacher.");
+        if (classData.teacherId === caller.uid || isCoTeacher) return { status: "teacher", message: "You already teach this class" };
+        t.update(classRef, { coTeacherIds: FieldValue.arrayUnion(caller.uid), updatedAt: Timestamp.now() });
+        return { status: "teacher", message: "You are now a co-teacher of this class" };
+      }
+
+      // Owners and co-teachers teach their own class; an administrator can still join anyone else's as a student
+      if (classData.teacherId === caller.uid || isCoTeacher) {
         throw new ApiError(
           403,
           "OWNER_CANNOT_ENROLL",
-          "Teachers and administrators cannot enroll as students in their own classes."
+          "Teachers cannot enroll as students in their own classes."
         );
       }
 
@@ -74,7 +86,8 @@ export async function POST(
       if (inviteCode && !validInvite && !isPublic) {
         throw new ApiError(400, "INVALID_CODE", "That invite code isn't valid for this class. Ask your teacher for a new link.");
       }
-      const autoAdmit = isPublic || validInvite;
+      // administrators skip the approval queue
+      const autoAdmit = isPublic || validInvite || isAdmin;
       const newStatus = autoAdmit ? "active" : "pending";
 
       t.set(

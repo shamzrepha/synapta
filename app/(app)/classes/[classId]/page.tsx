@@ -218,12 +218,15 @@ export default function ClassOverviewPage({
     }
   };
 
-  const handleJoin = async () => {
+  const handleJoin = async (as: "student" | "teacher" = "student") => {
     setIsJoining(true);
     try {
-      const res = await fetch(`/api/classes/${classId}/join`, { method: "POST" });
+      const res = await fetch(`/api/classes/${classId}/join`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ as }) });
       const data = await res.json();
-      if (data.ok) {
+      if (data.ok && data.data.status === "teacher") {
+        toast({ title: "You're a co-teacher", description: data.data.message, variant: "success" });
+        loadData({ silent: true });
+      } else if (data.ok) {
         setEnrollmentStatus(data.data.status);
         toast({
           title: data.data.status === "active" ? "Enrolled Successfully!" : "Join Request Sent",
@@ -471,11 +474,25 @@ export default function ClassOverviewPage({
               )}
             </div>
 
-            {/* Ownership is implicit: owners and admins never see 'Enroll' */}
+            {/* Administrators can see every class; they can also join one as a student (to experience it) or as a co-teacher */}
+            {!isOwner && user?.role === "admin" && (
+              <div className="flex flex-wrap gap-2">
+                {enrollmentStatus !== "active" && (
+                  <Button size="sm" variant="outline" onClick={() => handleJoin("student")} isLoading={isJoining}>
+                    Join as student
+                  </Button>
+                )}
+                <Button size="sm" variant="outline" onClick={() => handleJoin("teacher")} isLoading={isJoining}>
+                  Become co-teacher
+                </Button>
+              </div>
+            )}
+
+            {/* Owners never see 'Enroll'; admins get the buttons above */}
             {!isOwner && user?.role !== "admin" && enrollmentStatus !== "active" && (
               <Button
                 size="sm"
-                onClick={handleJoin}
+                onClick={() => handleJoin()}
                 isLoading={isJoining}
                 disabled={enrollmentStatus === "pending"}
               >

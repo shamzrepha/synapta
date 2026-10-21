@@ -229,6 +229,8 @@ export const checkSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("parts"), type: z.string(), min: z.number().int().min(1).default(1) }),
   z.object({ kind: z.literal("wired"), part: z.string() }),
   z.object({ kind: z.literal("noErrors") }),
+  /** every listed part type is placed in the required number AND the whole circuit is wired with no errors ("Prove it" rebuilds) */
+  z.object({ kind: z.literal("built"), needs: z.array(z.object({ type: z.string().max(30), min: z.number().int().min(1).max(40) })).min(1).max(20) }),
   z.object({ kind: z.literal("code") }),
   z.object({ kind: z.literal("test"), testId: z.string() }),
   z.object({ kind: z.literal("lifts") }),
