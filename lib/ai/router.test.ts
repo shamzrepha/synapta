@@ -205,6 +205,15 @@ describe("lib/ai/router & models (Fix Pack C1 & C2)", () => {
       ).rejects.toThrowError(AiQuotaExhaustedError);
     });
 
+    it("does not sit out a per-minute rate limit when the caller can't wait (live chat)", async () => {
+      // every model answers "slow down, retry in 15 s": a tutor chat must give up fast instead of waiting 15 s x models
+      mockGenerateContent.mockRejectedValue({ status: "RESOURCE_EXHAUSTED", message: "429 rate limit", details: [{ violations: [{ quotaId: "GenerateRequestsPerMinute" }], retryDelay: "15s" }] });
+      const started = Date.now();
+      await expect(generateWithFallback({ task: "tutor_chat", userPrompt: "hi", maxWaitMs: 1000 })).rejects.toBeTruthy();
+      expect(Date.now() - started).toBeLessThan(3000);
+      expect(mockGenerateContent.mock.calls.length).toBeGreaterThanOrEqual(1);
+    });
+
     it("handleAuthError never leaks raw provider JSON in user-facing message", () => {
       const rawError = new Error(
         JSON.stringify({

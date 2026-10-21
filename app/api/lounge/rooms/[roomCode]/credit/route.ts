@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
-import { applyEvidence } from "@/lib/evidence/apply";
+import { applyEvidenceIfEnrolled } from "@/lib/evidence/apply";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { z } from "zod";
 
@@ -85,7 +85,7 @@ export async function POST(
     });
 
     // Apply evidence to the target peer (+40 XP, Omega = 2.0)
-    const evidenceResult = await applyEvidence({
+    const evidenceResult = await applyEvidenceIfEnrolled({
       uid: targetUid,
       classId: roomData.classId,
       kcId: roomData.kcId,
@@ -107,7 +107,7 @@ export async function POST(
 
     return NextResponse.json({
       ok: true,
-      data: evidenceResult,
+      data: { ...(evidenceResult || {}), credited: !!evidenceResult },
     });
   } catch (error) {
     return handleAuthError(error);

@@ -140,6 +140,9 @@ FORMAT:
     systemInstruction,
     temperature: 0.4,
     userId: uid,
+    // a student is watching "Thinking…": answer, or say plainly that the AI is busy, within about 20 seconds
+    maxWaitMs: 12_000,
+    maxRetriesPerModel: 1,
   });
 
   let reply = (response.text || "").trim();

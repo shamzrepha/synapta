@@ -98,15 +98,16 @@ export async function GET(req: NextRequest) {
       if (caller.role === "teacher" || caller.role === "admin") {
         // Teacher view: get classes they created or co-teach, PLUS any classes they are actively enrolled in
         const isAdminCaller = caller.role === "admin";
-        const [ownedSnap, coSnap, enrollmentsSnap] = await Promise.all([
-          // an administrator sees every class (they can open, edit and publish any of them)
-          isAdminCaller ? adminDb().collection("classes").limit(500).get() : adminDb().collection("classes").where("teacherId", "==", caller.uid).get(),
+        const [ownedSnap, allSnap, coSnap, enrollmentsSnap] = await Promise.all([
+          adminDb().collection("classes").where("teacherId", "==", caller.uid).get(),
+          // an administrator also sees every other class (they can open, edit and publish any of them)
+          isAdminCaller ? adminDb().collection("classes").limit(500).get() : Promise.resolve(null),
           adminDb().collection("classes").where("coTeacherIds", "array-contains", caller.uid).get(),
           adminDb().collection("enrollments").where("uid", "==", caller.uid).where("status", "==", "active").get(),
         ]);
 
         const classMap = new Map<string, Record<string, unknown>>();
-        for (const doc of ownedSnap.docs) {
+        for (const doc of [...(allSnap?.docs || []), ...ownedSnap.docs]) {
           classMap.set(doc.id, { id: doc.id, ...doc.data(), isOwner: true, userEnrollmentStatus: "none" });
         }
         if (isAdminCaller) {

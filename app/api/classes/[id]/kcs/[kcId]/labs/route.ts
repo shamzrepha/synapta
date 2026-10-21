@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { bumpChannel } from "@/lib/live/server";
 import { getActiveStudentUids } from "@/lib/classes/members";
 import { notifyMany } from "@/lib/notifications/server";
-import { kcRef, newLabId, nowIso, proofLabKey, readLabs, snapshotLabDesign, type Lab } from "@/lib/studio/labs";
+import { kcRef, labCanProve, newLabId, nowIso, proofLabKey, readLabs, snapshotLabDesign, type Lab } from "@/lib/studio/labs";
 import { createDesign } from "@/lib/studio/store";
 import { getTemplate, templateStart } from "@/lib/studio/templates";
 import { generateDesign } from "@/lib/studio/design-ai";
@@ -39,11 +39,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         (roster[lab] ||= []).push({ uid: d.data().ownerUid, name: d.data().ownerName, designId: d.id, done: Object.values(prog).filter((p) => (p as { done?: boolean }).done).length });
       }
     }
+    // checked against each lab's real reference design, so "Prove it" is only offered when it can start
+    const provable = await Promise.all(labs.map((l) => labCanProve(l)));
     return NextResponse.json({
       ok: true,
       data: {
         canManage: access.canMutate,
-        labs: labs.map((l) => {
+        labs: labs.map((l, li) => {
           const d = myByLab.get(`${classId}/${kcId}/${l.id}`);
           const prog = d ? (d.data().progress || {})[caller.uid] || {} : {};
           const pd = myByLab.get(proofLabKey(classId, kcId, l.id));
@@ -51,7 +53,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           return {
             ...l,
             // "Prove it" (rebuild from an empty bench) is offered for circuit labs
-            canProve: l.kind === "circuit",
+            canProve: provable[li],
             myProofDesignId: pd?.id || null,
             myProofDone: Object.values(pprog).filter((p) => (p as { done?: boolean }).done).length,
             myDesignId: d?.id || null, myDone: Object.values(prog).filter((p) => (p as { done?: boolean }).done).length, roster: roster?.[l.id] || null };

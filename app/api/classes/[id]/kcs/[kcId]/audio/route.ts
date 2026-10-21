@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { parseJson } from "@/lib/api/errors";
-import { getAudioLesson, generateAudioLesson, extendAudioLesson, recordTurns } from "@/lib/lesson/audio";
+import { getAudioLesson, generateAudioLesson, extendAudioLesson, editAudioLesson, recordTurns } from "@/lib/lesson/audio";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -42,6 +42,10 @@ const schema = z.object({
   /** what the teacher wants the recording to cover; with `extend` it is added to the existing podcast */
   instructions: z.string().trim().max(800).optional(),
   extend: z.boolean().optional().default(false),
+  /** take one line out of the podcast */
+  removeTurn: z.number().int().min(0).max(200).optional(),
+  /** rewrite one line (it is re-voiced) */
+  updateTurn: z.object({ index: z.number().int().min(0).max(200), text: z.string().trim().min(2).max(1600) }).optional(),
 });
 
 /** Records the topic's audio lesson. Students can trigger the first recording; teachers can re-record. */
@@ -50,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id: classId, kcId } = await params;
     const caller = await requireUser(req);
     const access = await assertClassAccess(caller, classId, "view");
-    const { regenerate, recordMissing, instructions, extend } = await parseJson(req, schema);
+    const { regenerate, recordMissing, instructions, extend, removeTurn, updateTurn } = await parseJson(req, schema);
     const enabled = access.classData.audioLessons !== false;
     if (!access.canMutate || !enabled) {
       return NextResponse.json(
@@ -66,6 +70,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const next = { ...current, turns: current.turns.map((t, i) => ({ ...t, hasAudio: have[i] })) };
       await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).collection("audio").doc("meta").set({ turns: next.turns }, { merge: true });
       return NextResponse.json({ ok: true, data: { lesson: next } });
+    }
+    if (removeTurn !== undefined || updateTurn) {
+      const lesson = await editAudioLesson({ classId, kcId, userId: caller.uid, remove: removeTurn, update: updateTurn });
+      return NextResponse.json({ ok: true, data: { lesson } });
     }
     if (extend) {
       const lesson = await extendAudioLesson({ classId, kcId, userId: caller.uid, instructions: instructions || "" });

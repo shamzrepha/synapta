@@ -4,7 +4,7 @@ import { generateWithFallback, AiGenerationError } from "@/lib/ai/router";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
 import { loadKcGroundingContext } from "@/lib/kc/context";
 import { sanitizeUntrustedPromptText } from "@/lib/ai/scrub";
-import { resetVoiceBreakers, synthesizeSpeech } from "@/lib/ai/voice";
+import { edgeAvailable, resetVoiceBreakers, synthesizeSpeech } from "@/lib/ai/voice";
 import { z } from "zod";
 
 /**
@@ -120,13 +120,59 @@ export async function recordedTurns(classId: string, kcId: string, version: numb
  * Speaks one turn as a real audio file: a fast free neural voice first, ElevenLabs when a key is set, Gemini TTS
  * last. Only the teacher's recording calls this; students are served the saved file.
  */
+/** Splits a long line into sentence-sized pieces (about `max` characters) so each can be voiced quickly and joined afterwards. */
+export function splitForSpeech(text: string, max = 320): string[] {
+  const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const pieces: string[] = [];
+  for (const sentence of sentences) {
+    // a sentence longer than the limit is cut at commas/semicolons, then at spaces
+    let rest = sentence;
+    while (rest.length > max) {
+      let cut = Math.max(rest.lastIndexOf(", ", max), rest.lastIndexOf("; ", max), rest.lastIndexOf(" ", max));
+      if (cut < max * 0.4) cut = max;
+      pieces.push(rest.slice(0, cut + 1).trim());
+      rest = rest.slice(cut + 1).trim();
+    }
+    if (rest) pieces.push(rest);
+  }
+  // join neighbours back up while they still fit, so a short line stays one piece
+  const out: string[] = [];
+  for (const piece of pieces) {
+    const last = out[out.length - 1];
+    if (last && last.length + 1 + piece.length <= max) out[out.length - 1] = `${last} ${piece}`;
+    else out.push(piece);
+  }
+  return out;
+}
+
+/**
+ * Speaks one turn as a real audio file: a fast free neural voice first, ElevenLabs when a key is set, Gemini TTS
+ * last. A long turn is voiced part by part (sentences) and the MP3 parts are joined into one clip, so a 150-word
+ * lecture line is no harder for the voice service than a short reply. Only the teacher's recording calls this;
+ * students are served the saved file.
+ */
 async function synthesizeTurn(text: string, role: "teacher" | "student", style: "female" | "male"): Promise<TurnAudio | null> {
   const voices = VOICES[style] || VOICES.female;
   const edgeName = voices[role];
   // the speaker's gender follows the voice: female style = female teacher + male student, and the reverse
   const gender: "female" | "male" = /^en-\w+-(Aria|Jenny|Ava|Sonia)/.test(edgeName) ? "female" : "male";
-  const clip = await synthesizeSpeech(text, gender, edgeName, { patient: true });
-  return clip ? { audio: clip.audio, mimeType: clip.mimeType } : null;
+  const parts = splitForSpeech(text);
+  // only the free MP3 voice can be voiced in parts and joined; any other voice gets the whole line in one request
+  if (parts.length <= 1 || !edgeAvailable()) {
+    const clip = await synthesizeSpeech(text, gender, edgeName, { patient: true });
+    return clip ? { audio: clip.audio, mimeType: clip.mimeType } : null;
+  }
+  const clips: Array<{ audio: Buffer; mimeType: string } | null> = [];
+  for (const part of parts) {
+    // one retry per part, only while the free voice is in play: retrying a failing paid voice just burns its allowance
+    const clip = (await synthesizeSpeech(part, gender, edgeName, { patient: true })) || (edgeAvailable() ? await synthesizeSpeech(part, gender, edgeName, { patient: true, edgeOnly: true }) : null);
+    clips.push(clip ? { audio: clip.audio, mimeType: clip.mimeType } : null);
+  }
+  if (clips.some((c) => !c)) return null;
+  const ok = clips as Array<{ audio: Buffer; mimeType: string }>;
+  // MP3 frames can simply be joined; anything else (a WAV from the last-resort engine) is kept only as a single clip
+  if (ok.every((c) => c.mimeType === "audio/mpeg")) return { audio: Buffer.concat(ok.map((c) => c.audio)), mimeType: "audio/mpeg" };
+  return synthesizeSpeech(text, gender, edgeName, { patient: true }).then((c) => (c ? { audio: c.audio, mimeType: c.mimeType } : null));
 }
 
 /**
@@ -185,6 +231,20 @@ function cleanInstructions(text?: string): string {
 
 export const MAX_PODCAST_TURNS = 80;
 
+/**
+ * A podcast can be extended or edited when it has lines and no recording is in progress. A "generating" lock older
+ * than LOCK_MS belongs to a run that died, so it counts as ready (the same rule getAudioLesson shows the teacher).
+ */
+function assertEditable(d: FirebaseFirestore.DocumentData | null, missingMessage: string): asserts d is FirebaseFirestore.DocumentData {
+  if (!d || !Array.isArray(d.turns) || !d.turns.length) throw new ApiError(404, "NOT_FOUND", missingMessage);
+  if (d.status === "generating") {
+    const fresh = d.generatingAt && Date.now() - d.generatingAt.toMillis() < LOCK_MS;
+    if (fresh) throw new ApiError(409, "AUDIO_GENERATING", "The audio lesson is being recorded. Try again in a minute.");
+  } else if (d.status !== "ready") {
+    throw new ApiError(404, "NOT_FOUND", missingMessage);
+  }
+}
+
 const extendSchema = z.preprocess(
   (v) => (Array.isArray(v) ? { turns: v } : v),
   z.object({
@@ -212,8 +272,7 @@ export async function extendAudioLesson(params: { classId: string; kcId: string;
   const prev = await adminDb().runTransaction(async (t) => {
     const snap = await t.get(metaRef);
     const d = snap.exists ? snap.data()! : null;
-    if (!d || d.status !== "ready" || !Array.isArray(d.turns) || !d.turns.length) throw new ApiError(404, "NOT_FOUND", "Create the podcast first, then you can add to it.");
-    if (d.generatingAt && Date.now() - d.generatingAt.toMillis() < LOCK_MS && d.status === "generating") throw new ApiError(409, "AUDIO_GENERATING", "The audio lesson is being recorded. Try again in a minute.");
+    assertEditable(d, "Create the podcast first, then you can add to it.");
     if (d.turns.length >= MAX_PODCAST_TURNS) throw new ApiError(409, "LIMIT", `A podcast can have up to ${MAX_PODCAST_TURNS} lines. Re-record it or start a new one.`);
     t.set(metaRef, { status: "generating", generatingAt: Timestamp.now(), error: null }, { merge: true });
     return d;
@@ -261,6 +320,78 @@ Return JSON only: {"turns":[{"speaker":"teacher","text":"..."},{"speaker":"stude
     return meta;
   } catch (err) {
     await metaRef.set({ status: "ready", generatingAt: null, error: err instanceof ApiError ? err.message : "Adding to the audio lesson failed." }, { merge: true }).catch(() => null);
+    throw err;
+  }
+}
+
+/**
+ * Removes a line of a podcast or rewrites one, then voices only what changed. Positions shift when a line is removed,
+ * so the result is saved as a NEW version: the saved clips of the lines that stay are copied to their new places, and
+ * the version students are on keeps working untouched until the teacher pushes.
+ */
+export async function editAudioLesson(params: { classId: string; kcId: string; userId: string; remove?: number; update?: { index: number; text: string } }): Promise<AudioLessonMeta> {
+  const metaRef = audioCol(params.classId, params.kcId).doc("meta");
+  const prev = await adminDb().runTransaction(async (t) => {
+    const snap = await t.get(metaRef);
+    const d = snap.exists ? snap.data()! : null;
+    assertEditable(d, "There is no podcast to edit yet.");
+    t.set(metaRef, { status: "generating", generatingAt: Timestamp.now(), error: null }, { merge: true });
+    return d;
+  });
+
+  try {
+    const turns = prev.turns as AudioTurn[];
+    const idx = params.remove ?? params.update?.index;
+    if (idx === undefined || !Number.isInteger(idx) || idx < 0 || idx >= turns.length) throw new ApiError(400, "VALIDATION", "That line doesn't exist.");
+    if (params.remove !== undefined && turns.length <= 2) throw new ApiError(409, "LIMIT", "A podcast needs at least two lines.");
+
+    const next: AudioTurn[] = [];
+    const from: Array<number | null> = [];
+    turns.forEach((t, i) => {
+      if (params.remove === i) return;
+      if (params.update && params.update.index === i) {
+        next.push({ ...t, text: speakable(params.update.text), hasAudio: false });
+        from.push(null);
+      } else {
+        next.push({ ...t });
+        from.push(t.hasAudio ? i : null);
+      }
+    });
+
+    const oldVersion = prev.version || 1;
+    const version = oldVersion + 1;
+    // carry the saved clips of unchanged lines over to their new positions (a few at a time)
+    let cursor = 0;
+    const copyWorker = async () => {
+      while (cursor < next.length) {
+        const to = cursor++;
+        const src = from[to];
+        if (src === null) continue;
+        const clip = await readClip(params.classId, params.kcId, oldVersion, src).catch(() => null);
+        if (clip) await saveClip(params.classId, params.kcId, version, to, clip).catch(() => { from[to] = null; });
+        else from[to] = null;
+      }
+    };
+    await Promise.all([copyWorker(), copyWorker(), copyWorker(), copyWorker()]);
+
+    const draft: AudioLessonMeta = {
+      status: "ready",
+      title: prev.title || "",
+      turns: next.map((t, i) => ({ ...t, hasAudio: from[i] !== null })),
+      teacherName: prev.teacherName || "Ms. Nova",
+      studentName: prev.studentName || "Kai",
+      voiceStyle: prev.voiceStyle === "male" ? "male" : "female",
+      version,
+      error: null,
+    };
+    const recorded = await recordTurns(params.classId, params.kcId, draft);
+    const meta: AudioLessonMeta = { ...draft, turns: draft.turns.map((t, i) => ({ ...t, hasAudio: recorded[i] })) };
+    await metaRef.set({ ...meta, generatingAt: null, generatedAt: Timestamp.now(), generatedBy: params.userId });
+    const liveSnap = await audioCol(params.classId, params.kcId).doc("live").get();
+    await pruneClips(params.classId, params.kcId, [version, liveSnap.exists ? Number(liveSnap.data()?.version) : -1]);
+    return meta;
+  } catch (err) {
+    await metaRef.set({ status: "ready", generatingAt: null, error: err instanceof ApiError ? err.message : "Editing the audio lesson failed." }, { merge: true }).catch(() => null);
     throw err;
   }
 }

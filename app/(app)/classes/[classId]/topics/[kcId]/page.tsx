@@ -369,7 +369,7 @@ export default function TopicPage({
 
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode; step?: number; onOpen?: () => void }> = [
     { key: "learn", label: "Read & listen", step: 1, icon: <BookOpen className="h-4 w-4" /> },
-    { key: "simulate", label: "Watch & play", step: 2, icon: <Gamepad2 className="h-4 w-4" /> },
+    { key: "simulate", label: "Simulation", step: 2, icon: <Gamepad2 className="h-4 w-4" /> },
     {
       key: "flashcards",
       label: "Flashcards",
@@ -582,7 +582,7 @@ export default function TopicPage({
                             const data = await res.json();
                             if (data.ok) {
                               applyEvidenceUpdate({ pLAfter: data.data.pLAfter, totalXp: data.data.totalXp });
-                              toast({ title: "Lab completed! +30 XP", description: result.detail, variant: "success" });
+                              toast({ title: data.data.credited === false ? "Lab completed (preview: no XP)" : "Lab completed! +30 XP", description: result.detail, variant: "success" });
                               if (data.data.crossedMasteryFirstTime) confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
                             } else {
                               toast({
