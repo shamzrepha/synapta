@@ -341,6 +341,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     const mech = shown.mechanism;
     const radPerMetre = mech ? analyzeMechanism(mech).radPerMetre : 0;
     let shaft = 0;
+    let lastOutsKey = "";
+    let lastMechPaint = 0;
     const frame = (now: number) => {
       const dt = Math.min(100, now - last);
       last = now;
@@ -352,7 +354,13 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
         nl = new Netlist(circuit, inputsRef.current.pressed);
       }
       const outs = evaluateOutputs(nl, rt.pins);
-      setOutputs(outs);
+      // Re-render the page only when something visible changed. Setting state on every animation frame re-renders the whole
+      // studio ~60 times a second, which drops frames on phones and makes the screen flicker.
+      const outsKey = JSON.stringify(outs);
+      if (outsKey !== lastOutsKey) {
+        lastOutsKey = outsKey;
+        setOutputs(outs);
+      }
       if (sim && robot) {
         let rem = dt / 1000;
         while (rem > 1e-6) {
@@ -370,7 +378,11 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
         if (m) {
           shaft += (m.direction || 1) * (0.5 + m.level * 9) * (dt / 1000);
           const lift = radPerMetre > 0 ? Math.max(0, Math.min(mech.liftHeight, shaft / radPerMetre)) : 0;
-          setMechState({ inputAngle: shaft, loadHeight: lift });
+          // the 3D view reads this ref-backed value each frame; ~30 updates a second is plenty for the readouts
+          if (now - lastMechPaint > 33) {
+            lastMechPaint = now;
+            setMechState({ inputAngle: shaft, loadHeight: lift });
+          }
         }
       }
       if (rt.serial.length > printed) {

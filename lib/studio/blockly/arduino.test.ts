@@ -74,3 +74,93 @@ describe("Scratch-style blocks (Blockly) → Arduino C++", () => {
     expect(blocklyToCode(state)).not.toContain("digitalWrite");
   });
 });
+
+describe("more of Blockly's standard blocks", () => {
+  const hats = (loop: unknown[], extra: unknown[] = [], moreVars: Array<{ name: string; id: string }> = []) => ({
+    blocks: {
+      languageVersion: 0,
+      blocks: [
+        { type: "arduino_setup", x: 0, y: 0 },
+        { type: "arduino_loop", x: 0, y: 120, inputs: { DO: { block: chain(loop) } } },
+        ...extra,
+      ],
+    },
+    variables: [{ name: "n", id: "v_n" }, ...moreVars],
+  });
+  const chain = (list: unknown[]): Record<string, unknown> => list.reduceRight<Record<string, unknown> | undefined>((next, b) => (next ? { ...(b as object), next: { block: next } } : (b as Record<string, unknown>)), undefined)!;
+  const num = (n: number) => ({ block: { type: "math_number", fields: { NUM: n } } });
+
+  it("maths, rounding and a conditional expression", () => {
+    const code = blocklyToCode(
+      hats([
+        { type: "variables_set", fields: { VAR: { id: "v_n" } }, inputs: { VALUE: { block: { type: "math_round", fields: { OP: "ROUNDUP" }, inputs: { NUM: num(3.2) } } } } },
+        { type: "math_change", fields: { VAR: { id: "v_n" } }, inputs: { DELTA: num(2) } },
+        { type: "io_print", inputs: { TEXT: { block: { type: "logic_ternary", inputs: { IF: { block: { type: "logic_boolean", fields: { BOOL: "TRUE" } } }, THEN: num(1), ELSE: num(2) } } } } },
+      ])
+    );
+    expect(code).toContain("n = ceil(3.2);");
+    expect(code).toContain("n += 2;");
+    expect(code).toContain("Serial.println((true ? 1 : 2));");
+    const rt = new BoardRuntime(code, circuitReader(circuit, { pressed: new Set(), values: {} }));
+    rt.advance(50);
+    expect(rt.error).toBeNull();
+  });
+
+  it("functions are written before setup and can be called", () => {
+    const code = blocklyToCode(
+      hats(
+        [{ type: "procedures_callnoreturn", extraState: { name: "flash", params: [] } }],
+        [
+          {
+            type: "procedures_defnoreturn",
+            x: 300,
+            y: 0,
+            extraState: { procedureId: "p1", params: [] },
+            fields: { NAME: "flash" },
+            inputs: { STACK: { block: { type: "io_digital_write", fields: { PIN: "13", STATE: "HIGH" } } } },
+          },
+        ]
+      )
+    );
+    expect(code).toMatch(/void flash\(\) \{\s*digitalWrite\(13, HIGH\);\s*\}/);
+    expect(code.indexOf("void flash")).toBeLessThan(code.indexOf("void setup"));
+    expect(code).toContain("flash();");
+    const rt = new BoardRuntime(code, circuitReader(circuit, { pressed: new Set(), values: {} }));
+    rt.advance(50);
+    expect(rt.error).toBeNull();
+    expect(rt.pins.level[13]).toBe(1);
+  });
+
+  it("a function with a parameter that returns a value", () => {
+    const code = blocklyToCode(
+      hats(
+        [
+          {
+            type: "variables_set",
+            fields: { VAR: { id: "v_n" } },
+            inputs: { VALUE: { block: { type: "procedures_callreturn", extraState: { name: "double", params: ["x"] }, inputs: { ARG0: num(21) } } } },
+          },
+          { type: "io_print", inputs: { TEXT: { block: { type: "variables_get", fields: { VAR: { id: "v_n" } } } } } },
+        ],
+        [
+          {
+            type: "procedures_defreturn",
+            x: 300,
+            y: 0,
+            extraState: { procedureId: "p2", params: [{ name: "x", id: "v_x", argId: "a_x" }] },
+            fields: { NAME: "double" },
+            inputs: { RETURN: { block: { type: "math_arithmetic", fields: { OP: "MULTIPLY" }, inputs: { A: { block: { type: "variables_get", fields: { VAR: { id: "v_x" } } } }, B: num(2) } } } },
+          },
+        ],
+        [{ name: "x", id: "v_x" }]
+      )
+    );
+    expect(code).toContain("int double(int x)");
+    expect(code).toContain("n = double(21);");
+    const rt = new BoardRuntime(code, circuitReader(circuit, { pressed: new Set(), values: {} }));
+    rt.advance(50);
+    expect(rt.error).toBeNull();
+    expect(rt.serial.map((x) => x.text).join("")).toContain("42");
+  });
+});
+

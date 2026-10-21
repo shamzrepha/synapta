@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { bumpChannel } from "@/lib/live/server";
 import { getActiveStudentUids } from "@/lib/classes/members";
 import { notifyMany } from "@/lib/notifications/server";
-import { kcRef, newLabId, nowIso, readLabs, snapshotLabDesign, type Lab } from "@/lib/studio/labs";
+import { kcRef, newLabId, nowIso, proofLabKey, readLabs, snapshotLabDesign, type Lab } from "@/lib/studio/labs";
 import { createDesign } from "@/lib/studio/store";
 import { getTemplate, templateStart } from "@/lib/studio/templates";
 import { generateDesign } from "@/lib/studio/design-ai";
@@ -46,7 +46,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         labs: labs.map((l) => {
           const d = myByLab.get(`${classId}/${kcId}/${l.id}`);
           const prog = d ? (d.data().progress || {})[caller.uid] || {} : {};
-          return { ...l, myDesignId: d?.id || null, myDone: Object.values(prog).filter((p) => (p as { done?: boolean }).done).length, roster: roster?.[l.id] || null };
+          const pd = myByLab.get(proofLabKey(classId, kcId, l.id));
+          const pprog = pd ? (pd.data().progress || {})[caller.uid] || {} : {};
+          return {
+            ...l,
+            // "Prove it" (rebuild from an empty bench) is offered for circuit labs
+            canProve: l.kind === "circuit",
+            myProofDesignId: pd?.id || null,
+            myProofDone: Object.values(pprog).filter((p) => (p as { done?: boolean }).done).length,
+            myDesignId: d?.id || null, myDone: Object.values(prog).filter((p) => (p as { done?: boolean }).done).length, roster: roster?.[l.id] || null };
         }),
       },
     });

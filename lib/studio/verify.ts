@@ -41,6 +41,19 @@ export function verifyStep(spec: DesignSpec, step: Step): StepResult {
       if (unwired.length) return { done: false, verified: true, message: `${unwired.length} part(s) still unwired.` };
       return { done: true, verified: true, message: "Wiring checks out." };
     }
+    case "built": {
+      if (!circuit) return { done: false, verified: true, message: "No circuit." };
+      for (const need of c.needs) {
+        const n = circuit.parts.filter((p) => p.type === need.type).length;
+        if (n < need.min) return { done: false, verified: true, message: `Still missing ${need.min - n} × ${CATALOG_BY_TYPE[need.type]?.name || need.type}.` };
+      }
+      const errs = checkCircuit(circuit, code).filter((i) => i.severity === "error");
+      if (errs.length) return { done: false, verified: true, message: errs[0].message };
+      const net = new Netlist(circuit);
+      const unwired = circuit.parts.filter((p) => p.type !== "board" && !net.isWired(p.id));
+      if (unwired.length) return { done: false, verified: true, message: `${unwired.length} part(s) still unwired.` };
+      return { done: true, verified: true, message: "Everything is placed and wired correctly." };
+    }
     case "code": {
       const s = scanCode(code);
       if (!s.hasSetup || !s.hasLoop) return { done: false, verified: true, message: "Write both setup() and loop()." };

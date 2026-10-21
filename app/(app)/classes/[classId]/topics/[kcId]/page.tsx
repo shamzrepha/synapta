@@ -30,11 +30,12 @@ import {
   Send,
   Sparkles,
   Wand2,
-  Cpu, Wrench, PlayCircle } from "lucide-react";
+  Cpu, Wrench, PlayCircle, ShoppingCart } from "lucide-react";
 import { formatPL, getMasteryStatus, cn } from "@/lib/utils";
 import { LAB_REGISTRY } from "@/components/labs";
 import { AiSimulation } from "@/components/labs/ai-simulation";
 import { QuizPlayer } from "@/components/quiz/quiz-player";
+import { ProveIt } from "@/components/labs/prove-it";
 import { AudioLesson } from "@/components/lesson/audio-lesson";
 import { PublishBar } from "@/components/lesson/publish-bar";
 import { PracticeBankTools } from "@/components/lesson/practice-bank-tools";
@@ -67,7 +68,7 @@ interface ChatMessage {
   isError?: boolean;
 }
 
-type Tab = "learn" | "simulate" | "build" | "flashcards" | "quiz" | "tutor";
+type Tab = "learn" | "simulate" | "build" | "flashcards" | "quiz" | "prove" | "tutor";
 
 const THIN_LESSON_CHARS = 600;
 const TUTOR_STARTERS = [
@@ -79,10 +80,11 @@ const TUTOR_STARTERS = [
 
 const TAB_HINT: Record<Tab, string> = {
   learn: "Read the lesson, or press play to listen to it as a short podcast.",
-  simulate: "An interactive lab: change things on screen and see what happens.",
+  simulate: "Play with an interactive model: change things on screen and watch what happens.",
   build: "Build a small circuit or machine for this topic in Maker Studio, then test it with simulated physics. Your build is saved in My designs under Make.",
   flashcards: "Quick flashcards to remember the key points.",
-  quiz: "Prove you have got it. Your answers update your mastery score, and wrong ones go to your review list.",
+  quiz: "Answer a few questions. Your answers update your mastery score, and wrong ones go to your review list.",
+  prove: "Rebuild it yourself from an empty bench: pick the parts, place them, wire them and program them. The Studio checks each step.",
   tutor: "Ask the AI anything about this topic.",
 };
 
@@ -367,17 +369,18 @@ export default function TopicPage({
 
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode; step?: number; onOpen?: () => void }> = [
     { key: "learn", label: "Read & listen", step: 1, icon: <BookOpen className="h-4 w-4" /> },
-    { key: "simulate", label: "Try it", step: 2, icon: <Gamepad2 className="h-4 w-4" /> },
+    { key: "simulate", label: "Watch & play", step: 2, icon: <Gamepad2 className="h-4 w-4" /> },
     {
       key: "flashcards",
-      label: "Practice",
+      label: "Flashcards",
       step: 3,
       icon: <Layers className="h-4 w-4" />,
       onOpen: () => {
         if (flashcards.length === 0 && !loadingCards) handleLoadFlashcards();
       },
     },
-    { key: "quiz", label: "Prove it", step: 4, icon: <HelpCircle className="h-4 w-4" /> },
+    { key: "quiz", label: "Quiz", step: 4, icon: <HelpCircle className="h-4 w-4" /> },
+    { key: "prove", label: "Prove it", step: 5, icon: <ShoppingCart className="h-4 w-4" /> },
     { key: "build", label: "Build & test", icon: <Wrench className="h-4 w-4" /> },
     { key: "tutor", label: "AI Tutor", icon: <MessageSquare className="h-4 w-4" /> },
   ];
@@ -691,6 +694,7 @@ export default function TopicPage({
           )}
 
           {/* QUIZ */}
+          {activeTab === "prove" && <ProveIt classId={classId} kcId={kcId} topicTitle={kc.title} />}
           {activeTab === "build" && <TopicLabs classId={classId} kcId={kcId} topicTitle={kc.title} />}
 
           {activeTab === "quiz" && !canManage && !pub.practice && notPublished("quiz")}

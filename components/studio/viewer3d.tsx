@@ -273,9 +273,12 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
   useEffect(() => {
     const el = host.current!;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Phones: a lower pixel ratio and a smaller shadow map keep the frame rate steady. A heavy WebGL layer that misses
+    // frames makes Android browsers repaint stale tiles around it, which shows up as flicker.
+    const coarse = typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.25 : 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = coarse ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     el.appendChild(renderer.domElement);
     renderer.domElement.style.touchAction = "none";
     const scene = new THREE.Scene();
@@ -294,7 +297,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     const key = new THREE.DirectionalLight("#ffffff", 2.4);
     key.position.set(600, 1100, 500);
     key.castShadow = true;
-    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.mapSize.set(coarse ? 1024 : 2048, coarse ? 1024 : 2048);
     Object.assign(key.shadow.camera, { left: -1400, right: 1400, top: 1400, bottom: -1400, near: 10, far: 4000 });
     key.shadow.bias = -0.0004;
     key.shadow.normalBias = 1.5;
@@ -368,6 +371,10 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     renderer.domElement.addEventListener("pointerleave", release);
     renderer.domElement.addEventListener("pointercancel", release);
 
+    // Don't render while the viewer is scrolled out of view or the tab is hidden: it frees the GPU for the page itself
+    let visible = true;
+    const io = typeof IntersectionObserver === "function" ? new IntersectionObserver(([e]) => { visible = !!e?.isIntersecting; }, { threshold: 0 }) : null;
+    io?.observe(el);
     let raf = 0;
     let lastT = performance.now();
     let following = false;
@@ -375,6 +382,10 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
       raf = requestAnimationFrame(loop);
       const c = ctx.current;
       if (!c) return;
+      if (!visible || document.hidden) {
+        lastT = performance.now();
+        return;
+      }
       const nowT = performance.now();
       const dt = Math.min(0.1, (nowT - lastT) / 1000);
       lastT = nowT;
@@ -456,6 +467,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     loop();
     return () => {
       cancelAnimationFrame(raf);
+      io?.disconnect();
       ro.disconnect();
       renderer.domElement.removeEventListener("pointerdown", onDown);
       renderer.domElement.removeEventListener("pointerup", onUp);
@@ -680,7 +692,8 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
   };
   const btn = "flex h-10 w-10 items-center justify-center rounded-full bg-slate-900/85 text-white border border-white/30 text-lg font-bold shadow-lg";
   return (
-    <div className={className} style={{ position: "relative", overflow: "hidden" }}>
+    // contain: paint keeps the canvas's repaints from invalidating the page around it
+    <div className={className} style={{ position: "relative", overflow: "hidden", contain: "paint", isolation: "isolate" }}>
       <div
         ref={host}
         style={{ background: look === "solid" ? "linear-gradient(180deg,#27456f 0%,#10213d 100%)" : "#0b2a5b", position: "absolute", inset: 0, overflow: "hidden" }}
