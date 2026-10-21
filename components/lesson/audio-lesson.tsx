@@ -134,7 +134,31 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
     playerRef.current?.jump(clamped);
   };
 
-  const generate = async (regenerate = false) => {
+  const [focus, setFocus] = useState("");
+  const [showFocus, setShowFocus] = useState(false);
+
+  /** Adds new lines to the end of the existing podcast, about what the teacher typed. */
+  const extend = async () => {
+    if (!focus.trim()) return;
+    setGenerating(true);
+    stopAll();
+    setPlaying(false);
+    try {
+      const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ extend: true, instructions: focus.trim() }) });
+      const data = await res.json().catch(() => null);
+      if (data?.ok) {
+        setPayload((p) => (p ? { ...p, lesson: data.data.lesson } : p));
+        setFocus("");
+        toast({ title: "Added to the podcast 🎧", description: "Press play to hear the new part. Push it when you're happy with it.", variant: "success" });
+      } else toast({ title: "Couldn't add to the podcast", description: data?.error?.message || "Try again in a moment.", variant: "destructive" });
+    } catch {
+      toast({ title: "Couldn't add to the podcast", description: "Check your connection and try again.", variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const generate = async (regenerate = false, instructions = "") => {
     setGenerating(true);
     stopAll();
     setPlaying(false);
@@ -143,7 +167,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
         const res = await fetch(base, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ regenerate }),
+          body: JSON.stringify({ regenerate, ...(instructions.trim() ? { instructions: instructions.trim() } : {}) }),
         });
         const data = await res.json().catch(() => null);
         if (data?.ok) {
@@ -230,7 +254,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
 
         {lesson && payload.canManage && (
           <p className={cn("mt-3 text-xs flex flex-wrap items-center gap-2", missing ? "text-amber-700 dark:text-amber-300" : "text-slate-500")}>
-            {missing ? `${lesson.turns.length - missing}/${lesson.turns.length} lines recorded — the rest would play in a robot voice.` : `All ${lesson.turns.length} lines are recorded and saved once — every student replays the same files.`}
+            {missing ? `${lesson.turns.length - missing}/${lesson.turns.length} lines recorded. The rest stay silent until they are recorded.` : `All ${lesson.turns.length} lines are recorded and saved once — every student replays the same files.`}
             {missing > 0 && (
               <Button size="sm" variant="outline" onClick={recordMissing} isLoading={generating}>
                 Record missing lines
@@ -322,10 +346,40 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
       )}
 
       {payload.canManage && lesson && (
-        <div className="px-4 pb-3 flex justify-end">
-          <button type="button" onClick={() => generate(true)} disabled={generating} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
-            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />} Re-record
+        <div className="px-4 pb-3 space-y-2">
+          <button type="button" onClick={() => setShowFocus((v) => !v)} aria-expanded={showFocus} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+            <Sparkles className="h-3.5 w-3.5" /> {showFocus ? "Hide" : "Change or add to this podcast"}
           </button>
+          {showFocus && (
+            <div className="space-y-2 rounded-xl border border-indigo-500/30 p-3">
+              <label className="text-xs font-semibold block" htmlFor="podcast-focus">
+                What should it talk about?
+              </label>
+              <textarea
+                id="podcast-focus"
+                value={focus}
+                onChange={(e) => setFocus(e.target.value)}
+                maxLength={800}
+                rows={3}
+                placeholder="e.g. Explain how a capacitor stores charge, step by step, and why it matters for filters"
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-2 text-sm"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={extend} disabled={!focus.trim() || generating} isLoading={generating}>
+                  Add to this podcast
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => generate(true, focus)} disabled={generating}>
+                  Write a new one with this focus
+                </Button>
+              </div>
+              <p className="text-[11px] text-slate-500">&quot;Add&quot; keeps what is recorded and adds new lines at the end. &quot;New&quot; replaces the whole podcast (leave the box empty to simply re-record it).</p>
+            </div>
+          )}
+          <div className="flex justify-end">
+            <button type="button" onClick={() => generate(true)} disabled={generating} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />} Re-record
+            </button>
+          </div>
         </div>
       )}
     </Card>
