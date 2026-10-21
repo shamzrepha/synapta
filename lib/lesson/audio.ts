@@ -4,7 +4,7 @@ import { generateWithFallback, AiGenerationError } from "@/lib/ai/router";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
 import { loadKcGroundingContext } from "@/lib/kc/context";
 import { sanitizeUntrustedPromptText } from "@/lib/ai/scrub";
-import { resetVoiceBreakers, synthesizeSpeech } from "@/lib/ai/voice";
+import { edgeAvailable, resetVoiceBreakers, synthesizeSpeech } from "@/lib/ai/voice";
 import { z } from "zod";
 
 /**
@@ -157,14 +157,15 @@ async function synthesizeTurn(text: string, role: "teacher" | "student", style: 
   // the speaker's gender follows the voice: female style = female teacher + male student, and the reverse
   const gender: "female" | "male" = /^en-\w+-(Aria|Jenny|Ava|Sonia)/.test(edgeName) ? "female" : "male";
   const parts = splitForSpeech(text);
-  if (parts.length <= 1) {
+  // only the free MP3 voice can be voiced in parts and joined; any other voice gets the whole line in one request
+  if (parts.length <= 1 || !edgeAvailable()) {
     const clip = await synthesizeSpeech(text, gender, edgeName, { patient: true });
     return clip ? { audio: clip.audio, mimeType: clip.mimeType } : null;
   }
   const clips: Array<{ audio: Buffer; mimeType: string } | null> = [];
   for (const part of parts) {
-    // one retry per part: a single slow part must not lose the whole line
-    const clip = (await synthesizeSpeech(part, gender, edgeName, { patient: true })) || (await synthesizeSpeech(part, gender, edgeName, { patient: true }));
+    // one retry per part, only while the free voice is in play: retrying a failing paid voice just burns its allowance
+    const clip = (await synthesizeSpeech(part, gender, edgeName, { patient: true })) || (edgeAvailable() ? await synthesizeSpeech(part, gender, edgeName, { patient: true }) : null);
     clips.push(clip ? { audio: clip.audio, mimeType: clip.mimeType } : null);
   }
   if (clips.some((c) => !c)) return null;

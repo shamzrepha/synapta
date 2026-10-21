@@ -404,6 +404,11 @@ export interface GenerateWithFallbackOptions<T> {
   isPrivileged?: boolean;
   cacheKey?: string;
   maxRetriesPerModel?: number;
+  /**
+   * Longest this call may spend waiting for a rate-limited model before it moves on / gives up (ms). A live chat has
+   * someone watching, so it should fail fast with a clear message instead of looking frozen.
+   */
+  maxWaitMs?: number;
   /** tokens to reserve from the user's monthly budget before calling a model (defaults by task) */
   estimatedTokens?: number;
 }
@@ -472,6 +477,7 @@ async function generateWithFallbackInner<T>({
   isPrivileged = false,
   cacheKey,
   maxRetriesPerModel = 2,
+  maxWaitMs,
 }: GenerateWithFallbackOptions<T>, _reserved: boolean): Promise<GenerateWithFallbackResult<T>> {
   const startTime = Date.now();
 
@@ -670,6 +676,12 @@ async function generateWithFallbackInner<T>({
         if (classified.type === "rate_limit_minute") {
           sawQuotaProblem = true;
           const waitSec = Math.min(20, classified.retryDelaySeconds || 5);
+          // someone is waiting on this answer: don't sit out the limit, move to the next model or report it
+          if (maxWaitMs !== undefined && Date.now() - startTime + waitSec * 1000 > maxWaitMs) {
+            console.warn(`[model_pacer] Rate limited on "${activeModel}"; not waiting ${waitSec}s (limit ${maxWaitMs} ms).`);
+            fallbackTriggered = true;
+            break;
+          }
           console.warn(`[model_pacer] Rate limited on "${activeModel}". Waiting ${waitSec}s...`);
           await new Promise((r) => setTimeout(r, waitSec * 1000));
           attempt++;

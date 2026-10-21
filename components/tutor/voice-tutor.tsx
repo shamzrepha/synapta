@@ -167,7 +167,9 @@ export function VoiceTutor() {
     setBusy(true);
     let reply = "";
     try {
+      // never leave "Thinking…" up forever: after 50 seconds say so
       const res = await fetch("/api/ai/tutor", {
+        signal: AbortSignal.timeout(50_000),
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // voice answers should be short and conversational
@@ -180,7 +182,8 @@ export function VoiceTutor() {
       reply = await res.text();
       setMessages((p) => p.map((m) => (m.id === replyId ? { ...m, text: reply } : m)));
     } catch (e) {
-      setMessages((p) => p.map((m) => (m.id === replyId ? { ...m, isError: true, text: e instanceof Error ? e.message : "The tutor is unavailable." } : m)));
+      const timedOut = e instanceof DOMException && (e.name === "TimeoutError" || e.name === "AbortError");
+      setMessages((p) => p.map((m) => (m.id === replyId ? { ...m, isError: true, text: timedOut ? "The tutor took too long to answer. The AI may be busy or at its limit. Try again in a minute." : e instanceof Error ? e.message : "The tutor is unavailable." } : m)));
     } finally {
       setBusy(false);
     }
