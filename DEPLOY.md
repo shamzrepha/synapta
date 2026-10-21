@@ -77,6 +77,8 @@ firebase deploy --only firestore:rules,firestore:indexes
   Vercel sends `Authorization: Bearer $CRON_SECRET`; set `CRON_SECRET` in the project env.
 - Weekly leagues settle lazily (the first time each learner earns XP in a new week), so no cron is needed.
 
+- **Firestore TTL policies** (Console → Firestore → TTL): add a policy on field `purgeAt` for collections `rateLimits` and `quotaReservations` so rate-limit counters and finished reservations are cleaned up automatically. Nothing breaks without them (old documents are ignored); they just accumulate.
+
 ## 5. Social, messages, notebooks & push notifications
 
 Redeploy indexes after pulling (`firebase deploy --only firestore:rules,firestore:indexes`). New

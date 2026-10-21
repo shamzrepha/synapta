@@ -30,6 +30,9 @@ vi.mock("@/lib/firebase/admin", () => {
             }),
           };
         }
+        if (colName === "enrollments") {
+          return { doc: (id: string) => ({ id, path: `enrollments/${id}` }) };
+        }
         if (colName === "evidence") {
           return {
             doc: (id = `ev_${Date.now()}`) => ({
@@ -95,9 +98,55 @@ describe("lib/evidence/apply (A3: XP and Mastery Integrity)", () => {
     for (const key of Object.keys(mockDocs)) {
       delete mockDocs[key];
     }
+    // the learner in most tests is an active student of class-1
+    mockDocs["enrollments/class-1_user-1"] = { status: "active" };
   });
 
-  it("throws 404 ApiError when target Knowledge Component does not exist in class", async () => {
+  describe("authorization (who may earn evidence)", () => {
+    const base = { uid: "user-1", classId: "class-1", kcId: "kc-1", activity: "flashcard" as const, correct: true };
+    const seedKc = () => {
+      mockDocs["classes/class-1/kcs/kc-1"] = { title: "Ohm's Law", bkt: { pL0: 0.2, pT: 0.15, pG: 0.2, pS: 0.1 } };
+      mockDocs["users/user-1"] = { xp: 0, streakDays: 1 };
+    };
+
+    it("lets an active student earn evidence", async () => {
+      seedKc();
+      const r = await applyEvidence(base);
+      expect(r.xpGained).toBeGreaterThan(0);
+      expect(mockDocs["mastery/user-1_kc-1"]).toBeTruthy();
+    });
+
+    it("refuses a user who is not enrolled and writes nothing (no XP, mastery or evidence)", async () => {
+      seedKc();
+      delete mockDocs["enrollments/class-1_user-1"];
+      await expect(applyEvidence(base)).rejects.toMatchObject({ status: 403, code: "NOT_ENROLLED" });
+      expect(mockDocs["mastery/user-1_kc-1"]).toBeUndefined();
+      expect(mockDocs["users/user-1"]).toEqual({ xp: 0, streakDays: 1 });
+    });
+
+    it.each(["pending", "rejected", "removed"])("refuses an enrollment that is %s", async (status) => {
+      seedKc();
+      mockDocs["enrollments/class-1_user-1"] = { status };
+      await expect(applyEvidence(base)).rejects.toMatchObject({ code: "NOT_ENROLLED" });
+    });
+
+    it("refuses every activity type for a non-member (lab, quiz, peer credit, diagnostic)", async () => {
+      seedKc();
+      delete mockDocs["enrollments/class-1_user-1"];
+      for (const activity of ["lab", "quiz", "peer_explain"] as const) {
+        await expect(applyEvidence({ ...base, activity })).rejects.toMatchObject({ code: "NOT_ENROLLED" });
+      }
+      await expect(applyEvidence({ ...base, activity: "quiz", metadata: { diagnostic: true } })).rejects.toMatchObject({ code: "NOT_ENROLLED" });
+    });
+
+    it("does not let enrollment in one class unlock another class", async () => {
+      seedKc();
+      mockDocs["classes/class-2/kcs/kc-1"] = { title: "Other", bkt: { pL0: 0.2, pT: 0.15, pG: 0.2, pS: 0.1 } };
+      await expect(applyEvidence({ ...base, classId: "class-2" })).rejects.toMatchObject({ code: "NOT_ENROLLED" });
+    });
+  });
+
+  it("throws 404 ApiError when target topic does not exist in class", async () => {
     // No KC in mockDocs
     await expect(
       applyEvidence({

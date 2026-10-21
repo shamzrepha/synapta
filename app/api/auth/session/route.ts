@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase/admin";
 import { z } from "zod";
+import { classifyAuthFailure, logAuthFailure } from "@/lib/auth/failures";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -12,11 +14,18 @@ const FIVE_DAYS_MS = 60 * 60 * 24 * 5 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const limited = await checkRateLimit(req, { keyPrefix: "auth_session", limit: 20, windowMs: 60_000 });
+    if (limited) return limited;
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ ok: false, error: { code: "BAD_JSON", message: "Malformed request." } }, { status: 400 });
+    }
     const parsed = sessionSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { ok: false, error: { code: "VALIDATION", message: "Missing or invalid idToken" } },
+        { ok: false, error: { code: "VALIDATION", message: "Missing or invalid sign-in token." } },
         { status: 400 }
       );
     }
@@ -49,11 +58,11 @@ export async function POST(req: NextRequest) {
 
     return response;
   } catch (err: unknown) {
-    console.error("Session creation error:", err);
-    const message = err instanceof Error ? err.message : "Failed to create session";
+    logAuthFailure("sessionCreate", err);
+    const f = classifyAuthFailure(err);
     return NextResponse.json(
-      { ok: false, error: { code: "INTERNAL", message } },
-      { status: 500 }
+      { ok: false, error: { code: f.code, message: f.message } },
+      { status: f.status, ...(f.status === 429 ? { headers: { "Retry-After": "60" } } : {}) }
     );
   }
 }

@@ -8,10 +8,12 @@ import { EXPLAIN_LEVELS } from "@/lib/study/explain-level";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+const ID = /^[A-Za-z0-9_-]+$/;
+
 const tutorInputSchema = z.object({
   /** Both optional: topic tutor (classId + kcId), class tutor (classId) or general study tutor */
-  classId: z.string().min(1).nullish(),
-  kcId: z.string().min(1).nullish(),
+  classId: z.string().min(1).max(128).regex(ID, "Invalid classId").nullish(),
+  kcId: z.string().min(1).max(128).regex(ID, "Invalid kcId").nullish(),
   message: z.string().trim().min(1).max(4000),
   level: z.enum(EXPLAIN_LEVELS).optional(),
   history: z
@@ -36,12 +38,14 @@ export async function POST(req: NextRequest) {
     if (kcId && !classId) {
       return NextResponse.json({ ok: false, error: { code: "VALIDATION", message: "classId is required with kcId" } }, { status: 400 });
     }
-    if (classId) await assertClassAccess(caller, classId, "view");
+    const access = classId ? await assertClassAccess(caller, classId, "view") : null;
 
     const result = await runTeacherAgent({
       uid: caller.uid,
       classId: classId || null,
       kcId: kcId || null,
+      // students are grounded only in what the teacher has published, never in the working draft
+      canSeeDrafts: access?.canMutate ?? false,
       userMessage: message,
       level,
       history: history.map((h) => ({ role: h.role, text: h.parts })),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { buildClassWithAi } from "@/lib/teacher/classBuilder";
+import { parseClassBuildRequest } from "@/lib/teacher/classBuildRequest";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -16,7 +17,7 @@ export async function POST(
     const access = await assertClassAccess(caller, id, "mutate");
     const classData = access.classData;
 
-    const body = await req.json().catch(() => ({}));
+    const body = await parseClassBuildRequest(req);
 
     const result = await buildClassWithAi({
       classId: id,
