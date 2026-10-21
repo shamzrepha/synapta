@@ -22,6 +22,7 @@ import { useGameState } from "@/components/game/use-game";
 import { LevelCard, LeagueCard, QuestsCard } from "@/components/game/widgets";
 import { AchievementPrompts } from "@/components/feed/achievement-prompts";
 import { HomeHero } from "@/components/home/home-hero";
+import { summarizeProgress } from "@/lib/home/next-action";
 import { SessionsPanel } from "@/components/sessions/sessions-panel";
 import type { EventSummary } from "@/components/events/types";
 
@@ -51,6 +52,8 @@ export default function DashboardPage() {
   const [classes, setClasses] = useState<EnrolledClass[]>([]);
   const [radarData, setRadarData] = useState<RadarDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let ignore = false;
@@ -58,7 +61,9 @@ export default function DashboardPage() {
       try {
         const res = await fetch("/api/me/dashboard");
         const json = await res.json();
+        if (!ignore && !json.ok) setFailed(true);
         if (!ignore && json.ok && json.data) {
+          setFailed(false);
           if (Array.isArray(json.data.classes)) {
             setClasses(json.data.classes);
           }
@@ -70,7 +75,8 @@ export default function DashboardPage() {
           }
         }
       } catch {
-        // network or offline
+        // network or offline: say so instead of showing an empty "join a class" page
+        if (!ignore) setFailed(true);
       } finally {
         if (!ignore) setLoading(false);
       }
@@ -80,8 +86,10 @@ export default function DashboardPage() {
     return () => {
       ignore = true;
     };
-  }, [updateUser]);
+  }, [updateUser, attempt]);
 
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  const progress = summarizeProgress(asArray(radarData));
   const sessionClasses = asArray(classes).map((c) => ({ id: c.id, title: c.title }));
 
   return (
@@ -116,7 +124,19 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <HomeHero role={user?.role} classes={asArray(classes).map((c) => ({ id: c.id, title: c.title }))} loading={loading} />
+      <HomeHero
+        role={user?.role}
+        classes={asArray(classes).map((c) => ({ id: c.id, title: c.title }))}
+        loading={loading}
+        failed={failed}
+        offline={offline}
+        questsAllDone={!!game && game.quests.length > 0 && game.quests.every((q) => q.done)}
+        progress={progress}
+        onRetry={() => {
+          setLoading(true);
+          setAttempt((n) => n + 1);
+        }}
+      />
 
       <section aria-label="What do you want to do?" className="space-y-2">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">What do you want to do?</h2>
@@ -202,7 +222,7 @@ export default function DashboardPage() {
       {/* Main Content Area */}
       {loading ? (
         <Skeleton className="h-48 w-full rounded-2xl" />
-      ) : classes.length === 0 ? (
+      ) : classes.length === 0 && failed ? null : classes.length === 0 ? (
         /* Clean Zero-Data Onboarding State */
         <Card className="p-8 border-slate-200 dark:border-slate-800 text-center space-y-6">
           <div className="max-w-md mx-auto space-y-3">

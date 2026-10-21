@@ -48,7 +48,7 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 p-2.5 overflow-y-auto space-y-4">
+      <nav className="flex-1 p-2.5 overflow-y-auto space-y-4" aria-label="Main navigation">
         {(["main", "account"] as const).map((group) => (
           <div key={group} className="space-y-1">
             <p className={cn("px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400", label)}>{GROUP_LABEL[group]}</p>
@@ -62,6 +62,7 @@ export function Sidebar() {
                     key={item.href}
                     href={item.href}
                     title={item.label}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
                       "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors relative justify-center",
                       !isSidebarCollapsed && "lg:justify-start",

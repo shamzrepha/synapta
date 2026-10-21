@@ -1,22 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { assertClassAccess } from "@/lib/auth/classAccess";
+import { ApiError } from "@/lib/api/errors";
+import { z } from "zod";
 import { buildClassWithAi } from "@/lib/teacher/classBuilder";
 import { analyzeMaterialAndRoute } from "@/lib/teacher/materialRouter";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+const idPart = z.string().min(1).max(128).regex(/^[A-Za-z0-9_-]+$/);
+const resumeSchema = z.object({
+  classId: idPart.optional(),
+  jobId: idPart.optional(),
+  jobType: z.enum(["material", "build"]).optional(),
+});
+
+/**
+ * Resumes AI jobs that were paused for quota. A teacher can only resume jobs in classes they own or co-teach
+ * (admins: any class), and a build job only runs for the person who started it, because it is charged to them.
+ */
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req, ["teacher", "admin"]);
-    const body = await req.json().catch(() => ({}));
-    const { classId, jobId, jobType } = body;
+    const raw = await req.json().catch(() => ({}));
+    const parsedBody = resumeSchema.safeParse(raw ?? {});
+    if (!parsedBody.success) throw new ApiError(400, "VALIDATION", "Invalid request.");
+    const { classId, jobId, jobType } = parsedBody.data;
+    const isAdmin = caller.role === "admin";
+    const mayRunBuild = (input: { userId?: string } | undefined) => isAdmin || input?.userId === caller.uid;
 
     const results: Array<{ id: string; type: string; status: string; error?: string }> = [];
 
     // Mode 1: Targeted single-job resumption (e.g. teacher clicked "Resume now")
     if (classId && jobId) {
+      await assertClassAccess(caller, classId, "mutate");
       if (jobType === "material") {
         const jobRef = adminDb()
           .collection("classes")
@@ -72,6 +91,9 @@ export async function POST(req: NextRequest) {
         const snap = await jobRef.get();
         if (snap.exists) {
           const data = snap.data() || {};
+          if (data.input && !mayRunBuild(data.input)) {
+            throw new ApiError(403, "FORBIDDEN", "Only the teacher who started this build can resume it.");
+          }
           if (data.input) {
             try {
               const res = await buildClassWithAi(data.input);
@@ -89,7 +111,10 @@ export async function POST(req: NextRequest) {
 
     // Mode 2: Batch scan across classes for jobs past their quota reset
     const nowMs = Date.now();
-    const classesSnap = await adminDb().collection("classes").get();
+    // only the caller's own classes (admins: every class), never other teachers' jobs
+    const classesSnap = isAdmin
+      ? await adminDb().collection("classes").get()
+      : await adminDb().collection("classes").where("teacherId", "==", caller.uid).get();
 
     for (const classDoc of classesSnap.docs) {
       const cId = classDoc.id;
@@ -105,7 +130,7 @@ export async function POST(req: NextRequest) {
       for (const bDoc of buildSnap.docs) {
         const d = bDoc.data();
         if (!d.resumeTimestampMs || nowMs >= d.resumeTimestampMs) {
-          if (d.input) {
+          if (d.input && mayRunBuild(d.input)) {
             try {
               const res = await buildClassWithAi(d.input);
               results.push({ id: bDoc.id, type: "build", status: res.status });

@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { applyEvidence } from "@/lib/evidence/apply";
+import { parseJson } from "@/lib/api/errors";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 
+const ID = /^[A-Za-z0-9_-]+$/;
+
 const evidenceInputSchema = z.object({
-  classId: z.string().min(1),
-  kcId: z.string().min(1),
+  classId: z.string().min(1).max(128).regex(ID, "Invalid classId"),
+  kcId: z.string().min(1).max(128).regex(ID, "Invalid kcId"),
   activity: z.literal("flashcard", {
     errorMap: () => ({
       message:
@@ -20,25 +23,7 @@ const evidenceInputSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const body = await req.json();
-    const parsed = evidenceInputSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: {
-            code: "VALIDATION",
-            message:
-              parsed.error.issues[0]?.message ||
-              "Invalid evidence payload. Note: Only flashcard evidence is supported on this endpoint.",
-          },
-        },
-        { status: 400 }
-      );
-    }
-
-    const { classId, kcId, activity, correct } = parsed.data;
+    const { classId, kcId, activity, correct } = await parseJson(req, evidenceInputSchema);
 
     const result = await applyEvidence({
       uid: caller.uid,

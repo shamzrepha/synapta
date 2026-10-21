@@ -26,6 +26,15 @@ export interface ApplyEvidenceResult {
 }
 
 /**
+ * Authorization policy: evidence (mastery, XP, streaks) is earned only by an ACTIVE student of the class.
+ * Every caller (flashcards, quizzes, labs, diagnostics, simulations, peer credit) passes through here, so the
+ * check lives in this shared service and not in each route. Teachers and admins who preview a class do not
+ * earn learner progress (their own previews never call this), and a user who is not enrolled cannot farm XP
+ * by naming a class they can't see. For peer credit, `uid` is the credited peer, who must be enrolled too.
+ */
+export const ACTIVE_ENROLLMENT = "active";
+
+/**
  * Atomically updates Bayesian Knowledge Tracing (BKT) mastery, records
  * immutable evidence log, updates user XP, and manages streaks within a single transaction.
  */
@@ -42,14 +51,21 @@ export async function applyEvidence({
   const masteryRef = adminDb().collection("mastery").doc(masteryDocId);
   const evidenceRef = adminDb().collection("evidence").doc();
   const kcRef = adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId);
+  const enrollmentRef = adminDb().collection("enrollments").doc(`${classId}_${uid}`);
 
   // Set inside the transaction; read after it commits
   const streakHolder: { value: ReturnType<typeof nextStreak> | null } = { value: null };
   const result = await adminDb().runTransaction(async (t): Promise<ApplyEvidenceResult> => {
+    // 0. Authorization: only an active student of this class earns evidence (checked in the same transaction)
+    const enrollment = await t.get(enrollmentRef);
+    if (!enrollment.exists || enrollment.data()?.status !== ACTIVE_ENROLLMENT) {
+      throw new ApiError(403, "NOT_ENROLLED", "Join this class to earn progress in it.");
+    }
+
     // 1. Read KC doc for BKT parameters (enforcing KC existence)
     const kcDoc = await t.get(kcRef);
     if (!kcDoc.exists) {
-      throw new ApiError(404, "NOT_FOUND", `Knowledge component ${kcId} not found in class ${classId}`);
+      throw new ApiError(404, "NOT_FOUND", `Topic ${kcId} not found in class ${classId}`);
     }
     const kcData = kcDoc.data()!;
     const { pL0, pT, pG, pS } = safeBktParams(kcData?.bkt);

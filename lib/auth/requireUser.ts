@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { UserRole } from "@/lib/store/use-user-store";
 import { ApiError, toErrorResponse } from "@/lib/api/errors";
+import { classifyAuthFailure, logAuthFailure } from "@/lib/auth/failures";
 
 export interface AuthenticatedUser {
   uid: string;
@@ -36,15 +37,17 @@ export async function requireUser(
     try {
       decodedToken = await adminAuth().verifyIdToken(bearerToken, true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "ID token verification failed";
-      throw new AuthError("UNAUTHENTICATED", `Invalid or revoked token: ${msg}`, 401);
+      logAuthFailure("verifyIdToken", err);
+      const f = classifyAuthFailure(err);
+      throw new ApiError(f.status === 500 ? 401 : f.status, f.status === 500 ? "UNAUTHENTICATED" : f.code, f.status === 500 ? "We couldn't verify your sign-in. Please sign in again." : f.message);
     }
   } else if (sessionCookie) {
     try {
       decodedToken = await adminAuth().verifySessionCookie(sessionCookie, true);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Session cookie verification failed";
-      throw new AuthError("UNAUTHENTICATED", `Invalid or revoked session: ${msg}`, 401);
+      logAuthFailure("verifySessionCookie", err);
+      const f = classifyAuthFailure(err);
+      throw new ApiError(f.status === 500 ? 401 : f.status, f.status === 500 ? "UNAUTHENTICATED" : f.code, f.status === 500 ? "We couldn't verify your sign-in. Please sign in again." : f.message);
     }
   } else {
     throw new AuthError("UNAUTHENTICATED", "Missing authorization header or session cookie.", 401);
@@ -67,7 +70,11 @@ export async function requireUser(
     }
   } catch (err) {
     if (err instanceof AuthError) throw err;
-    console.warn("Could not retrieve user document for disabled/role check:", err);
+    logAuthFailure("userLookup", err);
+    // Fail closed for anything privileged: without the user record we cannot confirm the role is current or that the
+    // account is not disabled. Ordinary learner requests keep working during a database blip.
+    const privileged = (allowedRoles && allowedRoles.length > 0) || role !== "student";
+    if (privileged) throw new ApiError(503, "AUTH_UNAVAILABLE", "We couldn't confirm your account right now. Please try again shortly.");
   }
 
   if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(role)) {

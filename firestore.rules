@@ -238,5 +238,13 @@ service cloud.firestore {
     match /diagnosticSessions/{sessionId} {
       allow read, write: if false;
     }
+
+    // 17. Shared rate-limit counters and AI token reservations (server-only via admin SDK)
+    match /rateLimits/{id} {
+      allow read, write: if false;
+    }
+    match /quotaReservations/{id} {
+      allow read, write: if false;
+    }
   }
 }

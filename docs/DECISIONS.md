@@ -21,8 +21,9 @@ This log records architectural and design decisions, trade-offs, and deviations 
 
 ## Decision 4: Rate Limiting & Token Quota
 - **Context:** AI generation calls must be protected against abuse and exhaustion.
-- **Decision:** Rate limiting uses a sliding-window in-memory map per user (max 10 calls/minute), and monthly token quotas are tracked transactionally in Firestore `users/{uid}.monthlyTokensUsed` and `usage/{uid_YYYY-MM}`.
-- **Rationale:** In-memory rate limiting suffices for single-instance or serverless cold-start windows in v1; transactional Firestore writes ensure strict quota enforcement across distributed serverless executions.
+- **Decision:** AI rate limits (10 calls/min students, 60 teachers/admins) and the auth-session limit use a shared fixed-window counter in Firestore (`rateLimits/{id}_{bucket}`), so they hold across serverless instances. If Firestore is unreachable the limiter falls back, with a logged error, to a per-instance in-memory window. Monthly tokens are enforced with transactional **reservations** (`quotaReservations`): a call reserves its estimate before the model runs (used + open reservations + estimate must fit the limit), then settles against real usage or releases on failure; settle/release are idempotent so retries never double-charge. Teachers/admins keep their high cap; the monthly period rolls over by `usagePeriod`.
+- **Rationale:** An in-memory map does nothing when requests land on different instances, and a check-then-record quota lets concurrent requests all pass a stale check. Transactions on one counter/reservation set make both atomic.
+- **Operations:** Enable Firestore TTL on `rateLimits.purgeAt` and `quotaReservations.purgeAt` (see DEPLOY.md). Expired open reservations stop counting after 10 minutes regardless.
 
 ## Decision 5: Client-Side PDF Text Extraction
 - **Context:** Firebase Storage on new Google Cloud projects requires a paid plan (Blaze) in v1.

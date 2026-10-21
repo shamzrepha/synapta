@@ -1,6 +1,6 @@
 import { getServerEnv, DEFAULT_GEMINI_MODEL } from "@/lib/env";
 import { getGeminiClient } from "@/lib/gemini/client";
-import { checkRateLimitAndQuota, recordTokenUsage } from "@/lib/quota/guard";
+import { checkRateLimitAndQuota, reserveQuota, settleQuota, releaseQuota } from "@/lib/quota/guard";
 import { z } from "zod";
 import {
   DEFAULT_MODEL_CONFIG,
@@ -404,6 +404,15 @@ export interface GenerateWithFallbackOptions<T> {
   isPrivileged?: boolean;
   cacheKey?: string;
   maxRetriesPerModel?: number;
+  /** tokens to reserve from the user's monthly budget before calling a model (defaults by task) */
+  estimatedTokens?: number;
+}
+
+/** Heavy generation tasks reserve more of the budget than a short chat reply. */
+const HEAVY_ESTIMATE = 8000;
+const LIGHT_ESTIMATE = 1500;
+function defaultEstimate(task: AiTask): number {
+  return isHeavyTask(task) ? HEAVY_ESTIMATE : LIGHT_ESTIMATE;
 }
 
 export interface GenerateWithFallbackResult<T> {
@@ -424,7 +433,33 @@ export interface GenerateWithFallbackResult<T> {
  * Universal quota-aware AI execution pipeline with multi-tier fallback,
  * RPM pacing, budget guard, cache lookups, and PII-safe error masking.
  */
-export async function generateWithFallback<T>({
+export async function generateWithFallback<T>(opts: GenerateWithFallbackOptions<T>): Promise<GenerateWithFallbackResult<T>> {
+  // Not on behalf of a user (health probes, system jobs): nothing to charge
+  if (!opts.userId) return generateWithFallbackInner(opts, false);
+
+  // Reserve the estimate before spending anything (rejects with QUOTA_EXCEEDED when the budget can't cover it),
+  // then settle against real usage, or release if the call fails, so retries and failures are never charged twice.
+  const reservation = await reserveQuota(opts.userId, opts.estimatedTokens ?? defaultEstimate(opts.task));
+  let result: GenerateWithFallbackResult<T>;
+  try {
+    result = await generateWithFallbackInner(opts, true);
+  } catch (err) {
+    await releaseQuota(reservation).catch((e) => console.error(`[quota] could not release a reservation for ${opts.userId}:`, e instanceof Error ? e.message : e));
+    throw err;
+  }
+  // a cached answer used no tokens: give the reservation back instead of recording an empty call
+  if (result.tokensIn + result.tokensOut === 0) {
+    await releaseQuota(reservation).catch(() => undefined);
+    return result;
+  }
+  await settleQuota(reservation, result.tokensIn, result.tokensOut).catch((e) =>
+    // the answer was generated and the user gets it; the reservation stays open and stops counting when it expires
+    console.error(`[quota] could not settle ${result.tokensIn + result.tokensOut} tokens for ${opts.userId}:`, e instanceof Error ? e.message : e)
+  );
+  return result;
+}
+
+async function generateWithFallbackInner<T>({
   task,
   userPrompt,
   contents,
@@ -437,7 +472,7 @@ export async function generateWithFallback<T>({
   isPrivileged = false,
   cacheKey,
   maxRetriesPerModel = 2,
-}: GenerateWithFallbackOptions<T>): Promise<GenerateWithFallbackResult<T>> {
+}: GenerateWithFallbackOptions<T>, _reserved: boolean): Promise<GenerateWithFallbackResult<T>> {
   const startTime = Date.now();
 
   // 1. Budget Guard Check
@@ -576,9 +611,7 @@ export async function generateWithFallback<T>({
         await recordModelUsage(activeModel, tokensIn, tokensOut).catch(() => {});
         // Unmark model if previously flagged exhausted
         clearModelExhausted(activeModel).catch(() => {});
-        if (userId) {
-          await recordTokenUsage(userId, tokensIn, tokensOut).catch(() => {});
-        }
+        // usage is settled against the reservation by generateWithFallback (one charge per request)
 
         // Cache result if key provided
         if (cacheKey) {
