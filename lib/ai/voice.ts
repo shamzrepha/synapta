@@ -304,7 +304,7 @@ export interface SpeechClip {
  * One line of speech as a real audio file. Fast free neural voice first (4 s), then ElevenLabs when a key is
  * set, then Gemini TTS as the last resort. Never the browser's robot voice. Returns null when every engine failed.
  */
-export async function synthesizeSpeech(text: string, gender: "female" | "male", edgeVoice?: string, opts: { patient?: boolean } = {}): Promise<SpeechClip | null> {
+export async function synthesizeSpeech(text: string, gender: "female" | "male", edgeVoice?: string, opts: { patient?: boolean; edgeOnly?: boolean } = {}): Promise<SpeechClip | null> {
   const clean = text.trim();
   if (!clean) return null;
   const voices = EDGE_VOICES[gender];
@@ -318,6 +318,8 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
     const alt = await synthesizeEdgeVoice(clean, voices[1], edgeMs);
     if (alt) return { audio: alt, mimeType: "audio/mpeg", engine: "edge" };
   }
+  // a retry of the free voice must not fall through to the paid engines
+  if (opts.edgeOnly) return null;
   const key = process.env.ELEVENLABS_API_KEY;
   if (key) {
     try {
@@ -336,8 +338,12 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
     }
   }
   if (Date.now() < geminiTtsState.downUntil) return null;
-  const g = await synthesizeGeminiTts(clean, gender === "female" ? HOSTS.alex.gemini : HOSTS.sam.gemini, opts.patient ? 40_000 : 12_000);
-  if (!g) geminiTtsState.downUntil = Date.now() + 2 * 60_000;
+  const geminiMs = opts.patient ? 40_000 : 12_000;
+  const startedAt = Date.now();
+  const g = await synthesizeGeminiTts(clean, gender === "female" ? HOSTS.alex.gemini : HOSTS.sam.gemini, geminiMs);
+  // A quick refusal means the allowance or the service is the problem: pause it. A slow line that timed out says
+  // nothing about the next (shorter) request, so it doesn't switch Gemini off for everyone.
+  if (!g && Date.now() - startedAt < geminiMs * 0.8) geminiTtsState.downUntil = Date.now() + 2 * 60_000;
   return g ? { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType, engine: "gemini" } : null;
 }
 

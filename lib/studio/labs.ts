@@ -5,7 +5,7 @@ import type { AuthUser } from "@/lib/auth/requireUser";
 import { createDesign } from "./store";
 import { getTemplate, templateStart } from "./templates";
 import { parseSpec, type DesignSpec } from "./spec";
-import { proofSpec } from "./proof";
+import { canProve, proofSpec } from "./proof";
 
 /**
  * Class topic labs: a topic is broken into small build "worlds" (subtopic labs). Each lab points
@@ -53,6 +53,16 @@ async function labReference(lab: Lab): Promise<{ spec: DesignSpec; forkedFrom: {
   const t = getTemplate(lab.templateId || "");
   if (!t) throw new ApiError(404, "NOT_FOUND", "Lab template not found");
   return { spec: templateStart(t, true), forkedFrom: null };
+}
+
+/** Whether "Prove it" can rebuild this lab (its reference has circuit parts to buy). Never throws. */
+export async function labCanProve(lab: Lab): Promise<boolean> {
+  if (lab.kind !== "circuit") return false;
+  try {
+    return canProve((await labReference(lab)).spec);
+  } catch {
+    return false;
+  }
 }
 
 /** Marks a design as the "rebuild it yourself" copy of a lab, so it never collides with the guided copy. */

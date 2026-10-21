@@ -582,7 +582,7 @@ export default function TopicPage({
                             const data = await res.json();
                             if (data.ok) {
                               applyEvidenceUpdate({ pLAfter: data.data.pLAfter, totalXp: data.data.totalXp });
-                              toast({ title: "Lab completed! +30 XP", description: result.detail, variant: "success" });
+                              toast({ title: data.data.credited === false ? "Lab completed (preview: no XP)" : "Lab completed! +30 XP", description: result.detail, variant: "success" });
                               if (data.data.crossedMasteryFirstTime) confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
                             } else {
                               toast({

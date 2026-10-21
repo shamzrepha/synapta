@@ -275,3 +275,17 @@ export async function applyEvidence({
   }
   return result;
 }
+
+/**
+ * Like applyEvidence, for routes where people who aren't active members can still use the activity (a teacher
+ * previewing a quiz, a student whose join request is pending): they get their feedback, just no credit, instead of
+ * an error after their answer was already saved. Any other failure is still thrown.
+ */
+export async function applyEvidenceIfEnrolled(params: Parameters<typeof applyEvidence>[0]): Promise<Awaited<ReturnType<typeof applyEvidence>> | null> {
+  try {
+    return await applyEvidence(params);
+  } catch (e) {
+    if (e instanceof ApiError && e.code === "NOT_ENROLLED") return null;
+    throw e;
+  }
+}

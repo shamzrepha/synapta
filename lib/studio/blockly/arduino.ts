@@ -286,7 +286,7 @@ forBlock["text_join"] = (b) => {
 forBlock["math_change"] = (b) => `${G.getVariableName(b.getFieldValue("VAR"))} += ${val(b, "DELTA", "1")};\n`;
 forBlock["math_single"] = (b) => {
   const x = val(b, "NUM");
-  const f: Record<string, string> = { ROOT: `sqrt(${x})`, ABS: `abs(${x})`, NEG: `(-${x})`, LN: `log(${x})`, LOG10: `(log(${x}) / log(10))`, EXP: `exp(${x})`, POW10: `pow(10, ${x})` };
+  const f: Record<string, string> = { ROOT: `sqrt(${x})`, ABS: `abs(${x})`, NEG: `(-(${x}))`, LN: `log(${x})`, LOG10: `(log(${x}) / log(10))`, EXP: `exp(${x})`, POW10: `pow(10, ${x})` };
   return [f[b.getFieldValue("OP")] || x, ATOM];
 };
 forBlock["math_round"] = (b) => {
@@ -294,8 +294,13 @@ forBlock["math_round"] = (b) => {
   return [`${fn}(${val(b, "NUM")})`, ATOM];
 };
 forBlock["math_trig"] = (b) => {
-  const fn = ({ SIN: "sin", COS: "cos", TAN: "tan" } as Record<string, string>)[b.getFieldValue("OP")] || "sin";
-  return [`${fn}(radians(${val(b, "NUM")}))`, ATOM];
+  const op = b.getFieldValue("OP");
+  const x = val(b, "NUM");
+  // inverse functions take a ratio and return an angle (Blockly works in degrees)
+  const inverse = ({ ASIN: "asin", ACOS: "acos", ATAN: "atan" } as Record<string, string>)[op];
+  if (inverse) return [`degrees(${inverse}(${x}))`, ATOM];
+  const fn = ({ SIN: "sin", COS: "cos", TAN: "tan" } as Record<string, string>)[op] || "sin";
+  return [`${fn}(radians(${x}))`, ATOM];
 };
 forBlock["math_constant"] = (b) => [b.getFieldValue("CONSTANT") === "E" ? "2.718281828" : "PI", ATOM];
 forBlock["math_number_property"] = (b) => {

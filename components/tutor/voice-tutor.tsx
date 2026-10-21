@@ -34,6 +34,8 @@ export function VoiceTutor() {
   // why the microphone isn't working, with what to do about it
   const [micIssue, setMicIssue] = useState<MicHelp | null>(null);
   const checking = useRef(false);
+  // the microphone check passed once in this session; re-check only after a microphone error
+  const micOk = useRef(false);
 
   const recRef = useRef<RecognitionLike | null>(null);
   const heardRef = useRef("");
@@ -102,16 +104,21 @@ export function VoiceTutor() {
     stopSpeaking();
     // Ask the browser for the microphone first: this shows the permission prompt and tells us exactly what is wrong
     // (blocked for the site, no microphone, another app using it) instead of a vague "blocked" later.
-    checking.current = true;
-    const mic = await checkMic();
-    checking.current = false;
-    if (!mic.ok) {
-      setMicIssue({ problem: mic.problem, title: mic.title, help: mic.help });
-      setHandsFree(false);
-      return;
+    // Only until it has worked once: opening the microphone on every hands-free turn is wasted work, and awaiting it
+    // before start() can use up the tap's user activation that some browsers (Safari) need to start recognition.
+    if (!micOk.current) {
+      checking.current = true;
+      const mic = await checkMic();
+      checking.current = false;
+      if (!mic.ok) {
+        setMicIssue({ problem: mic.problem, title: mic.title, help: mic.help });
+        setHandsFree(false);
+        return;
+      }
+      micOk.current = true;
+      setMicIssue(null);
+      if (recRef.current) return;
     }
-    setMicIssue(null);
-    if (recRef.current) return;
     const rec = new Ctor();
     rec.lang = navigator.language || "en-US";
     rec.continuous = false;
@@ -127,6 +134,7 @@ export function VoiceTutor() {
       failed = true;
       const problem = problemFromRecognitionError(e.error);
       if (problem && problem !== "unknown") {
+        micOk.current = false;
         setMicIssue(MIC_HELP[problem]);
         setHandsFree(false);
       } else if (problem === "unknown") {

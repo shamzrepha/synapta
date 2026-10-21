@@ -165,7 +165,7 @@ async function synthesizeTurn(text: string, role: "teacher" | "student", style: 
   const clips: Array<{ audio: Buffer; mimeType: string } | null> = [];
   for (const part of parts) {
     // one retry per part, only while the free voice is in play: retrying a failing paid voice just burns its allowance
-    const clip = (await synthesizeSpeech(part, gender, edgeName, { patient: true })) || (edgeAvailable() ? await synthesizeSpeech(part, gender, edgeName, { patient: true }) : null);
+    const clip = (await synthesizeSpeech(part, gender, edgeName, { patient: true })) || (edgeAvailable() ? await synthesizeSpeech(part, gender, edgeName, { patient: true, edgeOnly: true }) : null);
     clips.push(clip ? { audio: clip.audio, mimeType: clip.mimeType } : null);
   }
   if (clips.some((c) => !c)) return null;
@@ -231,6 +231,20 @@ function cleanInstructions(text?: string): string {
 
 export const MAX_PODCAST_TURNS = 80;
 
+/**
+ * A podcast can be extended or edited when it has lines and no recording is in progress. A "generating" lock older
+ * than LOCK_MS belongs to a run that died, so it counts as ready (the same rule getAudioLesson shows the teacher).
+ */
+function assertEditable(d: FirebaseFirestore.DocumentData | null, missingMessage: string): asserts d is FirebaseFirestore.DocumentData {
+  if (!d || !Array.isArray(d.turns) || !d.turns.length) throw new ApiError(404, "NOT_FOUND", missingMessage);
+  if (d.status === "generating") {
+    const fresh = d.generatingAt && Date.now() - d.generatingAt.toMillis() < LOCK_MS;
+    if (fresh) throw new ApiError(409, "AUDIO_GENERATING", "The audio lesson is being recorded. Try again in a minute.");
+  } else if (d.status !== "ready") {
+    throw new ApiError(404, "NOT_FOUND", missingMessage);
+  }
+}
+
 const extendSchema = z.preprocess(
   (v) => (Array.isArray(v) ? { turns: v } : v),
   z.object({
@@ -258,8 +272,7 @@ export async function extendAudioLesson(params: { classId: string; kcId: string;
   const prev = await adminDb().runTransaction(async (t) => {
     const snap = await t.get(metaRef);
     const d = snap.exists ? snap.data()! : null;
-    if (!d || d.status !== "ready" || !Array.isArray(d.turns) || !d.turns.length) throw new ApiError(404, "NOT_FOUND", "Create the podcast first, then you can add to it.");
-    if (d.generatingAt && Date.now() - d.generatingAt.toMillis() < LOCK_MS && d.status === "generating") throw new ApiError(409, "AUDIO_GENERATING", "The audio lesson is being recorded. Try again in a minute.");
+    assertEditable(d, "Create the podcast first, then you can add to it.");
     if (d.turns.length >= MAX_PODCAST_TURNS) throw new ApiError(409, "LIMIT", `A podcast can have up to ${MAX_PODCAST_TURNS} lines. Re-record it or start a new one.`);
     t.set(metaRef, { status: "generating", generatingAt: Timestamp.now(), error: null }, { merge: true });
     return d;
@@ -321,7 +334,7 @@ export async function editAudioLesson(params: { classId: string; kcId: string; u
   const prev = await adminDb().runTransaction(async (t) => {
     const snap = await t.get(metaRef);
     const d = snap.exists ? snap.data()! : null;
-    if (!d || d.status !== "ready" || !Array.isArray(d.turns) || !d.turns.length) throw new ApiError(404, "NOT_FOUND", "There is no podcast to edit yet.");
+    assertEditable(d, "There is no podcast to edit yet.");
     t.set(metaRef, { status: "generating", generatingAt: Timestamp.now(), error: null }, { merge: true });
     return d;
   });

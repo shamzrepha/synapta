@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { applyEvidence } from "./apply";
+import { applyEvidence, applyEvidenceIfEnrolled } from "./apply";
 import { ApiError } from "@/lib/api/errors";
 
 // Gamification side effects are covered by their own tests
@@ -143,6 +143,13 @@ describe("lib/evidence/apply (A3: XP and Mastery Integrity)", () => {
       seedKc();
       mockDocs["classes/class-2/kcs/kc-1"] = { title: "Other", bkt: { pL0: 0.2, pT: 0.15, pG: 0.2, pS: 0.1 } };
       await expect(applyEvidence({ ...base, classId: "class-2" })).rejects.toMatchObject({ code: "NOT_ENROLLED" });
+    });
+
+    it("applyEvidenceIfEnrolled gives a non-member no credit instead of an error, and credits a member", async () => {
+      seedKc();
+      mockDocs["classes/class-2/kcs/kc-1"] = { title: "Other", bkt: { pL0: 0.2, pT: 0.15, pG: 0.2, pS: 0.1 } };
+      await expect(applyEvidenceIfEnrolled({ ...base, classId: "class-2" })).resolves.toBeNull();
+      await expect(applyEvidenceIfEnrolled(base)).resolves.toMatchObject({ pLAfter: expect.any(Number) });
     });
   });
 

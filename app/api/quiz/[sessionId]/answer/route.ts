@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
-import { applyEvidence } from "@/lib/evidence/apply";
+import { applyEvidenceIfEnrolled } from "@/lib/evidence/apply";
 import { trackMisconception } from "@/lib/teacher/misconceptions";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { recordMistake } from "@/lib/mistakes/store";
@@ -90,7 +90,7 @@ export async function POST(
     const { sessionData, targetQuestion, isCorrect } = claim;
 
     // Atomically apply cognitive evidence and XP
-    const evidenceResult = await applyEvidence({
+    const evidenceResult = await applyEvidenceIfEnrolled({
       uid: caller.uid,
       classId: sessionData.classId,
       kcId: sessionData.kcId,
@@ -150,7 +150,8 @@ export async function POST(
         correct: isCorrect,
         correctIndex: targetQuestion.correctIndex,
         explanation: targetQuestion.explanation,
-        ...evidenceResult,
+        ...(evidenceResult || {}),
+        credited: !!evidenceResult,
       },
     });
   } catch (error) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { updateMastery, DEFAULT_BKT_PARAMS } from "@/lib/bkt/engine";
-import { applyEvidence } from "@/lib/evidence/apply";
+import { applyEvidenceIfEnrolled } from "@/lib/evidence/apply";
 import { trackMisconception } from "@/lib/teacher/misconceptions";
 import {
   propagateDiagnosticAnswer,
@@ -91,8 +91,9 @@ export async function POST(
       kcs,
     });
 
-    // 3. Atomically record diagnostic evidence (diagnostic: true gives 0 XP)
-    await applyEvidence({
+    // 3. Atomically record diagnostic evidence (diagnostic: true gives 0 XP). Someone who isn't an active member
+    // (a teacher trying it out) gets the questions but no stored mastery, so the graph update below is skipped too.
+    const credited = await applyEvidenceIfEnrolled({
       uid: caller.uid,
       classId: sessionData.classId,
       kcId,
@@ -105,9 +106,9 @@ export async function POST(
       },
     });
 
-    // 4. Update propagated priors in mastery collection for affected KCs
+    // 4. Update propagated priors in mastery collection for affected KCs (members only, as above)
     const batch = adminDb().batch();
-    for (const [kId, pLVal] of Object.entries(propagatedPLMap)) {
+    for (const [kId, pLVal] of credited ? Object.entries(propagatedPLMap) : []) {
       if (kId !== kcId) {
         const mRef = adminDb().collection("mastery").doc(`${caller.uid}_${kId}`);
         batch.set(

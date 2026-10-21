@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { verifyLab } from "@/lib/labs/verify";
-import { applyEvidence } from "@/lib/evidence/apply";
+import { applyEvidenceIfEnrolled } from "@/lib/evidence/apply";
 import { parseJson } from "@/lib/api/errors";
 import { z } from "zod";
 
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Apply evidence atomically
-    const evidenceResult = await applyEvidence({
+    const evidenceResult = await applyEvidenceIfEnrolled({
       uid: caller.uid,
       classId,
       kcId,
@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
       data: {
         success: true,
         detail: verification.detail,
-        ...evidenceResult,
+        ...(evidenceResult || {}),
+        credited: !!evidenceResult,
       },
     });
   } catch (error: unknown) {

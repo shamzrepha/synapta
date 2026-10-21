@@ -819,6 +819,7 @@ export async function executeStructuredAiTask<T>({
     systemInstruction,
     schema,
     userId,
+    estimatedTokens,
     isPrivileged: isPrivileged !== undefined ? isPrivileged : (task === "class_build" || task === "structured_spec"),
   });
 
