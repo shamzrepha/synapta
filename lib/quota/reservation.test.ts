@@ -6,14 +6,14 @@ const h = vi.hoisted(() => {
   const state = { autoId: 0, lock: Promise.resolve() as Promise<unknown> };
   const refOf = (col: string, id: string) => ({ col, id, path: `${col}/${id}`, get: async () => ({ exists: store.has(`${col}/${id}`), data: () => store.get(`${col}/${id}`) }) });
   const inc = (n: number) => ({ __inc: n });
-  const apply = (prev: Record<string, unknown> | undefined, data: Record<string, unknown>) => {
+  const merge = (prev: Record<string, unknown> | undefined, data: Record<string, unknown>) => {
     const out = { ...(prev || {}) };
     for (const [k, v] of Object.entries(data)) {
       out[k] = v && typeof v === "object" && "__inc" in (v as object) ? (Number(out[k]) || 0) + (v as { __inc: number }).__inc : v;
     }
     return out;
   };
-  return { store, state, refOf, inc, apply };
+  return { store, state, refOf, inc, merge };
 });
 
 vi.mock("@/lib/firebase/admin", () => ({
@@ -47,8 +47,8 @@ vi.mock("@/lib/firebase/admin", () => ({
             const d = h.store.get(r.path!);
             return { exists: !!d, data: () => d };
           },
-          set: (r: { path: string }, data: Record<string, unknown>, o?: { merge?: boolean }) => staged.push(() => h.store.set(r.path, o?.merge ? h.apply(h.store.get(r.path), data) : h.apply(undefined, data))),
-          update: (r: { path: string }, data: Record<string, unknown>) => staged.push(() => h.store.set(r.path, h.apply(h.store.get(r.path), data))),
+          set: (r: { path: string }, data: Record<string, unknown>, o?: { merge?: boolean }) => staged.push(() => h.store.set(r.path, o?.merge ? h.merge(h.store.get(r.path), data) : h.merge(undefined, data))),
+          update: (r: { path: string }, data: Record<string, unknown>) => staged.push(() => h.store.set(r.path, h.merge(h.store.get(r.path), data))),
         };
         const out = await fn(t);
         staged.forEach((s) => s());
