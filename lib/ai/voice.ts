@@ -300,15 +300,18 @@ export interface SpeechClip {
  * One line of speech as a real audio file. Fast free neural voice first (4 s), then ElevenLabs when a key is
  * set, then Gemini TTS as the last resort. Never the browser's robot voice. Returns null when every engine failed.
  */
-export async function synthesizeSpeech(text: string, gender: "female" | "male", edgeVoice?: string): Promise<SpeechClip | null> {
+export async function synthesizeSpeech(text: string, gender: "female" | "male", edgeVoice?: string, opts: { patient?: boolean } = {}): Promise<SpeechClip | null> {
   const clean = text.trim();
   if (!clean) return null;
   const voices = EDGE_VOICES[gender];
-  const edge = await synthesizeEdgeVoice(clean, edgeVoice || voices[0], 4_000);
+  // Live requests answer fast or give up. Recording a podcast line is not time-critical, and a long lecture turn needs
+  // longer than a quick reply, so the time allowed grows with the length of the line.
+  const edgeMs = opts.patient ? Math.min(45_000, 8_000 + clean.length * 25) : 4_000;
+  const edge = await synthesizeEdgeVoice(clean, edgeVoice || voices[0], edgeMs);
   if (edge) return { audio: edge, mimeType: "audio/mpeg", engine: "edge" };
   // a second Edge voice costs little and covers a single voice being throttled
   if (!edgeVoice && edgeAvailable()) {
-    const alt = await synthesizeEdgeVoice(clean, voices[1], 4_000);
+    const alt = await synthesizeEdgeVoice(clean, voices[1], edgeMs);
     if (alt) return { audio: alt, mimeType: "audio/mpeg", engine: "edge" };
   }
   const key = process.env.ELEVENLABS_API_KEY;
@@ -321,14 +324,14 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
           headers: { "Content-Type": "application/json", "xi-api-key": key },
           body: JSON.stringify({ text: clean, model_id: "eleven_multilingual_v2", voice_settings: { stability: 0.5, similarity_boost: 0.75 } }),
         }).then(async (r) => (r.ok ? Buffer.from(await r.arrayBuffer()) : null)),
-        8_000
+        opts.patient ? 30_000 : 8_000
       );
       if (res) return { audio: res, mimeType: "audio/mpeg", engine: "elevenlabs" };
     } catch {
       /* fall through to Gemini */
     }
   }
-  const g = await synthesizeGeminiTts(clean, gender === "female" ? HOSTS.alex.gemini : HOSTS.sam.gemini, 12_000);
+  const g = await synthesizeGeminiTts(clean, gender === "female" ? HOSTS.alex.gemini : HOSTS.sam.gemini, opts.patient ? 40_000 : 12_000);
   return g ? { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType, engine: "gemini" } : null;
 }
 

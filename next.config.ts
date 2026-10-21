@@ -15,7 +15,8 @@ const securityHeaders = [
   },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=()",
+    // the voice tutor needs the microphone on our own pages; everything else stays off
+    value: "camera=(), microphone=(self), geolocation=()",
   },
   {
     key: "Content-Security-Policy",
