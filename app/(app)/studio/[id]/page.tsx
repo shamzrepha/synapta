@@ -36,7 +36,7 @@ const BlocklyEditor = dynamic(() => import("@/components/studio/blockly-editor")
 import { SimStage, type StageLab } from "@/components/studio/sim-stage";
 import { compileBlocks, type BlockProgram } from "@/lib/studio/blocks";
 import { cppProblems, looksLikeCpp } from "@/lib/studio/cpp";
-import { sceneParts } from "@/lib/studio/circuit/to3d";
+import { sceneParts, sceneWires } from "@/lib/studio/circuit/to3d";
 import { analyzeMechanism } from "@/lib/studio/mech/gears";
 import { playLift } from "@/lib/studio/mech/playback";
 import { parseSpec, type DesignSpec } from "@/lib/studio/spec";
@@ -272,6 +272,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const canEdit = !!data?.canEdit && !preview;
 
   const parts3d = useMemo(() => (shown ? sceneParts(shown) : []), [shown]);
+  const wires3d = useMemo(() => (shown ? sceneWires(shown) : []), [shown]);
   // The block workspace to show: the one saved with the sketch while the sketch still matches it, else the
   // AI's / template's block program converted to stacked blocks, else an empty workspace.
   const blocklyState = useMemo<object>(() => {
@@ -666,6 +667,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
       world={activeDrive ? { track: activeDrive.track, pose: activeDrive.pose } : undefined}
       follow={follow}
       joints={activeRig && shown ? { defs: shown.joints, values: activeRig.values } : undefined}
+      wires={wires3d}
       className={cls}
     />
   );
