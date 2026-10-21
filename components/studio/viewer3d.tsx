@@ -1,7 +1,7 @@
 "use client";
 
 import { GestureToggle, useGestureLock } from "./gesture-lock";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ResolvedPart } from "@/lib/studio/spec";
@@ -34,6 +34,8 @@ export interface Viewer3DProps {
   /** keep the camera on the robot (close-up chase view) */
   follow?: boolean;
   world?: { track: { pts: Array<[number, number]>; closed: boolean; width: number; obstacles: Array<{ shape: "box"; x: number; z: number; w: number; d: number; h: number } | { shape: "cylinder"; x: number; z: number; r: number; h: number }>; arena?: { width: number; depth: number } }; pose: { x: number; z: number; h: number } };
+  /** jumper wires between the generated circuit parts, as polylines in mm */
+  wires?: Array<{ id: string; color: string; pts: Array<[number, number, number]> }>;
   className?: string;
 }
 
@@ -45,7 +47,7 @@ interface Linked {
   obj: THREE.Group;
   bind: string;
   role: Role;
-  mat: THREE.MeshBasicMaterial;
+  mat: THREE.MeshBasicMaterial | THREE.MeshStandardMaterial;
   edge: THREE.LineBasicMaterial;
   baseColor: THREE.Color;
   baseOpacity: number;
@@ -144,7 +146,8 @@ function addTrack(into: THREE.Group, track: NonNullable<Viewer3DProps["world"]>[
   const maxX = Math.max(...xs) + pad;
   const minZ = Math.min(...zs) - pad;
   const maxZ = Math.max(...zs) + pad;
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(maxX - minX, maxZ - minZ).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: "#e5edf7", transparent: true, opacity: 0.26, depthWrite: false }));
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(maxX - minX, maxZ - minZ).rotateX(-Math.PI / 2), currentLook === "solid" ? new THREE.MeshStandardMaterial({ color: "#d9e2ef", roughness: 0.85 }) : new THREE.MeshBasicMaterial({ color: "#e5edf7", transparent: true, opacity: 0.26, depthWrite: false }));
+  floor.receiveShadow = true;
   floor.position.set((minX + maxX) / 2, 0.1, (minZ + maxZ) / 2);
   floor.renderOrder = 0;
   into.add(floor);
@@ -201,16 +204,35 @@ function addTrack(into: THREE.Group, track: NonNullable<Viewer3DProps["world"]>[
   }
 }
 
+/**
+ * "solid" (default) draws lit, opaque parts with soft shadows so a circuit or machine looks like the real thing;
+ * "blueprint" keeps the translucent faces with crisp edges. Set before each rebuild of the scene.
+ */
+export type ViewLook = "solid" | "blueprint";
+let currentLook: ViewLook = "solid";
+
 function solid(geo: THREE.BufferGeometry, color: string, opacity: number, selected: boolean): THREE.Group {
   const g = new THREE.Group();
+  if (currentLook === "solid") {
+    const mat = new THREE.MeshStandardMaterial({ color: selected ? SELECT : color, roughness: 0.5, metalness: 0.12, emissive: selected ? SELECT : "#000000", emissiveIntensity: selected ? 0.35 : 0 });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    // faint outline keeps small parts readable against each other
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 35), new THREE.LineBasicMaterial({ color: selected ? "#ffffff" : "#0f172a", transparent: true, opacity: selected ? 1 : 0.28 }));
+    g.add(mesh, edges);
+    return g;
+  }
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: selected ? SELECT : color, transparent: true, opacity: selected ? Math.max(0.35, opacity * 1.6) : opacity, depthWrite: false }));
   const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 20), new THREE.LineBasicMaterial({ color: selected ? "#ffffff" : color, transparent: true }));
   g.add(mesh, edges);
   return g;
 }
 
-export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, links, live, onPress, world, follow, joints, className }: Viewer3DProps) {
+export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mechState, links, live, onPress, world, follow, joints, wires, className }: Viewer3DProps) {
   const host = useRef<HTMLDivElement>(null);
+  const lightsRef = useRef<{ lights: THREE.Group; grid: THREE.Object3D } | null>(null);
+  const [look, setLook] = useState<ViewLook>("solid");
   const gesture = useGestureLock();
   const interactiveRef = useRef(gesture.interactive);
   const ctx = useRef<{
@@ -252,6 +274,8 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     const el = host.current!;
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     el.appendChild(renderer.domElement);
     renderer.domElement.style.touchAction = "none";
     const scene = new THREE.Scene();
@@ -264,6 +288,25 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
     (grid.material as THREE.Material).transparent = true;
     (grid.material as THREE.Material).opacity = 0.35;
     scene.add(grid);
+    // studio lighting for the solid look: sky/ground fill, a key light that casts soft shadows, and a rim fill
+    const lights = new THREE.Group();
+    lights.add(new THREE.HemisphereLight("#dbeafe", "#334155", 1.35));
+    const key = new THREE.DirectionalLight("#ffffff", 2.4);
+    key.position.set(600, 1100, 500);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    Object.assign(key.shadow.camera, { left: -1400, right: 1400, top: 1400, bottom: -1400, near: 10, far: 4000 });
+    key.shadow.bias = -0.0004;
+    key.shadow.normalBias = 1.5;
+    const fill = new THREE.DirectionalLight("#bfdbfe", 0.8);
+    fill.position.set(-700, 400, -600);
+    lights.add(key, fill);
+    const shadowFloor = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000).rotateX(-Math.PI / 2), new THREE.ShadowMaterial({ opacity: 0.32 }));
+    shadowFloor.position.y = 0.05;
+    shadowFloor.receiveShadow = true;
+    lights.add(shadowFloor);
+    scene.add(lights);
+    lightsRef.current = { lights, grid };
     const content = new THREE.Group();
     scene.add(content);
     ctx.current = { renderer, scene, camera, controls, content, gears: [], load: null, rope: null, ropeTop: new THREE.Vector3(), loadBaseY: 0, pickables: [], linked: [], robot: new THREE.Group(), jointGroups: [], fitted: "" };
@@ -371,9 +414,15 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
             if (out?.on) l.obj.rotateOnWorldAxis(l.axis, (out.direction || 1) * l.ratio * (0.5 + out.level * 9) * dt);
           } else if (l.role === "light") {
             const on = !!out?.on;
-            l.mat.opacity = on ? 0.55 + 0.4 * Math.min(1, out!.level || 1) : l.baseOpacity;
-            l.mat.color.set(on ? "#ffffff" : l.baseColor).lerp(l.baseColor, on ? 0.45 : 0);
-            l.edge.color.set(on ? "#ffffff" : l.baseColor);
+            if (l.mat instanceof THREE.MeshStandardMaterial) {
+              // a lit LED really glows: emissive colour scales with brightness (PWM level)
+              l.mat.emissive.set(on ? l.baseColor : "#000000");
+              l.mat.emissiveIntensity = on ? 0.6 + 1.8 * Math.min(1, out!.level || 1) : 0;
+            } else {
+              l.mat.opacity = on ? 0.55 + 0.4 * Math.min(1, out!.level || 1) : l.baseOpacity;
+              l.mat.color.set(on ? "#ffffff" : l.baseColor).lerp(l.baseColor, on ? 0.45 : 0);
+              l.edge.color.set(on ? "#ffffff" : l.baseColor);
+            }
             l.obj.scale.setScalar(on ? 1.12 : 1);
           } else if (l.role === "press") {
             const down = lv.pressed.has(l.bind);
@@ -432,6 +481,8 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
   useEffect(() => {
     const c = ctx.current;
     if (!c) return;
+    currentLook = look;
+    if (lightsRef.current) lightsRef.current.lights.visible = look === "solid";
     c.content.traverse((o) => {
       const m = o as THREE.Mesh;
       m.geometry?.dispose?.();
@@ -481,7 +532,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
           obj: g,
           bind,
           role,
-          mat: mesh.material as THREE.MeshBasicMaterial,
+          mat: mesh.material as THREE.MeshBasicMaterial | THREE.MeshStandardMaterial,
           edge: edgeLines.material as THREE.LineBasicMaterial,
           baseColor: new THREE.Color(p.color || "#8fd3ff"),
           baseOpacity: p.opacity ?? 0.15,
@@ -491,6 +542,19 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
           axis: new THREE.Vector3(p.spinAxis === "y" ? 0 : p.spinAxis === "z" ? 0 : 1, p.spinAxis === "y" ? 1 : 0, p.spinAxis === "z" ? 1 : 0),
           shift: new THREE.Vector3(...(p.pressShift || [0, 0, 0])),
         });
+      }
+    }
+
+    // Jumper wires: a smooth tube (lit and rounded in the solid look, a plain line in the blueprint look)
+    for (const w of wires || []) {
+      if (w.pts.length < 2) continue;
+      const curve = new THREE.CatmullRomCurve3(w.pts.map((q) => new THREE.Vector3(q[0], q[1], q[2])), false, "catmullrom", 0.3);
+      if (look === "solid") {
+        const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.8, 8, false), new THREE.MeshStandardMaterial({ color: w.color, roughness: 0.4, metalness: 0.05 }));
+        tube.castShadow = true;
+        c.content.add(tube);
+      } else {
+        c.content.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(curve.getPoints(24)), new THREE.LineBasicMaterial({ color: w.color })));
       }
     }
 
@@ -605,7 +669,7 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
         c.camera.updateProjectionMatrix();
       }
     }
-  }, [parts, mechanism, explode, selectedId, links, world?.track, joints?.defs]);
+  }, [parts, mechanism, explode, selectedId, links, world?.track, joints?.defs, wires, look]);
 
   const zoomBy = (f: number) => {
     const c = ctx.current;
@@ -617,7 +681,19 @@ export function Viewer3D({ parts, mechanism, explode, selectedId, onSelect, mech
   const btn = "flex h-10 w-10 items-center justify-center rounded-full bg-slate-900/85 text-white border border-white/30 text-lg font-bold shadow-lg";
   return (
     <div className={className} style={{ position: "relative", overflow: "hidden" }}>
-      <div ref={host} style={{ background: "#0b2a5b", position: "absolute", inset: 0, overflow: "hidden" }} aria-label="3D model — drag to orbit, scroll or pinch to zoom" />
+      <div
+        ref={host}
+        style={{ background: look === "solid" ? "linear-gradient(180deg,#27456f 0%,#10213d 100%)" : "#0b2a5b", position: "absolute", inset: 0, overflow: "hidden" }}
+        aria-label="3D model — drag to orbit, scroll or pinch to zoom"
+      />
+      <button
+        type="button"
+        onClick={() => setLook((v) => (v === "solid" ? "blueprint" : "solid"))}
+        aria-pressed={look === "blueprint"}
+        className="absolute left-2 top-2 z-10 rounded-full border border-white/30 bg-slate-900/80 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg"
+      >
+        {look === "solid" ? "Show blueprint" : "Show solid"}
+      </button>
       <div className="absolute bottom-2 right-2 z-10 flex flex-col gap-1.5">
         <button type="button" className={btn} onClick={() => zoomBy(0.75)} aria-label="Zoom in">+</button>
         <button type="button" className={btn} onClick={() => zoomBy(1.35)} aria-label="Zoom out">−</button>

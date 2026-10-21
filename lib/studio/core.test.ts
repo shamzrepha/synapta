@@ -145,7 +145,7 @@ describe("AI edit patches", () => {
   });
 });
 
-import { sceneParts } from "./circuit/to3d";
+import { sceneParts, sceneWires } from "./circuit/to3d";
 describe("one world: circuit, code and 3D", () => {
   it("every template parses; switch-gears runs and its gears are bound to the motor", () => {
     for (const t of TEMPLATES) parseSpec(t.spec);
@@ -163,5 +163,23 @@ describe("one world: circuit, code and 3D", () => {
     const t = parseSpec(getTemplate("traffic-light")!.spec);
     const scene = sceneParts(t);
     expect(scene.filter((p) => p.bind).length).toBeGreaterThanOrEqual(3);
+  });
+  it("wires between generated parts are drawn as lifted leads with finite points", () => {
+    const t = parseSpec(getTemplate("traffic-light")!.spec);
+    const wires = sceneWires(t);
+    expect(wires.length).toBeGreaterThan(0);
+    for (const w of wires) {
+      expect(w.pts.length).toBeGreaterThanOrEqual(2);
+      expect(w.pts.every((q) => q.every(Number.isFinite))).toBe(true);
+      // lifted above the board, not buried in it
+      expect(Math.max(...w.pts.map((q) => q[1]))).toBeGreaterThan(5);
+    }
+  });
+  it("LED models have non-glowing leads so only the body lights up", () => {
+    const t = parseSpec(getTemplate("traffic-light")!.spec);
+    const scene = sceneParts(t);
+    const leds = scene.filter((p) => p.id.startsWith("auto_red"));
+    expect(leds.some((p) => p.name.includes("Lead") && p.bind)).toBe(false);
+    expect(leds.some((p) => p.bind === "red")).toBe(true);
   });
 });
