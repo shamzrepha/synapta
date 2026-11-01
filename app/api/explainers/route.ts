@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { requireUser, requireVerifiedEmail, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError } from "@/lib/api/errors";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { saveMedia } from "@/lib/media/store";
@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
+    requireVerifiedEmail(caller);
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "explainer_upload", limit: 5, windowMs: 10 * 60_000 });
     if (limited) return limited;
 

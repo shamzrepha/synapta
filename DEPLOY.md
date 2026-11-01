@@ -144,3 +144,26 @@ built-in simulators. Redeploy indexes after pulling (`designs` collection) — o
 - **Which model does what** is defined in `lib/ai/models.ts` (`TASK_GROUPS`): tutor, quizzes, flashcards,
   study guides, podcast scripts and research run on the fast model; class builds, simulations, Maker Studio
   designs, assignments and grading run on the strongest model. Admins can still pin any single task.
+
+## 10. Security checklist (launch)
+
+What the app enforces in code:
+
+- **Database:** `firestore.rules` denies every browser write; the server writes through the admin SDK. A test (`lib/auth/firestore-rules-file.test.ts`) fails if a rule ever opens a client write. Deploy the rules after changing them (section 7).
+- **Cross-site requests:** `proxy.ts` refuses API writes whose `Origin` is another site, and the session cookie is `httpOnly`, `secure` and `SameSite=Lax`. The API sends no CORS headers, so other sites cannot read it.
+- **Rate limits:** every API write has a baseline limit per signed-in user (240/min) or per IP (60/min), and costly routes (AI, uploads, sign-in) add their own tighter, shared limits.
+- **Body size:** API requests over 26 MB are refused before they are read.
+- **Email verification:** email/password accounts get a confirmation email; posting, commenting, messaging and uploads wait until it is confirmed (a banner offers resend).
+- **Admin:** every `/api/admin/*` route requires the `admin` role on the server; the `/admin` pages also need a session.
+- **Secrets:** only the public Firebase web config uses `NEXT_PUBLIC_`; Gemini, Firebase admin and `CRON_SECRET` stay on the server. Scheduled jobs check `CRON_SECRET` in constant time and refuse everything when it is unset.
+- **Errors and logs:** unexpected errors return a generic message with a request id; auth logs redact tokens; client error reports drop query strings and long tokens.
+- **Uploads:** images and videos are checked by their bytes (not the claimed type) and size.
+- **Headers:** CSP (incl. `frame-ancestors 'none'`, `object-src 'none'`), HSTS, `nosniff`, `X-Frame-Options: DENY`; no `X-Powered-By`, no browser source maps.
+- **AI simulations** run in a sandboxed iframe without same-origin access.
+
+What you set up once:
+
+1. **Vercel:** set `CRON_SECRET` (a long random string) so the reminder jobs run.
+2. **Firebase console → Authentication → Templates:** check the email-verification template's sender name and link domain.
+3. **GitHub → Settings → Secrets → Actions:** add `ANTHROPIC_API_KEY` to turn on the Claude security review on every pull request (`.github/workflows/security-review.yml`); without it the check skips.
+4. Run `npm audit` before each release. Remaining known items: `zod` 3 (mitigated by the body-size cap; upgrade to zod 4 after launch) and eslint tooling (development only).

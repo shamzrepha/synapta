@@ -6,6 +6,10 @@ const securityHeaders = [
     value: "nosniff",
   },
   {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains",
+  },
+  {
     key: "X-Frame-Options",
     value: "DENY",
   },
@@ -28,13 +32,25 @@ const securityHeaders = [
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: https: blob:",
       "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://generativelanguage.googleapis.com",
-      "frame-src 'self' https://*.firebaseapp.com",
+      // build videos embed from YouTube (privacy-enhanced) and Vimeo
+      "frame-src 'self' https://*.firebaseapp.com https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
       "worker-src 'self' blob:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
     ].join("; "),
   },
 ];
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  // no browser source maps in production: the shipped code stays minified
+  productionBrowserSourceMaps: false,
+  experimental: {
+    // API requests pass through proxy.ts (write guard); let bodies up to the largest upload (25 MB video) through
+    proxyClientMaxBodySize: "26mb",
+  },
   serverExternalPackages: ["firebase-admin"],
   turbopack: {
     rules: {

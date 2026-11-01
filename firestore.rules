@@ -38,10 +38,8 @@ service cloud.firestore {
     // 1. Users collection: owner or admin can read, client update restricted to non-sensitive profile fields
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow update: if isOwner(userId) &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['displayName', 'photoURL', 'username', 'updatedAt']);
-      allow create, delete: if false;
+      // profile edits go through the API, which checks handle uniqueness and lengths
+      allow write: if false;
     }
 
     // 2. Classes collection:
@@ -148,28 +146,19 @@ service cloud.firestore {
         resource.data.hostId == request.auth.uid ||
         isAdmin()
       );
-      allow update: if isAuthenticated() && (
-        resource.data.memberIds.hasAny([request.auth.uid]) ||
-        resource.data.hostId == request.auth.uid
-      ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['scratchpad', 'updatedAt']);
-      allow create, delete: if false;
+      // the app writes rooms through the API only
+      allow write: if false;
 
       match /messages/{messageId} {
         allow read: if isAuthenticated() &&
           get(/databases/$(database)/documents/rooms/$(roomCode)).data.memberIds.hasAny([request.auth.uid]);
-        allow create: if isAuthenticated() &&
-          get(/databases/$(database)/documents/rooms/$(roomCode)).data.memberIds.hasAny([request.auth.uid]) &&
-          request.resource.data.uid == request.auth.uid &&
-          request.resource.data.text is string &&
-          request.resource.data.text.size() <= 500;
-        allow update, delete: if false;
+        allow write: if false;
       }
 
       match /presence/{userId} {
         allow read: if isAuthenticated() &&
           get(/databases/$(database)/documents/rooms/$(roomCode)).data.memberIds.hasAny([request.auth.uid]);
-        allow write: if isOwner(userId) &&
-          get(/databases/$(database)/documents/rooms/$(roomCode)).data.memberIds.hasAny([request.auth.uid]);
+        allow write: if false;
       }
     }
 
@@ -188,7 +177,7 @@ service cloud.firestore {
     // 12. Misconception Catalog (authenticated read, teachers/admins write)
     match /kcMisconceptionCatalog/{catalogId}/items/{itemId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() && request.auth.token.role in ['teacher', 'admin'];
+      allow write: if false;
     }
 
     // 13. Signal Documents (Realtime Provider)

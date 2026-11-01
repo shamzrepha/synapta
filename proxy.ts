@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { safeRedirect } from "@/lib/auth/redirect";
+import { API_WRITE_LIMIT, bodyTooLarge, clientKey, isCrossSiteWrite, isWrite, writeRetryAfter } from "@/lib/security/api-guard";
 
 const protectedPrefixes = [
   "/dashboard",
@@ -47,9 +48,31 @@ const protectedPrefixes = [
 
 const authPages = ["/login", "/signup"];
 
+function guardApi(req: NextRequest, sessionCookie: string | undefined): NextResponse {
+  if (isCrossSiteWrite(req.method, req.headers.get("origin"), req.headers.get("host"))) {
+    return NextResponse.json({ ok: false, error: { code: "FORBIDDEN", message: "Cross-site requests are not allowed." } }, { status: 403 });
+  }
+  if (isWrite(req.method) && bodyTooLarge(req.headers.get("content-length"))) {
+    return NextResponse.json({ ok: false, error: { code: "TOO_LARGE", message: "That upload is too large." } }, { status: 413 });
+  }
+  if (isWrite(req.method)) {
+    const { key, signedIn } = clientKey(req.headers, sessionCookie);
+    const wait = writeRetryAfter(key, signedIn ? API_WRITE_LIMIT.signedIn : API_WRITE_LIMIT.anonymous, API_WRITE_LIMIT.windowMs);
+    if (wait) {
+      return NextResponse.json(
+        { ok: false, error: { code: "RATE_LIMITED", message: "Too many requests. Please slow down and try again shortly." } },
+        { status: 429, headers: { "Retry-After": String(wait) } }
+      );
+    }
+  }
+  return NextResponse.next();
+}
+
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const sessionCookie = req.cookies.get("__session")?.value;
+
+  if (pathname.startsWith("/api/")) return guardApi(req, sessionCookie);
 
   const isProtected = protectedPrefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
@@ -83,12 +106,11 @@ export function proxy(req: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for:
-     * - api routes
+     * Match all request paths (API routes too, for the write guard) except for:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, images, fonts, static assets
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mjs|js|css)).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|mjs|js|css)).*)",
   ],
 };

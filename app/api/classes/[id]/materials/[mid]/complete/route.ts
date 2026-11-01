@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb, adminBucket, Timestamp } from "@/lib/firebase/admin";
@@ -7,6 +8,8 @@ import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+const completeSchema = z.object({ contentText: z.string().max(2_000_000).optional() }).passthrough();
 
 export async function POST(
   req: NextRequest,
@@ -32,7 +35,8 @@ export async function POST(
     }
 
     const materialData = docSnap.data() || {};
-    const body = await req.json().catch(() => ({}));
+    const parsedBody = completeSchema.safeParse(await req.json().catch(() => ({})));
+    const body = parsedBody.success ? parsedBody.data : {};
 
     let buffer: Buffer;
     let isExtractedText = false;

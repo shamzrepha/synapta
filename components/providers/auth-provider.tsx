@@ -9,6 +9,7 @@ import {
   signInWithPopup,
   signOut as fbSignOut,
   updateProfile,
+  sendEmailVerification,
 } from "firebase/auth";
 import { clientAuth, googleProvider } from "@/lib/firebase/client";
 import { useUserStore, UserProfile } from "@/lib/store/use-user-store";
@@ -159,6 +160,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (name) {
         await updateProfile(cred.user, { displayName: name });
       }
+      // confirm the address; posting publicly waits for it (the banner lets them resend)
+      sendEmailVerification(cred.user).catch(() => {});
       const idToken = await cred.user.getIdToken(true);
       await establishSessionCookie(idToken);
       await bootstrapUser(cred.user, requestTeacher ? "pending" : "none", username, name);

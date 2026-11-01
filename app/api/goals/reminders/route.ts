@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/security/cron";
 import { adminDb } from "@/lib/firebase/admin";
 import { notify } from "@/lib/notifications/server";
 import { dayIdFor } from "@/lib/game/quests";
@@ -12,8 +13,7 @@ export const maxDuration = 120;
  * Requires `Authorization: Bearer $CRON_SECRET`. Sends at most one reminder per goal per day.
  */
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!isCronAuthorized(req.headers.get("authorization"))) {
     return NextResponse.json({ ok: false, error: { code: "UNAUTHORIZED", message: "Invalid cron secret" } }, { status: 401 });
   }
   const today = dayIdFor();

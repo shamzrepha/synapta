@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { requireUser, requireVerifiedEmail, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -57,6 +57,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const caller = await requireUser(req);
+    requireVerifiedEmail(caller);
     const { id } = await params;
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "community_post", limit: 10, windowMs: 60_000 });
     if (limited) return limited;

@@ -115,12 +115,15 @@ export function toErrorResponse(err: unknown, requestId?: string): NextResponse 
     }
   }
 
-  // 5. Duck-typed object with numeric status and string code
+  // 5. Duck-typed object with numeric status and string code. Only client errors pass through: a library error with a
+  // 5xx status (Google APIs, network) can carry internal details in its message, so those take the masked path below.
   if (
     typeof err === "object" &&
     err !== null &&
     "status" in err &&
     typeof (err as { status: unknown }).status === "number" &&
+    (err as { status: number }).status >= 400 &&
+    (err as { status: number }).status < 500 &&
     "code" in err &&
     typeof (err as { code: unknown }).code === "string"
   ) {
