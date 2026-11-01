@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { requireUser, requireVerifiedEmail, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { parseJson, ApiError } from "@/lib/api/errors";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
@@ -92,6 +92,7 @@ const createSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
+    requireVerifiedEmail(caller);
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "feed_post", limit: 6, windowMs: 60_000 });
     if (limited) return limited;
     const body = await parseJson(req, createSchema);

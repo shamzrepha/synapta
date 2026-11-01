@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { applyMapProposal } from "@/lib/teacher/materialRouter";
 
 export const runtime = "nodejs";
+
+const applySchema = z.object({ operationIds: z.array(z.string().max(200)).max(500).optional() });
 
 export async function POST(
   req: NextRequest,
@@ -14,7 +17,9 @@ export async function POST(
     const caller = await requireUser(req, ["teacher", "admin"]);
     await assertClassAccess(caller, id, "mutate");
 
-    const body = await req.json().catch(() => ({}));
+    const parsed = applySchema.safeParse(await req.json().catch(() => ({})));
+    if (!parsed.success) throw parsed.error;
+    const body = parsed.data;
     const result = await applyMapProposal({
       classId: id,
       proposalId: pid,

@@ -1,0 +1,31 @@
+name: Security review
+
+# Claude reviews each pull request for security problems and comments on the lines it finds.
+# Needs the ANTHROPIC_API_KEY repository secret; without it the job skips (and stays green).
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  security-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for API key
+        id: key
+        run: echo "present=${{ secrets.ANTHROPIC_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.key.outputs.present == 'true'
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+
+      - uses: anthropics/claude-code-security-review@main
+        if: steps.key.outputs.present == 'true'
+        with:
+          comment-pr: true
+          claude-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          exclude-directories: "node_modules,public/sim"

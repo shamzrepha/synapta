@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { requireUser, requireVerifiedEmail, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { sendMessage, attachmentSchema } from "@/lib/chat/store";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -16,6 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cha
   try {
     const { chatId } = await params;
     const caller = await requireUser(req);
+    requireVerifiedEmail(caller);
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "chat_send", limit: 40, windowMs: 60_000 });
     if (limited) return limited;
     const body = await parseJson(req, schema);

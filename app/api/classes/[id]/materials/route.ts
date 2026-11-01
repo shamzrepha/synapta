@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
@@ -7,6 +8,14 @@ import crypto from "crypto";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
+const materialSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  fileName: z.string().max(255).optional(),
+  mime: z.string().max(120).optional(),
+  sizeBytes: z.number().int().nonnegative().max(200_000_000).optional(),
+  contentText: z.string().min(1).max(2_000_000),
+});
 
 export async function POST(
   req: NextRequest,
@@ -17,10 +26,10 @@ export async function POST(
     const caller = await requireUser(req, ["teacher", "admin"]);
     await assertClassAccess(caller, id, "mutate");
 
-    const body = await req.json();
-    const { title, fileName, mime, sizeBytes, contentText } = body;
+    const parsed = materialSchema.safeParse(await req.json().catch(() => null));
+    const { title, fileName, mime, sizeBytes, contentText } = parsed.success ? parsed.data : ({} as Partial<z.infer<typeof materialSchema>>);
 
-    if (!title || !contentText) {
+    if (!parsed.success || !title || !contentText) {
       return NextResponse.json(
         { ok: false, error: { code: "VALIDATION", message: "Title and content text are required" } },
         { status: 400 }

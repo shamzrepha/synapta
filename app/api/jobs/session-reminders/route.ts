@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/security/cron";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { sendDueReminders, REMINDER_LEAD_MS } from "@/lib/sessions/store";
 import { sendRsvpReminders } from "@/lib/sessions/rsvp-reminders";
@@ -10,8 +11,7 @@ export const runtime = "nodejs";
  * Reminders are also sent lazily whenever sessions are viewed. Requires `Authorization: Bearer $CRON_SECRET`.
  */
 export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!isCronAuthorized(req.headers.get("authorization"))) {
     return NextResponse.json({ ok: false, error: { code: "UNAUTHORIZED", message: "Invalid cron secret" } }, { status: 401 });
   }
   const now = Date.now();

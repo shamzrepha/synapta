@@ -89,4 +89,14 @@ export async function requireUser(
   };
 }
 
+/**
+ * Content other people will see (posts, comments, messages, uploads) needs a confirmed email address, so throwaway
+ * sign-ups can't spam. Google accounts arrive verified; email/password accounts verify through the link we send.
+ */
+export function requireVerifiedEmail(user: AuthenticatedUser): void {
+  if (user.email && !user.emailVerified) {
+    throw new ApiError(403, "EMAIL_UNVERIFIED", "Please confirm your email address first: open the link we sent you, then tap “I’ve verified”.");
+  }
+}
+
 export const handleAuthError = toErrorResponse;

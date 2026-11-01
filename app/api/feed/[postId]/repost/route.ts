@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { requireUser, requireVerifiedEmail, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { parseJson, ApiError } from "@/lib/api/errors";
 import { FieldValue } from "@/lib/firebase/admin";
@@ -21,6 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pos
   try {
     const { postId } = await params;
     const caller = await requireUser(req);
+    requireVerifiedEmail(caller);
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "feed_repost", limit: 10, windowMs: 60_000 });
     if (limited) return limited;
     const body = await parseJson(req, schema);

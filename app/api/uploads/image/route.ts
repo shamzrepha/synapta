@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { requireUser, requireVerifiedEmail, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { saveMedia, FIRESTORE_MEDIA_MAX_BYTES } from "@/lib/media/store";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -25,6 +25,7 @@ const MAGIC: Array<{ type: string; ext: string; test: (b: Buffer) => boolean }> 
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
+    requireVerifiedEmail(caller);
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "upload_image", limit: 20, windowMs: 60_000 });
     if (limited) return limited;
     const { dataUrl, scope } = await parseJson(req, schema);

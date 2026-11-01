@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { requireUser, requireVerifiedEmail, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { z } from "zod";
 
@@ -75,6 +75,7 @@ export async function POST(
 ) {
   try {
     const caller = await requireUser(req);
+    requireVerifiedEmail(caller);
     const { friendUid } = await params;
 
     const body = await req.json();

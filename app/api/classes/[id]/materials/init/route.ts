@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb, adminBucket, Timestamp } from "@/lib/firebase/admin";
@@ -19,6 +20,13 @@ const ALLOWED_MIME_TYPES = new Set([
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB max direct storage upload
 
+const initSchema = z.object({
+  fileName: z.string().trim().min(1).max(255),
+  mime: z.string().max(120).optional(),
+  sizeBytes: z.number().int().nonnegative().optional(),
+  title: z.string().max(200).optional(),
+});
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -28,10 +36,10 @@ export async function POST(
     const caller = await requireUser(req, ["teacher", "admin"]);
     await assertClassAccess(caller, id, "mutate");
 
-    const body = await req.json().catch(() => ({}));
-    const { fileName, mime, sizeBytes, title } = body;
+    const parsed = initSchema.safeParse(await req.json().catch(() => null));
+    const { fileName, mime, sizeBytes, title } = parsed.success ? parsed.data : ({} as Partial<z.infer<typeof initSchema>>);
 
-    if (!fileName || typeof fileName !== "string") {
+    if (!parsed.success || !fileName) {
       return NextResponse.json(
         { ok: false, error: { code: "VALIDATION", message: "fileName is required" } },
         { status: 400 }
