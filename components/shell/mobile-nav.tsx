@@ -8,11 +8,13 @@ import { useUserStore } from "@/lib/store/use-user-store";
 import { useRealtime } from "@/components/providers/realtime-provider";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isActivePath } from "./nav-items";
+import { useT } from "@/components/settings/use-t";
 
 const PRIMARY = NAV_ITEMS.filter((i) => i.primary);
 
 /** Phone navigation: four primary tabs plus a "More" sheet with everything else. */
 export function MobileNav() {
+  const t = useT();
   const pathname = usePathname();
   const { user } = useUserStore();
   const { unreadCount } = useRealtime();
@@ -96,7 +98,7 @@ export function MobileNav() {
                     )}
                   >
                     <Icon className="h-5 w-5" />
-                    <span className="text-[11px] font-semibold leading-tight">{item.label}</span>
+                    <span className="text-[11px] font-semibold leading-tight">{t(item.label)}</span>
                   </Link>
                 );
               })}
@@ -124,7 +126,7 @@ export function MobileNav() {
                 )}
               >
                 <Icon className="h-5 w-5" />
-                {item.label}
+                {t(item.label)}
               </Link>
             );
           })}

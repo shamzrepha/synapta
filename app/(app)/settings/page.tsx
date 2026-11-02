@@ -5,10 +5,11 @@ import Link from "next/link";
 import { Settings as SettingsIcon, Gauge, Sparkles, VolumeX } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { usePrefs, writePrefs } from "@/components/settings/use-prefs";
-import { PREFS_KEY, parsePrefs, type Prefs } from "@/lib/settings/prefs";
+import { PREFS_KEY, parsePrefs } from "@/lib/settings/prefs";
 import { cn } from "@/lib/utils";
+import { LanguageSettings } from "@/components/settings/language-picker";
 
-const OPTIONS: Array<{ key: keyof Prefs; title: string; desc: string; icon: React.ReactNode }> = [
+const OPTIONS: Array<{ key: "dataSaver" | "reduceMotion" | "noAutoplay"; title: string; desc: string; icon: React.ReactNode }> = [
   { key: "dataSaver", title: "Data saver", desc: "Audio and 3D wait for a tap, images load smaller, videos don't autoplay.", icon: <Gauge className="h-5 w-5" /> },
   { key: "reduceMotion", title: "Reduce motion", desc: "Calmer animations.", icon: <Sparkles className="h-5 w-5" /> },
   { key: "noAutoplay", title: "Don't autoplay audio or video", desc: "Nothing starts playing until you press play.", icon: <VolumeX className="h-5 w-5" /> },
@@ -54,8 +55,11 @@ export default function SettingsPage() {
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
           <SettingsIcon className="h-7 w-7 text-teal-600" /> Settings
         </h1>
-        <p className="text-sm text-slate-500">Save data and tame autoplay. Kept on this device and in your account.</p>
+        <p className="text-sm text-slate-500">Your language, data saving and autoplay. Kept on this device and in your account.</p>
       </div>
+      <Card>
+        <LanguageSettings />
+      </Card>
       <Card className="divide-y divide-slate-100 dark:divide-slate-800">
         {OPTIONS.map((o) => (
           <div key={o.key} className="flex items-center gap-3 p-4">

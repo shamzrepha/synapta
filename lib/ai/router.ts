@@ -1,4 +1,6 @@
 import { getServerEnv, DEFAULT_GEMINI_MODEL } from "@/lib/env";
+import { getUserLanguage } from "@/lib/i18n/server";
+import { languageDirective, type LanguageCode } from "@/lib/i18n/languages";
 import { getGeminiClient } from "@/lib/gemini/client";
 import { checkRateLimitAndQuota, reserveQuota, settleQuota, releaseQuota } from "@/lib/quota/guard";
 import { z } from "zod";
@@ -438,13 +440,28 @@ export interface GenerateWithFallbackResult<T> {
  * Universal quota-aware AI execution pipeline with multi-tier fallback,
  * RPM pacing, budget guard, cache lookups, and PII-safe error masking.
  */
+/** Adds the learner's language to the model's instructions, and keeps cached answers separate per language. */
+export function withLearnerLanguage<T>(opts: GenerateWithFallbackOptions<T>, lang: LanguageCode): GenerateWithFallbackOptions<T> {
+  if (lang === "en") return opts;
+  const directive = languageDirective(lang);
+  return {
+    ...opts,
+    systemInstruction: opts.systemInstruction ? `${opts.systemInstruction}\n\n${directive}` : directive,
+    cacheKey: opts.cacheKey ? `${opts.cacheKey}:lang=${lang}` : opts.cacheKey,
+  };
+}
+
 export async function generateWithFallback<T>(opts: GenerateWithFallbackOptions<T>): Promise<GenerateWithFallbackResult<T>> {
   // Not on behalf of a user (health probes, system jobs): nothing to charge
   if (!opts.userId) return generateWithFallbackInner(opts, false);
+  const userId = opts.userId;
+
+  // Answer in the learner's language; cached answers are kept per language so nobody gets another language's copy
+  opts = withLearnerLanguage(opts, await getUserLanguage(userId));
 
   // Reserve the estimate before spending anything (rejects with QUOTA_EXCEEDED when the budget can't cover it),
   // then settle against real usage, or release if the call fails, so retries and failures are never charged twice.
-  const reservation = await reserveQuota(opts.userId, opts.estimatedTokens ?? defaultEstimate(opts.task));
+  const reservation = await reserveQuota(userId, opts.estimatedTokens ?? defaultEstimate(opts.task));
   let result: GenerateWithFallbackResult<T>;
   try {
     result = await generateWithFallbackInner(opts, true);

@@ -8,6 +8,7 @@ import {
   AiGenerationError,
   generateWithFallback,
   extractJsonPayload,
+  withLearnerLanguage,
 } from "./router";
 import { z } from "zod";
 import { sanitizeModelId, parseModelChain, DEFAULT_MODEL_CONFIG } from "./models";
@@ -273,5 +274,18 @@ describe("task → model matching", () => {
   it("keeps light tasks off the heavy chain and voice on a TTS model", () => {
     expect(getChainForTask("discussion_script").some((m) => DEFAULT_MODEL_CONFIG.chainHeavy.includes(m))).toBe(false);
     expect(modelFor("voice_tts")).toMatch(/tts/);
+  });
+});
+
+describe("withLearnerLanguage", () => {
+  it("leaves English requests untouched", () => {
+    const o = { task: "tutor_chat", userPrompt: "hi", systemInstruction: "Be kind.", cacheKey: "k" };
+    expect(withLearnerLanguage(o, "en")).toBe(o);
+  });
+  it("tells the model the learner's language and keeps caches apart", () => {
+    const o = withLearnerLanguage({ task: "tutor_chat", userPrompt: "hi", systemInstruction: "Be kind.", cacheKey: "k" }, "fr");
+    expect(o.systemInstruction).toMatch(/^Be kind\.\n\nLANGUAGE: .*French/);
+    expect(o.cacheKey).toBe("k:lang=fr");
+    expect(withLearnerLanguage({ task: "tutor_chat", userPrompt: "hi" }, "ha").systemInstruction).toContain("Hausa");
   });
 });

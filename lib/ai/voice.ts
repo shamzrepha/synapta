@@ -1,4 +1,5 @@
 import { getGeminiClient } from "@/lib/gemini/client";
+import { guessSpeechLanguage, languageInfo, type LanguageCode } from "@/lib/i18n/languages";
 import { modelFor } from "@/lib/ai/router";
 import { Communicate } from "edge-tts-universal";
 
@@ -90,6 +91,17 @@ export interface FullAudioResult {
  * - Alex (Host 1): en-US-JennyNeural (Warm, clear female tone)
  * - Sam (Host 2): en-US-GuyNeural (Engaging, articulate male tone)
  */
+/**
+ * The neural voice for a non-English line: the caller's language when known, else a guess from the text itself, so
+ * a French or Arabic podcast is never read by an English voice. Undefined for English (callers keep their own voice).
+ */
+export function languageVoice(text: string, gender: "female" | "male", lang?: LanguageCode | null): string | undefined {
+  // an English-speaking learner can still play a French note: guess from the text unless another language was chosen
+  const code = lang && lang !== "en" ? lang : guessSpeechLanguage(text);
+  if (!code || code === "en") return undefined;
+  return languageInfo(code).voices[gender];
+}
+
 export async function generateEdgeVoice({
   text,
   speaker,
@@ -100,7 +112,7 @@ export async function generateEdgeVoice({
   if (!text || text.trim().length === 0) return null;
 
   const host = hostFor(speaker);
-  const mp3 = await synthesizeEdgeVoice(text, host.edge);
+  const mp3 = await synthesizeEdgeVoice(text, languageVoice(text, host.gender === "female" ? "female" : "male") ?? host.edge);
   return mp3 ? { audioBase64: mp3.toString("base64"), mimeType: "audio/mpeg", voiceName: host.edgeName } : null;
 }
 
@@ -304,9 +316,11 @@ export interface SpeechClip {
  * One line of speech as a real audio file. Fast free neural voice first (4 s), then ElevenLabs when a key is
  * set, then Gemini TTS as the last resort. Never the browser's robot voice. Returns null when every engine failed.
  */
-export async function synthesizeSpeech(text: string, gender: "female" | "male", edgeVoice?: string, opts: { patient?: boolean; edgeOnly?: boolean } = {}): Promise<SpeechClip | null> {
+export async function synthesizeSpeech(text: string, gender: "female" | "male", edgeVoice?: string, opts: { patient?: boolean; edgeOnly?: boolean; lang?: LanguageCode | null } = {}): Promise<SpeechClip | null> {
   const clean = text.trim();
   if (!clean) return null;
+  // a non-English line gets that language's voice, whatever English voice the caller picked
+  edgeVoice = languageVoice(clean, gender, opts.lang) ?? edgeVoice;
   const voices = EDGE_VOICES[gender];
   // Live requests answer fast or give up. Recording a podcast line is not time-critical, and a long lecture turn needs
   // longer than a quick reply, so the time allowed grows with the length of the line.

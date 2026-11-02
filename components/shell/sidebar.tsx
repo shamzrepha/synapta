@@ -8,6 +8,7 @@ import { useUserStore } from "@/lib/store/use-user-store";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isActivePath } from "./nav-items";
 import { useRealtime } from "@/components/providers/realtime-provider";
+import { useT } from "@/components/settings/use-t";
 
 const GROUP_LABEL: Record<string, string> = { main: "Menu", account: "You" };
 
@@ -16,6 +17,7 @@ const GROUP_LABEL: Record<string, string> = { main: "Menu", account: "You" };
  * sidebar unless the user collapses it. Phones use the bottom bar instead.
  */
 export function Sidebar() {
+  const t = useT();
   const pathname = usePathname();
   const { user, isSidebarCollapsed, toggleSidebar } = useUserStore();
   const { dmUnread } = useRealtime();
@@ -61,7 +63,7 @@ export function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    title={item.label}
+                    title={t(item.label)}
                     aria-current={active ? "page" : undefined}
                     className={cn(
                       "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors relative justify-center",
@@ -73,8 +75,8 @@ export function Sidebar() {
                   >
                     <Icon className={cn("h-5 w-5 shrink-0", active ? "text-teal-600 dark:text-teal-400" : "text-slate-400")} />
                     <span className={cn("min-w-0 flex-1", label)}>
-                      <span className="block truncate">{item.label}</span>
-                      {item.hint && group === "main" && <span className="block truncate text-[10px] font-normal text-slate-400">{item.hint}</span>}
+                      <span className="block truncate">{t(item.label)}</span>
+                      {item.hint && group === "main" && <span className="block truncate text-[10px] font-normal text-slate-400">{t(item.hint)}</span>}
                     </span>
                     {item.href === "/messages" && dmUnread > 0 && (
                       <span className="absolute top-1.5 left-7 lg:static lg:ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">

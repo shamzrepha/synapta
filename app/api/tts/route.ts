@@ -3,6 +3,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { synthesizeSpeech } from "@/lib/ai/voice";
+import { getUserLanguage } from "@/lib/i18n/server";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tts", limit: 40, windowMs: 60_000 });
     if (limited) return limited;
     const { text, voice } = await parseJson(req, z.object({ text: z.string().trim().min(1).max(1200), voice: z.enum(["female", "male"]).optional() }));
-    const clip = await synthesizeSpeech(text, voice ?? "female");
+    const clip = await synthesizeSpeech(text, voice ?? "female", undefined, { lang: await getUserLanguage(caller.uid) });
     if (!clip) return NextResponse.json({ ok: false, error: { code: "TTS_UNAVAILABLE", message: "The voice is busy right now. Try again in a moment." } }, { status: 503 });
     return new NextResponse(new Uint8Array(clip.audio), {
       headers: { "Content-Type": clip.mimeType, "Content-Length": String(clip.audio.length), "Cache-Control": "private, max-age=3600" },
