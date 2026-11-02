@@ -263,11 +263,13 @@ export async function translatedClip(
 // ---------------------------------------------------------------------------
 
 /** A job that hasn't reported for this long is presumed dead and can be taken over. */
-const JOB_STALE_MS = 25_000;
+const JOB_STALE_MS = 90_000;
 /** How long one background run records before it stops (the next listener's request picks up the rest). */
 const JOB_BUDGET_MS = 250_000;
-/** After this many failed attempts a line plays in the original language instead of waiting forever. */
+/** After this many failed attempts in a row a line is reported as unavailable (never replaced by English)... */
 export const MAX_LINE_FAILS = 3;
+/** ...until this long after its last failure, when it is tried again (a used-up AI allowance resets). */
+const FAIL_EXPIRY_MS = 10 * 60_000;
 
 const jobId = (version: number, lang: LanguageCode) => `job_${version}_${lang}`;
 
@@ -289,10 +291,14 @@ function headIsDone(head: ClipHead | null, lang: LanguageCode, text: string): bo
   return Date.now() - (head.nativeTriedAt?.toMillis() ?? 0) < NATIVE_RETRY_MS;
 }
 
-/** Lines of this language's job that keep failing (index -> attempts). */
+/** Lines of this language's job that keep failing (index -> attempts); failures older than FAIL_EXPIRY_MS are forgotten. */
 export async function languageFailures(classId: string, kcId: string, version: number, lang: LanguageCode): Promise<Record<string, number>> {
   const d = (await audioCol(classId, kcId).doc(jobId(version, lang)).get()).data();
-  return (d?.failed as Record<string, number>) || {};
+  const failed = (d?.failed as Record<string, number>) || {};
+  const at = (d?.failedAt as Record<string, number>) || {};
+  const out: Record<string, number> = {};
+  for (const [i, n] of Object.entries(failed)) if (Date.now() - (at[i] ?? 0) < FAIL_EXPIRY_MS) out[i] = n;
+  return out;
 }
 
 async function claimJob(classId: string, kcId: string, version: number, lang: LanguageCode): Promise<boolean> {
@@ -320,9 +326,15 @@ export async function prepareLanguage(
   from = 0
 ): Promise<void> {
   if (!(await claimJob(classId, kcId, meta.version, lang).catch(() => false))) return;
-  resetVoiceBreakers();
   const ref = audioCol(classId, kcId).doc(jobId(meta.version, lang));
   const failed = await languageFailures(classId, kcId, meta.version, lang).catch(() => ({} as Record<string, number>));
+  // keep the times of the failures still in force, so they expire on schedule
+  const prevAt = ((await ref.get().catch(() => null))?.data()?.failedAt as Record<string, number>) || {};
+  const failedAt: Record<string, number> = Object.fromEntries(Object.keys(failed).map((i) => [i, prevAt[i] ?? Date.now()]));
+  const fail = (i: number) => {
+    failed[i] = (failed[i] ?? 0) + 1;
+    failedAt[i] = Date.now();
+  };
   const deadline = Date.now() + JOB_BUDGET_MS;
   try {
     const map = await translate(meta.turns.map((t) => t.text));
@@ -337,19 +349,22 @@ export async function prepareLanguage(
         const text = map.get(meta.turns[i].text);
         if ((failed[i] ?? 0) >= MAX_LINE_FAILS) continue;
         if (!text) {
-          failed[i] = (failed[i] ?? 0) + 1;
+          fail(i);
           continue;
         }
         if (headIsDone(await clipHead(classId, kcId, meta.version, i, lang).catch(() => null), lang, text)) continue;
         const clip = await translatedClip(classId, kcId, meta, i, text, lang).catch(() => null);
-        if (!clip) failed[i] = (failed[i] ?? 0) + 1;
-        else delete failed[i];
-        await ref.update({ beatAt: Timestamp.now(), failed }).catch(() => null);
+        if (!clip) fail(i);
+        else {
+          delete failed[i];
+          delete failedAt[i];
+        }
+        await ref.update({ beatAt: Timestamp.now(), failed, failedAt }).catch(() => null);
       }
     };
     await Promise.all([worker(), worker()]);
   } finally {
-    await ref.set({ kind: "job", version: meta.version, lang, running: false, beatAt: Timestamp.now(), failed }).catch(() => null);
+    await ref.set({ kind: "job", version: meta.version, lang, running: false, beatAt: Timestamp.now(), failed, failedAt }).catch(() => null);
   }
 }
 

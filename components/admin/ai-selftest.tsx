@@ -11,6 +11,7 @@ interface Check {
   ok: boolean;
   ms: number;
   detail: string;
+  audio?: string;
 }
 
 /** Runs the live AI self-test (text, JSON, heavy builds, both voice engines). */
@@ -39,7 +40,7 @@ export function AiSelfTest() {
         <Activity className="h-5 w-5 text-teal-600" />
         <div className="flex-1 min-w-0">
           <h3 className="font-extrabold text-base">AI self-test</h3>
-          <p className="text-xs text-slate-500">Calls every AI path live: tutor, quizzes/flashcards JSON, class builds and both voice engines.</p>
+          <p className="text-xs text-slate-500">Calls every AI path live: tutor, quizzes/flashcards JSON, class builds, both voice engines, and an Igbo podcast line (translation + both voices, to listen to).</p>
         </div>
         <Button size="sm" onClick={run} isLoading={running}>
           Run self-test
@@ -56,6 +57,7 @@ export function AiSelfTest() {
                   {c.name} <span className="text-xs font-normal text-slate-400">· {(c.ms / 1000).toFixed(1)}s</span>
                 </p>
                 <p className="text-xs text-slate-500 break-words">{c.detail}</p>
+                {c.audio && <audio controls src={c.audio} className="mt-1.5 h-9 w-full max-w-sm" aria-label={`Listen: ${c.name}`} />}
               </div>
             </li>
           ))}

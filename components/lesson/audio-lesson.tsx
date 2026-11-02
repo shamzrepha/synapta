@@ -95,6 +95,8 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
           // lines that are ready and waits on this one, so there is never an English stand-in while it records.
           let res = await fetch(url);
           for (let tries = 0; (res.status === 202 || res.status === 503) && tries < 120 && !stopped; tries++) {
+            // a line the server reports as unavailable in this language: stop waiting (shown with "Try again")
+            if (res.status === 503 && (await res.clone().json().catch(() => null))?.error?.code === "LANG_AUDIO_UNAVAILABLE") return null;
             await new Promise((r) => setTimeout(r, Math.min(8000, 2500 + tries * 500)));
             res = await fetch(url, { cache: "no-store" });
           }
