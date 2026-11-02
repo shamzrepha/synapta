@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { generateWithFallback } from "@/lib/ai/router";
-import { languageInfo, type LanguageCode } from "./languages";
+import { languageInfo, looksEnglish, type LanguageCode } from "./languages";
 
 /**
  * Translation memory shared by the whole app: every piece of text is translated once per language and stored, so
@@ -75,36 +75,51 @@ function isTimestampLike(v: object): boolean {
 // Translation memory + model calls
 // ---------------------------------------------------------------------------
 
-/** True when a non-English translation call merely echoed back a multi-word source sentence unchanged. */
-function isUntranslatedEcho(lang: LanguageCode, src: string, translated: string): boolean {
+/** How long a string the model kept returning in English is served as-is before it is tried again. */
+const ECHO_RETRY_MS = 60 * 60_000;
+
+/**
+ * True when a translation into another language came back as the same English sentence: the model skipped it.
+ * Text that is already in the target language (a Yorùbá class read in Yorùbá, a Pidgin line read in Pidgin), short
+ * labels and names legitimately come back unchanged, so only English-looking prose counts.
+ */
+export function isUntranslatedEcho(lang: LanguageCode, src: string, translated: string): boolean {
   if (lang === "en") return false;
-  const s = src.trim();
-  const t = translated.trim();
-  if (s.split(/\s+/).length < 4) return false;
-  return s.toLowerCase() === t.toLowerCase();
+  if (src.trim().toLowerCase() !== translated.trim().toLowerCase()) return false;
+  return looksEnglish(src);
 }
 
+/**
+ * Remembered translations. A string marked as a recent echo is returned as the original text (callers then show or
+ * voice the original) so it is not sent to the model on every request; after ECHO_RETRY_MS it is tried again.
+ */
 async function lookup(lang: LanguageCode, texts: string[]): Promise<Map<string, string>> {
   const found = new Map<string, string>();
   const refs = texts.map((t) => adminDb().collection(COLLECTION).doc(textKey(lang, t)));
+  const now = Date.now();
   for (let i = 0; i < refs.length; i += 300) {
     const snaps = await adminDb().getAll(...refs.slice(i, i + 300));
     snaps.forEach((s, j) => {
-      const t = s.data()?.t;
+      const d = s.data();
       const src = texts[i + j];
-      if (s.exists && typeof t === "string" && !isUntranslatedEcho(lang, src, t)) {
-        found.set(src, t);
+      if (!s.exists || typeof d?.t !== "string") return;
+      if (d.echo) {
+        const at = typeof d.at?.toMillis === "function" ? d.at.toMillis() : 0;
+        if (now - at < ECHO_RETRY_MS) found.set(src, src);
+        return;
       }
+      // entries saved before echo detection existed may hold an untranslated sentence: translate those again
+      if (!isUntranslatedEcho(lang, src, d.t)) found.set(src, d.t);
     });
   }
   return found;
 }
 
-async function remember(lang: LanguageCode, pairs: Array<[string, string]>) {
+async function remember(lang: LanguageCode, pairs: Array<[string, string]>, echo = false) {
   for (let i = 0; i < pairs.length; i += 400) {
     const batch = adminDb().batch();
     for (const [src, t] of pairs.slice(i, i + 400)) {
-      batch.set(adminDb().collection(COLLECTION).doc(textKey(lang, src)), { lang, t, chars: src.length, at: Timestamp.now() });
+      batch.set(adminDb().collection(COLLECTION).doc(textKey(lang, src)), { lang, t, chars: src.length, at: Timestamp.now(), ...(echo ? { echo: true } : {}) });
     }
     await batch.commit();
   }
@@ -129,7 +144,7 @@ function batches(texts: string[]): string[][] {
 
 const resultSchema = z.object({ translations: z.array(z.string()) });
 
-async function translateBatch(lang: LanguageCode, texts: string[]): Promise<string[] | null> {
+async function translateBatch(lang: LanguageCode, texts: string[], strict = false): Promise<string[] | null> {
   const name = languageInfo(lang).name;
   const res = await generateWithFallback({
     learnerLanguage: false,
@@ -142,7 +157,8 @@ async function translateBatch(lang: LanguageCode, texts: string[]): Promise<stri
       `Return JSON {"translations": [...]} with exactly ${texts.length} strings, in the same order as the input.`,
       `Every sentence and explanation MUST be translated into natural, fluent ${name} — never leave English sentences untranslated.`,
       "Translate meaning faithfully at the same reading level. Keep Markdown, LaTeX ($...$), code, numbers, units, chemical formulas, variable names and placeholders like {name} exactly as they are.",
-      `Individual technical terms with no common ${name} word may stay in English inside the ${name} sentence.`,
+      `Individual technical terms with no common ${name} word may stay in English inside the ${name} sentence. A string that is already written in ${name} is returned unchanged.`,
+      strict ? `These strings were returned in English last time. Each one is English and MUST come back written in ${name}.` : "",
       lang === "pcm" ? "Use natural, respectful Nigerian Pidgin as students speak it." : "",
       lang === "yo" ? "Use authentic Yorùbá with proper tonal marks and diacritics (ẹ, ọ, ṣ)." : "",
       lang === "ig" ? "Use natural, standard Igbo (Ọnwụ orthography)." : "",
@@ -166,13 +182,44 @@ export async function translateTexts(lang: LanguageCode, texts: string[]): Promi
   for (const group of batches(missing)) {
     const out = await translateBatch(lang, group).catch(() => null);
     if (!out) continue;
-    const pairs = group
-      .map((src, i) => [src, out[i]] as [string, string])
-      .filter(([src, t]) => t && t.trim() && !isUntranslatedEcho(lang, src, t));
-    pairs.forEach(([src, t]) => found.set(src, t));
-    if (pairs.length) await remember(lang, pairs).catch(() => null);
+    const good: Array<[string, string]> = [];
+    let echoed: string[] = [];
+    group.forEach((src, i) => {
+      const t = out[i];
+      if (!t || !t.trim()) return;
+      if (isUntranslatedEcho(lang, src, t)) echoed.push(src);
+      else good.push([src, t]);
+    });
+    // one stricter try for sentences the model handed back in English
+    if (echoed.length) {
+      const again = await translateBatch(lang, echoed, true).catch(() => null);
+      if (again) {
+        const still: string[] = [];
+        echoed.forEach((src, i) => {
+          const t = again[i];
+          if (t && t.trim() && !isUntranslatedEcho(lang, src, t)) good.push([src, t]);
+          else still.push(src);
+        });
+        echoed = still;
+        // remember the miss for a while, so the same sentence is not re-sent on every request
+        if (echoed.length) await remember(lang, echoed.map((src) => [src, src] as [string, string]), true).catch(() => null);
+      }
+    }
+    good.forEach(([src, t]) => found.set(src, t));
+    if (good.length) await remember(lang, good).catch(() => null);
   }
   return found;
+}
+
+/**
+ * The translation of one string, or null when it could not be translated (the model was unavailable or kept
+ * returning English). For places that must not pass the original off as a translation, such as recorded audio.
+ */
+export async function translateOne(lang: LanguageCode, text: string): Promise<string | null> {
+  if (!isTranslatable(text)) return text;
+  const t = (await translateTexts(lang, [text]).catch(() => new Map<string, string>())).get(text);
+  if (t === undefined || isUntranslatedEcho(lang, text, t)) return null;
+  return t;
 }
 
 /** A copy of any JSON payload with its human-readable text in `lang` (callers skip it when no translation is needed). */

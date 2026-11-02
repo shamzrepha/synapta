@@ -32,6 +32,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: { code: "VALIDATION", message: "Provide text and a speaker." } }, { status: 400 });
     }
     const { text, speaker, binary, lang, rerecord } = parsed.data;
+    if (rerecord) {
+      // re-recording skips the shared cache, so it is held to a much tighter budget than normal playback
+      const tooMany = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "voice_rerecord", limit: 60, windowMs: 10 * 60_000 });
+      if (tooMany) return tooMany;
+    }
     const targetLang = isLanguageCode(lang) ? lang : await getUserLanguage(caller.uid);
     // the listener's language picks the voice (Pidgin reads like English, so it can't be guessed from the text)
     const line = await getOrSynthesizeHostLine(text, speaker, targetLang, rerecord);

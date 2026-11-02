@@ -75,3 +75,24 @@ export function guessSpeechLanguage(text: string): LanguageCode | null {
 
 const FR = new Set(["le", "la", "les", "des", "est", "et", "une", "un", "du", "que", "qui", "dans", "pour", "pas", "sur", "avec", "nous", "vous", "c'est", "ce", "sont"]);
 const SW = new Set(["na", "ya", "wa", "kwa", "ni", "katika", "hii", "ambayo", "kuwa", "za", "la", "cha", "pia", "sana", "hivyo"]);
+
+// words that are common in English prose but rare in Nigerian Pidgin, Yorùbá, Igbo, Hausa, French or Swahili
+const EN = new Set(["the", "is", "are", "was", "were", "of", "that", "this", "these", "those", "with", "which", "have", "has", "will", "would", "an", "be", "been", "there", "their", "they", "it's", "it", "what", "when", "how", "into", "than", "then", "because", "can't", "don't"]);
+
+/**
+ * True when text reads as English prose (at least four words and a good share of English function words). Used to
+ * decide whether text needs translating before it is voiced or shown in another language: Pidgin shares most of its
+ * vocabulary with English, so "not obviously another language" is not enough.
+ */
+export function looksEnglish(text: string): boolean {
+  const words = text.slice(0, 800).toLowerCase().match(/[a-z']+/g) || [];
+  if (words.length < 4 || guessSpeechLanguage(text)) return false;
+  return words.filter((w) => EN.has(w)).length / words.length >= 0.12;
+}
+
+/** Whether text in an unknown language should be translated before it is spoken or shown in `lang`. */
+export function needsTranslation(text: string, lang: LanguageCode): boolean {
+  if (lang === "en") return false;
+  const guess = guessSpeechLanguage(text);
+  return guess ? guess !== lang : looksEnglish(text);
+}

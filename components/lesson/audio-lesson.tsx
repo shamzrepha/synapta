@@ -278,7 +278,7 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
 
   /** Forces every line to be freshly translated and re-recorded in the currently selected language. */
   const rerecordLanguage = async () => {
-    if (!lesson || activeLang === "en") return;
+    if (!lesson || activeLang === "en" || !payload?.canManage) return;
     const langName = languageInfo(activeLang).name;
     setGenerating(true);
     stopAll();
@@ -366,17 +366,33 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-400">
             <span>
               {failedClips > 0
-                ? `${failedClips} line${failedClips > 1 ? "s" : ""} in ${languageInfo(activeLang).name} couldn't load — tap Re-record to voice them.`
+                ? `${failedClips} line${failedClips > 1 ? "s" : ""} in ${languageInfo(activeLang).name} couldn't load${payload.canManage ? " — tap Re-record to voice them." : "."}`
                 : `Spoken in ${languageInfo(activeLang).name} (${languageInfo(activeLang).native}).`}
             </span>
-            <button
-              type="button"
-              onClick={rerecordLanguage}
-              disabled={generating}
-              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 hover:underline"
-            >
-              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />} Re-record {languageInfo(activeLang).name}
-            </button>
+            {payload.canManage ? (
+              <button
+                type="button"
+                onClick={rerecordLanguage}
+                disabled={generating}
+                className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 hover:underline"
+              >
+                {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />} Re-record {languageInfo(activeLang).name}
+              </button>
+            ) : (
+              failedClips > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopAll();
+                    setPlaying(false);
+                    setLangRev((r) => r + 1);
+                  }}
+                  className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 hover:underline"
+                >
+                  <RotateCw className="h-3.5 w-3.5" /> Try again
+                </button>
+              )
+            )}
           </div>
         )}
         {lesson && payload.canManage && activeLang === "en" && (
