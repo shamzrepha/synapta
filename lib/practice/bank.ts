@@ -182,6 +182,24 @@ export async function ensureFlashcardBank(params: { classId: string; kcId: strin
   }
 }
 
+/** Whose AI budget pays for a bank a student's first visit prepares: the class's teacher (the student's own as a fallback). */
+export function classOwner(classData: { teacherId?: unknown } | null | undefined, fallbackUid: string): string {
+  return typeof classData?.teacherId === "string" && classData.teacherId ? classData.teacherId : fallbackUid;
+}
+
+/** Teacher review: takes one question or flashcard out of the topic's bank. Returns the new sizes. */
+export async function removeBankItem(classId: string, kcId: string, kind: "question" | "card", id: string): Promise<void> {
+  const ref = practiceRef(classId, kcId, kind === "question" ? "quizBank" : "flashcardBank");
+  const field = kind === "question" ? "questions" : "cards";
+  await adminDb().runTransaction(async (t) => {
+    const snap = await t.get(ref);
+    const list = (snap.data()?.[field] as Array<{ id: string }> | undefined) || [];
+    const next = list.filter((x) => x.id !== id);
+    if (next.length === list.length) return;
+    t.set(ref, { [field]: next, size: next.length, version: (Number(snap.data()?.version) || 0) + 1 }, { merge: true });
+  });
+}
+
 /** What is already stored, never generating. Students are served from this. */
 export async function readQuizBank(classId: string, kcId: string): Promise<BankQuestion[]> {
   const snap = await practiceRef(classId, kcId, "quizBank").get();

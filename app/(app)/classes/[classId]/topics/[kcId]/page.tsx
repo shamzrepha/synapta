@@ -625,8 +625,8 @@ export default function TopicPage({
           )}
 
           {/* FLASHCARDS */}
-          {activeTab === "flashcards" && !canManage && !pub.practice && notPublished("flashcards")}
-          {activeTab === "flashcards" && (canManage || pub.practice) && (
+          {/* self-study: flashcards and quizzes are open to every member; graded work goes through assignments */}
+          {activeTab === "flashcards" && (
             <Card className="p-6 space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
@@ -718,8 +718,7 @@ export default function TopicPage({
           {activeTab === "prove" && <ProveIt classId={classId} kcId={kcId} topicTitle={kc.title} />}
           {activeTab === "build" && <TopicLabs classId={classId} kcId={kcId} topicTitle={kc.title} />}
 
-          {activeTab === "quiz" && !canManage && !pub.practice && notPublished("quiz")}
-          {activeTab === "quiz" && (canManage || pub.practice) && (
+          {activeTab === "quiz" && (
             <Card className="p-4 md:p-6">
               <QuizPlayer classId={classId} kcId={kcId} onEvidence={applyEvidenceUpdate} viewLang={viewLang} />
             </Card>

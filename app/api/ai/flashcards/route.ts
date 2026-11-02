@@ -4,9 +4,8 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
-import { assertPublished } from "@/lib/classes/published";
 import { flashcardBankForStudents } from "@/lib/classes/live";
-import { ensureFlashcardBank, pickForLearner } from "@/lib/practice/bank";
+import { classOwner, ensureFlashcardBank, pickForLearner, readFlashcardBank } from "@/lib/practice/bank";
 import { getSeen, setSeen } from "@/lib/practice/history";
 import { z } from "zod";
 
@@ -34,14 +33,16 @@ export async function POST(req: NextRequest) {
     const { classId, kcId, count } = parsed.data;
     const access = await assertClassAccess(caller, classId, "view");
 
-    // Teachers prepare the deck; students are dealt from what is published and never trigger generation
+    // Flashcards are self-study, open to every member without waiting for the teacher to publish: the teacher's
+    // published deck when there is one, else the topic's deck, prepared once (on the class's account) if missing.
     let bank;
     if (access.canMutate) bank = await ensureFlashcardBank({ classId, kcId, userId: caller.uid });
     else {
       const kcSnap = await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get();
-      assertPublished(false, kcSnap.data(), "practice");
       bank = await flashcardBankForStudents(classId, kcId, kcSnap.data() || {});
-      if (!bank.length) throw new ApiError(404, "NOT_READY", "Your teacher hasn't prepared the flashcards yet.");
+      if (!bank.length) bank = await readFlashcardBank(classId, kcId);
+      if (!bank.length) bank = await ensureFlashcardBank({ classId, kcId, userId: classOwner(access.classData, caller.uid) });
+      if (!bank.length) throw new ApiError(404, "NOT_READY", "Flashcards for this topic aren't ready yet. Try again in a minute.");
     }
     const seen = await getSeen(caller.uid, kcId, "cards");
     const { picked, seen: nextSeen } = pickForLearner(bank, seen, count);
