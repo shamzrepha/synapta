@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { classSourceLanguage, localizeFor } from "@/lib/i18n/serve";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       data: {
         sessionId: sessionRef.id,
-        questions: questions.map((q, idx) => ({ id: idx, question: q.question, options: q.options, difficulty: q.difficulty })),
+        questions: await localizeFor(req, caller, access.canMutate, questions.map((q, idx) => ({ id: idx, question: q.question, options: q.options, difficulty: q.difficulty })), await classSourceLanguage(access.classData)),
         bankSize: bank.length,
         freshCount: Math.max(0, bank.length - seen.length),
       },

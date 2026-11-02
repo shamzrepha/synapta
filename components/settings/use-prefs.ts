@@ -49,7 +49,8 @@ export function usePrefs(): [Prefs, (patch: Partial<Prefs>) => void] {
   const update = useCallback((patch: Partial<Prefs>) => {
     const next = { ...getSnapshot(), ...patch };
     writePrefs(next);
-    fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) }).catch(() => null);
+    // keepalive: a language switch reloads the page right after, and the save must still reach the server
+    fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next), keepalive: true }).catch(() => null);
   }, []);
   return [prefs, update];
 }

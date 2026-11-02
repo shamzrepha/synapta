@@ -1,4 +1,5 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import type { LanguageCode } from "@/lib/i18n/languages";
 import { ApiError } from "@/lib/api/errors";
 import { generateWithFallback, AiGenerationError } from "@/lib/ai/router";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
@@ -83,12 +84,13 @@ export interface TurnAudio {
   mimeType: string;
 }
 
-const clipId = (version: number, index: number) => `c${version}_${index}`;
+/** Saved clips are per lesson version, line, and language (the original language has no suffix). */
+const clipId = (version: number, index: number, lang?: LanguageCode) => `c${version}_${index}${lang ? `_t${lang}` : ""}`;
 
 /** Saves a recorded clip once so every learner replays the same file (no AI or TTS cost per listener). */
-async function saveClip(classId: string, kcId: string, version: number, index: number, clip: TurnAudio) {
+async function saveClip(classId: string, kcId: string, version: number, index: number, clip: TurnAudio, lang?: LanguageCode) {
   const col = audioCol(classId, kcId);
-  const id = clipId(version, index);
+  const id = clipId(version, index, lang);
   const parts = Math.max(1, Math.ceil(clip.audio.length / PART_BYTES));
   await Promise.all(
     Array.from({ length: parts }, (_, k) =>
@@ -99,9 +101,9 @@ async function saveClip(classId: string, kcId: string, version: number, index: n
 }
 
 /** A saved clip, or null when this turn hasn't been recorded. Never synthesises. */
-export async function readClip(classId: string, kcId: string, version: number, index: number): Promise<TurnAudio | null> {
+export async function readClip(classId: string, kcId: string, version: number, index: number, lang?: LanguageCode): Promise<TurnAudio | null> {
   const col = audioCol(classId, kcId);
-  const id = clipId(version, index);
+  const id = clipId(version, index, lang);
   const head = await col.doc(id).get();
   const h = head.data();
   if (!h || !Number.isInteger(h.parts)) return null;
@@ -151,7 +153,7 @@ export function splitForSpeech(text: string, max = 320): string[] {
  * lecture line is no harder for the voice service than a short reply. Only the teacher's recording calls this;
  * students are served the saved file.
  */
-async function synthesizeTurn(text: string, role: "teacher" | "student", style: "female" | "male"): Promise<TurnAudio | null> {
+async function synthesizeTurn(text: string, role: "teacher" | "student", style: "female" | "male", lang?: LanguageCode): Promise<TurnAudio | null> {
   const voices = VOICES[style] || VOICES.female;
   const edgeName = voices[role];
   // the speaker's gender follows the voice: female style = female teacher + male student, and the reverse
@@ -159,20 +161,20 @@ async function synthesizeTurn(text: string, role: "teacher" | "student", style: 
   const parts = splitForSpeech(text);
   // only the free MP3 voice can be voiced in parts and joined; any other voice gets the whole line in one request
   if (parts.length <= 1 || !edgeAvailable()) {
-    const clip = await synthesizeSpeech(text, gender, edgeName, { patient: true });
+    const clip = await synthesizeSpeech(text, gender, edgeName, { patient: true, lang });
     return clip ? { audio: clip.audio, mimeType: clip.mimeType } : null;
   }
   const clips: Array<{ audio: Buffer; mimeType: string } | null> = [];
   for (const part of parts) {
     // one retry per part, only while the free voice is in play: retrying a failing paid voice just burns its allowance
-    const clip = (await synthesizeSpeech(part, gender, edgeName, { patient: true })) || (edgeAvailable() ? await synthesizeSpeech(part, gender, edgeName, { patient: true, edgeOnly: true }) : null);
+    const clip = (await synthesizeSpeech(part, gender, edgeName, { patient: true, lang })) || (edgeAvailable() ? await synthesizeSpeech(part, gender, edgeName, { patient: true, edgeOnly: true, lang }) : null);
     clips.push(clip ? { audio: clip.audio, mimeType: clip.mimeType } : null);
   }
   if (clips.some((c) => !c)) return null;
   const ok = clips as Array<{ audio: Buffer; mimeType: string }>;
   // MP3 frames can simply be joined; anything else (a WAV from the last-resort engine) is kept only as a single clip
   if (ok.every((c) => c.mimeType === "audio/mpeg")) return { audio: Buffer.concat(ok.map((c) => c.audio)), mimeType: "audio/mpeg" };
-  return synthesizeSpeech(text, gender, edgeName, { patient: true }).then((c) => (c ? { audio: c.audio, mimeType: c.mimeType } : null));
+  return synthesizeSpeech(text, gender, edgeName, { patient: true, lang }).then((c) => (c ? { audio: c.audio, mimeType: c.mimeType } : null));
 }
 
 /**
@@ -199,6 +201,20 @@ export async function recordTurns(classId: string, kcId: string, meta: AudioLess
   };
   await Promise.all([worker(), worker(), worker()]);
   return have;
+}
+
+/**
+ * One podcast line in a student's language: the teacher's line translated (by the caller) and voiced in that
+ * language once, then saved so every other student with the same language replays the file.
+ */
+export async function translatedClip(classId: string, kcId: string, meta: AudioLessonMeta, index: number, text: string, lang: LanguageCode): Promise<TurnAudio | null> {
+  const saved = await readClip(classId, kcId, meta.version, index, lang);
+  if (saved) return saved;
+  const turn = meta.turns[index];
+  if (!turn) return null;
+  const clip = await synthesizeTurn(text, turn.speaker === "teacher" ? "teacher" : "student", meta.voiceStyle, lang);
+  if (clip) await saveClip(classId, kcId, meta.version, index, clip, lang).catch(() => null);
+  return clip;
 }
 
 /** Drops clips of versions that are neither the newest nor the one students are currently listening to. */

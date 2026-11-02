@@ -1,4 +1,7 @@
 import { publishMapOf } from "@/lib/classes/published";
+import { getUserLanguage } from "@/lib/i18n/server";
+import { classSourceLanguage } from "@/lib/i18n/serve";
+import { localizeJson } from "@/lib/i18n/translate";
 import { lessonForStudents } from "@/lib/classes/live";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
@@ -102,11 +105,34 @@ export async function GET(
       }
     }
 
+    // Students read the class in their own language. Topic titles and summaries are translated here; a full lecture
+    // note only for the topic being opened (?kc=), so the class page stays fast. Teachers get the original they edit.
+    let classView: Record<string, unknown> = isOwner || isAdmin ? { id, ...classData } : { id, ...classData, joinCode: undefined };
+    const source = await classSourceLanguage(classData);
+    const lang = access.canMutate ? source : await getUserLanguage(caller.uid);
+    if (lang !== source) {
+      const focus = req.nextUrl.searchParams.get("kc");
+      const held = new Map<string, unknown>();
+      const light = kcs.map((k) => {
+        const r = k as Record<string, unknown> & { id: string };
+        if (r.id === focus || !("lessonMarkdown" in r)) return r;
+        held.set(r.id, r.lessonMarkdown);
+        return { ...r, lessonMarkdown: undefined };
+      });
+      try {
+        const out = await localizeJson({ classView, kcs: light }, lang);
+        classView = out.classView;
+        kcs = out.kcs.map((k) => (held.has(k.id) ? { ...k, lessonMarkdown: held.get(k.id) } : k)) as typeof kcs;
+      } catch (err) {
+        console.warn(`[i18n] class ${id} stays in its original language:`, err instanceof Error ? err.message : err);
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       data: {
         // The join code is an invite credential: only teachers/admins see it
-        class: isOwner || isAdmin ? { id, ...classData } : { id, ...classData, joinCode: undefined },
+        class: classView,
         kcs,
         masteryMap,
         attemptsMap,

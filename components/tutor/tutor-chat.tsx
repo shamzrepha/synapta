@@ -264,7 +264,7 @@ export function TutorChat({
               ) : m.role === "user" ? (
                 <p className="whitespace-pre-wrap">{m.text}</p>
               ) : (
-                <MarkdownRenderer content={m.text} />
+                <MarkdownRenderer localized content={m.text} />
               )}
             </div>
             {m.role === "model" && m.text && !m.isError && (

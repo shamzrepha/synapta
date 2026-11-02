@@ -262,7 +262,7 @@ export function VoiceTutor() {
               ) : m.role === "user" ? (
                 <p className="whitespace-pre-wrap">{m.text}</p>
               ) : (
-                <MarkdownRenderer content={m.text} />
+                <MarkdownRenderer localized content={m.text} />
               )}
             </div>
           </div>

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { PageTranslator } from "@/components/i18n/page-translator";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -79,6 +80,7 @@ export default function RootLayout({
               <ThemeProvider>
                 <ToastProvider>
                   <ClientErrorListener />
+                  <PageTranslator />
                   {children}
                 </ToastProvider>
               </ThemeProvider>

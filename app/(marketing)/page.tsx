@@ -51,7 +51,7 @@ export default function LandingPage() {
               <BrainCircuit className="h-6 w-6" />
             </div>
             <div className="flex flex-col">
-              <span className="font-bold text-lg tracking-tight">Sunroot</span>
+              <span translate="no" className="font-bold text-lg tracking-tight">Sunroot</span>
               <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">
                 Adaptive Learning
               </span>
@@ -366,7 +366,7 @@ export default function LandingPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 font-bold">
               <BrainCircuit className="h-5 w-5" />
             </div>
-            <span className="font-bold text-sm">Sunroot</span>
+            <span translate="no" className="font-bold text-sm">Sunroot</span>
             <span className="text-xs text-slate-500">© 2026. All rights reserved.</span>
           </div>
 

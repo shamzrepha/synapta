@@ -1,4 +1,5 @@
 import { adminDb } from "@/lib/firebase/admin";
+import { classSourceLanguage, localizeFor } from "@/lib/i18n/serve";
 import { isPublished } from "@/lib/classes/published";
 import { audioForStudents } from "@/lib/classes/live";
 import { NextRequest, NextResponse } from "next/server";
@@ -19,7 +20,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const kcSnap = await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get();
     const published = access.canMutate || isPublished(kcSnap.data(), "audio");
     // Teachers see their working copy; students see the version that was pushed
-    const lesson = access.canMutate ? await getAudioLesson(classId, kcId) : published ? await audioForStudents(classId, kcId, kcSnap.data() || {}) : null;
+    const original = access.canMutate ? await getAudioLesson(classId, kcId) : published ? await audioForStudents(classId, kcId, kcSnap.data() || {}) : null;
+    // students read the transcript in their language; the matching audio is voiced per language on first play
+    const lesson = original && !access.canMutate ? await localizeFor(req, caller, false, original, await classSourceLanguage(access.classData)) : original;
     const enabled = access.classData.audioLessons !== false;
     return NextResponse.json({
       ok: true,

@@ -155,7 +155,7 @@ export default function SnapPage() {
       {result && (
         <Card className="p-4">
           <div className="text-[11px] font-bold uppercase tracking-wide text-teal-600 mb-1">{result.guided ? "Hints" : "Explanation"}</div>
-          <MarkdownRenderer content={result.text} />
+          <MarkdownRenderer localized content={result.text} />
         </Card>
       )}
 
@@ -174,7 +174,7 @@ export default function SnapPage() {
                 </button>
               </summary>
               <div className="px-3 pb-3 border-t border-slate-100 dark:border-slate-800 pt-2">
-                <MarkdownRenderer content={s.text} />
+                <MarkdownRenderer localized content={s.text} />
               </div>
             </details>
           ))}

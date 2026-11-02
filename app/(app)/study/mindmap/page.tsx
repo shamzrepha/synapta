@@ -144,7 +144,7 @@ export default function MindMapPage() {
               {explain.loading ? (
                 <div className="flex items-center gap-2 text-sm text-slate-500 py-3"><Loader2 className="h-4 w-4 animate-spin" /> Thinking…</div>
               ) : (
-                <MarkdownRenderer content={explain.text} />
+                <MarkdownRenderer localized content={explain.text} />
               )}
             </Card>
           )}

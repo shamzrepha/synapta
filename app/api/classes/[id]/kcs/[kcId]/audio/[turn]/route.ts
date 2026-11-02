@@ -3,10 +3,13 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { audioForStudents } from "@/lib/classes/live";
-import { getAudioLesson, readClip, recordTurns } from "@/lib/lesson/audio";
+import { getAudioLesson, readClip, recordTurns, translatedClip } from "@/lib/lesson/audio";
+import { getUserLanguage } from "@/lib/i18n/server";
+import { classSourceLanguage } from "@/lib/i18n/serve";
+import { localizeJson } from "@/lib/i18n/translate";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 /**
  * Streams one saved clip of the podcast. Students are served the version the teacher pushed, straight from
@@ -24,7 +27,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const kc = (await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get()).data() || {};
     const meta = access.canMutate ? await getAudioLesson(classId, kcId) : await audioForStudents(classId, kcId, kc);
     if (!meta || !meta.turns[index]) return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "No audio" } }, { status: 404 });
-    let clip = await readClip(classId, kcId, meta.version, index);
+    const source = await classSourceLanguage(access.classData);
+    const lang = access.canMutate ? source : await getUserLanguage(caller.uid);
+    let clip = null as Awaited<ReturnType<typeof readClip>>;
+    if (lang !== source) {
+      // the teacher's line in the student's language, voiced once and saved for everyone in that language
+      const text = (await localizeJson({ text: meta.turns[index].text }, lang)).text;
+      clip = await translatedClip(classId, kcId, meta, index, text, lang).catch(() => null);
+    }
+    if (!clip) clip = await readClip(classId, kcId, meta.version, index);
     if (!clip && access.canMutate) {
       await recordTurns(classId, kcId, { ...meta, turns: meta.turns.map((t, i) => (i === index ? t : { ...t, hasAudio: true })) }, 50_000);
       clip = await readClip(classId, kcId, meta.version, index);

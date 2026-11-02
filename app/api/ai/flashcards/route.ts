@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { classSourceLanguage, localizeFor } from "@/lib/i18n/serve";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      data: { cards: picked.map((c) => ({ front: c.front, back: c.back })), bankSize: bank.length },
+      data: { cards: await localizeFor(req, caller, access.canMutate, picked.map((c) => ({ front: c.front, back: c.back })), await classSourceLanguage(access.classData)), bankSize: bank.length },
     });
   } catch (error) {
     return handleAuthError(error);

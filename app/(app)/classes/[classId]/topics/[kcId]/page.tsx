@@ -38,6 +38,7 @@ import { QuizPlayer } from "@/components/quiz/quiz-player";
 import { ProveIt } from "@/components/labs/prove-it";
 import { AudioLesson } from "@/components/lesson/audio-lesson";
 import { PublishBar } from "@/components/lesson/publish-bar";
+import { LanguagePreview } from "@/components/lesson/language-preview";
 import { PracticeBankTools } from "@/components/lesson/practice-bank-tools";
 import { ReadAloud } from "@/components/ui/read-aloud";
 import { ShareButton, SaveButton } from "@/components/social/share-button";
@@ -150,7 +151,8 @@ export default function TopicPage({
 
   const loadTopicData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/classes/${classId}`);
+      // ?kc= asks for this topic's full lecture note in the student's language
+      const res = await fetch(`/api/classes/${classId}?kc=${encodeURIComponent(kcId)}`);
       const data = await res.json();
       if (data.ok) {
         const found = (data.data.kcs as KcDetails[])?.find((k) => k.id === kcId);
@@ -463,7 +465,7 @@ export default function TopicPage({
                     <Skeleton className="h-24 w-full rounded-xl" />
                   </div>
                 ) : (
-                  <MarkdownRenderer content={kc.lessonMarkdown || kc.description} />
+                  <MarkdownRenderer localized content={kc.lessonMarkdown || kc.description} />
                 )}
                 {lessonError && (
                   <div className="mt-4 flex flex-wrap items-center gap-3 p-3 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs">
@@ -486,6 +488,7 @@ export default function TopicPage({
                       Rewrite lesson with AI
                     </Button>
                   </div>
+                  <LanguagePreview classId={classId} kcId={kcId} />
                   {showLessonEditor && (
                     <div className="space-y-2">
                       <Textarea
@@ -664,7 +667,7 @@ export default function TopicPage({
                     <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-3">
                       {isFlipped ? "Answer" : "Question"}
                     </span>
-                    <MarkdownRenderer
+                    <MarkdownRenderer localized
                       content={isFlipped ? flashcards[currentCardIndex].back : flashcards[currentCardIndex].front}
                       className="text-base font-semibold prose-p:my-1 text-center"
                     />
@@ -760,7 +763,7 @@ export default function TopicPage({
                       {m.role === "model" && !m.isError ? (
                         m.text ? (
                           <>
-                            <MarkdownRenderer content={m.text} />
+                            <MarkdownRenderer localized content={m.text} />
                             {!isStreamingTutor && <ReadAloud text={m.text} />}
                           </>
                         ) : (
