@@ -169,9 +169,11 @@ export async function generateGeminiVoice({
   // Igbo and Hausa: Gemini's native voice first (the free voices have none for them)
   if (speaksWithGemini(lang) && Date.now() >= geminiTtsState.downUntil) {
     const h = hostFor(speaker);
-    const native = await synthesizeGeminiTts(text, h.gemini, 6_000, true);
+    const startedAt = Date.now();
+    const native = await synthesizeGeminiTts(text, h.gemini, 30_000, true);
     if (native) return native;
-    geminiTtsState.downUntil = Date.now() + 2 * 60_000;
+    // only a quick refusal (allowance used up) pauses Gemini; a slow line says nothing about the next one
+    if (Date.now() - startedAt < 24_000) geminiTtsState.downUntil = Date.now() + 2 * 60_000;
   }
 
   // Tier 1: Default to Free Studio Edge Neural Voice
@@ -335,7 +337,8 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
   if (!clean) return null;
   // Igbo and Hausa: Gemini speaks them natively, the free voices would read them with an English accent
   if (!opts.edgeOnly && speaksWithGemini(opts.lang)) {
-    const native = await nativeSpeech(clean, gender, 6_000);
+    // a whole Igbo/Hausa line takes Gemini 5-30 s: recording a podcast line can wait for it, a live reply can't
+    const native = await nativeSpeech(clean, gender, opts.patient ? 40_000 : 12_000);
     if (native) return native;
   }
   // a non-English line gets that language's voice, whatever English voice the caller picked
@@ -385,12 +388,15 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
 
 /**
  * A line in a language only Gemini speaks natively (Igbo, Hausa). Null when Gemini is unavailable, so the caller
- * falls back to a free voice. Any failure pauses native Gemini attempts for two minutes so subsequent lines don't stall.
+ * falls back to a free voice.
  */
 async function nativeSpeech(text: string, gender: "female" | "male", timeoutMs: number): Promise<SpeechClip | null> {
   if (Date.now() < geminiTtsState.downUntil) return null;
+  const startedAt = Date.now();
   const g = await synthesizeGeminiTts(text, gender === "female" ? HOSTS.alex.gemini : HOSTS.sam.gemini, timeoutMs, true);
-  if (!g) geminiTtsState.downUntil = Date.now() + 2 * 60_000;
+  // a quick refusal means the allowance is used up: pause native attempts for everyone for two minutes. A slow
+  // line that timed out says nothing about the next one, so it doesn't switch Igbo/Hausa voices off.
+  if (!g && Date.now() - startedAt < timeoutMs * 0.6) geminiTtsState.downUntil = Date.now() + 2 * 60_000;
   return g ? { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType, engine: "gemini" } : null;
 }
 
