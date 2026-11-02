@@ -1,18 +1,19 @@
 import { GoogleGenAI } from "@google/genai";
-import { getServerEnv } from "@/lib/env";
+import { activeGeminiKey } from "@/lib/ai/api-key";
 import { z } from "zod";
 
 let genAIClient: GoogleGenAI | null = null;
+let clientKey = "";
 
+/** A Gemini client for the current key (the admin's key when one is set, else GEMINI_API_KEY). */
 export function getGeminiClient(): GoogleGenAI {
-  if (!genAIClient) {
-    const env = getServerEnv();
-    if (!env.GEMINI_API_KEY) {
-      throw new Error(
-        "GEMINI_API_KEY is not configured. Please supply a valid Google Gemini API key in your environment variables."
-      );
-    }
-    genAIClient = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
+  const key = activeGeminiKey();
+  if (!key) {
+    throw new Error("GEMINI_API_KEY is not configured. Add a key in Admin Console → AI key, or in the environment variables.");
+  }
+  if (!genAIClient || clientKey !== key) {
+    genAIClient = new GoogleGenAI({ apiKey: key });
+    clientKey = key;
   }
   return genAIClient;
 }
@@ -41,8 +42,7 @@ export async function generateStructuredJson<T>({
   userPrompt,
   schema,
 }: GenerateStructuredOptions<T>): Promise<{ data: T; tokensIn: number; tokensOut: number }> {
-  const env = getServerEnv();
-  const apiKey = env.GEMINI_API_KEY;
+  const apiKey = activeGeminiKey();
 
   if (!apiKey || apiKey.startsWith("mock-") || apiKey === "demo") {
     throw new Error(
