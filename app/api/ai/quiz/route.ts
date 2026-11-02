@@ -4,9 +4,8 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
-import { assertPublished } from "@/lib/classes/published";
 import { quizBankForStudents } from "@/lib/classes/live";
-import { ensureQuizBank, pickForLearner, reshuffleOptions } from "@/lib/practice/bank";
+import { classOwner, ensureQuizBank, pickForLearner, readQuizBank, reshuffleOptions } from "@/lib/practice/bank";
 import { getSeen, setSeen } from "@/lib/practice/history";
 import { z } from "zod";
 
@@ -39,14 +38,17 @@ export async function POST(req: NextRequest) {
     const { classId, kcId, count, focus } = parsed.data;
     const access = await assertClassAccess(caller, classId, "view");
 
-    // Teachers prepare the bank; students are served from what is published and never trigger generation
+    // Self-test quizzes are open to every member without waiting for the teacher to publish (graded work goes
+    // through assignments): the teacher's published bank when there is one, else the topic's bank, prepared once
+    // (on the class's account) if missing.
     let bank;
     if (access.canMutate) bank = await ensureQuizBank({ classId, kcId, userId: caller.uid });
     else {
       const kcSnap = await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get();
-      assertPublished(false, kcSnap.data(), "practice");
       bank = await quizBankForStudents(classId, kcId, kcSnap.data() || {});
-      if (!bank.length) throw new ApiError(404, "NOT_READY", "Your teacher hasn't prepared the quiz yet.");
+      if (!bank.length) bank = await readQuizBank(classId, kcId);
+      if (!bank.length) bank = await ensureQuizBank({ classId, kcId, userId: classOwner(access.classData, caller.uid) });
+      if (!bank.length) throw new ApiError(404, "NOT_READY", "This topic's questions aren't ready yet. Try again in a minute.");
     }
     const seen = await getSeen(caller.uid, kcId, "quiz");
     const { picked, seen: nextSeen } = pickForLearner(bank, seen, count, Math.random, focus === "mixed" ? undefined : (q) => q.focus === focus);
