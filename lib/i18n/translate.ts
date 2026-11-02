@@ -211,6 +211,14 @@ export async function translateTexts(lang: LanguageCode, texts: string[]): Promi
   return found;
 }
 
+/** A remembered translation, without calling the model; null when this text hasn't been translated yet. */
+export async function cachedTranslation(lang: LanguageCode, text: string): Promise<string | null> {
+  if (!isTranslatable(text)) return text;
+  const t = (await lookup(lang, [text]).catch(() => new Map<string, string>())).get(text);
+  if (t === undefined || isUntranslatedEcho(lang, text, t)) return null;
+  return t;
+}
+
 /**
  * The translation of one string, or null when it could not be translated (the model was unavailable or kept
  * returning English). For places that must not pass the original off as a translation, such as recorded audio.

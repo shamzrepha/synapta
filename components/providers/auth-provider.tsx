@@ -14,6 +14,7 @@ import {
 import { clientAuth, googleProvider } from "@/lib/firebase/client";
 import { useUserStore, UserProfile } from "@/lib/store/use-user-store";
 import { useRouter } from "next/navigation";
+import { adoptAccountPrefs } from "@/components/settings/use-prefs";
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
@@ -113,6 +114,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           if (user) {
             await bootstrapUser(user);
+            // the language and other settings follow the account to every device
+            adoptAccountPrefs(user.uid).catch(() => null);
           } else {
             setUser(null);
           }
