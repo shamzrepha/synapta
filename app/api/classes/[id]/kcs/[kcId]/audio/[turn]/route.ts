@@ -7,14 +7,17 @@ import { getAudioLesson, readClip, recordTurns, translatedClip } from "@/lib/les
 import { getUserLanguage } from "@/lib/i18n/server";
 import { classSourceLanguage } from "@/lib/i18n/serve";
 import { isLanguageCode } from "@/lib/i18n/languages";
-import { localizeJson } from "@/lib/i18n/translate";
+import { translateOne } from "@/lib/i18n/translate";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 90;
 
 /**
  * Streams one saved clip of the podcast. Students are served the version the teacher pushed, straight from
- * the saved file (no AI, no TTS). Only a teacher can trigger recording a missing clip.
+ * the saved file (no AI, no TTS). Only a teacher can trigger recording a missing clip. A listener in another
+ * language gets the line translated and voiced once (saved for everyone in that language); if that isn't possible
+ * right now, the original recording plays and is retried on the next play.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string; kcId: string; turn: string }> }) {
   try {
@@ -31,28 +34,30 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const source = await classSourceLanguage(access.classData);
     const asked = req.nextUrl.searchParams.get("lang") || req.nextUrl.searchParams.get("l");
     const lang = isLanguageCode(asked) ? asked : access.canMutate ? source : await getUserLanguage(caller.uid);
-    const forceRerecord = req.nextUrl.searchParams.get("rerecord") === "1";
+    // re-recording a language spends voice quota, so only the class's teachers can ask for it
+    const rerecord = access.canMutate && req.nextUrl.searchParams.get("rerecord") === "1";
+    if (rerecord) {
+      const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "audio_rerecord", limit: 120, windowMs: 10 * 60_000 });
+      if (limited) return limited;
+    }
     let clip = null as Awaited<ReturnType<typeof readClip>>;
+    let fallback = false;
     if (lang !== source) {
-      // the teacher's line in the student's language, voiced once and saved for everyone in that language
-      const srcText = meta.turns[index].text;
-      let text = (await localizeJson({ text: srcText }, lang)).text;
-      // If the first translation attempt failed and returned the English string unchanged, try once more before voicing
-      if (text.trim() === srcText.trim() && srcText.trim().length > 8) {
-        text = (await localizeJson({ text: srcText }, lang)).text;
-      }
-      if (text.trim() === srcText.trim() && srcText.trim().length > 8) {
-        return NextResponse.json(
-          { ok: false, error: { code: "TRANSLATION_BUSY", message: "Translating this line into your language… retrying shortly." } },
-          { status: 503, headers: { "Cache-Control": "no-store" } }
-        );
-      }
-      clip = await translatedClip(classId, kcId, meta, index, text, lang, forceRerecord).catch(() => null);
+      // the teacher's line in the listener's language, voiced once and saved for everyone in that language
+      const text = await translateOne(lang, meta.turns[index].text);
+      if (text) clip = await translatedClip(classId, kcId, meta, index, text, lang, rerecord).catch(() => null);
       if (!clip) {
-        return NextResponse.json(
-          { ok: false, error: { code: "TTS_BUSY", message: "Recording this line in your language… retrying shortly." } },
-          { status: 503, headers: { "Cache-Control": "no-store" } }
-        );
+        // a teacher re-recording needs to know the line failed
+        if (rerecord) {
+          return NextResponse.json(
+            { ok: false, error: { code: text ? "TTS_BUSY" : "TRANSLATION_BUSY", message: "This line couldn't be voiced in that language right now. Try again shortly." } },
+            { status: 503, headers: { "Cache-Control": "no-store" } }
+          );
+        }
+        // the translation or the voice is unavailable right now: play the teacher's own recording instead of
+        // silence, and never let the browser keep it, so the next play tries the listener's language again
+        clip = await readClip(classId, kcId, meta.version, index);
+        fallback = true;
       }
     } else {
       clip = await readClip(classId, kcId, meta.version, index);
@@ -68,7 +73,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const headers: Record<string, string> = {
       "Content-Type": clip.mimeType,
       "Accept-Ranges": "bytes",
-      "Cache-Control": "private, max-age=31536000, immutable",
+      "Cache-Control": fallback || rerecord ? "no-store" : "private, max-age=31536000, immutable",
+      "X-Audio-Language": fallback ? source : lang,
     };
     const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get("range") || "");
     if (range && (range[1] || range[2])) {

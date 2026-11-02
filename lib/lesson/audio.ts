@@ -233,7 +233,9 @@ export async function translatedClip(
   }
   const turn = meta.turns[index];
   if (!turn) return null;
-  resetVoiceBreakers();
+  // a teacher's deliberate re-record gets a fresh try; ordinary plays respect the breakers, so a voice outage
+  // isn't hammered by every listener
+  if (forceRerecord) resetVoiceBreakers();
   const clip = await synthesizeTurn(text, turn.speaker === "teacher" ? "teacher" : "student", meta.voiceStyle, lang);
   if (clip) await saveClip(classId, kcId, meta.version, index, clip, lang, text).catch(() => null);
   return clip;

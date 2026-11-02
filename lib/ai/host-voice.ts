@@ -1,6 +1,6 @@
 import { generateGeminiVoice, hostFor, resetVoiceBreakers } from "./voice";
-import { guessSpeechLanguage, type LanguageCode } from "@/lib/i18n/languages";
-import { localizeJson } from "@/lib/i18n/translate";
+import { needsTranslation, type LanguageCode } from "@/lib/i18n/languages";
+import { translateOne } from "@/lib/i18n/translate";
 import { getCachedVoice, putCachedVoice, ttsKey } from "./tts-cache";
 
 export interface HostLine {
@@ -19,25 +19,23 @@ export async function getOrSynthesizeHostLine(
 ): Promise<HostLine | null> {
   const host = hostFor(speaker);
   let spokenText = text;
-  if (lang && lang !== "en") {
-    const detected = guessSpeechLanguage(text);
-    if (detected !== lang) {
-      spokenText = (await localizeJson({ text }, lang).catch(() => ({ text }))).text;
-      // Never voice untranslated English sentences and cache them as Yoruba/Igbo/Hausa/etc.
-      if (spokenText.trim().toLowerCase() === text.trim().toLowerCase() && text.trim().split(/\s+/).length >= 4) {
-        return null;
-      }
-    }
+  let voiceLang = lang && lang !== "en" ? lang : null;
+  if (voiceLang && needsTranslation(text, voiceLang)) {
+    const translated = await translateOne(voiceLang, text);
+    // never voice an English sentence as if it were Yorùbá/Igbo/Hausa (or cache it under that language):
+    // when the translation isn't available, the line is spoken as written, in the original voice
+    if (translated) spokenText = translated;
+    else voiceLang = null;
   }
-  // Key by host slot + language + the actual translated text so any older untranslated cache entries are bypassed
-  const key = ttsKey(lang && lang !== "en" ? `${host.slot}:${lang}:v2` : host.slot, spokenText);
+  // keyed by host slot + language + the words actually spoken, so older untranslated entries are bypassed
+  const key = ttsKey(voiceLang ? `${host.slot}:${voiceLang}:v2` : host.slot, spokenText);
   if (!forceRerecord) {
     const hit = await getCachedVoice(key);
     if (hit) return { ...hit, cached: true };
   } else {
     resetVoiceBreakers();
   }
-  const res = await generateGeminiVoice({ text: spokenText, speaker, lang });
+  const res = await generateGeminiVoice({ text: spokenText, speaker, lang: voiceLang });
   if (!res) return null;
   const voice = { bytes: Buffer.from(res.audioBase64, "base64"), mimeType: res.mimeType, voiceName: res.voiceName };
   await putCachedVoice(key, voice);
