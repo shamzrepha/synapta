@@ -1,12 +1,15 @@
-/** Device-level learning preferences (data saver etc.). Pure helpers so they can be unit tested. */
+/** Device-level learning preferences (data saver, language etc.). Pure helpers so they can be unit tested. */
+import { DEFAULT_LANGUAGE, isLanguageCode, type LanguageCode } from "@/lib/i18n/languages";
 
 export interface Prefs {
   dataSaver: boolean;
   reduceMotion: boolean;
   noAutoplay: boolean;
+  /** the learner's language: the AI writes and speaks in it, and the main menus use it */
+  language: LanguageCode;
 }
 
-export const DEFAULT_PREFS: Prefs = { dataSaver: false, reduceMotion: false, noAutoplay: false };
+export const DEFAULT_PREFS: Prefs = { dataSaver: false, reduceMotion: false, noAutoplay: false, language: DEFAULT_LANGUAGE };
 export const PREFS_KEY = "sunroot.prefs";
 
 /** Accepts anything (JSON string, object, null) and returns a complete, valid Prefs. */
@@ -25,6 +28,7 @@ export function parsePrefs(raw: unknown): Prefs {
     dataSaver: o.dataSaver === true,
     reduceMotion: o.reduceMotion === true,
     noAutoplay: o.noAutoplay === true,
+    language: isLanguageCode(o.language) ? o.language : DEFAULT_LANGUAGE,
   };
 }
 

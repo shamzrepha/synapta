@@ -12,8 +12,11 @@ import { useRealtime } from "@/components/providers/realtime-provider";
 import { levelFromXp } from "@/lib/game/levels";
 import { formatNumber } from "@/lib/utils";
 import { ROOT_PATHS } from "./nav-items";
+import { useT } from "@/components/settings/use-t";
+import { LanguageMenu } from "@/components/settings/language-picker";
 
 export function Topbar() {
+  const t = useT();
   const { user } = useUserStore();
   const { theme, toggleTheme } = useTheme();
   const { signOut } = useAuth();
@@ -46,7 +49,7 @@ export function Topbar() {
       <div className="flex items-center gap-2 min-w-0 flex-1">
         {canGoBack && (
           <button type="button" onClick={goBack} className="flex h-9 shrink-0 items-center gap-1 rounded-xl border border-slate-200 px-2.5 text-sm font-semibold hover:bg-slate-100 dark:border-slate-800 dark:hover:bg-slate-900" aria-label="Go back">
-            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Back</span>
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">{t("Back")}</span>
           </button>
         )}
         <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white`} aria-label="Home">
@@ -67,7 +70,7 @@ export function Topbar() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search people, classes, topics, #tags…"
+            placeholder={t("Search people, classes, topics, #tags…")}
             className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-400"
           />
         </form>
@@ -124,6 +127,8 @@ export function Topbar() {
             </span>
           )}
         </Link>
+
+        {user && <LanguageMenu />}
 
         {user && <NotificationBell />}
 

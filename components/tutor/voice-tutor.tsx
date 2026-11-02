@@ -9,6 +9,8 @@ import { createSpeaker, type Speaker } from "@/lib/audio/speak";
 import { collectTranscript, getRecognitionCtor, type RecognitionLike } from "@/lib/voice/speech";
 import { MIC_HELP, checkMic, problemFromRecognitionError, type MicHelp } from "@/lib/voice/mic";
 import { cn } from "@/lib/utils";
+import { usePrefs } from "@/components/settings/use-prefs";
+import { languageInfo } from "@/lib/i18n/languages";
 
 interface Msg {
   id: string;
@@ -38,6 +40,12 @@ export function VoiceTutor() {
   const micOk = useRef(false);
 
   const recRef = useRef<RecognitionLike | null>(null);
+  // listen in the learner's language (English learners keep their device's own accent setting)
+  const [prefs] = usePrefs();
+  const speechLangRef = useRef("en-US");
+  useEffect(() => {
+    speechLangRef.current = prefs.language === "en" ? navigator.language || "en-US" : languageInfo(prefs.language).speech;
+  }, [prefs.language]);
   const heardRef = useRef("");
   const speakToken = useRef(0);
   const speaker = useRef<Speaker | null>(null);
@@ -120,7 +128,7 @@ export function VoiceTutor() {
       if (recRef.current) return;
     }
     const rec = new Ctor();
-    rec.lang = navigator.language || "en-US";
+    rec.lang = speechLangRef.current;
     rec.continuous = false;
     rec.interimResults = true;
     heardRef.current = "";
