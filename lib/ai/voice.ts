@@ -1,4 +1,5 @@
 import { getGeminiClient } from "@/lib/gemini/client";
+import { refreshGeminiKey } from "@/lib/ai/api-key";
 import { guessSpeechLanguage, languageInfo, type LanguageCode } from "@/lib/i18n/languages";
 import { modelFor } from "@/lib/ai/router";
 import { Communicate } from "edge-tts-universal";
@@ -256,6 +257,7 @@ function audioFromBase64(data: string, mimeType: string, voiceName: string): Voi
  */
 export async function synthesizeGeminiTts(text: string, voiceName: string, timeoutMs = 20_000): Promise<VoiceGenerationResult | null> {
   if (!text.trim()) return null;
+  await refreshGeminiKey();
   let ai: ReturnType<typeof getGeminiClient>;
   try {
     ai = getGeminiClient();

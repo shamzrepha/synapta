@@ -1,4 +1,5 @@
 import { getServerEnv, DEFAULT_GEMINI_MODEL } from "@/lib/env";
+import { refreshGeminiKey } from "@/lib/ai/api-key";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { languageDirective, type LanguageCode } from "@/lib/i18n/languages";
 import { getGeminiClient } from "@/lib/gemini/client";
@@ -501,6 +502,8 @@ async function generateWithFallbackInner<T>({
   maxRetriesPerModel = 2,
   maxWaitMs,
 }: GenerateWithFallbackOptions<T>, _reserved: boolean): Promise<GenerateWithFallbackResult<T>> {
+  // the admin may have just set a new API key: make sure this call uses it, not a used-up one
+  await refreshGeminiKey();
   const startTime = Date.now();
 
   // 1. Budget Guard Check
