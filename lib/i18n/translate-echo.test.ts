@@ -92,3 +92,12 @@ describe("translation memory with echoes", () => {
     expect(await translateOne("ha", EN)).toBe("Wutar lantarki tana gudana ta cikin waya.");
   });
 });
+
+describe("native voices", () => {
+  it("speaks Igbo and Hausa with Gemini, others with the free voices", async () => {
+    const { speaksWithGemini } = await import("./languages");
+    expect(speaksWithGemini("ig")).toBe(true);
+    expect(speaksWithGemini("ha")).toBe(true);
+    for (const c of ["en", "pcm", "yo", "fr", "ar", "sw", null, undefined]) expect(speaksWithGemini(c)).toBe(false);
+  });
+});

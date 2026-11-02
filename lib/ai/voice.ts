@@ -1,6 +1,6 @@
 import { getGeminiClient } from "@/lib/gemini/client";
 import { refreshGeminiKey } from "@/lib/ai/api-key";
-import { guessSpeechLanguage, languageInfo, type LanguageCode } from "@/lib/i18n/languages";
+import { guessSpeechLanguage, languageInfo, speaksWithGemini, type LanguageCode } from "@/lib/i18n/languages";
 import { modelFor } from "@/lib/ai/router";
 import { Communicate } from "edge-tts-universal";
 
@@ -172,6 +172,13 @@ export async function generateGeminiVoice({
 }): Promise<VoiceGenerationResult | null> {
   if (!text || text.trim().length === 0) return null;
 
+  // Igbo and Hausa: Gemini's native voice first (the free voices have none for them)
+  if (speaksWithGemini(lang) && Date.now() >= geminiTtsState.downUntil) {
+    const h = hostFor(speaker);
+    const native = await synthesizeGeminiTts(text, h.gemini, 30_000, true);
+    if (native) return native;
+  }
+
   // Tier 1: Default to Free Studio Edge Neural Voice
   const edgeResult = await generateEdgeVoice({ text, speaker, lang });
   if (edgeResult) {
@@ -234,9 +241,12 @@ export function withVoiceTimeout<T>(p: Promise<T | null>, ms: number): Promise<T
 }
 
 /** Current Gemini TTS models (2.5 preview TTS was retired); first one that answers wins. */
-export function geminiTtsModels(): string[] {
+export function geminiTtsModels(native = false): string[] {
   const configured = modelFor("voice");
-  const list = [configured, "gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts"].filter(
+  // Igbo and Hausa are on the full Flash TTS model's language list; the Lite model's list isn't published, so a
+  // native line goes to Flash first
+  const order = native ? ["gemini-3.8-flash-tts", configured] : [configured, "gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts"];
+  const list = order.filter(
     (m): m is string => !!m && m.includes("tts")
   );
   return Array.from(new Set(list));
@@ -256,7 +266,7 @@ function audioFromBase64(data: string, mimeType: string, voiceName: string): Voi
  * Speaks `text` with a Gemini prebuilt voice (e.g. Puck, Kore, Fenrir). Uses the Interactions API
  * that the 3.8 TTS models expect, falling back to generateContent for older SDK/model combinations.
  */
-export async function synthesizeGeminiTts(text: string, voiceName: string, timeoutMs = 20_000): Promise<VoiceGenerationResult | null> {
+export async function synthesizeGeminiTts(text: string, voiceName: string, timeoutMs = 20_000, native = false): Promise<VoiceGenerationResult | null> {
   if (!text.trim()) return null;
   await refreshGeminiKey();
   let ai: ReturnType<typeof getGeminiClient>;
@@ -265,7 +275,7 @@ export async function synthesizeGeminiTts(text: string, voiceName: string, timeo
   } catch {
     return null;
   }
-  for (const model of geminiTtsModels()) {
+  for (const model of geminiTtsModels(native)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const interactions = (ai as any).interactions;
     if (interactions?.create) {
@@ -326,6 +336,11 @@ export interface SpeechClip {
 export async function synthesizeSpeech(text: string, gender: "female" | "male", edgeVoice?: string, opts: { patient?: boolean; edgeOnly?: boolean; lang?: LanguageCode | null } = {}): Promise<SpeechClip | null> {
   const clean = text.trim();
   if (!clean) return null;
+  // Igbo and Hausa: Gemini speaks them natively, the free voices would read them with an English accent
+  if (!opts.edgeOnly && speaksWithGemini(opts.lang)) {
+    const native = await nativeSpeech(clean, gender, opts.patient ? 45_000 : 15_000);
+    if (native) return native;
+  }
   // a non-English line gets that language's voice, whatever English voice the caller picked
   const langVoice = languageVoice(clean, gender, opts.lang);
   edgeVoice = langVoice ?? edgeVoice;
@@ -368,6 +383,18 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
   // A quick refusal means the allowance or the service is the problem: pause it. A slow line that timed out says
   // nothing about the next (shorter) request, so it doesn't switch Gemini off for everyone.
   if (!g && Date.now() - startedAt < geminiMs * 0.8) geminiTtsState.downUntil = Date.now() + 2 * 60_000;
+  return g ? { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType, engine: "gemini" } : null;
+}
+
+/**
+ * A line in a language only Gemini speaks natively (Igbo, Hausa). Null when Gemini is unavailable, so the caller
+ * falls back to a free voice. A quick refusal (allowance used up) pauses Gemini for everyone for two minutes.
+ */
+async function nativeSpeech(text: string, gender: "female" | "male", timeoutMs: number): Promise<SpeechClip | null> {
+  if (Date.now() < geminiTtsState.downUntil) return null;
+  const startedAt = Date.now();
+  const g = await synthesizeGeminiTts(text, gender === "female" ? HOSTS.alex.gemini : HOSTS.sam.gemini, timeoutMs, true);
+  if (!g && Date.now() - startedAt < timeoutMs * 0.8) geminiTtsState.downUntil = Date.now() + 2 * 60_000;
   return g ? { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType, engine: "gemini" } : null;
 }
 

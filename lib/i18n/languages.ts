@@ -1,7 +1,8 @@
 /**
  * Languages SunrootLearn speaks. The AI writes and explains in the learner's language, the microphone listens in it,
- * and spoken audio uses a matching neural voice. Yoruba, Igbo and Hausa have no free native voice yet, so they are
- * read by the Nigerian English voices (marked `voiceBeta`).
+ * and spoken audio uses a matching neural voice. Igbo and Hausa have no free native voice, so they are spoken by
+ * Gemini's speech model, which speaks both (`nativeGemini`), with the Nigerian English voices as the fallback. Yoruba
+ * has no native voice in any engine we use yet, so it is read by the Nigerian English voices (`voiceBeta`).
  */
 export type LanguageCode = "en" | "pcm" | "yo" | "ig" | "ha" | "fr" | "ar" | "sw";
 
@@ -15,6 +16,8 @@ export interface Language {
   speech: string;
   voices: { female: string; male: string };
   voiceBeta?: boolean;
+  /** spoken natively by Gemini's speech model (the free voices have none for this language) */
+  nativeGemini?: boolean;
   rtl?: boolean;
 }
 
@@ -22,8 +25,8 @@ export const LANGUAGES: Language[] = [
   { code: "en", name: "English", native: "English", speech: "en-US", voices: { female: "en-US-AriaNeural", male: "en-US-AndrewMultilingualNeural" } },
   { code: "pcm", name: "Nigerian Pidgin", native: "Naijá (Pidgin)", speech: "en-NG", voices: { female: "en-NG-EzinneNeural", male: "en-NG-AbeoNeural" } },
   { code: "yo", name: "Yoruba", native: "Yorùbá", speech: "yo-NG", voices: { female: "en-NG-EzinneNeural", male: "en-NG-AbeoNeural" }, voiceBeta: true },
-  { code: "ig", name: "Igbo", native: "Igbo", speech: "ig-NG", voices: { female: "en-NG-EzinneNeural", male: "en-NG-AbeoNeural" }, voiceBeta: true },
-  { code: "ha", name: "Hausa", native: "Hausa", speech: "ha-NG", voices: { female: "en-NG-EzinneNeural", male: "en-NG-AbeoNeural" }, voiceBeta: true },
+  { code: "ig", name: "Igbo", native: "Igbo", speech: "ig-NG", voices: { female: "en-NG-EzinneNeural", male: "en-NG-AbeoNeural" }, nativeGemini: true },
+  { code: "ha", name: "Hausa", native: "Hausa", speech: "ha-NG", voices: { female: "en-NG-EzinneNeural", male: "en-NG-AbeoNeural" }, nativeGemini: true },
   { code: "fr", name: "French", native: "Français", speech: "fr-FR", voices: { female: "fr-FR-DeniseNeural", male: "fr-FR-HenriNeural" } },
   { code: "ar", name: "Arabic", native: "العربية", speech: "ar-SA", voices: { female: "ar-SA-ZariyahNeural", male: "ar-SA-HamedNeural" }, rtl: true },
   { code: "sw", name: "Swahili", native: "Kiswahili", speech: "sw-KE", voices: { female: "sw-KE-ZuriNeural", male: "sw-KE-RafikiNeural" } },
@@ -38,6 +41,11 @@ export function isLanguageCode(v: unknown): v is LanguageCode {
 
 export function languageInfo(code: unknown): Language {
   return LANGUAGES.find((l) => l.code === code) ?? LANGUAGES[0];
+}
+
+/** True when this language is spoken by Gemini's speech model first (no free native voice exists for it). */
+export function speaksWithGemini(code: unknown): boolean {
+  return !!LANGUAGES.find((l) => l.code === code)?.nativeGemini;
 }
 
 /**

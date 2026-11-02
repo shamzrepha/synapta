@@ -89,7 +89,7 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
         if (turnsKey[i] !== "1") return null;
         try {
           // the language is part of the address: each language has its own saved recording
-          const url = `${base}/${i}?v=${version}&l=${activeLang}${activeLang !== "en" ? `&lang=${activeLang}` : ""}&r=2${langRev ? `_${langRev}` : ""}`;
+          const url = `${base}/${i}?v=${version}&l=${activeLang}${activeLang !== "en" ? `&lang=${activeLang}` : ""}&r=3${langRev ? `_${langRev}` : ""}`;
           let res = await fetch(url);
           if (!res.ok && res.status === 503) {
             await new Promise((r) => setTimeout(r, 1500));
