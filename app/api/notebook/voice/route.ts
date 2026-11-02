@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { getOrSynthesizeHostLine } from "@/lib/ai/host-voice";
+import { getUserLanguage } from "@/lib/i18n/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { z } from "zod";
 
@@ -28,7 +29,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: { code: "VALIDATION", message: "Provide text and a speaker." } }, { status: 400 });
     }
     const { text, speaker, binary } = parsed.data;
-    const line = await getOrSynthesizeHostLine(text, speaker);
+    // the listener's language picks the voice (Pidgin reads like English, so it can't be guessed from the text)
+    const line = await getOrSynthesizeHostLine(text, speaker, await getUserLanguage(caller.uid));
 
     if (binary) {
       if (!line) return NextResponse.json({ ok: false, error: { code: "NO_AUDIO", message: "Studio voice unavailable; use the device voice." } }, { status: 503 });

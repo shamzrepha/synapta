@@ -100,6 +100,8 @@ ${lessonMarkdown}`;
     }
 
     const fallbackResult = await generateWithFallback({
+    // shared class content is written in the source language; each reader gets a translation
+    learnerLanguage: false,
       task: "structured_spec",
       userPrompt: prompt,
       userId: caller.uid,

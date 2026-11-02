@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // Teachers see their working copy; students see the version that was pushed
     const original = access.canMutate ? await getAudioLesson(classId, kcId) : published ? await audioForStudents(classId, kcId, kcSnap.data() || {}) : null;
     // students read the transcript in their language; the matching audio is voiced per language on first play
-    const lesson = original && !access.canMutate ? await localizeFor(req, caller, false, original, await classSourceLanguage(access.classData)) : original;
+    const lesson = original ? await localizeFor(req, caller, access.canMutate, original, await classSourceLanguage(access.classData)) : original;
     const enabled = access.classData.audioLessons !== false;
     return NextResponse.json({
       ok: true,

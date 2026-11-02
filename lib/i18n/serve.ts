@@ -5,11 +5,12 @@ import { isLanguageCode, DEFAULT_LANGUAGE, type LanguageCode } from "./languages
 import { localizeJson } from "./translate";
 
 /**
- * The language class content is written in: the teacher's language (the AI writes for the teacher who generates it).
+ * The language a class's shared content is written in. Class content is generated in English (the generators opt
+ * out of the teacher's language), so every class is English unless it records otherwise; a teacher changing their
+ * own language setting never changes what their class is written in.
  */
-export async function classSourceLanguage(classData: { teacherId?: unknown } | null | undefined): Promise<LanguageCode> {
-  const teacherId = typeof classData?.teacherId === "string" ? classData.teacherId : null;
-  return teacherId ? getUserLanguage(teacherId) : DEFAULT_LANGUAGE;
+export async function classSourceLanguage(classData: { contentLanguage?: unknown } | null | undefined): Promise<LanguageCode> {
+  return isLanguageCode(classData?.contentLanguage) ? classData.contentLanguage : DEFAULT_LANGUAGE;
 }
 
 /**

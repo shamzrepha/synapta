@@ -135,6 +135,8 @@ FORMAT:
   ];
 
   const response = await generateWithFallback({
+    // shared class content is written in the source language; each reader gets a translation
+    learnerLanguage: false,
     task: "tutor_chat",
     contents,
     systemInstruction,

@@ -1,6 +1,7 @@
 import { publishMapOf } from "@/lib/classes/published";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { classSourceLanguage } from "@/lib/i18n/serve";
+import { isLanguageCode } from "@/lib/i18n/languages";
 import { localizeJson } from "@/lib/i18n/translate";
 import { lessonForStudents } from "@/lib/classes/live";
 import { NextRequest, NextResponse } from "next/server";
@@ -109,7 +110,9 @@ export async function GET(
     // note only for the topic being opened (?kc=), so the class page stays fast. Teachers get the original they edit.
     let classView: Record<string, unknown> = isOwner || isAdmin ? { id, ...classData } : { id, ...classData, joinCode: undefined };
     const source = await classSourceLanguage(classData);
-    const lang = access.canMutate ? source : await getUserLanguage(caller.uid);
+    // teachers get the original they edit, unless they view the topic in a language (?lang=)
+    const asked = req.nextUrl.searchParams.get("lang");
+    const lang = access.canMutate ? (isLanguageCode(asked) ? asked : source) : await getUserLanguage(caller.uid);
     if (lang !== source) {
       const focus = req.nextUrl.searchParams.get("kc");
       const held = new Map<string, unknown>();

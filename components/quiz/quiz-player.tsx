@@ -28,6 +28,8 @@ export interface QuizPlayerProps {
   classId: string;
   kcId: string;
   onEvidence?: (update: { pLAfter?: number; totalXp?: number }) => void;
+  /** a teacher viewing the topic in a translated language */
+  viewLang?: string | null;
 }
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
@@ -39,7 +41,7 @@ const FOCUSES: Array<{ key: "mixed" | "conceptual" | "calculation" | "applicatio
   { key: "application", label: "Real-world" },
 ];
 
-export function QuizPlayer({ classId, kcId, onEvidence }: QuizPlayerProps) {
+export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerProps) {
   const { toast } = useToast();
   const [count, setCount] = useState(10);
   const [focus, setFocus] = useState<(typeof FOCUSES)[number]["key"]>("mixed");
@@ -60,7 +62,7 @@ export function QuizPlayer({ classId, kcId, onEvidence }: QuizPlayerProps) {
     try {
       // The first quiz on a topic prepares its 60+ question bank; others wait for it
       for (let attempt = 0; attempt < 30; attempt++) {
-        const res = await fetch("/api/ai/quiz", {
+        const res = await fetch(viewLang ? `/api/ai/quiz?lang=${viewLang}` : "/api/ai/quiz", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ classId, kcId, count, focus }),

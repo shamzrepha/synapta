@@ -51,6 +51,8 @@ ${contentPayload.slice(0, 3000)}
 </DRAFT>`;
 
     const res = await executeStructuredAiTask({
+    // shared class content is written in the source language; each reader gets a translation
+    learnerLanguage: false,
       task: "structured_spec",
       systemInstruction,
       userPrompt,

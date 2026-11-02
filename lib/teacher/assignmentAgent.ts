@@ -54,6 +54,8 @@ ${input.specialInstructions ? `Special constraints: ${input.specialInstructions}
 Keep your blueprint crisp and actionable (max 300 words).`;
 
   const architectResult = await generateWithFallback({
+    // shared class content is written in the source language; each reader gets a translation
+    learnerLanguage: false,
     task: "structured_spec",
     userPrompt: architectPrompt,
     userId: input.userId,
@@ -84,6 +86,8 @@ ${
 Provide the complete raw draft.`;
 
   const authorResult = await generateWithFallback({
+    // shared class content is written in the source language; each reader gets a translation
+    learnerLanguage: false,
     task: "structured_spec",
     userPrompt: authorPrompt,
     userId: input.userId,
@@ -163,6 +167,8 @@ Produce a single JSON object with this exact shape:
 Respond ONLY with valid JSON. Do not wrap with markdown code fences if possible, or use standard \`\`\`json.`;
 
   const reviewerResult = await generateWithFallback({
+    // shared class content is written in the source language; each reader gets a translation
+    learnerLanguage: false,
     task: "structured_spec",
     userPrompt: reviewerPrompt,
     userId: input.userId,

@@ -413,6 +413,11 @@ export interface GenerateWithFallbackOptions<T> {
   maxWaitMs?: number;
   /** tokens to reserve from the user's monthly budget before calling a model (defaults by task) */
   estimatedTokens?: number;
+  /**
+   * Write in the requesting user's language (default). Shared class content sets false: it is written once in the
+   * class's source language (English) and every reader gets their own translation of it.
+   */
+  learnerLanguage?: boolean;
 }
 
 /** Heavy generation tasks reserve more of the budget than a short chat reply. */
@@ -457,7 +462,7 @@ export async function generateWithFallback<T>(opts: GenerateWithFallbackOptions<
   const userId = opts.userId;
 
   // Answer in the learner's language; cached answers are kept per language so nobody gets another language's copy
-  opts = withLearnerLanguage(opts, await getUserLanguage(userId));
+  if (opts.learnerLanguage !== false) opts = withLearnerLanguage(opts, await getUserLanguage(userId));
 
   // Reserve the estimate before spending anything (rejects with QUOTA_EXCEEDED when the budget can't cover it),
   // then settle against real usage, or release if the call fails, so retries and failures are never charged twice.
@@ -808,6 +813,7 @@ export async function executeStructuredAiTask<T>({
   userId,
   estimatedTokens = 1000,
   isPrivileged,
+  learnerLanguage,
 }: {
   task: AiTask;
   systemInstruction?: string;
@@ -818,6 +824,7 @@ export async function executeStructuredAiTask<T>({
   estimatedTokens?: number;
   maxRetries?: number;
   isPrivileged?: boolean;
+  learnerLanguage?: boolean;
 }): Promise<{
   data: T;
   modelUsed: string;
@@ -838,6 +845,7 @@ export async function executeStructuredAiTask<T>({
     userId,
     estimatedTokens,
     isPrivileged: isPrivileged !== undefined ? isPrivileged : (task === "class_build" || task === "structured_spec"),
+    learnerLanguage,
   });
 
   if (!result.data) {

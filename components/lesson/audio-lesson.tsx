@@ -46,9 +46,11 @@ async function fetchAudio(base: string): Promise<Payload | null> {
 }
 
 /** Two-voice narrated lesson, recorded once per topic and replayed by every learner. */
-export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }) {
+export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId: string; viewLang?: string | null }) {
   const { toast } = useToast();
   const base = `/api/classes/${classId}/kcs/${kcId}/audio`;
+  // a teacher viewing a translation listens to it but edits only the original
+  const view = viewLang ? `?lang=${viewLang}` : "";
   const [payload, setPayload] = useState<Payload | null>(null);
   const [generating, setGenerating] = useState(false);
   const [index, setIndex] = useState(0);
@@ -59,8 +61,8 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
   const transcriptRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
-    fetchAudio(base).then(setPayload);
-  }, [base]);
+    fetchAudio(base + view).then(setPayload);
+  }, [base, view]);
 
   const lesson = payload?.lesson && payload.lesson.status === "ready" ? payload.lesson : null;
   const version = lesson?.version || 0;
@@ -83,7 +85,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
         if (turnsKey[i] !== "1") return null;
         try {
           // the language is part of the address: each language has its own saved recording
-          const res = await fetch(`${base}/${i}?v=${version}&l=${readPrefs().language}`);
+          const res = await fetch(`${base}/${i}?v=${version}&l=${viewLang || readPrefs().language}${viewLang ? `&lang=${viewLang}` : ""}`);
           return res.ok ? await res.arrayBuffer() : null;
         } catch {
           return null;
@@ -104,7 +106,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
       player.dispose();
       playerRef.current = null;
     };
-  }, [base, version, turnsKey]);
+  }, [base, version, turnsKey, viewLang]);
 
   const stopAll = () => playerRef.current?.stop();
 
@@ -234,7 +236,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
         }
         if (data?.error?.code === "AUDIO_GENERATING" || data?.error?.code === "AUDIO_EXISTS" || !data) {
           await new Promise((r) => setTimeout(r, 6000));
-          const fresh = await fetchAudio(base);
+          const fresh = await fetchAudio(base + view);
           if (fresh?.lesson?.status === "ready") {
             setPayload(fresh);
             return;
@@ -313,7 +315,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> {recordingNote}
           </p>
         )}
-        {lesson && payload.canManage && (
+        {lesson && payload.canManage && !viewLang && (
           <p className={cn("mt-3 text-xs flex flex-wrap items-center gap-2", missing ? "text-amber-700 dark:text-amber-300" : "text-slate-500")}>
             {missing ? `${lesson.turns.length - missing}/${lesson.turns.length} lines recorded. The rest stay silent until they are recorded.` : `All ${lesson.turns.length} lines are recorded and saved once — every student replays the same files.`}
             {missing > 0 && (
@@ -396,7 +398,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
                 {editing === i ? null : t.text}
                 {!t.hasAudio && <span className="ml-1 text-[10px] font-bold text-amber-600">not voiced yet</span>}
               </p>
-              {payload.canManage && editing !== i && (
+              {payload.canManage && !viewLang && editing !== i && (
                 <span className="ml-auto flex shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
                   <button type="button" aria-label={`Edit line ${i + 1}`} disabled={generating} onClick={() => { setEditing(i); setEditText(t.text); }} className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800">
                     <Pencil className="h-3.5 w-3.5" />
@@ -434,7 +436,7 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
         </button>
       )}
 
-      {payload.canManage && lesson && (
+      {payload.canManage && !viewLang && lesson && (
         <div className="px-4 pb-3 space-y-2">
           <button type="button" onClick={() => setShowFocus((v) => !v)} aria-expanded={showFocus} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
             <Sparkles className="h-3.5 w-3.5" /> {showFocus ? "Hide" : "Change or add to this podcast"}
