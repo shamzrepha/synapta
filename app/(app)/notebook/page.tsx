@@ -827,7 +827,7 @@ export default function NotebookPage() {
                         : "bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
                     }`}
                   >
-                    <MarkdownRenderer content={m.text} />
+                    <MarkdownRenderer localized content={m.text} />
 
                     {/* Citations Tag Row */}
                     {m.citations && m.citations.length > 0 && (
@@ -1151,7 +1151,7 @@ export default function NotebookPage() {
                         </Button>
                       </div>
                       <div className="text-xs leading-relaxed">
-                        <MarkdownRenderer content={studyGuideMarkdown} />
+                        <MarkdownRenderer localized content={studyGuideMarkdown} />
                       </div>
                     </div>
                   )}

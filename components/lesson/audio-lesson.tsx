@@ -82,7 +82,8 @@ export function AudioLesson({ classId, kcId }: { classId: string; kcId: string }
       fetchClip: async (i) => {
         if (turnsKey[i] !== "1") return null;
         try {
-          const res = await fetch(`${base}/${i}?v=${version}`);
+          // the language is part of the address: each language has its own saved recording
+          const res = await fetch(`${base}/${i}?v=${version}&l=${readPrefs().language}`);
           return res.ok ? await res.arrayBuffer() : null;
         } catch {
           return null;

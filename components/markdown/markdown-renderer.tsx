@@ -9,11 +9,16 @@ import { cn } from "@/lib/utils";
 interface MarkdownRendererProps {
   content: string;
   className?: string;
+  /** already in the learner's language (server-translated class content, AI answers): skip page translation */
+  localized?: boolean;
 }
 
-export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className, localized }: MarkdownRendererProps) {
   return (
     <div
+      // text already in the learner's language (server-translated lessons, AI answers) is left alone by the page translator
+      translate={localized ? "no" : undefined}
+      dir="auto"
       className={cn(
         "prose prose-slate dark:prose-invert max-w-none text-sm leading-relaxed",
         // Headings

@@ -1,4 +1,5 @@
 import { publishMapOf } from "@/lib/classes/published";
+import { classSourceLanguage, localizeFor } from "@/lib/i18n/serve";
 import { lessonForStudents } from "@/lib/classes/live";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
@@ -46,21 +47,24 @@ export async function GET(
 
     const data = kcDoc.data()!;
     const published = publishMapOf(data);
-    if (access.canMutate) return NextResponse.json({ ok: true, data: { id: kcDoc.id, ...data, published } });
+    if (access.canMutate) {
+      // the teacher's copy is the original; ?lang= previews what students in that language will read
+      const own = { id: kcDoc.id, ...data, published };
+      return NextResponse.json({ ok: true, data: await localizeFor(req, caller, true, own, await classSourceLanguage(access.classData)) });
+    }
     // Students only get what the teacher published
     const { contentPublished: _omit, liveLessonMarkdown: _live, labs, ...rest } = data;
     void _omit;
     void _live;
-    return NextResponse.json({
-      ok: true,
-      data: {
-        id: kcDoc.id,
-        ...rest,
-        labs: Array.isArray(labs) ? labs.filter((l: { published?: boolean }) => l.published !== false) : labs,
-        published,
-        lessonMarkdown: lessonForStudents(data),
-      },
-    });
+    const forStudent = {
+      id: kcDoc.id,
+      ...rest,
+      labs: Array.isArray(labs) ? labs.filter((l: { published?: boolean }) => l.published !== false) : labs,
+      published,
+      lessonMarkdown: lessonForStudents(data),
+    };
+    // each student reads the teacher's published content in their own language (translated once, then stored)
+    return NextResponse.json({ ok: true, data: await localizeFor(req, caller, false, forStudent, await classSourceLanguage(access.classData)) });
   } catch (error) {
     return handleAuthError(error);
   }

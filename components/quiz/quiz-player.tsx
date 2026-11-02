@@ -281,21 +281,21 @@ export function QuizPlayer({ classId, kcId, onEvidence }: QuizPlayerProps) {
                     <XCircle className="h-4 w-4 text-rose-500 mt-1 shrink-0" />
                   )}
                   <div className="flex-1 min-w-0 space-y-2">
-                    <MarkdownRenderer content={qq.question} className="prose-p:my-0 font-semibold" />
+                    <MarkdownRenderer localized content={qq.question} className="prose-p:my-0 font-semibold" />
                     {r ? (
                       <div className="text-xs space-y-1">
                         {!r.correct && (
                           <div className="flex gap-1.5 items-baseline text-rose-700 dark:text-rose-300">
                             <span className="font-semibold shrink-0">Your answer:</span>
-                            <MarkdownRenderer content={qq.options[r.selected]} className="prose-p:my-0 text-xs" />
+                            <MarkdownRenderer localized content={qq.options[r.selected]} className="prose-p:my-0 text-xs" />
                           </div>
                         )}
                         <div className="flex gap-1.5 items-baseline text-emerald-700 dark:text-emerald-300">
                           <span className="font-semibold shrink-0">Correct answer:</span>
-                          <MarkdownRenderer content={qq.options[r.correctIndex]} className="prose-p:my-0 text-xs" />
+                          <MarkdownRenderer localized content={qq.options[r.correctIndex]} className="prose-p:my-0 text-xs" />
                         </div>
                         {r.explanation && (
-                          <MarkdownRenderer content={r.explanation} className="prose-p:my-0 text-xs text-slate-600 dark:text-slate-400" />
+                          <MarkdownRenderer localized content={r.explanation} className="prose-p:my-0 text-xs text-slate-600 dark:text-slate-400" />
                         )}
                       </div>
                     ) : (
@@ -339,7 +339,7 @@ export function QuizPlayer({ classId, kcId, onEvidence }: QuizPlayerProps) {
       </div>
 
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-5">
-        <MarkdownRenderer content={q.question} className="text-base font-semibold prose-p:my-1" />
+        <MarkdownRenderer localized content={q.question} className="text-base font-semibold prose-p:my-1" />
       </div>
 
       <div className="space-y-2.5" role="radiogroup" aria-label="Answer options">
@@ -383,7 +383,7 @@ export function QuizPlayer({ classId, kcId, onEvidence }: QuizPlayerProps) {
                 {LETTERS[idx]}
               </span>
               <div className="flex-1 min-w-0 pt-0.5">
-                <MarkdownRenderer content={opt} className="prose-p:my-0" />
+                <MarkdownRenderer localized content={opt} className="prose-p:my-0" />
               </div>
               {answered && isCorrect && <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />}
               {isWrongPick && <XCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />}
@@ -402,7 +402,7 @@ export function QuizPlayer({ classId, kcId, onEvidence }: QuizPlayerProps) {
           )}
         >
           <p className="font-bold mb-1">{answered.correct ? "Correct!" : `Not quite — the answer is ${LETTERS[answered.correctIndex]}.`}</p>
-          {answered.explanation && <MarkdownRenderer content={answered.explanation} className="prose-p:my-1 text-sm" />}
+          {answered.explanation && <MarkdownRenderer localized content={answered.explanation} className="prose-p:my-1 text-sm" />}
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { classSourceLanguage, localizeFor } from "@/lib/i18n/serve";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { applyEvidenceIfEnrolled } from "@/lib/evidence/apply";
@@ -82,7 +83,7 @@ export async function POST(
           alreadyAnswered: true,
           correct: claim.correct,
           correctIndex: claim.correctIndex,
-          explanation: claim.explanation,
+          explanation: (await localizeFor(req, caller, false, { explanation: claim.explanation })).explanation,
         },
       });
     }
@@ -149,7 +150,7 @@ export async function POST(
       data: {
         correct: isCorrect,
         correctIndex: targetQuestion.correctIndex,
-        explanation: targetQuestion.explanation,
+        explanation: (await localizeFor(req, caller, false, { explanation: targetQuestion.explanation }, await classSourceLanguage((await adminDb().collection("classes").doc(sessionData.classId).get()).data()))).explanation,
         ...(evidenceResult || {}),
         credited: !!evidenceResult,
       },

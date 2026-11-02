@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 function LanguageList({ onPick }: { onPick?: () => void }) {
   const [prefs, update] = usePrefs();
   return (
-    <ul role="listbox" aria-label="Language" className="grid gap-1">
+    <ul role="listbox" aria-label="Language" translate="no" className="grid gap-1">
       {LANGUAGES.map((l) => {
         const on = prefs.language === l.code;
         return (
@@ -20,8 +20,11 @@ function LanguageList({ onPick }: { onPick?: () => void }) {
               role="option"
               aria-selected={on}
               onClick={() => {
+                if (prefs.language === l.code) return onPick?.();
                 update({ language: l.code });
                 onPick?.();
+                // start every page fresh in the new language (interface text and server-translated content)
+                setTimeout(() => window.location.reload(), 400);
               }}
               className={cn(
                 "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-800",
