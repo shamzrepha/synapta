@@ -75,6 +75,15 @@ function isTimestampLike(v: object): boolean {
 // Translation memory + model calls
 // ---------------------------------------------------------------------------
 
+/** True when a non-English translation call merely echoed back a multi-word source sentence unchanged. */
+function isUntranslatedEcho(lang: LanguageCode, src: string, translated: string): boolean {
+  if (lang === "en") return false;
+  const s = src.trim();
+  const t = translated.trim();
+  if (s.split(/\s+/).length < 4) return false;
+  return s.toLowerCase() === t.toLowerCase();
+}
+
 async function lookup(lang: LanguageCode, texts: string[]): Promise<Map<string, string>> {
   const found = new Map<string, string>();
   const refs = texts.map((t) => adminDb().collection(COLLECTION).doc(textKey(lang, t)));
@@ -82,7 +91,10 @@ async function lookup(lang: LanguageCode, texts: string[]): Promise<Map<string, 
     const snaps = await adminDb().getAll(...refs.slice(i, i + 300));
     snaps.forEach((s, j) => {
       const t = s.data()?.t;
-      if (s.exists && typeof t === "string") found.set(texts[i + j], t);
+      const src = texts[i + j];
+      if (s.exists && typeof t === "string" && !isUntranslatedEcho(lang, src, t)) {
+        found.set(src, t);
+      }
     });
   }
   return found;
@@ -120,16 +132,21 @@ const resultSchema = z.object({ translations: z.array(z.string()) });
 async function translateBatch(lang: LanguageCode, texts: string[]): Promise<string[] | null> {
   const name = languageInfo(lang).name;
   const res = await generateWithFallback({
+    learnerLanguage: false,
     task: "structured_spec",
     schema: resultSchema,
     temperature: 0.2,
-    maxWaitMs: 20_000,
+    maxWaitMs: 25_000,
     systemInstruction: [
       `You translate learning material for students into ${name}.`,
       `Return JSON {"translations": [...]} with exactly ${texts.length} strings, in the same order as the input.`,
+      `Every sentence and explanation MUST be translated into natural, fluent ${name} — never leave English sentences untranslated.`,
       "Translate meaning faithfully at the same reading level. Keep Markdown, LaTeX ($...$), code, numbers, units, chemical formulas, variable names and placeholders like {name} exactly as they are.",
-      `Technical terms with no common ${name} word may stay in English. If a string is already in ${name}, return it unchanged.`,
+      `Individual technical terms with no common ${name} word may stay in English inside the ${name} sentence.`,
       lang === "pcm" ? "Use natural, respectful Nigerian Pidgin as students speak it." : "",
+      lang === "yo" ? "Use authentic Yorùbá with proper tonal marks and diacritics (ẹ, ọ, ṣ)." : "",
+      lang === "ig" ? "Use natural, standard Igbo (Ọnwụ orthography)." : "",
+      lang === "ha" ? "Use natural, standard Hausa (Boko script)." : "",
     ].filter(Boolean).join(" "),
     userPrompt: JSON.stringify({ language: name, strings: texts }),
   });
@@ -149,9 +166,11 @@ export async function translateTexts(lang: LanguageCode, texts: string[]): Promi
   for (const group of batches(missing)) {
     const out = await translateBatch(lang, group).catch(() => null);
     if (!out) continue;
-    const pairs = group.map((src, i) => [src, out[i]] as [string, string]).filter(([, t]) => t && t.trim());
+    const pairs = group
+      .map((src, i) => [src, out[i]] as [string, string])
+      .filter(([src, t]) => t && t.trim() && !isUntranslatedEcho(lang, src, t));
     pairs.forEach(([src, t]) => found.set(src, t));
-    await remember(lang, pairs).catch(() => null);
+    if (pairs.length) await remember(lang, pairs).catch(() => null);
   }
   return found;
 }

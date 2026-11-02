@@ -100,7 +100,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
     if (selected === null || !sessionId || answered || submitting) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/quiz/${sessionId}/answer`, {
+      const res = await fetch(`/api/quiz/${sessionId}/answer${viewLang ? `?lang=${viewLang}` : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionIndex: current, selectedOptionIndex: selected }),
@@ -125,7 +125,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
     } finally {
       setSubmitting(false);
     }
-  }, [selected, sessionId, answered, submitting, current, onEvidence, toast]);
+  }, [selected, sessionId, answered, submitting, current, viewLang, onEvidence, toast]);
 
   const next = useCallback(() => {
     if (current < questions.length - 1) {

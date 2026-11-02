@@ -88,7 +88,7 @@ export interface TurnAudio {
 const clipId = (version: number, index: number, lang?: LanguageCode) => `c${version}_${index}${lang ? `_t${lang}` : ""}`;
 
 /** Saves a recorded clip once so every learner replays the same file (no AI or TTS cost per listener). */
-async function saveClip(classId: string, kcId: string, version: number, index: number, clip: TurnAudio, lang?: LanguageCode) {
+async function saveClip(classId: string, kcId: string, version: number, index: number, clip: TurnAudio, lang?: LanguageCode, text?: string) {
   const col = audioCol(classId, kcId);
   const id = clipId(version, index, lang);
   const parts = Math.max(1, Math.ceil(clip.audio.length / PART_BYTES));
@@ -97,16 +97,27 @@ async function saveClip(classId: string, kcId: string, version: number, index: n
       col.doc(`${id}_${k}`).set({ kind: "part", version, audioBase64: clip.audio.subarray(k * PART_BYTES, (k + 1) * PART_BYTES).toString("base64") })
     )
   );
-  await col.doc(id).set({ kind: "clip", version, parts, bytes: clip.audio.length, mimeType: clip.mimeType, savedAt: Timestamp.now() });
+  await col.doc(id).set({
+    kind: "clip",
+    version,
+    parts,
+    bytes: clip.audio.length,
+    mimeType: clip.mimeType,
+    ...(lang ? { lang } : {}),
+    ...(text ? { textSample: text.slice(0, 120) } : {}),
+    savedAt: Timestamp.now(),
+  });
 }
 
 /** A saved clip, or null when this turn hasn't been recorded. Never synthesises. */
-export async function readClip(classId: string, kcId: string, version: number, index: number, lang?: LanguageCode): Promise<TurnAudio | null> {
+export async function readClip(classId: string, kcId: string, version: number, index: number, lang?: LanguageCode, expectedText?: string): Promise<TurnAudio | null> {
   const col = audioCol(classId, kcId);
   const id = clipId(version, index, lang);
   const head = await col.doc(id).get();
   const h = head.data();
   if (!h || !Number.isInteger(h.parts)) return null;
+  // If a translated clip was saved earlier from untranslated text (before textSample was tracked, or with different text), re-record it
+  if (lang && expectedText && h.textSample !== expectedText.slice(0, 120)) return null;
   const parts = await Promise.all(Array.from({ length: h.parts as number }, (_, k) => col.doc(`${id}_${k}`).get()));
   if (parts.some((p) => typeof p.data()?.audioBase64 !== "string")) return null;
   return { audio: Buffer.concat(parts.map((p) => Buffer.from(p.data()!.audioBase64 as string, "base64"))), mimeType: h.mimeType || "audio/wav" };
@@ -207,13 +218,24 @@ export async function recordTurns(classId: string, kcId: string, meta: AudioLess
  * One podcast line in a student's language: the teacher's line translated (by the caller) and voiced in that
  * language once, then saved so every other student with the same language replays the file.
  */
-export async function translatedClip(classId: string, kcId: string, meta: AudioLessonMeta, index: number, text: string, lang: LanguageCode): Promise<TurnAudio | null> {
-  const saved = await readClip(classId, kcId, meta.version, index, lang);
-  if (saved) return saved;
+export async function translatedClip(
+  classId: string,
+  kcId: string,
+  meta: AudioLessonMeta,
+  index: number,
+  text: string,
+  lang: LanguageCode,
+  forceRerecord = false
+): Promise<TurnAudio | null> {
+  if (!forceRerecord) {
+    const saved = await readClip(classId, kcId, meta.version, index, lang, text);
+    if (saved) return saved;
+  }
   const turn = meta.turns[index];
   if (!turn) return null;
+  resetVoiceBreakers();
   const clip = await synthesizeTurn(text, turn.speaker === "teacher" ? "teacher" : "student", meta.voiceStyle, lang);
-  if (clip) await saveClip(classId, kcId, meta.version, index, clip, lang).catch(() => null);
+  if (clip) await saveClip(classId, kcId, meta.version, index, clip, lang, text).catch(() => null);
   return clip;
 }
 

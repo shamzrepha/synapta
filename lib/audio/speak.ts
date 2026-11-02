@@ -1,4 +1,5 @@
 import { chunkForSpeech, cleanForSpeech } from "@/lib/voice/speech";
+import { readPrefs } from "@/components/settings/use-prefs";
 
 /**
  * Reads text aloud with the server's neural voice (a real audio file), piece by piece, fetching the next
@@ -17,7 +18,11 @@ export function createSpeaker(voice: "female" | "male" = "female"): Speaker {
 
   const fetchPiece = async (text: string): Promise<string | null> => {
     try {
-      const res = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, voice }) });
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice, lang: readPrefs().language }),
+      });
       if (!res.ok) return null;
       const url = URL.createObjectURL(await res.blob());
       urls.push(url);

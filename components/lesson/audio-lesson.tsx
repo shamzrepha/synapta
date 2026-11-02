@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { readPrefs } from "@/components/settings/use-prefs";
+import { readPrefs, usePrefs } from "@/components/settings/use-prefs";
+import { languageInfo } from "@/lib/i18n/languages";
 import { ClipPlayer, type ClipState } from "@/lib/audio/clip-player";
 
 interface Turn {
@@ -48,15 +49,18 @@ async function fetchAudio(base: string): Promise<Payload | null> {
 /** Two-voice narrated lesson, recorded once per topic and replayed by every learner. */
 export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId: string; viewLang?: string | null }) {
   const { toast } = useToast();
+  const [prefs] = usePrefs();
   const base = `/api/classes/${classId}/kcs/${kcId}/audio`;
-  // a teacher viewing a translation listens to it but edits only the original
-  const view = viewLang ? `?lang=${viewLang}` : "";
+  // Respect an explicit viewLang (including null when a teacher chooses "Show original"), else follow the learner's preference
+  const activeLang = viewLang !== undefined ? (viewLang || "en") : prefs.language;
+  const view = activeLang !== "en" ? `?lang=${activeLang}` : "";
   const [payload, setPayload] = useState<Payload | null>(null);
   const [generating, setGenerating] = useState(false);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [expanded, setExpanded] = useState(false);
+  const [langRev, setLangRev] = useState(0);
   const playerRef = useRef<ClipPlayer | null>(null);
   const transcriptRef = useRef<HTMLOListElement>(null);
 
@@ -85,7 +89,12 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
         if (turnsKey[i] !== "1") return null;
         try {
           // the language is part of the address: each language has its own saved recording
-          const res = await fetch(`${base}/${i}?v=${version}&l=${viewLang || readPrefs().language}${viewLang ? `&lang=${viewLang}` : ""}`);
+          const url = `${base}/${i}?v=${version}&l=${activeLang}${activeLang !== "en" ? `&lang=${activeLang}` : ""}&r=2${langRev ? `_${langRev}` : ""}`;
+          let res = await fetch(url);
+          if (!res.ok && res.status === 503) {
+            await new Promise((r) => setTimeout(r, 1500));
+            res = await fetch(url);
+          }
           return res.ok ? await res.arrayBuffer() : null;
         } catch {
           return null;
@@ -106,7 +115,7 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
       player.dispose();
       playerRef.current = null;
     };
-  }, [base, version, turnsKey, viewLang]);
+  }, [base, version, turnsKey, activeLang, langRev]);
 
   const stopAll = () => playerRef.current?.stop();
 
@@ -267,10 +276,48 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
     }
   };
 
+  /** Forces every line to be freshly translated and re-recorded in the currently selected language. */
+  const rerecordLanguage = async () => {
+    if (!lesson || activeLang === "en") return;
+    const langName = languageInfo(activeLang).name;
+    setGenerating(true);
+    stopAll();
+    setPlaying(false);
+    setRecordingNote(`Re-recording in ${langName}…`);
+    try {
+      const indices = lesson.turns.map((_, i) => i).filter((i) => lesson.turns[i].hasAudio);
+      let okCount = 0;
+      for (let start = 0; start < indices.length; start += 2) {
+        const batch = indices.slice(start, start + 2);
+        setRecordingNote(`Re-recording in ${langName} (${Math.min(indices.length, start + batch.length)}/${indices.length})…`);
+        const results = await Promise.all(
+          batch.map(async (i) => {
+            try {
+              const res = await fetch(`${base}/${i}?v=${version}&l=${activeLang}&lang=${activeLang}&rerecord=1`, { cache: "no-store" });
+              return res.ok;
+            } catch {
+              return false;
+            }
+          })
+        );
+        okCount += results.filter(Boolean).length;
+      }
+      setLangRev((r) => r + 1);
+      toast({
+        title: okCount === indices.length ? `Recorded in ${langName} 🎧` : `Recorded ${okCount}/${indices.length} lines in ${langName}`,
+        variant: okCount > 0 ? "success" : "amber",
+      });
+    } finally {
+      setRecordingNote("");
+      setGenerating(false);
+    }
+  };
+
   if (!payload) return null;
   if (!lesson && !payload.canGenerate && !(payload.lesson?.status === "generating")) return null;
 
   const settled = clipStatus.filter((c) => c === "ready" || c === "failed").length;
+  const failedClips = clipStatus.filter((c) => c === "failed").length;
   const minutes = lesson ? Math.max(1, Math.round(lesson.turns.reduce((n, t) => n + t.text.split(/\s+/).length, 0) / 150)) : 0;
 
   return (
@@ -315,7 +362,24 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> {recordingNote}
           </p>
         )}
-        {lesson && payload.canManage && !viewLang && (
+        {lesson && activeLang !== "en" && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 dark:text-slate-400">
+            <span>
+              {failedClips > 0
+                ? `${failedClips} line${failedClips > 1 ? "s" : ""} in ${languageInfo(activeLang).name} couldn't load — tap Re-record to voice them.`
+                : `Spoken in ${languageInfo(activeLang).name} (${languageInfo(activeLang).native}).`}
+            </span>
+            <button
+              type="button"
+              onClick={rerecordLanguage}
+              disabled={generating}
+              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1 hover:underline"
+            >
+              {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />} Re-record {languageInfo(activeLang).name}
+            </button>
+          </div>
+        )}
+        {lesson && payload.canManage && activeLang === "en" && (
           <p className={cn("mt-3 text-xs flex flex-wrap items-center gap-2", missing ? "text-amber-700 dark:text-amber-300" : "text-slate-500")}>
             {missing ? `${lesson.turns.length - missing}/${lesson.turns.length} lines recorded. The rest stay silent until they are recorded.` : `All ${lesson.turns.length} lines are recorded and saved once — every student replays the same files.`}
             {missing > 0 && (

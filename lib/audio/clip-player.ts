@@ -34,6 +34,7 @@ interface Clip {
   state: ClipState;
   url?: string;
   audio?: AudioLike;
+  retries?: number;
 }
 
 const isWav = (b: ArrayBuffer) => {
@@ -53,7 +54,7 @@ export class ClipPlayer {
   rate = 1;
 
   constructor(private readonly o: ClipPlayerOptions) {
-    this.clips = Array.from({ length: o.count }, () => ({ state: "idle" as ClipState }));
+    this.clips = Array.from({ length: o.count }, () => ({ state: "idle" as ClipState, retries: 0 }));
   }
 
   get size(): number {
@@ -86,6 +87,11 @@ export class ClipPlayer {
     this.current = Math.max(0, Math.min(this.o.count - 1, from));
     this.o.onIndex(this.current);
     this.loadCursor = this.current;
+    // If the user explicitly plays or jumps to a failed line, give it a fresh try
+    if (this.clips[this.current]?.state === "failed") {
+      this.clips[this.current].state = "idle";
+      this.clips[this.current].retries = 0;
+    }
     this.pumpLoads();
     this.startCurrent();
   }

@@ -19,10 +19,11 @@ export async function classSourceLanguage(classData: { contentLanguage?: unknown
  * language with `?lang=yo`.
  */
 export async function contentLanguage(req: NextRequest, caller: AuthenticatedUser, isTeacher: boolean): Promise<LanguageCode | null> {
+  const want = req.nextUrl.searchParams.get("lang") || req.nextUrl.searchParams.get("l");
   if (isTeacher) {
-    const want = req.nextUrl.searchParams.get("lang");
     return isLanguageCode(want) ? want : null;
   }
+  if (isLanguageCode(want)) return want;
   return getUserLanguage(caller.uid);
 }
 

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { parseJson } from "@/lib/api/errors";
 import { adminDb } from "@/lib/firebase/admin";
+import { isLanguageCode } from "@/lib/i18n/languages";
+import { getUserLanguage } from "@/lib/i18n/server";
+import { localizeJson } from "@/lib/i18n/translate";
 import { loadNotebook, touch } from "@/lib/notebooks/store";
 import { getPublicProfiles } from "@/lib/social/profile";
 import { z } from "zod";
@@ -24,6 +27,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ note
       ref.collection("messages").orderBy("createdAt", "desc").limit(80).get(),
     ]);
     const members = await getPublicProfiles(nb.memberIds || []);
+    const asked = req.nextUrl.searchParams.get("lang") || req.nextUrl.searchParams.get("l");
+    const lang = isLanguageCode(asked) ? asked : await getUserLanguage(caller.uid);
+    const rawStudio = nb.studio || {};
+    const studio = lang !== "en" && Object.keys(rawStudio).length ? await localizeJson(rawStudio, lang).catch(() => rawStudio) : rawStudio;
     return NextResponse.json({
       ok: true,
       data: {
@@ -34,7 +41,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ note
           role,
           ownerUid: nb.ownerUid,
           chatId: nb.chatId || null,
-          studio: nb.studio || {},
+          studio,
           members: (nb.memberIds || []).map((u: string) => ({
             uid: u,
             displayName: members.get(u)?.displayName || "Learner",

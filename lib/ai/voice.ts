@@ -115,7 +115,8 @@ export async function generateEdgeVoice({
   if (!text || text.trim().length === 0) return null;
 
   const host = hostFor(speaker);
-  const mp3 = await synthesizeEdgeVoice(text, languageVoice(text, host.gender === "female" ? "female" : "male", lang) ?? host.edge);
+  const voice = languageVoice(text, host.gender === "female" ? "female" : "male", lang) ?? host.edge;
+  const mp3 = (await synthesizeEdgeVoice(text, voice)) || (edgeAvailable() ? await synthesizeEdgeVoice(text, voice) : null);
   return mp3 ? { audioBase64: mp3.toString("base64"), mimeType: "audio/mpeg", voiceName: host.edgeName } : null;
 }
 
@@ -326,16 +327,19 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
   const clean = text.trim();
   if (!clean) return null;
   // a non-English line gets that language's voice, whatever English voice the caller picked
-  edgeVoice = languageVoice(clean, gender, opts.lang) ?? edgeVoice;
+  const langVoice = languageVoice(clean, gender, opts.lang);
+  edgeVoice = langVoice ?? edgeVoice;
   const voices = EDGE_VOICES[gender];
   // Live requests answer fast or give up. Recording a podcast line is not time-critical, and a long lecture turn needs
   // longer than a quick reply, so the time allowed grows with the length of the line.
   const edgeMs = opts.patient ? Math.min(45_000, 8_000 + clean.length * 25) : 4_000;
-  const edge = await synthesizeEdgeVoice(clean, edgeVoice || voices[0], edgeMs);
+  const primary = edgeVoice || voices[0];
+  const edge = await synthesizeEdgeVoice(clean, primary, edgeMs);
   if (edge) return { audio: edge, mimeType: "audio/mpeg", engine: "edge" };
-  // a second Edge voice costs little and covers a single voice being throttled
-  if (!edgeVoice && edgeAvailable()) {
-    const alt = await synthesizeEdgeVoice(clean, voices[1], edgeMs);
+  // a second Edge attempt costs little and covers a single connection glitch or throttled voice
+  if (edgeAvailable()) {
+    const retryVoice = langVoice || voices.find((v) => v !== primary) || voices[1];
+    const alt = await synthesizeEdgeVoice(clean, retryVoice, edgeMs);
     if (alt) return { audio: alt, mimeType: "audio/mpeg", engine: "edge" };
   }
   // a retry of the free voice must not fall through to the paid engines

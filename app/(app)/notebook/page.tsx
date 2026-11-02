@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useLiveChannel } from "@/lib/live/client";
 import { NotebookBar, type NotebookMeta } from "@/components/notebook/notebook-bar";
 import { OfflineDownloadButton } from "@/components/offline/download-button";
-import { readPrefs } from "@/components/settings/use-prefs";
+import { readPrefs, usePrefs } from "@/components/settings/use-prefs";
 import { ClipPlayer, type ClipState } from "@/lib/audio/clip-player";
 import {
   BookOpen,
@@ -80,7 +80,8 @@ interface NotebookPayload {
 
 async function fetchNotebook(id: string): Promise<{ ok: true; data: NotebookPayload } | { ok: false; message: string }> {
   try {
-    const j = await fetch(`/api/notebooks/${id}`).then((r) => r.json());
+    const lang = readPrefs().language;
+    const j = await fetch(`/api/notebooks/${id}?lang=${encodeURIComponent(lang)}`).then((r) => r.json());
     return j.ok ? { ok: true, data: j.data } : { ok: false, message: j.error?.message || "Couldn't open notebook" };
   } catch {
     return { ok: false, message: "Couldn't open notebook" };
@@ -121,6 +122,7 @@ interface QuizItem {
 
 export default function NotebookPage() {
   const { toast } = useToast();
+  const [prefs] = usePrefs();
 
   // Mobile Segmented Tab State
   const [mobileTab, setMobileTab] = useState<"chat" | "sources" | "studio">("chat");
@@ -194,7 +196,7 @@ export default function NotebookPage() {
     setStudyGuideMarkdown((prev) => studio.studyGuide ?? prev);
     if (studio.flashcards) setFlashcardDeck((prev) => (prev.length === studio.flashcards!.length && prev[0]?.front === studio.flashcards![0]?.front ? prev : studio.flashcards!));
     if (studio.quiz) setQuizQuestions((prev) => (prev.length === studio.quiz!.length && prev[0]?.question === studio.quiz![0]?.question ? prev : studio.quiz!));
-    if (studio.podcast) setDeepDiveEpisode((prev) => (prev?.title === studio.podcast!.title ? prev : studio.podcast!));
+    if (studio.podcast) setDeepDiveEpisode((prev) => (prev?.title === studio.podcast!.title && prev?.dialogue?.[0]?.text === studio.podcast!.dialogue?.[0]?.text ? prev : studio.podcast!));
   }, []);
 
   const reloadNotebook = useCallback(() => {
@@ -203,6 +205,10 @@ export default function NotebookPage() {
       if (r.ok) applyNotebook(r.data);
     });
   }, [nbId, applyNotebook]);
+
+  useEffect(() => {
+    if (nbId) reloadNotebook();
+  }, [prefs.language, nbId, reloadNotebook]);
 
   const openNotebook = useCallback(
     (id: string | null) => {
@@ -483,7 +489,7 @@ export default function NotebookPage() {
   // Podcast audio: every line is fetched in the background (3 at a time) as soon as the script exists,
   // then played gaplessly like a live stream. Lines are cached on the server, so other learners
   // playing the same script get them instantly.
-  const episodeKey = deepDiveEpisode ? `${deepDiveEpisode.title}:${deepDiveEpisode.dialogue.length}:${deepDiveEpisode.dialogue[0]?.text.slice(0, 30)}` : "";
+  const episodeKey = deepDiveEpisode ? `${prefs.language}:${deepDiveEpisode.title}:${deepDiveEpisode.dialogue.length}:${deepDiveEpisode.dialogue[0]?.text.slice(0, 30)}` : "";
   const dialogueRef = useRef<DialogueTurn[]>([]);
   useEffect(() => {
     dialogueRef.current = deepDiveEpisode?.dialogue || [];
@@ -496,11 +502,20 @@ export default function NotebookPage() {
       fetchClip: async (i) => {
         if (!studioVoiceEnabled) return null; // "Browser TTS" mode: every line is read by the device voices
         try {
-          const res = await fetch("/api/notebook/voice", {
+          const body = JSON.stringify({ text: dialogue[i].text, speaker: dialogue[i].speaker, binary: true, lang: prefs.language });
+          let res = await fetch("/api/notebook/voice", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: dialogue[i].text, speaker: dialogue[i].speaker, binary: true }),
+            body,
           });
+          if (!res.ok && res.status === 503) {
+            await new Promise((r) => setTimeout(r, 1500));
+            res = await fetch("/api/notebook/voice", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body,
+            });
+          }
           return res.ok ? await res.arrayBuffer() : null;
         } catch {
           return null;

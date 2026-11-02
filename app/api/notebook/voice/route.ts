@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { getOrSynthesizeHostLine } from "@/lib/ai/host-voice";
+import { isLanguageCode } from "@/lib/i18n/languages";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { z } from "zod";
@@ -13,6 +14,8 @@ const schema = z.object({
   speaker: z.string().default("Alex"),
   /** return raw audio bytes instead of base64 JSON (smaller and faster for the streaming player) */
   binary: z.boolean().default(false),
+  lang: z.string().optional(),
+  rerecord: z.boolean().optional().default(false),
 });
 
 /**
@@ -28,18 +31,19 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ ok: false, error: { code: "VALIDATION", message: "Provide text and a speaker." } }, { status: 400 });
     }
-    const { text, speaker, binary } = parsed.data;
+    const { text, speaker, binary, lang, rerecord } = parsed.data;
+    const targetLang = isLanguageCode(lang) ? lang : await getUserLanguage(caller.uid);
     // the listener's language picks the voice (Pidgin reads like English, so it can't be guessed from the text)
-    const line = await getOrSynthesizeHostLine(text, speaker, await getUserLanguage(caller.uid));
+    const line = await getOrSynthesizeHostLine(text, speaker, targetLang, rerecord);
 
     if (binary) {
-      if (!line) return NextResponse.json({ ok: false, error: { code: "NO_AUDIO", message: "Studio voice unavailable; use the device voice." } }, { status: 503 });
+      if (!line) return NextResponse.json({ ok: false, error: { code: "NO_AUDIO", message: "Studio voice unavailable; try again." } }, { status: 503, headers: { "Cache-Control": "no-store" } });
       return new NextResponse(new Uint8Array(line.bytes), {
-        headers: { "Content-Type": line.mimeType, "Cache-Control": "private, max-age=86400", "X-Voice": line.voiceName, "X-Voice-Cached": line.cached ? "1" : "0" },
+        headers: { "Content-Type": line.mimeType, "Cache-Control": rerecord ? "no-store" : "private, max-age=86400", "X-Voice": line.voiceName, "X-Voice-Cached": line.cached ? "1" : "0" },
       });
     }
     if (!line) {
-      return NextResponse.json({ ok: true, data: { audioBase64: null, fallbackToBrowser: true, message: "Studio voice audio unavailable; using the device voice." } });
+      return NextResponse.json({ ok: true, data: { audioBase64: null, fallbackToBrowser: false, message: "Studio voice audio unavailable right now." } });
     }
     return NextResponse.json({ ok: true, data: { audioBase64: line.bytes.toString("base64"), mimeType: line.mimeType, voiceName: line.voiceName, fallbackToBrowser: false, cached: line.cached } });
   } catch (error) {

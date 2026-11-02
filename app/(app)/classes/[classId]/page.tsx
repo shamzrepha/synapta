@@ -29,6 +29,7 @@ import { ClassPlanCard } from "@/components/teacher/class-plan-card";
 import type { ClassroomPlan } from "@/components/teacher/classroom-plan";
 import { formatPL, getMasteryStatus } from "@/lib/utils";
 import { MaterialsUploader } from "@/components/teacher/MaterialsUploader";
+import { readPrefs, usePrefs } from "@/components/settings/use-prefs";
 
 interface KCItem {
   id: string;
@@ -76,7 +77,8 @@ interface ClassPayload {
 
 async function fetchClassPayload(classId: string): Promise<ClassPayload | null> {
   try {
-    const res = await fetch(`/api/classes/${classId}`);
+    const lang = readPrefs().language;
+    const res = await fetch(`/api/classes/${classId}${lang !== "en" ? `?lang=${encodeURIComponent(lang)}` : ""}`);
     const data = await res.json();
     return data.ok && data.data?.class ? (data.data as ClassPayload) : null;
   } catch {
@@ -99,6 +101,7 @@ export default function ClassOverviewPage({
   const { classId } = use(params);
   const { user } = useUserStore();
   const { toast } = useToast();
+  const [prefs] = usePrefs();
 
   const [classData, setClassData] = useState<ClassDetail | null>(null);
   const [kcs, setKcs] = useState<KCItem[]>([]);
@@ -134,7 +137,7 @@ export default function ClassOverviewPage({
 
   useEffect(() => {
     fetchClassPayload(classId).then((payload) => applyClassPayload(payload));
-  }, [classId, applyClassPayload]);
+  }, [classId, prefs.language, applyClassPayload]);
 
   // While the AI is drafting the curriculum, refresh every few seconds so progress and topics appear live
   const buildState = classData?.buildState;
