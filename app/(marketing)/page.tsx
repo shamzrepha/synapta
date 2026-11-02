@@ -1,386 +1,248 @@
 import React from "react";
 import Link from "next/link";
-import {
-  BrainCircuit,
-  Sparkles,
-  Cpu,
-  Layers,
-  ArrowRight,
-  CheckCircle2,
-  Users,
-  GraduationCap,
-  ShieldCheck,
-  Flame,
-  Zap,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import Image from "next/image";
+import { ArrowRight, Check, Headphones, SlidersHorizontal, ListChecks, Cpu, Languages, ShieldCheck, Radar } from "lucide-react";
 import { SITE_ALT_NAME, SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/site";
+
+/*
+ * Landing page. One deliberate look in both themes: deep forest for the stage, warm cream for the reading
+ * sections, sun orange for the single thing to press. Real app screens in device frames carry the story.
+ */
+
+const LANGS = ["English", "Naijá", "Yorùbá", "Igbo", "Hausa", "Français", "العربية", "Kiswahili"];
+
+const WAYS = [
+  { n: 1, title: "Listen & read", body: "A two-voice podcast and clear notes, in your own language.", img: "/landing/learn.jpg", alt: "Ohm's law lesson with a podcast player", icon: Headphones },
+  { n: 2, title: "Simulate it", body: "Move the sliders and watch the physics answer back.", img: "/landing/sim.jpg", alt: "Ohm's law circuit simulation with voltage and resistance sliders", icon: SlidersHorizontal },
+  { n: 3, title: "Practise smart", body: "Questions that go after the parts you keep missing.", img: "/landing/quiz.jpg", alt: "A quiz question answered correctly with its explanation", icon: ListChecks },
+];
+
+const STEPS = [
+  ["Drop the syllabus", "The lecturer adds the course outline."],
+  ["AI builds each topic", "Notes, a two-voice podcast, a simulation and a 60-question practice bank."],
+  ["Lecturer approves", "Nothing reaches students until the teacher pushes it."],
+  ["Students learn four ways", "Listen, simulate, practise, then build it."],
+  ["Mastery updates live", "Every answer and every build moves the skill map."],
+];
+
+function Phone({ src, alt, className = "", priority = false }: { src: string; alt: string; className?: string; priority?: boolean }) {
+  return (
+    <div className={`rounded-[2.6rem] border-2 border-[#2E4B3D] bg-[#07130E] p-2.5 shadow-[0_40px_90px_-20px_rgba(0,0,0,0.65)] ${className}`}>
+      <Image src={src} alt={alt} width={780} height={1688} priority={priority} sizes="(max-width: 768px) 60vw, 320px" className="block h-auto w-full rounded-[2rem]" />
+    </div>
+  );
+}
+
+function Laptop({ src, alt, base = "bg-[#3E5A4C]" }: { src: string; alt: string; base?: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="w-full rounded-t-2xl rounded-b-md border-2 border-[#2E4B3D] bg-[#07130E] p-2.5 pb-3.5 shadow-[0_40px_90px_-24px_rgba(0,0,0,0.55)]">
+        <Image src={src} alt={alt} width={1800} height={1125} sizes="(max-width: 768px) 92vw, 640px" className="block h-auto w-full rounded-md" />
+      </div>
+      <div className={`h-3.5 w-[108%] rounded-b-2xl ${base}`} />
+    </div>
+  );
+}
 
 export default function LandingPage() {
   const siteUrl = getSiteUrl();
   // Structured data so search engines know the site's name (WebSite) and who runs it (Organization)
   const structuredData = [
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      name: SITE_NAME,
-      alternateName: [SITE_ALT_NAME, "Sunroot"],
-      url: `${siteUrl}/`,
-      description: SITE_DESCRIPTION,
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      name: SITE_NAME,
-      url: `${siteUrl}/`,
-    },
+    { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, alternateName: [SITE_ALT_NAME, "Sunroot"], url: `${siteUrl}/`, description: SITE_DESCRIPTION },
+    { "@context": "https://schema.org", "@type": "Organization", name: SITE_NAME, url: `${siteUrl}/` },
   ];
+
   return (
-    <div className="min-h-screen bg-[#F7F6F2] dark:bg-[#0B0F14] text-slate-900 dark:text-slate-100 flex flex-col">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }}
-      />
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/80">
-        <div className="max-w-[1200px] mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 font-bold shadow-sm">
-              <BrainCircuit className="h-6 w-6" />
-            </div>
-            <div className="flex flex-col">
-              <span translate="no" className="font-bold text-lg tracking-tight">Sunroot</span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-600 dark:text-teal-400">
-                Adaptive Learning
-              </span>
-            </div>
+    <div className="flex min-h-screen flex-col bg-[#FBF6EC] text-[#12241C]">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData).replace(/</g, "\\u003c") }} />
+
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#0E1F18]/90 text-[#FBF6EC] backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between gap-4 px-4">
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image src="/logo-mark.svg" alt="" width={36} height={36} className="h-9 w-9" priority />
+            <span translate="no" className="font-display text-xl font-bold tracking-tight">Sunroot</span>
           </Link>
-
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
-            <a href="#features" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-              Features
-            </a>
-            <a href="#twin" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-              Skill Map
-            </a>
-            <a href="#roles" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">
-              Roles
-            </a>
+          <nav className="hidden items-center gap-7 text-sm font-medium text-[#D7E2D9] md:flex">
+            <a href="#four-ways" className="hover:text-[#F28C28]">How students learn</a>
+            <a href="#prove" className="hover:text-[#F28C28]">Prove it</a>
+            <a href="#teachers" className="hover:text-[#F28C28]">For lecturers</a>
           </nav>
-
-          <div className="flex items-center gap-3">
-            <Link href="/login">
-              <Button variant="ghost" size="sm">
-                Log In
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button size="sm">
-                Get Started
-                <ArrowRight className="ml-1.5 h-4 w-4" />
-              </Button>
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="rounded-full px-4 py-2 text-sm font-semibold text-[#FBF6EC] hover:bg-white/10">Log in</Link>
+            <Link href="/signup" className="inline-flex items-center gap-1.5 rounded-full bg-[#F28C28] px-4 py-2 text-sm font-bold text-[#12241C] hover:bg-[#F59E45]">
+              Start free <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative pt-20 pb-16 md:pt-28 md:pb-24 px-4 overflow-hidden border-b border-slate-200/60 dark:border-slate-800/60">
-        <div className="max-w-[1200px] mx-auto text-center space-y-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-semibold text-teal-700 dark:text-teal-300">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>AI-Native Adaptive Education Architecture</span>
-          </div>
-
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight max-w-4xl mx-auto leading-[1.15] text-slate-900 dark:text-white">
-            1-on-1 Tutoring for Every Student. <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-600 to-teal-400">
-              A Cognitive X-Ray for Every Teacher.
-            </span>
-          </h1>
-
-          <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Sunroot builds a live <strong>Skill Map</strong> for every learner that tracks what you have mastered and adapts your lessons to you. It brings together interactive labs, AI study notes with sources, and study rooms with friends.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Link href="/signup" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto text-base">
-                Start Learning Free
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-            <Link href="/dashboard" className="w-full sm:w-auto">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto text-base">
-                Explore Demo Dashboard
-              </Button>
-            </Link>
-          </div>
-
-          {/* Skill Map preview card */}
-          <div className="pt-8 max-w-4xl mx-auto">
-            <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-6 shadow-xl backdrop-blur-sm dark:border-slate-800 dark:bg-slate-900/70 text-left">
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 dark:border-slate-800 pb-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-teal-500/20 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold">
-                    CT
-                  </div>
-                  <div>
-                    <h2 className="font-semibold text-sm">My Skill Map — your mastery right now</h2>
-                    <p className="text-xs text-slate-500">Your mastery score for each topic</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="amber" className="text-xs">
-                    <Flame className="h-3 w-3 mr-1" /> 5-Day Streak
-                  </Badge>
-                  <Badge variant="default" className="text-xs">
-                    <Zap className="h-3 w-3 mr-1" /> 450 XP
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-semibold">Ohm&apos;s Law (V=IR)</span>
-                    <span className="text-xs font-bold text-emerald-500">96.4%</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full w-[96.4%]" />
-                  </div>
-                  <span className="text-[10px] text-slate-500 mt-2 block">Status: Mastered (Unlocked Advanced Labs)</span>
-                </div>
-
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-semibold">RC Filter Cutoff</span>
-                    <span className="text-xs font-bold text-amber-500">62.8%</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-amber-500 rounded-full w-[62.8%]" />
-                  </div>
-                  <span className="text-[10px] text-slate-500 mt-2 block">Status: In Progress (Socratic Hint Available)</span>
-                </div>
-
-                <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-semibold">Logic Gates & Half Adder</span>
-                    <span className="text-xs font-bold text-rose-500">34.1%</span>
-                  </div>
-                  <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-rose-500 rounded-full w-[34.1%]" />
-                  </div>
-                  <span className="text-[10px] text-slate-500 mt-2 block">Status: Struggling (Matched with Peer Lounge)</span>
-                </div>
-              </div>
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-[#0E1F18] text-[#FBF6EC]">
+        <div aria-hidden className="pointer-events-none absolute -right-40 top-20 h-[640px] w-[640px] rounded-full bg-[radial-gradient(circle,rgba(242,140,40,0.28)_0%,rgba(16,185,129,0.10)_45%,transparent_70%)]" />
+        <div className="relative mx-auto grid max-w-[1200px] items-center gap-12 px-4 pb-16 pt-14 md:grid-cols-[1.1fr_0.9fr] md:pb-24 md:pt-20">
+          <div className="min-w-0 space-y-7">
+            <p className="inline-flex rounded-full bg-[#F28C28] px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-[#12241C]">AI STEM tutor + virtual lab</p>
+            <h1 className="font-display text-5xl font-bold leading-[0.98] tracking-tight sm:text-6xl lg:text-7xl">
+              Stop cramming.
+              <br />
+              Start building.
+              <br />
+              <span className="text-[#F28C28]">Prove you know it.</span>
+            </h1>
+            <p className="max-w-xl text-lg leading-relaxed text-[#D7E2D9]">
+              Every topic as a two-voice podcast, a live circuit and physics lab, practice that finds your weak spots, and a 3D studio where you build it yourself. On your phone, in your language.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F28C28] px-7 py-3.5 text-base font-bold text-[#12241C] shadow-[0_16px_40px_-12px_rgba(242,140,40,0.6)] hover:bg-[#F59E45]">
+                Start learning free <ArrowRight className="h-5 w-5" />
+              </Link>
+              <Link href="/signup" className="inline-flex items-center justify-center rounded-full border-2 border-[#FBF6EC]/30 px-7 py-3.5 text-base font-bold text-[#FBF6EC] hover:border-[#FBF6EC]/60">
+                I teach a class
+              </Link>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* 3 Core Pillars Section */}
-      <section id="features" className="py-20 px-4 max-w-[1200px] mx-auto w-full">
-        <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-          <Badge variant="outline" className="text-xs">Architecture Pillars</Badge>
-          <h2 className="text-3xl font-bold tracking-tight">The Three Foundations of Sunroot</h2>
-          <p className="text-slate-600 dark:text-slate-400 text-sm">
-            Moving beyond passive video consumption into dynamic mastery learning and rigorous classroom intelligence.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Pillar 1 */}
-          <Card className="border-slate-200/80 dark:border-slate-800/80 hover:border-teal-500/40 transition-all">
-            <CardHeader>
-              <div className="h-12 w-12 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-2">
-                <BrainCircuit className="h-6 w-6" />
-              </div>
-              <CardTitle>Adaptive Tutoring</CardTitle>
-              <CardDescription>
-                A mastery score for every topic, so you always know what to study next.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
-              <p>
-                Every quiz answer, flashcard and lab you complete updates your mastery score, and your lessons adapt to it.
-              </p>
-              <ul className="space-y-2 pt-2 text-xs">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0" />
-                  <span>Socratic method: hints before answers</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0" />
-                  <span>Strict dependency prerequisite graph</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0" />
-                  <span>Automatic peer lounge intervention when struggling</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Pillar 2 */}
-          <Card className="border-slate-200/80 dark:border-slate-800/80 hover:border-teal-500/40 transition-all">
-            <CardHeader>
-              <div className="h-12 w-12 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2">
-                <Cpu className="h-6 w-6" />
-              </div>
-              <CardTitle>Interactive Labs</CardTitle>
-              <CardDescription>
-                Hands-on interactive virtual apparatus embedded directly in topics.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
-              <p>
-                No separate sandbox or disconnected assignments. Interactive simulation labs are rendered inline alongside lessons with real-time feedback.
-              </p>
-              <ul className="space-y-2 pt-2 text-xs">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-amber-500 shrink-0" />
-                  <span>Ohm&apos;s Law interactive circuit & electron flow</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-amber-500 shrink-0" />
-                  <span>RC Filter frequency response & cutoff tuner</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-amber-500 shrink-0" />
-                  <span>Logic gate circuit builder (Half-Adder verification)</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Pillar 3 */}
-          <Card className="border-slate-200/80 dark:border-slate-800/80 hover:border-teal-500/40 transition-all">
-            <CardHeader>
-              <div className="h-12 w-12 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-2">
-                <Layers className="h-6 w-6" />
-              </div>
-              <CardTitle>Source-Grounded AI</CardTitle>
-              <CardDescription>
-                Upload textbooks, lecture notes, or research papers with strict citations.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-slate-600 dark:text-slate-400">
-              <p>
-                NotebookLM-style grounded reasoning. Gemini answers strictly using your uploaded materials with verifiable citations and zero hallucination.
-              </p>
-              <ul className="space-y-2 pt-2 text-xs">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0" />
-                  <span>Inline source attribution [S1], [S2]</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0" />
-                  <span>Instant flashcards, summaries, and quizzes</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0" />
-                  <span>Two-host &ldquo;Deep Dive&rdquo; dialogue with browser TTS</span>
-                </li>
-              </ul>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Role Breakdown Section */}
-      <section id="roles" className="py-20 px-4 bg-slate-100/50 dark:bg-slate-900/30 border-y border-slate-200/80 dark:border-slate-800/80">
-        <div className="max-w-[1200px] mx-auto w-full">
-          <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
-            <Badge variant="outline" className="text-xs">Role-Gated Architecture</Badge>
-            <h2 className="text-3xl font-bold tracking-tight">Built for Students, Teachers & Admins</h2>
-            <p className="text-slate-600 dark:text-slate-400 text-sm">
-              Strict server-enforced authorization and custom claims ensure security and distinct workflows.
+          <div className="relative mx-auto h-[520px] w-full max-w-[460px] sm:h-[600px]">
+            <Phone src="/landing/sim.jpg" alt="Ohm's law simulation on a phone" className="absolute left-0 top-10 w-[55%] -rotate-6" />
+            <Phone src="/landing/learn.jpg" alt="Ohm's law lesson and podcast player on a phone" className="absolute right-0 top-0 w-[60%] rotate-[4deg]" priority />
+            <p className="absolute -left-2 bottom-24 flex items-center gap-2 rounded-2xl bg-[#FBF6EC] px-4 py-2.5 text-sm font-bold text-[#12241C] shadow-xl sm:-left-6">
+              <Headphones className="h-4 w-4 text-[#18714E]" /> Podcast in 8 languages
+            </p>
+            <p className="absolute bottom-8 right-2 flex items-center gap-2 rounded-2xl bg-[#10B981] px-4 py-2.5 text-sm font-bold text-[#06261A] shadow-xl">
+              <Cpu className="h-4 w-4" /> Target hit: 120 mA
             </p>
           </div>
+        </div>
+        {/* Languages strip */}
+        <div className="border-t border-white/10 bg-[#0A1812]">
+          <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-2 px-4 py-4 text-sm">
+            <span className="flex items-center gap-2 font-bold uppercase tracking-[0.14em] text-[#F28C28]"><Languages className="h-4 w-4" /> Learn in</span>
+            {LANGS.map((l) => (
+              <span key={l} translate="no" className="font-display text-base font-medium text-[#D7E2D9]">{l}</span>
+            ))}
+          </div>
+        </div>
+      </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
-                  <Users className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base">Student</h3>
-                  <p className="text-xs text-slate-500">Adaptive personalized learner</p>
+      {/* Four ways */}
+      <section id="four-ways" className="px-4 py-20 md:py-28">
+        <div className="mx-auto max-w-[1200px] space-y-14">
+          <div className="max-w-2xl space-y-4">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#18714E]">One topic, four ways in</p>
+            <h2 className="font-display text-4xl font-bold leading-[1.05] md:text-5xl">Hear it. Test it. Practise it. Then build it until it clicks.</h2>
+          </div>
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            {WAYS.map((w) => (
+              <div key={w.n} className="flex min-w-0 flex-col gap-5">
+                <Phone src={w.img} alt={w.alt} className="mx-auto w-[78%] max-w-[260px]" />
+                <div className="space-y-1.5">
+                  <h3 className="font-display text-xl font-bold"><span className="text-[#D7721A]">{w.n} ·</span> {w.title}</h3>
+                  <p className="text-[15px] leading-relaxed text-[#4C5A51]">{w.body}</p>
                 </div>
               </div>
-              <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
-                <li>• Enroll in public classes or request private access</li>
-                <li>• Your Skill Map and mastery radar</li>
-                <li>• Interactive labs, flashcards and AI quizzes</li>
-                <li>• Earn XP, streak days, and join peer lounges</li>
-              </ul>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                  <GraduationCap className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base">Teacher</h3>
-                  <p className="text-xs text-slate-500">Curriculum & classroom director</p>
-                </div>
+            ))}
+            <div className="flex min-w-0 flex-col gap-5">
+              <div className="flex flex-1 items-center">
+                <Laptop src="/landing/circuit.jpg" alt="Circuit bench with a board, motor driver and two motors" base="bg-[#D7CFBF]" />
               </div>
-              <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
-                <li>• AI Syllabus Synthesis via Gemini</li>
-                <li>• Manage public/private classes and join requests</li>
-                <li>• Live class mastery heatmap (students x KCs)</li>
-                <li>• Track token quotas and see each student&apos;s skill map</li>
-              </ul>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base">Super Admin</h3>
-                  <p className="text-xs text-slate-500">Platform administrator</p>
-                </div>
+              <div className="space-y-1.5">
+                <h3 className="font-display text-xl font-bold"><span className="text-[#D7721A]">4 ·</span> Build &amp; prove it</h3>
+                <p className="text-[15px] leading-relaxed text-[#4C5A51]">Wire the circuit, write the code and run it in 3D.</p>
               </div>
-              <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
-                <li>• Global user management and role assignment</li>
-                <li>• Approve teacher access requests</li>
-                <li>• Monitor platform-wide token usage and costs</li>
-                <li>• Disable accounts and manage platform health</li>
-              </ul>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Footer */}
-      <footer className="mt-auto py-12 px-4 border-t border-slate-200/80 dark:border-slate-800/80">
-        <div className="max-w-[1200px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 font-bold">
-              <BrainCircuit className="h-5 w-5" />
-            </div>
-            <span translate="no" className="font-bold text-sm">Sunroot</span>
-            <span className="text-xs text-slate-500">© 2026. All rights reserved.</span>
+      {/* Prove it */}
+      <section id="prove" className="bg-[#0E1F18] px-4 py-20 text-[#FBF6EC] md:py-28">
+        <div className="mx-auto grid max-w-[1200px] items-center gap-14 md:grid-cols-2">
+          <div className="min-w-0 space-y-7">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#F28C28]">Prove it</p>
+            <h2 className="font-display text-4xl font-bold leading-[1.05] md:text-5xl">If you can wire it, code it and run it, you understand it.</h2>
+            <ul className="space-y-4 text-lg text-[#D7E2D9]">
+              {["Pick real parts from the shop and place them on the bench", "Wire a closed loop and see the current live", "Program it with blocks or real C++", "Run the digital twin: wrong logic shows up on the track"].map((t) => (
+                <li key={t} className="flex gap-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F28C28] text-[#12241C]"><Check className="h-4 w-4" strokeWidth={3} /></span>
+                  {t}
+                </li>
+              ))}
+            </ul>
           </div>
+          <Laptop src="/landing/prove.jpg" alt="A line-following robot digital twin running a student's code" />
+        </div>
+      </section>
 
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            <Link href="/login" className="hover:text-teal-600 dark:hover:text-teal-400">
-              Sign In
-            </Link>
-            <Link href="/signup" className="hover:text-teal-600 dark:hover:text-teal-400">
-              Create Account
-            </Link>
-            <Link href="/dashboard" className="hover:text-teal-600 dark:hover:text-teal-400">
-              Student App
-            </Link>
+      {/* Teachers */}
+      <section id="teachers" className="px-4 py-20 md:py-28">
+        <div className="mx-auto grid max-w-[1200px] items-center gap-14 md:grid-cols-[1.15fr_0.85fr]">
+          <div className="order-2 min-w-0 md:order-1">
+            <Laptop src="/landing/mastery.jpg" alt="Class mastery heatmap showing each student's score per topic" base="bg-[#D7CFBF]" />
           </div>
+          <div className="order-1 min-w-0 space-y-7 md:order-2">
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#18714E]">For lecturers</p>
+            <h2 className="font-display text-4xl font-bold leading-[1.05] md:text-5xl">See who’s stuck, on what, before the exam.</h2>
+            <div className="space-y-5">
+              {[
+                [Radar, "A live mastery map", "Every quiz answer, flashcard and build updates each student’s score per topic."],
+                [ShieldCheck, "You stay in charge", "The AI drafts the notes, podcast, lab and question bank. Students see only what you publish."],
+                [Languages, "One class, many languages", "Each student reads and listens in their own language. You teach in yours."],
+              ].map(([Icon, title, body]) => {
+                const I = Icon as typeof Radar;
+                return (
+                  <div key={title as string} className="flex gap-4">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#12241C] text-[#F28C28]"><I className="h-5 w-5" /></span>
+                    <div>
+                      <h3 className="font-display text-lg font-bold">{title as string}</h3>
+                      <p className="text-[15px] leading-relaxed text-[#4C5A51]">{body as string}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="border-t border-[#E4DBC9] bg-[#F3ECDF] px-4 py-20 md:py-24">
+        <div className="mx-auto max-w-[1200px] space-y-12">
+          <h2 className="font-display max-w-3xl text-4xl font-bold leading-[1.05] md:text-5xl">From course syllabus to a full interactive class.</h2>
+          <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {STEPS.map(([t, d], i) => (
+              <li key={t} className={`flex flex-col gap-3 rounded-3xl p-6 ${i === 2 ? "bg-[#12241C] text-[#FBF6EC]" : "bg-[#FFFDF8]"}`}>
+                <span className="font-display text-4xl font-bold text-[#D7721A]">{i + 1}</span>
+                <h3 className="font-display text-lg font-bold leading-snug">{t}</h3>
+                <p className={`text-sm leading-relaxed ${i === 2 ? "text-[#D7E2D9]" : "text-[#4C5A51]"}`}>{d}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* Final call */}
+      <section className="bg-[#F28C28] px-4 py-16 text-[#12241C]">
+        <div className="mx-auto flex max-w-[1200px] flex-col items-start justify-between gap-8 md:flex-row md:items-center">
+          <h2 className="font-display text-4xl font-bold leading-[1.02] md:text-6xl">Understand it.<br />Build it. Prove it.</h2>
+          <Link href="/signup" className="inline-flex items-center gap-2 rounded-full bg-[#12241C] px-8 py-4 text-lg font-bold text-[#FBF6EC] hover:bg-[#1C352A]">
+            Try Sunroot free <ArrowRight className="h-5 w-5" />
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-[#0E1F18] px-4 py-10 text-[#D7E2D9]">
+        <div className="mx-auto flex max-w-[1200px] flex-col justify-between gap-6 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2.5">
+            <Image src="/logo-mark.svg" alt="" width={28} height={28} className="h-7 w-7" />
+            <span translate="no" className="font-display font-bold text-[#FBF6EC]">Sunroot</span>
+            <span className="text-xs">© 2026</span>
+          </div>
+          <nav className="flex gap-6 text-sm">
+            <Link href="/login" className="hover:text-[#F28C28]">Log in</Link>
+            <Link href="/signup" className="hover:text-[#F28C28]">Create account</Link>
+            <Link href="/dashboard" className="hover:text-[#F28C28]">Student app</Link>
+          </nav>
         </div>
       </footer>
     </div>

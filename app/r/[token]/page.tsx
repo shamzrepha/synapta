@@ -29,7 +29,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ t
   const { token } = await params;
   const report = await load(token);
   return (
-    <main className="min-h-screen bg-[#F7F6F2] dark:bg-[#0B0F14] text-slate-900 dark:text-slate-100 px-4 py-8">
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 px-4 py-8">
       <div className="mx-auto max-w-2xl space-y-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-teal-600">Sunroot weekly report</p>
         {report ? (
