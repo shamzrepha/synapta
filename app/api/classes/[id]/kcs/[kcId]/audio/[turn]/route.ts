@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
@@ -11,7 +11,10 @@ import { translateOne } from "@/lib/i18n/translate";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
-export const maxDuration = 90;
+export const maxDuration = 300;
+
+/** How long a listener waits for a line in their language before the original plays (recording carries on). */
+const LISTEN_DEADLINE_MS = 45_000;
 
 /**
  * Streams one saved clip of the podcast. Students are served the version the teacher pushed, straight from
@@ -44,8 +47,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     let fallback = false;
     if (lang !== source) {
       // the teacher's line in the listener's language, voiced once and saved for everyone in that language
-      const text = await translateOne(lang, meta.turns[index].text);
-      if (text) clip = await translatedClip(classId, kcId, meta, index, text, lang, rerecord).catch(() => null);
+      let text: string | null = null;
+      const work = (async () => {
+        text = await translateOne(lang, meta.turns[index].text);
+        return text ? await translatedClip(classId, kcId, meta, index, text, lang, rerecord).catch(() => null) : null;
+      })();
+      if (rerecord) {
+        clip = await work;
+      } else {
+        // a slow translation or voice (Gemini speaks Igbo and Hausa, slower than the free voice) must not make the
+        // line fail: past the deadline the original plays now, and the recording finishes in the background so the
+        // next play is in the listener's language
+        const late = Symbol("late");
+        const first = await Promise.race([work, new Promise<typeof late>((r) => setTimeout(() => r(late), LISTEN_DEADLINE_MS))]);
+        if (first === late) after(() => work.then(() => undefined));
+        else clip = first;
+      }
       if (!clip) {
         // a teacher re-recording needs to know the line failed
         if (rerecord) {

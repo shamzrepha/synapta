@@ -7,7 +7,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { z } from "zod";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const schema = z.object({
   text: z.string().min(1).max(3000),
