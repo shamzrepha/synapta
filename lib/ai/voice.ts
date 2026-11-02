@@ -48,7 +48,7 @@ export function hostFor(speaker: string) {
 }
 
 // Edge TTS can be blocked from some datacenters (it then times out on every line). After repeated
-// failures skip it for a while instead of making every line wait for a timeout.
+// failures skip it briefly instead of making every line wait for a timeout.
 const edgeState = { failures: 0, downUntil: 0 };
 // Gemini TTS has a small daily allowance. When it refuses, stop asking for a couple of minutes instead of burning
 // the rest of the allowance (and the tutor's) on lines that will fail anyway.
@@ -86,12 +86,6 @@ export interface FullAudioResult {
   }>;
 }
 
-/**
- * Default Free Neural Voice Synthesizer using Edge TTS.
- * Zero API keys required; high-fidelity studio dual-host voices:
- * - Alex (Host 1): en-US-JennyNeural (Warm, clear female tone)
- * - Sam (Host 2): en-US-GuyNeural (Engaging, articulate male tone)
- */
 /**
  * The neural voice for a non-English line: the caller's language when known, else a guess from the text itself, so
  * a French or Arabic podcast is never read by an English voice. Undefined for English (callers keep their own voice).
@@ -175,8 +169,9 @@ export async function generateGeminiVoice({
   // Igbo and Hausa: Gemini's native voice first (the free voices have none for them)
   if (speaksWithGemini(lang) && Date.now() >= geminiTtsState.downUntil) {
     const h = hostFor(speaker);
-    const native = await synthesizeGeminiTts(text, h.gemini, 30_000, true);
+    const native = await synthesizeGeminiTts(text, h.gemini, 6_000, true);
     if (native) return native;
+    geminiTtsState.downUntil = Date.now() + 2 * 60_000;
   }
 
   // Tier 1: Default to Free Studio Edge Neural Voice
@@ -275,7 +270,9 @@ export async function synthesizeGeminiTts(text: string, voiceName: string, timeo
   } catch {
     return null;
   }
-  for (const model of geminiTtsModels(native)) {
+  const models = geminiTtsModels(native);
+  const perCallMs = Math.max(1_500, Math.floor(timeoutMs / Math.max(1, models.length)));
+  for (const model of models) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const interactions = (ai as any).interactions;
     if (interactions?.create) {
@@ -289,7 +286,7 @@ export async function synthesizeGeminiTts(text: string, voiceName: string, timeo
           })
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .then((r: any) => (r?.output_audio?.data ? audioFromBase64(r.output_audio.data, r.output_audio.mime_type || "audio/wav", voiceName) : null)),
-        timeoutMs
+        perCallMs
       );
       if (res) return res;
     }
@@ -309,7 +306,7 @@ export async function synthesizeGeminiTts(text: string, voiceName: string, timeo
           }
           return null;
         }),
-      timeoutMs
+      perCallMs
     );
     if (legacy) return legacy;
   }
@@ -338,7 +335,7 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
   if (!clean) return null;
   // Igbo and Hausa: Gemini speaks them natively, the free voices would read them with an English accent
   if (!opts.edgeOnly && speaksWithGemini(opts.lang)) {
-    const native = await nativeSpeech(clean, gender, opts.patient ? 45_000 : 15_000);
+    const native = await nativeSpeech(clean, gender, 6_000);
     if (native) return native;
   }
   // a non-English line gets that language's voice, whatever English voice the caller picked
@@ -347,7 +344,7 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
   const voices = EDGE_VOICES[gender];
   // Live requests answer fast or give up. Recording a podcast line is not time-critical, and a long lecture turn needs
   // longer than a quick reply, so the time allowed grows with the length of the line.
-  const edgeMs = opts.patient ? Math.min(45_000, 8_000 + clean.length * 25) : 4_000;
+  const edgeMs = opts.patient ? Math.min(45_000, 8_000 + clean.length * 25) : 5_000;
   const primary = edgeVoice || voices[0];
   const edge = await synthesizeEdgeVoice(clean, primary, edgeMs);
   if (edge) return { audio: edge, mimeType: "audio/mpeg", engine: "edge" };
@@ -377,7 +374,7 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
     }
   }
   if (Date.now() < geminiTtsState.downUntil) return null;
-  const geminiMs = opts.patient ? 40_000 : 12_000;
+  const geminiMs = opts.patient ? 20_000 : 8_000;
   const startedAt = Date.now();
   const g = await synthesizeGeminiTts(clean, gender === "female" ? HOSTS.alex.gemini : HOSTS.sam.gemini, geminiMs);
   // A quick refusal means the allowance or the service is the problem: pause it. A slow line that timed out says
@@ -388,13 +385,12 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
 
 /**
  * A line in a language only Gemini speaks natively (Igbo, Hausa). Null when Gemini is unavailable, so the caller
- * falls back to a free voice. A quick refusal (allowance used up) pauses Gemini for everyone for two minutes.
+ * falls back to a free voice. Any failure pauses native Gemini attempts for two minutes so subsequent lines don't stall.
  */
 async function nativeSpeech(text: string, gender: "female" | "male", timeoutMs: number): Promise<SpeechClip | null> {
   if (Date.now() < geminiTtsState.downUntil) return null;
-  const startedAt = Date.now();
   const g = await synthesizeGeminiTts(text, gender === "female" ? HOSTS.alex.gemini : HOSTS.sam.gemini, timeoutMs, true);
-  if (!g && Date.now() - startedAt < timeoutMs * 0.8) geminiTtsState.downUntil = Date.now() + 2 * 60_000;
+  if (!g) geminiTtsState.downUntil = Date.now() + 2 * 60_000;
   return g ? { audio: Buffer.from(g.audioBase64, "base64"), mimeType: g.mimeType, engine: "gemini" } : null;
 }
 
@@ -405,7 +401,7 @@ export async function synthesizeEdgeVoice(text: string, voice: string, timeoutMs
   // The Edge websocket can stall without erroring (blocked egress, throttling); never wait forever.
   const out = await withVoiceTimeout(edgeStream(text, voice), timeoutMs);
   if (out) edgeState.failures = 0;
-  else if (++edgeState.failures >= 2) edgeState.downUntil = Date.now() + 10 * 60_000;
+  else if (++edgeState.failures >= 2) edgeState.downUntil = Date.now() + 15_000;
   return out;
 }
 

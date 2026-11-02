@@ -113,6 +113,7 @@ async function saveClip(classId: string, kcId: string, version: number, index: n
     ...(clip.engine ? { engine: clip.engine } : {}),
     ...(lang ? { lang } : {}),
     ...(text ? { textSample: text.slice(0, 120) } : {}),
+    ...(lang && speaksWithGemini(lang) && clip.engine !== "gemini" ? { nativeTriedAt: Timestamp.now() } : {}),
     savedAt: Timestamp.now(),
   });
 }
@@ -142,10 +143,6 @@ export async function recordedTurns(classId: string, kcId: string, version: numb
   return heads.map((h) => h.exists);
 }
 
-/**
- * Speaks one turn as a real audio file: a fast free neural voice first, ElevenLabs when a key is set, Gemini TTS
- * last. Only the teacher's recording calls this; students are served the saved file.
- */
 /** Splits a long line into sentence-sized pieces (about `max` characters) so each can be voiced quickly and joined afterwards. */
 export function splitForSpeech(text: string, max = 320): string[] {
   const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
@@ -266,7 +263,7 @@ export async function translatedClip(
 // ---------------------------------------------------------------------------
 
 /** A job that hasn't reported for this long is presumed dead and can be taken over. */
-const JOB_STALE_MS = 90_000;
+const JOB_STALE_MS = 25_000;
 /** How long one background run records before it stops (the next listener's request picks up the rest). */
 const JOB_BUDGET_MS = 250_000;
 /** After this many failed attempts a line plays in the original language instead of waiting forever. */
@@ -323,11 +320,13 @@ export async function prepareLanguage(
   from = 0
 ): Promise<void> {
   if (!(await claimJob(classId, kcId, meta.version, lang).catch(() => false))) return;
+  resetVoiceBreakers();
   const ref = audioCol(classId, kcId).doc(jobId(meta.version, lang));
   const failed = await languageFailures(classId, kcId, meta.version, lang).catch(() => ({} as Record<string, number>));
   const deadline = Date.now() + JOB_BUDGET_MS;
   try {
     const map = await translate(meta.turns.map((t) => t.text));
+    await ref.update({ beatAt: Timestamp.now() }).catch(() => null);
     const all = meta.turns.map((_, i) => i).filter((i) => meta.turns[i].hasAudio !== false);
     const start = Math.max(0, all.findIndex((i) => i >= from));
     const order = [...all.slice(start), ...all.slice(0, start)];

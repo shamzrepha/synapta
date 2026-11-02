@@ -183,8 +183,15 @@ export class ClipPlayer {
       this.o.onStatus?.();
       this.advance();
     };
-    Promise.resolve(a.play()).catch(() => {
-      // autoplay refused or the file wouldn't decode: treat the line as unavailable and carry on
+    Promise.resolve(a.play()).catch((err: unknown) => {
+      // If the browser blocked async autoplay after buffering finished (NotAllowedError), pause cleanly
+      // so the ready clip stays intact and plays when the user taps Play, instead of marking all clips failed.
+      if (err && typeof err === "object" && (err as { name?: string }).name === "NotAllowedError") {
+        this.paused = true;
+        this.setBuffering(false);
+        return;
+      }
+      // file wouldn't decode: treat the line as unavailable and carry on
       c.state = "failed";
       this.o.onStatus?.();
       this.advance();

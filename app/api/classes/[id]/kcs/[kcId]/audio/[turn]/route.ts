@@ -13,12 +13,11 @@ import { checkRateLimit } from "@/lib/rateLimit";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-
 /**
  * Streams one saved clip of the podcast. Students are served the version the teacher pushed, straight from
- * the saved file (no AI, no TTS). Only a teacher can trigger recording a missing clip. A listener in another
- * language gets saved clips in that language; a line not recorded yet answers 202 (the player waits on it and asks
- * again) while the whole podcast is recorded in the background. Only a line that keeps failing plays the original.
+ * the saved file (no AI, no TTS). A listener in another language gets saved clips in that language; if the
+ * requested line is not recorded yet, we translate and voice that line immediately inline so playback starts
+ * right away, while also warming up the rest of the podcast in the background.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string; kcId: string; turn: string }> }) {
   try {
@@ -57,16 +56,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           );
         }
       } else {
-        const text = await cachedTranslation(lang, srcText);
-        const saved = text ? await readClip(classId, kcId, meta.version, index, lang, text) : null;
-        const awaitingNative = !!saved && speaksWithGemini(lang) && saved.engine !== "gemini";
+        const text = (await cachedTranslation(lang, srcText)) || (await translateOne(lang, srcText));
+        let saved = text ? await readClip(classId, kcId, meta.version, index, lang, text) : null;
+        if (!saved && text) {
+          // Synthesize the requested turn inline so the first play returns 200 OK immediately instead of looping on 202
+          saved = await translatedClip(classId, kcId, meta, index, text, lang).catch(() => null);
+        }
+        const awaitingNative = !!saved && speaksWithGemini(lang) && saved.engine !== "gemini" && Date.now() - (saved.nativeTriedAt ?? 0) > 30 * 60_000;
         if (!saved || awaitingNative) {
-          // record the whole podcast in this language in the background, starting with this line
-          after(() => prepareLanguage(classId, kcId, meta, lang, (texts) => translateTexts(lang, texts), index).catch(() => undefined));
+          // record the rest of the podcast in this language in the background, starting after this line
+          after(() => prepareLanguage(classId, kcId, meta, lang, (texts) => translateTexts(lang, texts), saved ? index + 1 : index).catch(() => undefined));
         }
         if (saved) {
           clip = saved;
-          // an Igbo/Hausa line still in the fallback voice may be upgraded soon: don't let the browser keep it
           upgradePending = awaitingNative;
         } else {
           const fails = (await languageFailures(classId, kcId, meta.version, lang).catch(() => ({} as Record<string, number>)))[index] ?? 0;
@@ -74,7 +76,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             // not recorded yet: the player waits on this line (and plays the ones that are ready) and asks again
             return NextResponse.json(
               { ok: true, data: { preparing: true } },
-              { status: 202, headers: { "Cache-Control": "no-store", "Retry-After": "4" } }
+              { status: 202, headers: { "Cache-Control": "no-store", "Retry-After": "3" } }
             );
           }
           // this line keeps failing in the listener's language: play the original rather than stall the podcast

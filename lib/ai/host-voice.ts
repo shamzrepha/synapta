@@ -40,7 +40,6 @@ export async function getOrSynthesizeHostLine(
   const res = await generateGeminiVoice({ text: spokenText, speaker, lang: voiceLang });
   if (!res) return null;
   const voice = { bytes: Buffer.from(res.audioBase64, "base64"), mimeType: res.mimeType, voiceName: res.voiceName };
-  // an Igbo/Hausa line the fallback voice read is played but not saved, so the native voice gets it next time
-  if (!native || res.voiceName === host.gemini) await putCachedVoice(key, voice);
+  await putCachedVoice(key, voice);
   return { ...voice, cached: false };
 }

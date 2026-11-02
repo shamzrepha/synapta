@@ -68,24 +68,33 @@ export function languageDirective(code: unknown): string {
  */
 export function guessSpeechLanguage(text: string): LanguageCode | null {
   const t = text.slice(0, 800);
-  if (/[؀-ۿ]/.test(t)) return "ar";
+  if (/[\u0600-\u06ff]/.test(t)) return "ar";
   if (/[ịụṅỊỤṄ]/.test(t)) return "ig";
   if (/[ẹọṣẸỌṢ]/.test(t)) return "yo";
   if (/[ɓɗƙƴƁƊƘ]/.test(t)) return "ha";
   const words = t.toLowerCase().match(/[a-zàâçéèêëîïôûùüÿœ']+/g) || [];
-  if (words.length >= 6) {
+  if (words.length >= 5) {
     const count = (set: Set<string>) => words.filter((w) => set.has(w)).length / words.length;
     if (count(FR) > 0.12) return "fr";
     if (count(SW) > 0.12) return "sw";
+    if (count(HA) > 0.12) return "ha";
   }
   return null;
 }
 
 const FR = new Set(["le", "la", "les", "des", "est", "et", "une", "un", "du", "que", "qui", "dans", "pour", "pas", "sur", "avec", "nous", "vous", "c'est", "ce", "sont"]);
 const SW = new Set(["na", "ya", "wa", "kwa", "ni", "katika", "hii", "ambayo", "kuwa", "za", "la", "cha", "pia", "sana", "hivyo"]);
+const HA = new Set(["cikin", "tana", "yana", "suna", "kuma", "domin", "saboda", "wannan", "wancan", "aka", "masu", "lantarki", "wutar"]);
+const PCM = new Set(["wetin", "dey", "wey", "una", "abeg", "sabi", "wahala", "waka", "pikin", "sef", "sha", "komot"]);
 
 // words that are common in English prose but rare in Nigerian Pidgin, Yorùbá, Igbo, Hausa, French or Swahili
-const EN = new Set(["the", "is", "are", "was", "were", "of", "that", "this", "these", "those", "with", "which", "have", "has", "will", "would", "an", "be", "been", "there", "their", "they", "it's", "it", "what", "when", "how", "into", "than", "then", "because", "can't", "don't"]);
+const EN = new Set([
+  "the", "is", "are", "was", "were", "of", "that", "this", "these", "those", "with", "which", "have", "has", "had",
+  "will", "would", "could", "should", "can", "an", "and", "or", "but", "in", "on", "at", "to", "from", "by", "as",
+  "be", "been", "there", "their", "they", "it's", "it", "its", "we", "our", "your", "what", "when", "where", "why",
+  "how", "into", "through", "between", "about", "after", "before", "while", "than", "then", "because", "does", "did",
+  "can't", "don't", "isn't", "aren't", "won't", "let's",
+]);
 
 /**
  * True when text reads as English prose (at least four words and a good share of English function words). Used to
@@ -94,8 +103,8 @@ const EN = new Set(["the", "is", "are", "was", "were", "of", "that", "this", "th
  */
 export function looksEnglish(text: string): boolean {
   const words = text.slice(0, 800).toLowerCase().match(/[a-z']+/g) || [];
-  if (words.length < 4 || guessSpeechLanguage(text)) return false;
-  return words.filter((w) => EN.has(w)).length / words.length >= 0.12;
+  if (words.length < 4 || guessSpeechLanguage(text) || words.some((w) => PCM.has(w))) return false;
+  return words.filter((w) => EN.has(w)).length / words.length >= 0.1;
 }
 
 /** Whether text in an unknown language should be translated before it is spoken or shown in `lang`. */

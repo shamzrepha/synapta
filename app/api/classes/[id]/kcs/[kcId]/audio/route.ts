@@ -1,12 +1,13 @@
 import { adminDb } from "@/lib/firebase/admin";
-import { classSourceLanguage, localizeFor } from "@/lib/i18n/serve";
+import { classSourceLanguage, contentLanguage, localizeFor } from "@/lib/i18n/serve";
+import { translateTexts } from "@/lib/i18n/translate";
 import { isPublished } from "@/lib/classes/published";
 import { audioForStudents } from "@/lib/classes/live";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { parseJson } from "@/lib/api/errors";
-import { getAudioLesson, generateAudioLesson, extendAudioLesson, editAudioLesson, recordTurns } from "@/lib/lesson/audio";
+import { getAudioLesson, generateAudioLesson, extendAudioLesson, editAudioLesson, prepareLanguage, recordTurns } from "@/lib/lesson/audio";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -21,8 +22,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const published = access.canMutate || isPublished(kcSnap.data(), "audio");
     // Teachers see their working copy; students see the version that was pushed
     const original = access.canMutate ? await getAudioLesson(classId, kcId) : published ? await audioForStudents(classId, kcId, kcSnap.data() || {}) : null;
+    const source = await classSourceLanguage(access.classData);
+    const lang = await contentLanguage(req, caller, access.canMutate);
     // students read the transcript in their language; the matching audio is voiced per language on first play
-    const lesson = original ? await localizeFor(req, caller, access.canMutate, original, await classSourceLanguage(access.classData)) : original;
+    const lesson = original ? await localizeFor(req, caller, access.canMutate, original, source) : original;
+    if (original && original.status === "ready" && lang && lang !== source) {
+      after(() => prepareLanguage(classId, kcId, original, lang, (texts) => translateTexts(lang, texts), 0).catch(() => undefined));
+    }
     const enabled = access.classData.audioLessons !== false;
     return NextResponse.json({
       ok: true,
