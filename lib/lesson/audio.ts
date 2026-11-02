@@ -1,5 +1,5 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
-import type { LanguageCode } from "@/lib/i18n/languages";
+import { speaksWithGemini, type LanguageCode } from "@/lib/i18n/languages";
 import { ApiError } from "@/lib/api/errors";
 import { generateWithFallback, AiGenerationError } from "@/lib/ai/router";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
@@ -82,7 +82,14 @@ const PART_BYTES = 600_000;
 export interface TurnAudio {
   audio: Buffer;
   mimeType: string;
+  /** which voice engine recorded it (older clips don't say) */
+  engine?: string;
+  /** when a native-voice re-record was last tried for this clip */
+  nativeTriedAt?: number;
 }
+
+/** How often a clip recorded by the fallback voice is re-tried with the native voice (Igbo, Hausa). */
+const NATIVE_RETRY_MS = 30 * 60_000;
 
 /** Saved clips are per lesson version, line, and language (the original language has no suffix). */
 const clipId = (version: number, index: number, lang?: LanguageCode) => `c${version}_${index}${lang ? `_t${lang}` : ""}`;
@@ -103,6 +110,7 @@ async function saveClip(classId: string, kcId: string, version: number, index: n
     parts,
     bytes: clip.audio.length,
     mimeType: clip.mimeType,
+    ...(clip.engine ? { engine: clip.engine } : {}),
     ...(lang ? { lang } : {}),
     ...(text ? { textSample: text.slice(0, 120) } : {}),
     savedAt: Timestamp.now(),
@@ -120,7 +128,12 @@ export async function readClip(classId: string, kcId: string, version: number, i
   if (lang && expectedText && h.textSample !== expectedText.slice(0, 120)) return null;
   const parts = await Promise.all(Array.from({ length: h.parts as number }, (_, k) => col.doc(`${id}_${k}`).get()));
   if (parts.some((p) => typeof p.data()?.audioBase64 !== "string")) return null;
-  return { audio: Buffer.concat(parts.map((p) => Buffer.from(p.data()!.audioBase64 as string, "base64"))), mimeType: h.mimeType || "audio/wav" };
+  return {
+    audio: Buffer.concat(parts.map((p) => Buffer.from(p.data()!.audioBase64 as string, "base64"))),
+    mimeType: h.mimeType || "audio/wav",
+    engine: typeof h.engine === "string" ? h.engine : undefined,
+    nativeTriedAt: typeof h.nativeTriedAt?.toMillis === "function" ? h.nativeTriedAt.toMillis() : undefined,
+  };
 }
 
 export async function recordedTurns(classId: string, kcId: string, version: number, count: number): Promise<boolean[]> {
@@ -170,10 +183,11 @@ async function synthesizeTurn(text: string, role: "teacher" | "student", style: 
   // the speaker's gender follows the voice: female style = female teacher + male student, and the reverse
   const gender: "female" | "male" = /^en-\w+-(Aria|Jenny|Ava|Sonia)/.test(edgeName) ? "female" : "male";
   const parts = splitForSpeech(text);
-  // only the free MP3 voice can be voiced in parts and joined; any other voice gets the whole line in one request
-  if (parts.length <= 1 || !edgeAvailable()) {
+  // only the free MP3 voice can be voiced in parts and joined; any other voice (and Igbo/Hausa, which Gemini speaks
+  // natively) gets the whole line in one request
+  if (parts.length <= 1 || !edgeAvailable() || speaksWithGemini(lang)) {
     const clip = await synthesizeSpeech(text, gender, edgeName, { patient: true, lang });
-    return clip ? { audio: clip.audio, mimeType: clip.mimeType } : null;
+    return clip ? { audio: clip.audio, mimeType: clip.mimeType, engine: clip.engine } : null;
   }
   const clips: Array<{ audio: Buffer; mimeType: string } | null> = [];
   for (const part of parts) {
@@ -184,8 +198,8 @@ async function synthesizeTurn(text: string, role: "teacher" | "student", style: 
   if (clips.some((c) => !c)) return null;
   const ok = clips as Array<{ audio: Buffer; mimeType: string }>;
   // MP3 frames can simply be joined; anything else (a WAV from the last-resort engine) is kept only as a single clip
-  if (ok.every((c) => c.mimeType === "audio/mpeg")) return { audio: Buffer.concat(ok.map((c) => c.audio)), mimeType: "audio/mpeg" };
-  return synthesizeSpeech(text, gender, edgeName, { patient: true, lang }).then((c) => (c ? { audio: c.audio, mimeType: c.mimeType } : null));
+  if (ok.every((c) => c.mimeType === "audio/mpeg")) return { audio: Buffer.concat(ok.map((c) => c.audio)), mimeType: "audio/mpeg", engine: "edge" };
+  return synthesizeSpeech(text, gender, edgeName, { patient: true, lang }).then((c) => (c ? { audio: c.audio, mimeType: c.mimeType, engine: c.engine } : null));
 }
 
 /**
@@ -227,18 +241,24 @@ export async function translatedClip(
   lang: LanguageCode,
   forceRerecord = false
 ): Promise<TurnAudio | null> {
-  if (!forceRerecord) {
-    const saved = await readClip(classId, kcId, meta.version, index, lang, text);
-    if (saved) return saved;
-  }
+  const saved = forceRerecord ? null : await readClip(classId, kcId, meta.version, index, lang, text);
+  // Igbo/Hausa clips recorded by the English-accented fallback voice are upgraded to Gemini's native voice the next
+  // time anyone plays them (tried at most every NATIVE_RETRY_MS, so a Gemini outage isn't hammered)
+  const upgrade = !!saved && speaksWithGemini(lang) && saved.engine !== "gemini" && Date.now() - (saved.nativeTriedAt ?? 0) > NATIVE_RETRY_MS;
+  if (saved && !upgrade) return saved;
   const turn = meta.turns[index];
-  if (!turn) return null;
+  if (!turn) return saved;
   // a teacher's deliberate re-record gets a fresh try; ordinary plays respect the breakers, so a voice outage
   // isn't hammered by every listener
   if (forceRerecord) resetVoiceBreakers();
   const clip = await synthesizeTurn(text, turn.speaker === "teacher" ? "teacher" : "student", meta.voiceStyle, lang);
+  if (upgrade && clip?.engine !== "gemini") {
+    // still no native voice: keep the clip we have and note the attempt
+    await audioCol(classId, kcId).doc(clipId(meta.version, index, lang)).set({ nativeTriedAt: Timestamp.now() }, { merge: true }).catch(() => null);
+    return saved;
+  }
   if (clip) await saveClip(classId, kcId, meta.version, index, clip, lang, text).catch(() => null);
-  return clip;
+  return clip ?? saved;
 }
 
 /** Drops clips of versions that are neither the newest nor the one students are currently listening to. */
