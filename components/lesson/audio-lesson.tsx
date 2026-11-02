@@ -83,19 +83,22 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
 
   useEffect(() => {
     if (!turnsKey) return;
+    let stopped = false;
     const player = new ClipPlayer({
       count: turnsKey.length,
       fetchClip: async (i) => {
         if (turnsKey[i] !== "1") return null;
         try {
           // the language is part of the address: each language has its own saved recording
-          const url = `${base}/${i}?v=${version}&l=${activeLang}${activeLang !== "en" ? `&lang=${activeLang}` : ""}&r=3${langRev ? `_${langRev}` : ""}`;
+          const url = `${base}/${i}?v=${version}&l=${activeLang}${activeLang !== "en" ? `&lang=${activeLang}` : ""}&r=4${langRev ? `_${langRev}` : ""}`;
+          // a line in another language may still be recording: 202 means "ask again shortly". The player plays the
+          // lines that are ready and waits on this one, so there is never an English stand-in while it records.
           let res = await fetch(url);
-          if (!res.ok && res.status === 503) {
-            await new Promise((r) => setTimeout(r, 1500));
-            res = await fetch(url);
+          for (let tries = 0; (res.status === 202 || res.status === 503) && tries < 120 && !stopped; tries++) {
+            await new Promise((r) => setTimeout(r, Math.min(8000, 2500 + tries * 500)));
+            res = await fetch(url, { cache: "no-store" });
           }
-          return res.ok ? await res.arrayBuffer() : null;
+          return res.status === 200 || res.status === 206 ? await res.arrayBuffer() : null;
         } catch {
           return null;
         }
@@ -112,6 +115,7 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
     if (!readPrefs().dataSaver) player.preload(0); // data saver: fetch audio only when Play is pressed
     playerRef.current = player;
     return () => {
+      stopped = true;
       player.dispose();
       playerRef.current = null;
     };

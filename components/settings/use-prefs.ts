@@ -55,6 +55,34 @@ export function usePrefs(): [Prefs, (patch: Partial<Prefs>) => void] {
   return [prefs, update];
 }
 
+/**
+ * On sign-in, the account's saved preferences win over this device's, so a learner who chose Igbo on their phone
+ * gets Igbo on a new laptop too. If the account has nothing saved yet, this device's choice is saved to it. Runs once
+ * per tab per account; reloads the page when the language changed so everything is fetched in it.
+ */
+export async function adoptAccountPrefs(uid: string): Promise<void> {
+  const flag = `sunroot.prefsSynced.${uid}`;
+  try {
+    if (sessionStorage.getItem(flag)) return;
+    sessionStorage.setItem(flag, "1");
+  } catch {
+    /* storage blocked: still sync */
+  }
+  const res = await fetch("/api/settings", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+  if (!res?.ok) return;
+  const local = getSnapshot();
+  const saved = res.data?.prefs ? parsePrefs(res.data.prefs) : null;
+  if (!saved) {
+    if (readRaw() !== null) {
+      fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(local) }).catch(() => null);
+    }
+    return;
+  }
+  if (JSON.stringify(saved) === JSON.stringify(local)) return;
+  writePrefs(saved);
+  if (saved.language !== local.language) window.location.reload();
+}
+
 export function useDataSaver(): boolean {
   return useSyncExternalStore(subscribe, () => getSnapshot().dataSaver, () => false);
 }

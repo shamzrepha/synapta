@@ -3,24 +3,22 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { audioForStudents } from "@/lib/classes/live";
-import { getAudioLesson, readClip, recordTurns, translatedClip } from "@/lib/lesson/audio";
+import { MAX_LINE_FAILS, getAudioLesson, languageFailures, prepareLanguage, readClip, recordTurns, translatedClip } from "@/lib/lesson/audio";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { classSourceLanguage } from "@/lib/i18n/serve";
-import { isLanguageCode } from "@/lib/i18n/languages";
-import { translateOne } from "@/lib/i18n/translate";
+import { isLanguageCode, speaksWithGemini } from "@/lib/i18n/languages";
+import { cachedTranslation, translateOne, translateTexts } from "@/lib/i18n/translate";
 import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-/** How long a listener waits for a line in their language before the original plays (recording carries on). */
-const LISTEN_DEADLINE_MS = 45_000;
 
 /**
  * Streams one saved clip of the podcast. Students are served the version the teacher pushed, straight from
  * the saved file (no AI, no TTS). Only a teacher can trigger recording a missing clip. A listener in another
- * language gets the line translated and voiced once (saved for everyone in that language); if that isn't possible
- * right now, the original recording plays and is retried on the next play.
+ * language gets saved clips in that language; a line not recorded yet answers 202 (the player waits on it and asks
+ * again) while the whole podcast is recorded in the background. Only a line that keeps failing plays the original.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string; kcId: string; turn: string }> }) {
   try {
@@ -45,36 +43,44 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
     let clip = null as Awaited<ReturnType<typeof readClip>>;
     let fallback = false;
+    let upgradePending = false;
     if (lang !== source) {
       // the teacher's line in the listener's language, voiced once and saved for everyone in that language
-      let text: string | null = null;
-      const work = (async () => {
-        text = await translateOne(lang, meta.turns[index].text);
-        return text ? await translatedClip(classId, kcId, meta, index, text, lang, rerecord).catch(() => null) : null;
-      })();
+      const srcText = meta.turns[index].text;
       if (rerecord) {
-        clip = await work;
-      } else {
-        // a slow translation or voice (Gemini speaks Igbo and Hausa, slower than the free voice) must not make the
-        // line fail: past the deadline the original plays now, and the recording finishes in the background so the
-        // next play is in the listener's language
-        const late = Symbol("late");
-        const first = await Promise.race([work, new Promise<typeof late>((r) => setTimeout(() => r(late), LISTEN_DEADLINE_MS))]);
-        if (first === late) after(() => work.then(() => undefined));
-        else clip = first;
-      }
-      if (!clip) {
-        // a teacher re-recording needs to know the line failed
-        if (rerecord) {
+        const text = await translateOne(lang, srcText);
+        clip = text ? await translatedClip(classId, kcId, meta, index, text, lang, true).catch(() => null) : null;
+        if (!clip) {
           return NextResponse.json(
             { ok: false, error: { code: text ? "TTS_BUSY" : "TRANSLATION_BUSY", message: "This line couldn't be voiced in that language right now. Try again shortly." } },
             { status: 503, headers: { "Cache-Control": "no-store" } }
           );
         }
-        // the translation or the voice is unavailable right now: play the teacher's own recording instead of
-        // silence, and never let the browser keep it, so the next play tries the listener's language again
-        clip = await readClip(classId, kcId, meta.version, index);
-        fallback = true;
+      } else {
+        const text = await cachedTranslation(lang, srcText);
+        const saved = text ? await readClip(classId, kcId, meta.version, index, lang, text) : null;
+        const awaitingNative = !!saved && speaksWithGemini(lang) && saved.engine !== "gemini";
+        if (!saved || awaitingNative) {
+          // record the whole podcast in this language in the background, starting with this line
+          after(() => prepareLanguage(classId, kcId, meta, lang, (texts) => translateTexts(lang, texts), index).catch(() => undefined));
+        }
+        if (saved) {
+          clip = saved;
+          // an Igbo/Hausa line still in the fallback voice may be upgraded soon: don't let the browser keep it
+          upgradePending = awaitingNative;
+        } else {
+          const fails = (await languageFailures(classId, kcId, meta.version, lang).catch(() => ({} as Record<string, number>)))[index] ?? 0;
+          if (fails < MAX_LINE_FAILS) {
+            // not recorded yet: the player waits on this line (and plays the ones that are ready) and asks again
+            return NextResponse.json(
+              { ok: true, data: { preparing: true } },
+              { status: 202, headers: { "Cache-Control": "no-store", "Retry-After": "4" } }
+            );
+          }
+          // this line keeps failing in the listener's language: play the original rather than stall the podcast
+          clip = await readClip(classId, kcId, meta.version, index);
+          fallback = true;
+        }
       }
     } else {
       clip = await readClip(classId, kcId, meta.version, index);
@@ -90,7 +96,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const headers: Record<string, string> = {
       "Content-Type": clip.mimeType,
       "Accept-Ranges": "bytes",
-      "Cache-Control": fallback || rerecord ? "no-store" : "private, max-age=31536000, immutable",
+      "Cache-Control": fallback || rerecord || upgradePending ? "no-store" : "private, max-age=31536000, immutable",
       "X-Audio-Language": fallback ? source : lang,
     };
     const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get("range") || "");

@@ -261,6 +261,99 @@ export async function translatedClip(
   return clip ?? saved;
 }
 
+// ---------------------------------------------------------------------------
+// Preparing a whole podcast in another language, in the background
+// ---------------------------------------------------------------------------
+
+/** A job that hasn't reported for this long is presumed dead and can be taken over. */
+const JOB_STALE_MS = 90_000;
+/** How long one background run records before it stops (the next listener's request picks up the rest). */
+const JOB_BUDGET_MS = 250_000;
+/** After this many failed attempts a line plays in the original language instead of waiting forever. */
+export const MAX_LINE_FAILS = 3;
+
+const jobId = (version: number, lang: LanguageCode) => `job_${version}_${lang}`;
+
+interface ClipHead {
+  textSample?: string;
+  engine?: string;
+  nativeTriedAt?: { toMillis(): number };
+}
+
+async function clipHead(classId: string, kcId: string, version: number, index: number, lang: LanguageCode): Promise<ClipHead | null> {
+  const d = (await audioCol(classId, kcId).doc(clipId(version, index, lang)).get()).data();
+  return d && Number.isInteger(d.parts) ? (d as ClipHead) : null;
+}
+
+/** True when a saved translated clip matches the text and needs no native-voice upgrade (now). */
+function headIsDone(head: ClipHead | null, lang: LanguageCode, text: string): boolean {
+  if (!head || head.textSample !== text.slice(0, 120)) return false;
+  if (!speaksWithGemini(lang) || head.engine === "gemini") return true;
+  return Date.now() - (head.nativeTriedAt?.toMillis() ?? 0) < NATIVE_RETRY_MS;
+}
+
+/** Lines of this language's job that keep failing (index -> attempts). */
+export async function languageFailures(classId: string, kcId: string, version: number, lang: LanguageCode): Promise<Record<string, number>> {
+  const d = (await audioCol(classId, kcId).doc(jobId(version, lang)).get()).data();
+  return (d?.failed as Record<string, number>) || {};
+}
+
+async function claimJob(classId: string, kcId: string, version: number, lang: LanguageCode): Promise<boolean> {
+  const ref = audioCol(classId, kcId).doc(jobId(version, lang));
+  return adminDb().runTransaction(async (tx) => {
+    const d = (await tx.get(ref)).data();
+    if (d?.running && Date.now() - (d.beatAt?.toMillis?.() ?? 0) < JOB_STALE_MS) return false;
+    tx.set(ref, { kind: "job", version, lang, running: true, beatAt: Timestamp.now() }, { merge: true });
+    return true;
+  });
+}
+
+/**
+ * Records every line of a podcast in `lang` that isn't saved yet, starting at `from` (the line the listener is
+ * waiting for), two at a time. One run per lesson version and language at a time (a Firestore lock with a
+ * heartbeat). Each line is translated once (all lines in one batch), voiced once and saved, so every later listener
+ * in that language just replays the files.
+ */
+export async function prepareLanguage(
+  classId: string,
+  kcId: string,
+  meta: AudioLessonMeta,
+  lang: LanguageCode,
+  translate: (texts: string[]) => Promise<Map<string, string>>,
+  from = 0
+): Promise<void> {
+  if (!(await claimJob(classId, kcId, meta.version, lang).catch(() => false))) return;
+  const ref = audioCol(classId, kcId).doc(jobId(meta.version, lang));
+  const failed = await languageFailures(classId, kcId, meta.version, lang).catch(() => ({} as Record<string, number>));
+  const deadline = Date.now() + JOB_BUDGET_MS;
+  try {
+    const map = await translate(meta.turns.map((t) => t.text));
+    const all = meta.turns.map((_, i) => i).filter((i) => meta.turns[i].hasAudio !== false);
+    const start = Math.max(0, all.findIndex((i) => i >= from));
+    const order = [...all.slice(start), ...all.slice(0, start)];
+    let next = 0;
+    const worker = async () => {
+      while (next < order.length && Date.now() < deadline) {
+        const i = order[next++];
+        const text = map.get(meta.turns[i].text);
+        if ((failed[i] ?? 0) >= MAX_LINE_FAILS) continue;
+        if (!text) {
+          failed[i] = (failed[i] ?? 0) + 1;
+          continue;
+        }
+        if (headIsDone(await clipHead(classId, kcId, meta.version, i, lang).catch(() => null), lang, text)) continue;
+        const clip = await translatedClip(classId, kcId, meta, i, text, lang).catch(() => null);
+        if (!clip) failed[i] = (failed[i] ?? 0) + 1;
+        else delete failed[i];
+        await ref.update({ beatAt: Timestamp.now(), failed }).catch(() => null);
+      }
+    };
+    await Promise.all([worker(), worker()]);
+  } finally {
+    await ref.set({ kind: "job", version: meta.version, lang, running: false, beatAt: Timestamp.now(), failed }).catch(() => null);
+  }
+}
+
 /** Drops clips of versions that are neither the newest nor the one students are currently listening to. */
 export async function pruneClips(classId: string, kcId: string, keep: number[]) {
   const col = audioCol(classId, kcId);
