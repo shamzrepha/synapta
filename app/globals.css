@@ -1,68 +1,130 @@
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
 
+/* the theme toggle sets .dark on <html>; Tailwind dark: utilities follow it */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Sunroot brand system. The app's components are written with Tailwind's teal / slate / amber names; those scales
+ * are redefined here so every screen picks up the brand without touching each component:
+ *   teal  -> fern: Sunroot's working green (actions, progress, "mastered")
+ *   slate -> forest neutrals: warm cream paper in light mode, deep forest in dark mode
+ *   amber -> sun orange: highlights, streaks, the one loud accent
+ * Type: Space Grotesk for headings and numbers that matter, DM Sans for everything people read.
+ */
+@theme {
+  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-teal-50: #EEF7F2;
+  --color-teal-100: #D3EDDF;
+  --color-teal-200: #A9DBC1;
+  --color-teal-300: #74C29C;
+  --color-teal-400: #45A57A;
+  --color-teal-500: #23895F;
+  --color-teal-600: #18714E;
+  --color-teal-700: #135B40;
+  --color-teal-800: #104733;
+  --color-teal-900: #0E3527;
+  --color-teal-950: #082018;
+
+  --color-slate-50: #FBF6EC;
+  --color-slate-100: #F3ECDF;
+  --color-slate-200: #E4DBC9;
+  --color-slate-300: #CBC2AE;
+  --color-slate-400: #8F9A8F;
+  --color-slate-500: #66746A;
+  --color-slate-600: #4C5A51;
+  --color-slate-700: #35443B;
+  --color-slate-800: #22332A;
+  --color-slate-900: #16261E;
+  --color-slate-950: #0E1A15;
+
+  --color-amber-50: #FEF5EA;
+  --color-amber-100: #FDE6CA;
+  --color-amber-200: #FBCF9E;
+  --color-amber-300: #F8B46C;
+  --color-amber-400: #F59E45;
+  --color-amber-500: #F28C28;
+  --color-amber-600: #D7721A;
+  --color-amber-700: #B05914;
+  --color-amber-800: #8A4612;
+  --color-amber-900: #6B3712;
+  --color-amber-950: #3B1C07;
+}
+
 @layer base {
   :root {
-    --background: #F7F6F2;
-    --foreground: #14191F;
-    --card: #FFFFFF;
-    --card-foreground: #14191F;
-    --popover: #FFFFFF;
-    --popover-foreground: #14191F;
-    --primary: #0F766E;
-    --primary-foreground: #FFFFFF;
-    --secondary: #EBE8E1;
-    --secondary-foreground: #1E293B;
-    --muted: #F0EDE6;
-    --muted-foreground: #64748B;
-    --accent: #14B8A6;
-    --accent-foreground: #042F2E;
-    --amber-accent: #D97706;
-    --border: #E0DDD6;
-    --input: #E0DDD6;
-    --ring: #14B8A6;
+    --background: #FBF6EC;
+    --foreground: #12241C;
+    --card: #FFFDF8;
+    --card-foreground: #12241C;
+    --popover: #FFFDF8;
+    --popover-foreground: #12241C;
+    --primary: #18714E;
+    --primary-foreground: #FBF6EC;
+    --secondary: #F3ECDF;
+    --secondary-foreground: #12241C;
+    --muted: #F3ECDF;
+    --muted-foreground: #5C6B61;
+    --accent: #F28C28;
+    --accent-foreground: #12241C;
+    --amber-accent: #D7721A;
+    --border: #E4DBC9;
+    --input: #E4DBC9;
+    --ring: #F28C28;
     --radius: 0.875rem;
 
-    --mastery-unmastered: #EF4444;
-    --mastery-learning: #F59E0B;
-    --mastery-mastered: #10B981;
+    --mastery-unmastered: #C2410C;
+    --mastery-learning: #F28C28;
+    --mastery-mastered: #18714E;
   }
 
   .dark {
-    --background: #0B0F14;
-    --foreground: #F1F5F9;
-    --card: #121820;
-    --card-foreground: #F1F5F9;
-    --popover: #121820;
-    --popover-foreground: #F1F5F9;
-    --primary: #14B8A6;
-    --primary-foreground: #0B0F14;
-    --secondary: #19222E;
-    --secondary-foreground: #F1F5F9;
-    --muted: #151D28;
-    --muted-foreground: #94A3B8;
-    --accent: #2DD4BF;
-    --accent-foreground: #0B0F14;
-    --amber-accent: #F59E0B;
-    --border: #212C3B;
-    --input: #212C3B;
-    --ring: #14B8A6;
+    --background: #0E1A15;
+    --foreground: #FBF6EC;
+    --card: #16261E;
+    --card-foreground: #FBF6EC;
+    --popover: #16261E;
+    --popover-foreground: #FBF6EC;
+    --primary: #45A57A;
+    --primary-foreground: #0E1A15;
+    --secondary: #22332A;
+    --secondary-foreground: #FBF6EC;
+    --muted: #1B2D24;
+    --muted-foreground: #A9B4A8;
+    --accent: #F28C28;
+    --accent-foreground: #12241C;
+    --amber-accent: #F59E45;
+    --border: #2A3D33;
+    --input: #2A3D33;
+    --ring: #F28C28;
 
-    --mastery-unmastered: #F87171;
-    --mastery-learning: #FBBF24;
-    --mastery-mastered: #34D399;
+    --mastery-unmastered: #F0855A;
+    --mastery-learning: #F8B46C;
+    --mastery-mastered: #74C29C;
   }
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif);
+  font-family: var(--font-sans);
   min-height: 100vh;
   transition: background-color 0.2s ease, color 0.2s ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Headings and big numbers speak in the display face */
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+h1, h2 { text-wrap: balance; }
+
+::selection { background: #F28C28; color: #12241C; }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {

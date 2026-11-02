@@ -109,7 +109,7 @@ export function PartDetail({ item, qty, onAdd, onClose }: { item: ShopItem; qty:
   const srcUrl = (id: string) => f?.sources.find((s) => s.id === id)?.url;
   return (
     <div className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" role="dialog" aria-label={item.name} onClick={onClose}>
-      <div className="w-full sm:max-w-3xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-[#F7F6F2] dark:bg-[#0B0F14] text-slate-900 dark:text-slate-100 p-4 sm:p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full sm:max-w-3xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 sm:p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-mono tracking-widest text-teal-600">{item.category.toUpperCase()}</p>
@@ -208,7 +208,7 @@ export function PartDetail({ item, qty, onAdd, onClose }: { item: ShopItem; qty:
           </div>
         )}
 
-        <div className="flex items-center gap-2 sticky bottom-0 bg-[#F7F6F2] dark:bg-[#0B0F14] pt-2">
+        <div className="flex items-center gap-2 sticky bottom-0 bg-slate-50 dark:bg-slate-950 pt-2">
           {qty > 0 ? (
             <div className="flex items-center gap-2">
               <Button size="sm" variant="outline" onClick={() => onAdd(-1)} aria-label="One fewer"><Minus className="h-4 w-4" /></Button>

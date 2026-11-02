@@ -168,8 +168,8 @@ export function SimStage({
       )}
 
       <div className={cn("grid min-h-0 flex-1 gap-1.5 p-1.5 [padding-left:max(0.375rem,env(safe-area-inset-left))] [padding-right:max(0.375rem,env(safe-area-inset-right))]", showSplit ? "grid-cols-2" : "grid-cols-1")}>
-        <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-[#F7F6F2] text-slate-900 dark:bg-[#0B0F14] dark:text-slate-100" key={left.key}>{left.node}</div>
-        {right && <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-[#F7F6F2] text-slate-900 dark:bg-[#0B0F14] dark:text-slate-100" key={right.key}>{right.node}</div>}
+        <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" key={left.key}>{left.node}</div>
+        {right && <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" key={right.key}>{right.node}</div>}
       </div>
     </div>
     </ImmersiveContext.Provider>
