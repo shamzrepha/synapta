@@ -105,14 +105,16 @@ export function languageVoice(text: string, gender: "female" | "male", lang?: La
 export async function generateEdgeVoice({
   text,
   speaker,
+  lang,
 }: {
   text: string;
   speaker: "Alex" | "Sam" | string;
+  lang?: LanguageCode | null;
 }): Promise<VoiceGenerationResult | null> {
   if (!text || text.trim().length === 0) return null;
 
   const host = hostFor(speaker);
-  const mp3 = await synthesizeEdgeVoice(text, languageVoice(text, host.gender === "female" ? "female" : "male") ?? host.edge);
+  const mp3 = await synthesizeEdgeVoice(text, languageVoice(text, host.gender === "female" ? "female" : "male", lang) ?? host.edge);
   return mp3 ? { audioBase64: mp3.toString("base64"), mimeType: "audio/mpeg", voiceName: host.edgeName } : null;
 }
 
@@ -160,14 +162,16 @@ export async function generateFullDiscussionAudio(
 export async function generateGeminiVoice({
   text,
   speaker,
+  lang,
 }: {
   text: string;
   speaker: "Alex" | "Sam" | string;
+  lang?: LanguageCode | null;
 }): Promise<VoiceGenerationResult | null> {
   if (!text || text.trim().length === 0) return null;
 
   // Tier 1: Default to Free Studio Edge Neural Voice
-  const edgeResult = await generateEdgeVoice({ text, speaker });
+  const edgeResult = await generateEdgeVoice({ text, speaker, lang });
   if (edgeResult) {
     return edgeResult;
   }

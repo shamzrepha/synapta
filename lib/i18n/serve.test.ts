@@ -32,8 +32,9 @@ describe("localizeFor", () => {
     expect(await localizeFor(req("?lang=yo"), user("teacher_en"), true, { text: "Current" }, "en")).toEqual({ text: "yo:Current" });
   });
 
-  it("reads the class's language from its teacher", async () => {
-    expect(await classSourceLanguage({ teacherId: "teacher_ha" })).toBe("ha");
+  it("reads the class's own content language, not its teacher's setting", async () => {
+    expect(await classSourceLanguage({ contentLanguage: "ha" })).toBe("ha");
+    expect(await classSourceLanguage({ teacherId: "teacher_ha" } as never)).toBe("en");
     expect(await classSourceLanguage({})).toBe("en");
   });
 });

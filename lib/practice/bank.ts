@@ -82,6 +82,8 @@ export async function ensureQuizBank(params: {
       QUIZ_BATCHES.map((b) => {
         const prompt = buildQuizPrompt({ kcTitle: ctx.kcTitle, contextText: ctx.contextText, count: b.count, level: ctx.level, focus: b.focus });
         return executeStructuredAiTask({
+    // shared class content is written in the source language; each reader gets a translation
+    learnerLanguage: false,
           task: "structured_spec",
           systemInstruction: prompt.systemInstruction,
           userPrompt: prompt.userPrompt,
@@ -143,6 +145,8 @@ export async function ensureFlashcardBank(params: { classId: string; kcId: strin
       halves.map((focus) => {
         const p = getFlashcardsPrompt({ kcTitle: ctx.kcTitle, lessonMarkdown: `${ctx.contextText}\n\n${focus}`, count: FLASHCARD_BANK_TARGET / 2 });
         return executeStructuredAiTask({
+    // shared class content is written in the source language; each reader gets a translation
+    learnerLanguage: false,
           task: "structured_spec",
           systemInstruction: p.systemInstruction,
           userPrompt: p.userPrompt,

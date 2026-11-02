@@ -1,6 +1,8 @@
 "use client";
 
 import { OfflineDownloadButton } from "@/components/offline/download-button";
+import { usePrefs } from "@/components/settings/use-prefs";
+import { languageInfo } from "@/lib/i18n/languages";
 import React, { useState, useEffect, use, useRef, useCallback } from "react";
 import Link from "next/link";
 import { TopicLabs } from "@/components/studio/topic-labs";
@@ -103,6 +105,10 @@ export default function TopicPage({
   const [attempts, setAttempts] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [canManage, setCanManage] = useState(false);
+  // Everyone reads the topic in their language. A teacher can switch to the original (what they edit and publish).
+  const [prefs] = usePrefs();
+  const [showOriginal, setShowOriginal] = useState(false);
+  const viewLang = prefs.language !== "en" && !showOriginal ? prefs.language : null;
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("learn");
   // Deep link: ?tab=build (lab notifications)
@@ -152,7 +158,7 @@ export default function TopicPage({
   const loadTopicData = useCallback(async () => {
     try {
       // ?kc= asks for this topic's full lecture note in the student's language
-      const res = await fetch(`/api/classes/${classId}?kc=${encodeURIComponent(kcId)}`);
+      const res = await fetch(`/api/classes/${classId}?kc=${encodeURIComponent(kcId)}${viewLang ? `&lang=${viewLang}` : ""}`);
       const data = await res.json();
       if (data.ok) {
         const found = (data.data.kcs as KcDetails[])?.find((k) => k.id === kcId);
@@ -169,7 +175,7 @@ export default function TopicPage({
       setLoading(false);
     }
     return undefined;
-  }, [classId, kcId]);
+  }, [classId, kcId, viewLang]);
 
   useEffect(() => {
     loadTopicData();
@@ -230,7 +236,7 @@ export default function TopicPage({
     try {
       // The first deck on a topic prepares its ~40-card bank; others wait for it
       for (let attempt = 0; attempt < 24; attempt++) {
-        const res = await fetch("/api/ai/flashcards", {
+        const res = await fetch(viewLang ? `/api/ai/flashcards?lang=${viewLang}` : "/api/ai/flashcards", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ classId, kcId, count: 10 }),
@@ -413,6 +419,18 @@ export default function TopicPage({
             </div>
           </div>
 
+          {canManage && prefs.language !== "en" && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-teal-500/30 bg-teal-500/5 px-3 py-2 text-xs">
+              <span className="flex-1">
+                {showOriginal
+                  ? "Showing the original you edit and publish."
+                  : `Showing this topic in ${languageInfo(prefs.language).name}, as your students see it. Editing works on the original.`}
+              </span>
+              <button type="button" onClick={() => setShowOriginal((v) => !v)} className="rounded-lg border border-teal-500/40 px-2.5 py-1 font-semibold hover:bg-teal-500/10">
+                {showOriginal ? `View in ${languageInfo(prefs.language).name}` : "Show original"}
+              </button>
+            </div>
+          )}
           {canManage && <PublishBar classId={classId} kcId={kcId} refreshKey={`${activeTab}-${lessonBusy ? 1 : 0}`} />}
 
           {/* Tabs: scrollable on phones */}
@@ -450,7 +468,7 @@ export default function TopicPage({
           {/* LEARN */}
           {activeTab === "learn" && (
             <div className="space-y-4">
-              {(canManage || pub.audio) && !lessonIsThin && <AudioLesson classId={classId} kcId={kcId} />}
+              {(canManage || pub.audio) && !lessonIsThin && <AudioLesson classId={classId} kcId={kcId} viewLang={viewLang} />}
               {!canManage && !pub.lesson ? notPublished("lecture note") : (
               <Card className="p-6 md:p-8">
                 {lessonBusy && lessonIsThin ? (
@@ -703,7 +721,7 @@ export default function TopicPage({
           {activeTab === "quiz" && !canManage && !pub.practice && notPublished("quiz")}
           {activeTab === "quiz" && (canManage || pub.practice) && (
             <Card className="p-4 md:p-6">
-              <QuizPlayer classId={classId} kcId={kcId} onEvidence={applyEvidenceUpdate} />
+              <QuizPlayer classId={classId} kcId={kcId} onEvidence={applyEvidenceUpdate} viewLang={viewLang} />
             </Card>
           )}
 

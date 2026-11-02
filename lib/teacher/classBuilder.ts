@@ -286,6 +286,8 @@ Synthesize the concept map.`;
   let aiResult: { data: ClassPlan; modelUsed: string; tokensIn: number; tokensOut: number; latencyMs: number; fallbackTriggered: boolean };
   try {
     aiResult = await executeStructuredAiTask<ClassPlan>({
+      // shared class content is written in the source language; each reader gets a translation
+      learnerLanguage: false,
       task: "class_build",
       systemInstruction,
       userPrompt,

@@ -6,6 +6,7 @@ import { audioForStudents } from "@/lib/classes/live";
 import { getAudioLesson, readClip, recordTurns, translatedClip } from "@/lib/lesson/audio";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { classSourceLanguage } from "@/lib/i18n/serve";
+import { isLanguageCode } from "@/lib/i18n/languages";
 import { localizeJson } from "@/lib/i18n/translate";
 
 export const runtime = "nodejs";
@@ -28,7 +29,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const meta = access.canMutate ? await getAudioLesson(classId, kcId) : await audioForStudents(classId, kcId, kc);
     if (!meta || !meta.turns[index]) return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "No audio" } }, { status: 404 });
     const source = await classSourceLanguage(access.classData);
-    const lang = access.canMutate ? source : await getUserLanguage(caller.uid);
+    const asked = req.nextUrl.searchParams.get("lang");
+    const lang = access.canMutate ? (isLanguageCode(asked) ? asked : source) : await getUserLanguage(caller.uid);
     let clip = null as Awaited<ReturnType<typeof readClip>>;
     if (lang !== source) {
       // the teacher's line in the student's language, voiced once and saved for everyone in that language
