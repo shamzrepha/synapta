@@ -135,8 +135,8 @@ FORMAT:
   ];
 
   const response = await generateWithFallback({
-    // shared class content is written in the source language; each reader gets a translation
-    learnerLanguage: false,
+    // a personal conversation: the tutor answers in the learner's own language (the router adds it from their
+    // settings). Only shared class content is written in the source language and translated per reader.
     task: "tutor_chat",
     contents,
     systemInstruction,

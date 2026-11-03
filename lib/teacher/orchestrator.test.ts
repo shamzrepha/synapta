@@ -38,3 +38,13 @@ describe("tutor history normalisation", () => {
     expect(out[out.length - 1].role).toBe("model");
   });
 });
+
+describe("tutor language", () => {
+  it("answers in the learner's language (the router adds it unless a call opts out)", async () => {
+    const fs = await import("node:fs");
+    const src = fs.readFileSync(new URL("./orchestrator.ts", import.meta.url), "utf8");
+    const call = src.slice(src.indexOf("generateWithFallback({"), src.indexOf('task: "tutor_chat"') + 30);
+    expect(call).toContain('task: "tutor_chat"');
+    expect(call).not.toMatch(/learnerLanguage:\s*false/);
+  });
+});
