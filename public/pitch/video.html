@@ -3,33 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sunroot — Official Pitch & Product Demo Video (1080p)</title>
+  <title>Sunroot — Official 2-Minute Startup Pitch Video & 30s Social Cut</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #FAF6EE;
-      --card: #FFFFFF;
-      --ink: #1B2E22;
-      --muted: #5A655E;
-      --forest: #2E5E3E;
-      --amber: #D97724;
-      --border: #E4DBC8;
+      --deep-forest: #12241C;
+      --dark-forest: #0E1F18;
+      --sun-orange: #F28C28;
+      --warm-cream: #FBF6EC;
+      --emerald: #10B981;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: linear-gradient(155deg, #FCF9F2 0%, #F4EBDC 100%);
-      color: var(--ink);
+      font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(155deg, var(--dark-forest) 0%, var(--deep-forest) 100%);
+      color: var(--warm-cream);
       min-height: 100vh;
-      padding-bottom: 48px;
+      padding-bottom: 56px;
     }
     header {
       position: sticky;
       top: 0;
       z-index: 30;
-      background: rgba(252, 249, 242, 0.92);
+      background: rgba(14, 31, 24, 0.92);
       backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      padding: 12px 20px;
+      border-bottom: 1px solid rgba(251, 246, 236, 0.14);
+      padding: 14px 22px;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -40,14 +41,16 @@
       display: flex;
       align-items: center;
       gap: 12px;
-      font-weight: 800;
-      font-size: 18px;
-      color: var(--forest);
+      font-family: "Space Grotesk", sans-serif;
+      font-weight: 700;
+      font-size: 19px;
+      color: var(--warm-cream);
       text-decoration: none;
     }
     .brand span.pill {
-      background: #EBF3ED;
-      color: var(--forest);
+      background: rgba(16, 185, 129, 0.16);
+      border: 1px solid var(--emerald);
+      color: var(--emerald);
       font-size: 12px;
       padding: 4px 10px;
       border-radius: 999px;
@@ -65,85 +68,84 @@
       gap: 6px;
       padding: 9px 15px;
       border-radius: 999px;
+      font-family: "Space Grotesk", sans-serif;
       font-weight: 700;
       font-size: 13px;
       text-decoration: none;
       cursor: pointer;
       border: 1px solid transparent;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      transition: transform 0.15s ease;
     }
     .btn:hover { transform: translateY(-1px); }
-    .btn-primary {
-      background: var(--amber);
-      color: #FFF;
-      box-shadow: 0 6px 18px rgba(217, 119, 36, 0.28);
+    .btn-orange {
+      background: var(--sun-orange);
+      color: var(--dark-forest);
     }
-    .btn-forest {
-      background: var(--forest);
-      color: #FFF;
-      box-shadow: 0 6px 18px rgba(46, 94, 62, 0.22);
+    .btn-emerald {
+      background: var(--emerald);
+      color: var(--dark-forest);
     }
     .btn-outline {
-      background: #FFF;
-      color: var(--ink);
-      border-color: var(--border);
+      background: rgba(251, 246, 236, 0.08);
+      color: var(--warm-cream);
+      border-color: rgba(251, 246, 236, 0.22);
     }
     .container {
-      max-width: 1180px;
-      margin: 24px auto;
+      max-width: 1220px;
+      margin: 26px auto;
       padding: 0 16px;
     }
     .video-shell {
-      background: #142219;
+      background: #08120E;
       border-radius: 22px;
       overflow: hidden;
-      box-shadow: 0 24px 60px rgba(20, 34, 25, 0.22);
-      border: 2px solid #2E5E3E;
-      position: relative;
+      box-shadow: 0 28px 65px rgba(0, 0, 0, 0.45);
+      border: 2px solid rgba(242, 140, 40, 0.45);
     }
-    video {
+    video.main-video {
       width: 100%;
       aspect-ratio: 16 / 9;
       display: block;
-      background: #0f1a13;
+      background: #08120E;
     }
     .now-playing {
-      padding: 14px 20px;
-      background: #182C20;
-      color: #FFF;
+      padding: 16px 22px;
+      background: var(--deep-forest);
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      border-top: 1px solid rgba(255,255,255,0.1);
+      border-top: 1px solid rgba(251, 246, 236, 0.12);
     }
     .now-playing .scene-title {
+      font-family: "Space Grotesk", sans-serif;
       font-weight: 700;
-      font-size: 15px;
-      color: #FDE68A;
+      font-size: 16px;
+      color: var(--sun-orange);
     }
     .now-playing .scene-sub {
-      font-size: 13px;
-      color: #C8DFD0;
-      margin-top: 2px;
+      font-size: 14px;
+      color: rgba(251, 246, 236, 0.82);
+      margin-top: 3px;
     }
-    .chapters-title {
-      margin: 26px 0 12px;
+    .section-heading {
+      margin: 30px 0 14px;
+      font-family: "Space Grotesk", sans-serif;
       font-size: 15px;
-      font-weight: 800;
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--forest);
+      color: var(--emerald);
     }
     .chapters-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(265px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(275px, 1fr));
       gap: 12px;
     }
     .chapter-card {
-      background: var(--card);
-      border: 1.5px solid var(--border);
+      background: rgba(251, 246, 236, 0.05);
+      border: 1.5px solid rgba(251, 246, 236, 0.14);
       border-radius: 16px;
       padding: 14px 16px;
       cursor: pointer;
@@ -152,90 +154,126 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      color: var(--warm-cream);
     }
     .chapter-card:hover {
-      border-color: var(--amber);
+      border-color: var(--sun-orange);
       transform: translateY(-2px);
-      box-shadow: 0 10px 24px rgba(27, 46, 34, 0.08);
     }
     .chapter-card.active {
-      border-color: var(--amber);
-      background: #FEF7EC;
-      box-shadow: 0 10px 26px rgba(217, 119, 36, 0.15);
+      border-color: var(--sun-orange);
+      background: rgba(242, 140, 40, 0.12);
     }
     .chapter-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      font-family: "Space Grotesk", sans-serif;
       font-size: 12px;
-      font-weight: 800;
-      color: var(--forest);
+      font-weight: 700;
+      color: var(--emerald);
     }
-    .chapter-card.active .chapter-top { color: var(--amber); }
+    .chapter-card.active .chapter-top { color: var(--sun-orange); }
     .chapter-name {
-      font-weight: 800;
+      font-family: "Space Grotesk", sans-serif;
+      font-weight: 700;
       font-size: 15px;
-      color: var(--ink);
     }
     .chapter-text {
       font-size: 12.5px;
-      color: var(--muted);
+      color: rgba(251, 246, 236, 0.72);
       line-height: 1.45;
     }
-    @media (max-width: 640px) {
-      header { padding: 10px 14px; }
-      .btn { padding: 8px 12px; font-size: 12px; }
+    .social-box {
+      margin-top: 36px;
+      background: rgba(251, 246, 236, 0.05);
+      border: 1.5px solid rgba(16, 185, 129, 0.35);
+      border-radius: 22px;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 28px;
+      align-items: center;
+    }
+    .social-video {
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      border-radius: 18px;
+      border: 2px solid var(--sun-orange);
+      background: #08120E;
+    }
+    @media (max-width: 760px) {
+      .social-box { grid-template-columns: 1fr; }
+      .social-video { max-width: 320px; margin: 0 auto; }
     }
   </style>
 </head>
 <body>
   <header>
     <a href="/pitch/index.html" class="brand">
-      🌱 Sunroot Pitch Demo
-      <span class="pill">1080p HD + Studio Voiceover</span>
+      🌱 Sunroot Pitch Film
+      <span class="pill">2:00 Full HD · Nigerian Voiceover</span>
     </a>
     <div class="actions">
-      <a class="btn btn-primary" href="/pitch/Sunroot-Pitch-Demo.mp4" download="Sunroot-Pitch-Demo.mp4">
-        ⬇ Download .MP4 Video
+      <a class="btn btn-orange" href="/pitch/sunroot_pitch_final.mp4" download="sunroot_pitch_final.mp4">
+        ⬇ Download 2-Min Pitch (.MP4)
       </a>
-      <a class="btn btn-forest" href="/pitch/index.html">
+      <a class="btn btn-emerald" href="/pitch/sunroot_pitch_social.mp4" download="sunroot_pitch_social.mp4">
+        📱 Download 30s Vertical Reel (.MP4)
+      </a>
+      <a class="btn btn-outline" href="/pitch/index.html">
         ✨ Interactive Slide Deck
       </a>
       <a class="btn btn-outline" href="/pitch/Sunroot-Pitch-Deck-Animated.pptx" download="Sunroot-Pitch-Deck-Animated.pptx">
-        📊 Download .PPTX
+        📊 .PPTX
       </a>
     </div>
   </header>
 
   <main class="container">
     <div class="video-shell">
-      <video id="demoVideo" controls playsinline preload="metadata" poster="/pitch/video-poster.png">
-        <source src="/pitch/Sunroot-Pitch-Demo.mp4" type="video/mp4" />
-        Your browser does not support HTML5 video.
+      <video id="demoVideo" class="main-video" controls playsinline preload="metadata" poster="/pitch/video-poster.png">
+        <source src="/pitch/sunroot_pitch_final.mp4" type="video/mp4" />
       </video>
       <div class="now-playing">
         <div>
-          <div class="scene-title" id="activeSceneTitle">01 · Introducing Sunroot — Understand it. Build it. Prove it.</div>
-          <div class="scene-sub" id="activeSceneSub">Tap Play above or jump to any of the 8 pitch chapters below.</div>
+          <div class="scene-title" id="activeSceneTitle">SCENE 1 (00:00–00:10) · The Hook — 11:00 PM. Exam tomorrow.</div>
+          <div class="scene-sub" id="activeSceneSub">"It's 11 PM. Exam tomorrow. Forty pages of formulas… and nobody to explain them."</div>
         </div>
-        <button class="btn btn-primary" id="playPauseBtn" type="button">▶ Play Pitch Video</button>
+        <button class="btn btn-orange" id="playPauseBtn" type="button">▶ Play 2-Min Pitch Film</button>
       </div>
     </div>
 
-    <div class="chapters-title">Jump to Scene (8-Part Narrated Pitch & Product Demo)</div>
+    <div class="section-heading">Jump to Scene (Exact 120-Second Competition Storyboard)</div>
     <div class="chapters-grid" id="chaptersGrid"></div>
+
+    <div class="social-box">
+      <video class="social-video" controls playsinline preload="metadata">
+        <source src="/pitch/sunroot_pitch_social.mp4" type="video/mp4" />
+      </video>
+      <div>
+        <div class="section-heading" style="margin-top:0;">📱 30-Second Vertical Cut (1080 × 1920 · 9:16)</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:32px;margin-bottom:12px;">Built for WhatsApp Status, Instagram Reels &amp; TikTok</h2>
+        <p style="color:rgba(251,246,236,0.8);font-size:16px;line-height:1.55;margin-bottom:20px;">
+          A punchy 30-second vertical edit (`1080 × 1920`, 30 FPS) featuring the 11 PM hook, the Sunroot AI Tutor &amp; Virtual Lab reveal, the 3D Line-Following Robot climax, and the final brand lockup for AI Builders Pitch Party H2 at FUTO.
+        </p>
+        <a class="btn btn-emerald" href="/pitch/sunroot_pitch_social.mp4" download="sunroot_pitch_social.mp4" style="font-size:15px;padding:12px 22px;">
+          ⬇ Download Vertical Social Video (sunroot_pitch_social.mp4)
+        </a>
+      </div>
+    </div>
   </main>
 
   <script>
     const CHAPTERS = [
-      { id: 1, start: 0.1, end: 8.95, timeLabel: "0:00", title: "01 · Introducing Sunroot", text: "Meet Sunroot — turning passive STEM cramming into hands-on mastery, on any phone, in every learner's language." },
-      { id: 2, start: 8.95, end: 23.90, timeLabel: "0:09", title: "02 · The Problem", text: "Why millions of STEM students pass written exams on topics they can't actually use in the lab." },
-      { id: 3, start: 23.90, end: 39.50, timeLabel: "0:24", title: "03 · Teacher AI Pipeline", text: "Upload a syllabus and AI generates notes, a 2-host podcast, a simulation & 60+ quiz items. Teacher reviews first." },
-      { id: 4, start: 39.50, end: 54.26, timeLabel: "0:39", title: "04 · Way 1: Read & Listen (8 Languages)", text: "Two-voice conversational podcast in English, Naijá Pidgin, Yorùbá, Igbo, Hausa, French, Arabic & Swahili." },
-      { id: 5, start: 54.26, end: 69.53, timeLabel: "0:54", title: "05 · Ways 2 & 3: Simulate & Practice", text: "Real-time interactive circuit sliders (120 mA Target Hit) + FSRS spaced repetition & adaptive quizzes." },
-      { id: 6, start: 69.53, end: 84.25, timeLabel: "1:09", title: "06 · Way 4: Prove It (3D Digital Twin)", text: "Wire real components, program microcontroller logic, and test your build in a 3D robot digital twin." },
-      { id: 7, start: 84.25, end: 95.97, timeLabel: "1:24", title: "07 · For Educators: BKT Mastery Radar", text: "Bayesian Knowledge Tracing heatmap spots which student is stuck weeks before final exams." },
-      { id: 8, start: 95.97, end: 110.2, timeLabel: "1:36", title: "08 · Built & Live Today", text: "Backed by 3,900+ automated tests. Live today on web and mobile at sunrootlearn.vercel.app." }
+      { id: 1, start: 0.0, timeLabel: "00:00–00:10", title: "Scene 1 · The Hook", text: "\"It's 11 PM. Exam tomorrow. Forty pages of formulas… and nobody to explain them.\"" },
+      { id: 2, start: 10.0, timeLabel: "00:10–00:25", title: "Scene 2 · The Problem", text: "CRAM. FORGET. NO LAB. TOO LATE. \"Learning deserves better.\"" },
+      { id: 3, start: 25.0, timeLabel: "00:25–00:35", title: "Scene 3 · Introducing Sunroot", text: "\"Meet Sunroot: an AI tutor and virtual lab for every student, and a live mastery map for every teacher.\"" },
+      { id: 4, start: 35.0, timeLabel: "00:35–00:50", title: "Scene 4 · Teacher Builds Class", text: "AI prepares. Teacher approves. Students learn. Notes, podcast, simulation & practice bank." },
+      { id: 5, start: 50.0, timeLabel: "00:50–01:20", title: "Scene 5 · Four Ways + Robot Climax", text: "A. Read & Listen · B. Simulate · C. Practise · D. Prove It (Maker Studio & 3D Line-Following Robot)." },
+      { id: 6, start: 80.0, timeLabel: "01:20–01:40", title: "Scene 6 · Teacher's Mastery Map", text: "STRONG. SHAKY. STUCK. See understanding and help before the exam, not after." },
+      { id: 7, start: 100.0, timeLabel: "01:40–01:52", title: "Scene 7 · Live Product", text: "Built. Tested. Live. Ready for classroom pilots on any phone." },
+      { id: 8, start: 112.0, timeLabel: "01:52–02:00", title: "Scene 8 · Final Brand Reveal", text: "UNDERSTAND IT. BUILD IT. PROVE IT. · sunrootlearn.vercel.app · Top 10 Finalist" }
     ];
 
     const video = document.getElementById('demoVideo');
@@ -248,17 +286,16 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'chapter-card' + (idx === 0 ? ' active' : '');
-      btn.dataset.idx = idx;
       btn.innerHTML = `
         <div class="chapter-top">
           <span>SCENE 0${ch.id}</span>
           <span>▶ ${ch.timeLabel}</span>
         </div>
-        <div class="chapter-name">${ch.title.replace(/^0\d · /, '')}</div>
+        <div class="chapter-name">${ch.title.replace(/^Scene \d · /, '')}</div>
         <div class="chapter-text">${ch.text}</div>
       `;
       btn.addEventListener('click', () => {
-        video.currentTime = ch.start;
+        video.currentTime = ch.start + 0.05;
         video.play();
       });
       grid.appendChild(btn);
@@ -270,7 +307,7 @@
     });
 
     video.addEventListener('play', () => { playPauseBtn.textContent = '⏸ Pause Video'; });
-    video.addEventListener('pause', () => { playPauseBtn.textContent = '▶ Play Pitch Video'; });
+    video.addEventListener('pause', () => { playPauseBtn.textContent = '▶ Play 2-Min Pitch Film'; });
 
     video.addEventListener('timeupdate', () => {
       const t = video.currentTime;
@@ -279,7 +316,7 @@
         if (t >= CHAPTERS[i].start) activeIdx = i;
       }
       const ch = CHAPTERS[activeIdx];
-      activeSceneTitle.textContent = ch.title;
+      activeSceneTitle.textContent = `${ch.title.toUpperCase()} (${ch.timeLabel})`;
       activeSceneSub.textContent = ch.text;
       document.querySelectorAll('.chapter-card').forEach((el, idx) => {
         el.classList.toggle('active', idx === activeIdx);
