@@ -6,7 +6,7 @@ import { audioForStudents } from "@/lib/classes/live";
 import { MAX_LINE_FAILS, getAudioLesson, languageFailures, prepareLanguage, readClip, recordTurns, translatedClip } from "@/lib/lesson/audio";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { classSourceLanguage } from "@/lib/i18n/serve";
-import { isLanguageCode, speaksWithGemini } from "@/lib/i18n/languages";
+import { isLanguageCode } from "@/lib/i18n/languages";
 import { cachedTranslation, translateOne, translateTexts } from "@/lib/i18n/translate";
 import { checkRateLimit } from "@/lib/rateLimit";
 
@@ -41,7 +41,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       if (limited) return limited;
     }
     let clip = null as Awaited<ReturnType<typeof readClip>>;
-    let upgradePending = false;
     if (lang !== source) {
       // the teacher's line in the listener's language, voiced once and saved for everyone in that language
       const srcText = meta.turns[index].text;
@@ -59,14 +58,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         // route), in order, two at a time. Recording the same line here too would spend the voice allowance twice.
         const text = await cachedTranslation(lang, srcText);
         const saved = text ? await readClip(classId, kcId, meta.version, index, lang, text) : null;
-        const awaitingNative = !!saved && speaksWithGemini(lang) && saved.engine !== "gemini" && Date.now() - (saved.nativeTriedAt ?? 0) > 30 * 60_000;
-        if (!saved || awaitingNative) {
+        if (!saved) {
+          // record the rest of the podcast in this language in the background, starting with this line
           after(() => prepareLanguage(classId, kcId, meta, lang, (texts) => translateTexts(lang, texts), index).catch(() => undefined));
         }
         if (saved) {
           clip = saved;
-          // an Igbo/Hausa line still in the fallback voice may be upgraded: don't let the browser keep it
-          upgradePending = speaksWithGemini(lang) && saved.engine !== "gemini";
         } else {
           const fails = (await languageFailures(classId, kcId, meta.version, lang).catch(() => ({} as Record<string, number>)))[index] ?? 0;
           if (fails < MAX_LINE_FAILS) {
@@ -76,8 +73,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
               { status: 202, headers: { "Cache-Control": "no-store", "Retry-After": "3" } }
             );
           }
-          // this line keeps failing (usually the AI allowance is used up): say so instead of playing English. It is
-          // tried again automatically after a few minutes.
+          // this line keeps failing right now (usually a busy or used-up AI allowance): say so instead of playing
+          // English. The player keeps asking, and the line is tried again automatically a couple of minutes later.
           return NextResponse.json(
             { ok: false, error: { code: "LANG_AUDIO_UNAVAILABLE", message: "This line couldn't be recorded in your language yet. It will be tried again in a few minutes." } },
             { status: 503, headers: { "Cache-Control": "no-store" } }
@@ -98,7 +95,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const headers: Record<string, string> = {
       "Content-Type": clip.mimeType,
       "Accept-Ranges": "bytes",
-      "Cache-Control": rerecord || upgradePending ? "no-store" : "private, max-age=31536000, immutable",
+      "Cache-Control": rerecord ? "no-store" : "private, max-age=31536000, immutable",
       "X-Audio-Language": lang,
     };
     const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get("range") || "");

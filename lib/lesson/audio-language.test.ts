@@ -74,13 +74,32 @@ describe("preparing a podcast in another language", () => {
     expect(speak).not.toHaveBeenCalled();
   });
 
-  it("counts failures per line so a line that keeps failing stops holding up the podcast", async () => {
+  it("retries a failed line once in the same run, and stops after the failure limit until it expires", async () => {
     speak.mockResolvedValue(null);
-    for (let n = 0; n < MAX_LINE_FAILS + 1; n++) await prepareLanguage("c", "k", meta, "fr", translate);
-    const failed = await languageFailures("c", "k", 3, "fr");
-    expect(failed[0]).toBe(MAX_LINE_FAILS);
-    // once a line reached the limit it isn't tried again
-    expect(speak.mock.calls.length).toBe(3 * MAX_LINE_FAILS);
+    await prepareLanguage("c", "k", meta, "fr", translate);
+    // each of the 3 lines: first attempt + one retry at the end of the run
+    expect(speak).toHaveBeenCalledTimes(6);
+    expect((await languageFailures("c", "k", 3, "fr"))[0]).toBe(2);
+    await prepareLanguage("c", "k", meta, "fr", translate);
+    expect((await languageFailures("c", "k", 3, "fr"))[0]).toBeGreaterThanOrEqual(MAX_LINE_FAILS);
+    speak.mockClear();
+    await prepareLanguage("c", "k", meta, "fr", translate);
+    expect(speak).not.toHaveBeenCalled();
+  });
+
+  it("never re-records a line that is already saved, even for Igbo in the fallback voice", async () => {
+    await prepareLanguage("c", "k", meta, "ig", translate);
+    expect(speak).toHaveBeenCalledTimes(3);
+    speak.mockClear();
+    await prepareLanguage("c", "k", meta, "ig", translate);
+    expect(speak).not.toHaveBeenCalled();
+  });
+
+  it("forgets failures after a while, so a line is tried again once the AI allowance resets", async () => {
+    docs.set("job_3_fr", { running: false, beatAt: ts(), failed: { 0: MAX_LINE_FAILS }, failedAt: { 0: Date.now() - 3 * 60_000 } });
+    expect(await languageFailures("c", "k", 3, "fr")).toEqual({});
+    await prepareLanguage("c", "k", meta, "fr", translate);
+    expect(speak).toHaveBeenCalledTimes(3);
   });
 
   it("forgets failures after a while, so a line is tried again once the AI allowance resets", async () => {
