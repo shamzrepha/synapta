@@ -135,6 +135,7 @@ export default function NotebookPage() {
   const [pasteTitle, setPasteTitle] = useState("");
   const [pasteContent, setPasteContent] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [readNote, setReadNote] = useState("");
   const [previewSource, setPreviewSource] = useState<SourceItem | null>(null);
 
   // Chat State
@@ -353,7 +354,7 @@ export default function NotebookPage() {
 
     setUploadingFile(true);
     try {
-      const extractedText = await extractTextFromFile(file);
+      const extractedText = await extractTextFromFile(file, (m) => setReadNote(m));
       if (!extractedText.trim()) {
         throw new Error("Unable to extract text content from file.");
       }
@@ -384,6 +385,7 @@ export default function NotebookPage() {
       });
     } finally {
       setUploadingFile(false);
+      setReadNote("");
     }
   };
 
@@ -1406,15 +1408,15 @@ export default function NotebookPage() {
                   <Upload className="h-8 w-8 text-teal-600 dark:text-teal-400 mx-auto" />
                   <div>
                     <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                      Upload PDF or Text File
+                      Upload a PDF, photo or text file
                     </p>
                     <p className="text-[11px] text-slate-400 mt-1">
-                      Supports .pdf, .txt, .md formats
+                      Typed or scanned PDFs, photos of handwritten notes (.png, .jpg), .txt, .md
                     </p>
                   </div>
                   <input
                     type="file"
-                    accept=".pdf,.txt,.md"
+                    accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.webp,image/*"
                     onChange={handleFileUpload}
                     disabled={uploadingFile}
                     className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer"
@@ -1422,7 +1424,7 @@ export default function NotebookPage() {
                 </div>
                 {uploadingFile && (
                   <p className="text-xs text-teal-600 font-semibold animate-pulse">
-                    Extracting document text via PDF.js engine...
+                    {readNote || "Reading your document…"}
                   </p>
                 )}
               </div>
