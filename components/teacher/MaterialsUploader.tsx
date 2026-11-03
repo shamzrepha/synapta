@@ -13,7 +13,7 @@ import {
   Sparkles,
   RefreshCw,
 } from "lucide-react";
-import { extractTextFromFile } from "@/lib/pdf/extractor";
+import { extractTextFromFile, needsVisionReading } from "@/lib/pdf/extractor";
 
 interface MaterialsUploaderProps {
   classId: string;
@@ -108,8 +108,10 @@ export function MaterialsUploader({
 
         const { materialId, uploadUrl } = initJson.data;
 
+        // scans and photos are read by AI vision in the browser; the server can only read typed text
+        const readHere = await needsVisionReading(selectedFile);
         let uploadedToStorage = false;
-        if (uploadUrl) {
+        if (uploadUrl && !readHere) {
           try {
             setStatusText("Uploading directly to storage...");
             await new Promise<void>((resolve, reject) => {
@@ -149,7 +151,7 @@ export function MaterialsUploader({
         if (!uploadedToStorage) {
           setStatusText("Processing and extracting document locally...");
           setUploadProgress(50);
-          fallbackContentText = await extractTextFromFile(selectedFile);
+          fallbackContentText = await extractTextFromFile(selectedFile, (m) => setStatusText(m));
           setUploadProgress(75);
         }
 
