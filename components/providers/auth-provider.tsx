@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { user: userProfile, setUser } = useUserStore();
   const router = useRouter();
 
-  const establishSessionCookie = async (idToken: string) => {
+  const establishSessionCookie = async (idToken: string): Promise<boolean> => {
     try {
       const sessionRes = await fetch("/api/auth/session", {
         method: "POST",
@@ -52,8 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const errJson = await sessionRes.json().catch(() => ({}));
         console.warn("Session cookie creation warning:", errJson?.error?.message);
       }
+      return sessionRes.ok;
     } catch (err) {
       console.warn("Failed to set session cookie:", err);
+      return false;
     }
   };
 
@@ -113,11 +115,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setFirebaseUser(user);
         try {
           if (user) {
-            await bootstrapUser(user);
+            // The browser stays signed in far longer than the 5-day server cookie lives, so every time the app opens
+            // we renew the cookie from the live sign-in. Otherwise pages and API calls fail with "no user".
+            try {
+              await establishSessionCookie(await user.getIdToken());
+            } catch {
+              // the bootstrap below still works from the token itself
+            }
+            try {
+              await bootstrapUser(user);
+            } catch {
+              // one quiet retry: a network blip on refresh must not look like being signed out
+              await new Promise((r) => setTimeout(r, 1200));
+              await bootstrapUser(user);
+            }
             // the language and other settings follow the account to every device
             adoptAccountPrefs(user.uid).catch(() => null);
           } else {
             setUser(null);
+            // Not signed in on this browser: drop any leftover server cookie, or it bounces /login and the user has
+            // to clear their cache to sign in again.
+            const cleared = await fetch("/api/auth/session", { method: "DELETE" }).then((r) => r.ok, () => false);
+            const here = window.location.pathname;
+            // on a protected page the server now sees no cookie and sends them to sign in
+            if (cleared && here !== "/" && !/^\/(login|signup)(\/|$)/.test(here)) router.refresh();
           }
         } catch (err) {
           console.warn("Auth state change error:", err);
@@ -134,7 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return () => unsubscribe();
-  }, [setUser, bootstrapUser]);
+  }, [setUser, bootstrapUser, router]);
 
   const signInWithEmail = async (email: string, pass: string) => {
     setIsLoading(true);

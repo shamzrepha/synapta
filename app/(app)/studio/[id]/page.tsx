@@ -54,6 +54,8 @@ interface DesignMeta {
   ownerName: string;
   visibility: "private" | "public" | "class";
   classId: string | null;
+  kcId?: string | null;
+  labId?: string | null;
   challengeId: string | null;
   forkedFrom: { id: string; title: string; ownerName: string } | null;
   headCommitId: string;
@@ -270,6 +272,10 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   // Challenge entries are always Socratic
   const guideMode: GuideMode = design?.challengeId ? "challenge" : mode;
   const canEdit = !!data?.canEdit && !preview;
+  // a class lab goes back to its topic (the right tab), anything else back to Maker Studio
+  const fromTopic = !!design?.classId && !!design?.kcId;
+  const backHref = fromTopic ? `/classes/${design!.classId}/topics/${design!.kcId}?tab=${design!.labId?.endsWith("~proof") ? "prove" : "build"}` : "/studio";
+  const backLabel = fromTopic ? "Back to the topic" : "Back to Maker Studio";
 
   const parts3d = useMemo(() => (shown ? sceneParts(shown) : []), [shown]);
   const wires3d = useMemo(() => (shown ? sceneWires(shown) : []), [shown]);
@@ -813,7 +819,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     <div className="space-y-3">
       {/* header */}
       <div className="flex flex-wrap items-center gap-2">
-        <Link href="/studio" className="h-9 w-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Back to Maker Studio">
+        <Link href={backHref} className="h-9 w-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900" aria-label={backLabel}>
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="min-w-0 flex-1">

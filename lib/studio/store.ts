@@ -208,6 +208,7 @@ export function serializeDesign(id: string, d: FirebaseFirestore.DocumentData) {
     visibility: d.visibility,
     classId: d.classId || null,
     kcId: d.kcId || null,
+    labId: d.labId || null,
     templateId: d.templateId || null,
     challengeId: d.challengeId || null,
     forkedFrom: d.forkedFrom || null,
