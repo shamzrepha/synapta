@@ -88,8 +88,6 @@ export interface TurnAudio {
   nativeTriedAt?: number;
 }
 
-/** How often a clip recorded by the fallback voice is re-tried with the native voice (Igbo, Hausa). */
-const NATIVE_RETRY_MS = 30 * 60_000;
 
 /** Saved clips are per lesson version, line, and language (the original language has no suffix). */
 const clipId = (version: number, index: number, lang?: LanguageCode) => `c${version}_${index}${lang ? `_t${lang}` : ""}`;
@@ -238,22 +236,15 @@ export async function translatedClip(
   lang: LanguageCode,
   forceRerecord = false
 ): Promise<TurnAudio | null> {
+  // a line that is already recorded is never recorded again; only a teacher's re-record replaces it
   const saved = forceRerecord ? null : await readClip(classId, kcId, meta.version, index, lang, text);
-  // Igbo/Hausa clips recorded by the English-accented fallback voice are upgraded to Gemini's native voice the next
-  // time anyone plays them (tried at most every NATIVE_RETRY_MS, so a Gemini outage isn't hammered)
-  const upgrade = !!saved && speaksWithGemini(lang) && saved.engine !== "gemini" && Date.now() - (saved.nativeTriedAt ?? 0) > NATIVE_RETRY_MS;
-  if (saved && !upgrade) return saved;
+  if (saved) return saved;
   const turn = meta.turns[index];
-  if (!turn) return saved;
+  if (!turn) return null;
   // a teacher's deliberate re-record gets a fresh try; ordinary plays respect the breakers, so a voice outage
   // isn't hammered by every listener
   if (forceRerecord) resetVoiceBreakers();
   const clip = await synthesizeTurn(text, turn.speaker === "teacher" ? "teacher" : "student", meta.voiceStyle, lang);
-  if (upgrade && clip?.engine !== "gemini") {
-    // still no native voice: keep the clip we have and note the attempt
-    await audioCol(classId, kcId).doc(clipId(meta.version, index, lang)).set({ nativeTriedAt: Timestamp.now() }, { merge: true }).catch(() => null);
-    return saved;
-  }
   if (clip) await saveClip(classId, kcId, meta.version, index, clip, lang, text).catch(() => null);
   return clip ?? saved;
 }
@@ -268,8 +259,8 @@ const JOB_STALE_MS = 90_000;
 const JOB_BUDGET_MS = 250_000;
 /** After this many failed attempts in a row a line is reported as unavailable (never replaced by English)... */
 export const MAX_LINE_FAILS = 3;
-/** ...until this long after its last failure, when it is tried again (a used-up AI allowance resets). */
-const FAIL_EXPIRY_MS = 10 * 60_000;
+/** ...until this long after its last failure, when it is tried again automatically. */
+const FAIL_EXPIRY_MS = 2 * 60_000;
 
 const jobId = (version: number, lang: LanguageCode) => `job_${version}_${lang}`;
 
@@ -285,10 +276,8 @@ async function clipHead(classId: string, kcId: string, version: number, index: n
 }
 
 /** True when a saved translated clip matches the text and needs no native-voice upgrade (now). */
-function headIsDone(head: ClipHead | null, lang: LanguageCode, text: string): boolean {
-  if (!head || head.textSample !== text.slice(0, 120)) return false;
-  if (!speaksWithGemini(lang) || head.engine === "gemini") return true;
-  return Date.now() - (head.nativeTriedAt?.toMillis() ?? 0) < NATIVE_RETRY_MS;
+function headIsDone(head: ClipHead | null, text: string): boolean {
+  return !!head && head.textSample === text.slice(0, 120);
 }
 
 /** Lines of this language's job that keep failing (index -> attempts); failures older than FAIL_EXPIRY_MS are forgotten. */
@@ -343,24 +332,31 @@ export async function prepareLanguage(
     const start = Math.max(0, all.findIndex((i) => i >= from));
     const order = [...all.slice(start), ...all.slice(0, start)];
     let next = 0;
-    const worker = async () => {
-      while (next < order.length && Date.now() < deadline) {
-        const i = order[next++];
-        const text = map.get(meta.turns[i].text);
-        if ((failed[i] ?? 0) >= MAX_LINE_FAILS) continue;
-        if (!text) {
-          fail(i);
-          continue;
-        }
-        if (headIsDone(await clipHead(classId, kcId, meta.version, i, lang).catch(() => null), lang, text)) continue;
-        const clip = await translatedClip(classId, kcId, meta, i, text, lang).catch(() => null);
-        if (!clip) fail(i);
-        else {
-          delete failed[i];
-          delete failedAt[i];
-        }
-        await ref.update({ beatAt: Timestamp.now(), failed, failedAt }).catch(() => null);
+    // one line at a time per worker: record it, or count a failure; lines that failed in this run get one more
+    // try at the end (a busy voice or translation often succeeds a minute later)
+    const retry: number[] = [];
+    const attempt = async (i: number, again: boolean) => {
+      if ((failed[i] ?? 0) >= MAX_LINE_FAILS) return;
+      const text = map.get(meta.turns[i].text);
+      if (!text) {
+        fail(i);
+        if (!again) retry.push(i);
+        return;
       }
+      if (headIsDone(await clipHead(classId, kcId, meta.version, i, lang).catch(() => null), text)) return;
+      const clip = await translatedClip(classId, kcId, meta, i, text, lang).catch(() => null);
+      if (!clip) {
+        fail(i);
+        if (!again) retry.push(i);
+      } else {
+        delete failed[i];
+        delete failedAt[i];
+      }
+      await ref.update({ beatAt: Timestamp.now(), failed, failedAt }).catch(() => null);
+    };
+    const worker = async () => {
+      while (next < order.length && Date.now() < deadline) await attempt(order[next++], false);
+      while (retry.length && Date.now() < deadline) await attempt(retry.shift()!, true);
     };
     await Promise.all([worker(), worker()]);
   } finally {
