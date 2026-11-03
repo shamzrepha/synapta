@@ -1,5 +1,6 @@
 "use client";
 
+import { LearnAnything } from "@/components/home/learn-anything";
 import React, { useState, useEffect } from "react";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -138,12 +139,14 @@ export default function DashboardPage() {
         }}
       />
 
+      <LearnAnything />
+
       <section aria-label="What do you want to do?" className="space-y-2">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">What do you want to do?</h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             { e: "🎓", t: "Go to my classes", d: "Lessons, quizzes, labs", h: "/classes/manage" },
-            { e: "✨", t: "Get help studying", d: "AI tutor, notes, practice", h: "/study" },
+            { e: "✨", t: "Get help studying", d: "Notes from any PDF or photo, tutor, practice", h: "/study" },
             { e: "🛠️", t: "Build something", d: "Circuits, robots, 3D", h: "/studio" },
             { e: "💬", t: "Meet people", d: "Friends, chat, challenges", h: "/community" },
           ].map((x) => (

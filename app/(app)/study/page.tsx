@@ -7,6 +7,7 @@ export default function StudyHub() {
       title="Your self-study workspace"
       intro="Everything you do on your own: chat with your own notes, build things in the Maker Studio, and practise what you find hard."
       start={[
+        { title: "Study notes", href: "/study/notes", emoji: "📝", blurb: "Upload a PDF, a scan or a photo of your notes and get clean, structured notes you can refine." },
         { title: "AI Notebook", href: "/notebook", emoji: "📓", blurb: "Upload a PDF or notes, chat with it (with sources), and turn it into a two-host audio podcast." },
         { title: "Maker Studio", href: "/studio", emoji: "🛠️", blurb: "Build circuits, robots and 3D designs, test them with simulated physics, and share them." },
         { title: "Ask the AI tutor", href: "/tutor", emoji: "✨", blurb: "Stuck? Ask anything and get a step-by-step answer." },

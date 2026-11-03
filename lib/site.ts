@@ -4,9 +4,9 @@
  */
 export const SITE_NAME = "Sunroot Learning";
 export const SITE_ALT_NAME = "SunrootLearning";
-export const SITE_TAGLINE = "Interactive Labs, Adaptive Practice and AI Study Help";
+export const SITE_TAGLINE = "AI Study Help for Any Subject: Notes, Interactive Lessons and Labs";
 export const SITE_DESCRIPTION =
-  "Study smarter with interactive physics and electronics labs, adaptive practice, AI help on your own notes and live quiz challenges.";
+  "Study any subject smarter: upload your notes (even handwritten photos), get clean notes and interactive lessons, adaptive practice and AI help, plus virtual labs for science and engineering.";
 
 const FALLBACK_URL = "https://synapta-zeta.vercel.app";
 
