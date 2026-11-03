@@ -44,6 +44,8 @@ import { LanguagePreview } from "@/components/lesson/language-preview";
 import { PracticeBankTools } from "@/components/lesson/practice-bank-tools";
 import { ReadAloud } from "@/components/ui/read-aloud";
 import { ShareButton, SaveButton } from "@/components/social/share-button";
+import { StudyProfileCard } from "@/components/study/profile-card";
+import { resolveProfile, type StudyProfile } from "@/lib/study/profile";
 
 interface KcDetails {
   id: string;
@@ -53,6 +55,9 @@ interface KcDetails {
   objectives?: string[];
   prerequisiteIds?: string[];
   lab?: { type: string; config?: Record<string, unknown> };
+  /** what this topic needs (set by AI or the teacher); older topics are guessed from their words */
+  studyProfile?: unknown;
+  labs?: unknown;
   /** what the teacher has published (teachers also see drafts) */
   published?: PublishState;
 }
@@ -119,6 +124,19 @@ export default function TopicPage({
       return () => clearTimeout(h);
     }
   }, []);
+
+  // A topic nobody has classified yet: the teacher's first visit lets AI decide what it needs (once)
+  const classifiedRef = useRef(false);
+  useEffect(() => {
+    if (!canManage || !kc || kc.studyProfile || classifiedRef.current) return;
+    classifiedRef.current = true;
+    fetch(`/api/classes/${classId}/kcs/${kcId}/profile`, { method: "POST" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.ok) setKc((prev) => (prev ? { ...prev, studyProfile: j.data.profile } : prev));
+      })
+      .catch(() => null);
+  }, [canManage, kc, classId, kcId]);
 
   // Lesson generation
   const [lessonBusy, setLessonBusy] = useState(false);
@@ -392,8 +410,21 @@ export default function TopicPage({
     { key: "build", label: "Build & test", icon: <Wrench className="h-4 w-4" /> },
     { key: "tutor", label: "AI Tutor", icon: <MessageSquare className="h-4 w-4" /> },
   ];
-  const stepTabs = tabs.filter((t) => t.step);
+  const profile = resolveProfile(kc);
+  const shownKeys: Record<Tab, boolean> = {
+    learn: true,
+    simulate: profile.needs.simulation,
+    flashcards: profile.needs.flashcards,
+    quiz: profile.needs.practice,
+    prove: profile.needs.prove,
+    build: profile.needs.build,
+    tutor: profile.needs.tutor,
+  };
+  const visibleTabs = tabs.filter((t) => shownKeys[t.key]).map((t, i, all) => (t.step ? { ...t, step: all.slice(0, i + 1).filter((x) => x.step).length } : t));
+  const stepTabs = visibleTabs.filter((t) => t.step);
   const stepNow = stepTabs.findIndex((t) => t.key === activeTab);
+  // a deep link to a tab this topic doesn't have lands on Read & listen
+  const shownTab: Tab = shownKeys[activeTab] ? activeTab : "learn";
   const nextStep = stepNow >= 0 ? stepTabs[stepNow + 1] : undefined;
 
   return (
@@ -431,11 +462,12 @@ export default function TopicPage({
               </button>
             </div>
           )}
-          {canManage && <PublishBar classId={classId} kcId={kcId} refreshKey={`${activeTab}-${lessonBusy ? 1 : 0}`} />}
+          {canManage && <StudyProfileCard classId={classId} kcId={kcId} profile={profile} onChange={(p: StudyProfile) => setKc((prev) => (prev ? { ...prev, studyProfile: p } : prev))} />}
+          {canManage && <PublishBar classId={classId} kcId={kcId} refreshKey={`${shownTab}-${lessonBusy ? 1 : 0}`} />}
 
           {/* Tabs: scrollable on phones */}
           <div className="flex items-center gap-1 border-b border-slate-200 dark:border-slate-800 pb-1 overflow-x-auto -mx-1 px-1">
-            {tabs.map((t) => (
+            {visibleTabs.map((t) => (
               <button
                 key={t.key}
                 onClick={() => {
@@ -444,7 +476,7 @@ export default function TopicPage({
                 }}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all whitespace-nowrap",
-                  activeTab === t.key
+                  shownTab === t.key
                     ? "bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
                 )}
@@ -456,7 +488,7 @@ export default function TopicPage({
           <div className="flex flex-wrap items-center gap-2 -mt-2">
             <p className="text-xs text-slate-500 flex-1 min-w-0">
               {stepNow >= 0 && <b className="text-teal-700 dark:text-teal-300">Step {stepNow + 1} of {stepTabs.length}. </b>}
-              {TAB_HINT[activeTab]}
+              {TAB_HINT[shownTab]}
             </p>
             {nextStep && (
               <Button size="sm" variant="outline" onClick={() => { setActiveTab(nextStep.key); nextStep.onOpen?.(); }}>
@@ -466,7 +498,7 @@ export default function TopicPage({
           </div>
 
           {/* LEARN */}
-          {activeTab === "learn" && (
+          {shownTab === "learn" && (
             <div className="space-y-4">
               {(canManage || pub.audio) && !lessonIsThin && <AudioLesson classId={classId} kcId={kcId} viewLang={viewLang} />}
               {!canManage && !pub.lesson ? notPublished("lecture note") : (
@@ -540,22 +572,22 @@ export default function TopicPage({
               )}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button
+                {profile.needs.simulation && <button
                   onClick={() => setActiveTab("simulate")}
                   className="text-left p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-amber-500/60 transition-all"
                 >
                   <Gamepad2 className="h-5 w-5 text-amber-500 mb-2" />
                   <p className="font-semibold text-sm">Play the simulation</p>
                   <p className="text-xs text-slate-500">Experiment and beat the challenge</p>
-                </button>
-                <button
+                </button>}
+                {profile.needs.practice && <button
                   onClick={() => setActiveTab("quiz")}
                   className="text-left p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-teal-500/60 transition-all"
                 >
                   <HelpCircle className="h-5 w-5 text-teal-500 mb-2" />
                   <p className="font-semibold text-sm">Take a quiz</p>
                   <p className="text-xs text-slate-500">5–15 questions, instant feedback</p>
-                </button>
+                </button>}
                 <button
                   onClick={() => setActiveTab("tutor")}
                   className="text-left p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500/60 transition-all"
@@ -574,8 +606,8 @@ export default function TopicPage({
           )}
 
           {/* SIMULATE */}
-          {activeTab === "simulate" && !canManage && !pub.simulation && notPublished("simulation")}
-          {activeTab === "simulate" && (canManage || pub.simulation) && (
+          {shownTab === "simulate" && !canManage && !pub.simulation && notPublished("simulation")}
+          {shownTab === "simulate" && (canManage || pub.simulation) && (
             <Card className="p-4 md:p-6 space-y-4">
               <AiSimulation classId={classId} kcId={kcId} topicTitle={kc.title} onEvidence={applyEvidenceUpdate} />
 
@@ -626,7 +658,7 @@ export default function TopicPage({
 
           {/* FLASHCARDS */}
           {/* self-study: flashcards and quizzes are open to every member; graded work goes through assignments */}
-          {activeTab === "flashcards" && (
+          {shownTab === "flashcards" && (
             <Card className="p-6 space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
@@ -715,17 +747,17 @@ export default function TopicPage({
           )}
 
           {/* QUIZ */}
-          {activeTab === "prove" && <ProveIt classId={classId} kcId={kcId} topicTitle={kc.title} />}
-          {activeTab === "build" && <TopicLabs classId={classId} kcId={kcId} topicTitle={kc.title} />}
+          {shownTab === "prove" && <ProveIt classId={classId} kcId={kcId} topicTitle={kc.title} />}
+          {shownTab === "build" && <TopicLabs classId={classId} kcId={kcId} topicTitle={kc.title} />}
 
-          {activeTab === "quiz" && (
+          {shownTab === "quiz" && (
             <Card className="p-4 md:p-6">
               <QuizPlayer classId={classId} kcId={kcId} onEvidence={applyEvidenceUpdate} viewLang={viewLang} />
             </Card>
           )}
 
           {/* TUTOR */}
-          {activeTab === "tutor" && (
+          {shownTab === "tutor" && (
             <Card className="flex flex-col h-[min(75vh,620px)]">
               <CardHeader className="py-3 px-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
                 <div className="flex items-center justify-between gap-2">
