@@ -2,7 +2,7 @@ import { z } from "zod";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import type { AuthUser } from "@/lib/auth/requireUser";
-import { createDesign } from "./store";
+import { commitDesign, createDesign } from "./store";
 import { getTemplate, templateStart } from "./templates";
 import { parseSpec, type DesignSpec } from "./spec";
 import { canProve, proofSpec } from "./proof";
@@ -41,7 +41,7 @@ export async function readLabs(classId: string, kcId: string): Promise<Lab[]> {
 }
 
 /** The teacher's version of a lab (the pushed snapshot when there is one). Never shown to a learner doing "Prove it". */
-async function labReference(lab: Lab): Promise<{ spec: DesignSpec; forkedFrom: { id: string; title: string; ownerName: string; commitId: string } | null }> {
+async function labReference(lab: Lab, full = false): Promise<{ spec: DesignSpec; forkedFrom: { id: string; title: string; ownerName: string; commitId: string } | null }> {
   if (lab.designId) {
     const src = await adminDb().collection("designs").doc(lab.liveDesignId || lab.designId).get();
     if (!src.exists) throw new ApiError(404, "NOT_FOUND", "This lab's design was removed by the teacher.");
@@ -52,7 +52,8 @@ async function labReference(lab: Lab): Promise<{ spec: DesignSpec; forkedFrom: {
   }
   const t = getTemplate(lab.templateId || "");
   if (!t) throw new ApiError(404, "NOT_FOUND", "Lab template not found");
-  return { spec: templateStart(t, true), forkedFrom: null };
+  // "Build & test" shows the finished, working build (code included); the guided starter is what "Prove it" rebuilds from
+  return { spec: templateStart(t, !full), forkedFrom: null };
 }
 
 /** Whether "Prove it" can rebuild this lab (its reference has circuit parts to buy). Never throws. */
@@ -76,8 +77,22 @@ export async function startLab(user: AuthUser, classId: string, kcId: string, la
   const db = adminDb();
   const labKey = opts.proof ? proofLabKey(classId, kcId, lab.id) : `${classId}/${kcId}/${lab.id}`;
   const existing = await db.collection("designs").where("ownerUid", "==", user.uid).where("labId", "==", labKey).limit(1).get();
-  if (!existing.empty) return existing.docs[0].id;
-  const ref = await labReference(lab);
+  if (!existing.empty) {
+    const doc = existing.docs[0];
+    // copies opened before the working build was shipped came up empty: fill an untouched one in once
+    if (!opts.proof && lab.templateId && !lab.designId && (doc.data().commitCount || 1) <= 1) {
+      try {
+        const full = await labReference(lab, true);
+        if (JSON.stringify(parseSpec(doc.data().spec)) !== JSON.stringify(full.spec)) {
+          await commitDesign({ id: doc.id, user, spec: full.spec, parentId: String(doc.data().headCommitId), message: "Working build added", source: "template" });
+        }
+      } catch {
+        // keep the copy as it is
+      }
+    }
+    return doc.id;
+  }
+  const ref = await labReference(lab, !opts.proof);
   let spec = ref.spec;
   if (opts.proof) {
     const empty = proofSpec(spec);

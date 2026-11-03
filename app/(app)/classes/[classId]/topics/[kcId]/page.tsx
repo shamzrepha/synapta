@@ -84,7 +84,7 @@ const TUTOR_STARTERS = [
 const TAB_HINT: Record<Tab, string> = {
   learn: "Read the lesson, or press play to listen to it as a short podcast.",
   simulate: "Play with an interactive model: change things on screen and watch what happens.",
-  build: "Build a small circuit or machine for this topic in Maker Studio, then test it with simulated physics. Your build is saved in My designs under Make.",
+  build: "See a finished, working build for this topic: open it, read the code, run it and change it to see what happens. Then try Prove it to rebuild it yourself.",
   flashcards: "Quick flashcards to remember the key points.",
   quiz: "Answer a few questions. Your answers update your mastery score, and wrong ones go to your review list.",
   prove: "Rebuild it yourself from an empty bench: pick the parts, place them, wire them and program them. The Studio checks each step.",
@@ -111,11 +111,11 @@ export default function TopicPage({
   const viewLang = prefs.language !== "en" && !showOriginal ? prefs.language : null;
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("learn");
-  // Deep link: ?tab=build (lab notifications)
+  // Deep link: ?tab=build or ?tab=prove (lab notifications, and the Back button inside a lab)
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t === "build") {
-      const h = setTimeout(() => setActiveTab("build"), 0);
+    if (t === "build" || t === "prove") {
+      const h = setTimeout(() => setActiveTab(t), 0);
       return () => clearTimeout(h);
     }
   }, []);
