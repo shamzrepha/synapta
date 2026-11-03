@@ -101,4 +101,11 @@ describe("preparing a podcast in another language", () => {
     await prepareLanguage("c", "k", meta, "fr", translate);
     expect(speak).toHaveBeenCalledTimes(3);
   });
+
+  it("forgets failures after a while, so a line is tried again once the AI allowance resets", async () => {
+    docs.set("job_3_fr", { running: false, beatAt: ts(), failed: { 0: MAX_LINE_FAILS }, failedAt: { 0: Date.now() - 11 * 60_000 } });
+    expect(await languageFailures("c", "k", 3, "fr")).toEqual({});
+    await prepareLanguage("c", "k", meta, "fr", translate);
+    expect(speak).toHaveBeenCalledTimes(3);
+  });
 });
