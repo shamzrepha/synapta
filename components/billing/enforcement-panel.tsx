@@ -67,7 +67,7 @@ export function EnforcementPanel() {
       </div>
       <div className="space-y-2">
         <p className="text-xs font-semibold">Test accounts</p>
-        {s.testers.length === 0 && <p className="text-xs text-slate-500">None yet. Add your dummy account's email.</p>}
+        {s.testers.length === 0 && <p className="text-xs text-slate-500">None yet. Add your dummy account&apos;s email.</p>}
         <ul className="space-y-1">
           {s.testers.map((t) => (
             <li key={t.uid} className="flex items-center gap-2 text-xs">
