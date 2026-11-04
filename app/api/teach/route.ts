@@ -10,6 +10,7 @@ import { extractJsonPayload, generateWithFallback } from "@/lib/ai/router";
 import { lessonForStudents } from "@/lib/classes/live";
 import { classSourceLanguage, localizeFor } from "@/lib/i18n/serve";
 import { loadOwnNote, readVersions } from "@/lib/study/notes-store";
+import { searchImages } from "@/lib/images/commons";
 import { SCRIPT_SYSTEM, fallbackScript, parseScript, type LessonScript } from "@/lib/teach/script";
 
 export const runtime = "nodejs";
@@ -35,12 +36,26 @@ async function writeScript(title: string, material: string, userId: string, lear
       const r = await ask(attempt ? "\nYour previous answer was not valid. Return ONLY the JSON object described, using only the listed block types." : "");
       const json = extractJsonPayload(r.text || "");
       const script = parseScript(json);
-      if (script) return { script, fromAi: true };
+      if (script) return { script: await attachPictures(script), fromAi: true };
     } catch {
       // try once more, then fall back to the notes themselves
     }
   }
   return { script: fallbackScript(title, material), fromAi: false };
+}
+
+/** Fetches a real, licensed picture for every figure scene; a scene with no picture becomes a plain text scene (never a broken box). */
+async function attachPictures(script: LessonScript): Promise<LessonScript> {
+  const scenes = await Promise.all(
+    script.scenes.map(async (sc) => {
+      if (sc.block.type !== "figure" || sc.block.src) return sc;
+      const found = (await searchImages(sc.block.query, 1))[0];
+      if (found) return { ...sc, block: { ...sc.block, src: { url: found.url, page: found.page, author: found.author, license: found.license } } };
+      const bullets = sc.block.parts.map((p) => (p.detail ? `${p.name}: ${p.detail}` : p.name));
+      return { ...sc, block: { type: "text" as const, heading: sc.block.caption || sc.block.query, bullets } };
+    })
+  );
+  return { ...script, scenes };
 }
 
 /**

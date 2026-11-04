@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { clamp, isValidExpression } from "./math";
+import { isAllowedImageUrl } from "@/lib/images/commons";
+import { parseFormula } from "./chem";
 
 /**
  * A lesson script: the AI writes JSON that picks blocks from a fixed set and fills in their numbers. The browser only ever
@@ -25,6 +27,23 @@ export const blockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("motion"), v0: num(1, 100).default(20), angle: num(5, 85).default(45), g: num(1, 25).default(9.81) }),
   z.object({ type: z.literal("fraction"), num: num(0, 40).default(3), den: num(1, 40).default(4) }),
   z.object({ type: z.literal("timeline"), items: z.array(z.object({ label: str(40), detail: str(200).default("") })).min(2).max(8) }),
+  z.object({
+    type: z.literal("figure"),
+    /** what to look for ("Arduino Uno board", "plant cell diagram"); the server fetches a real, licensed picture for it */
+    query: str(100),
+    caption: str(160).default(""),
+    /** the named parts shown beside the picture */
+    parts: z.array(z.object({ name: str(40), detail: str(160).default("") })).max(8).default([]),
+    /** filled in by the server after the AI writes the script; under the key "src" so translation leaves it alone */
+    src: z.object({ url: z.string(), page: z.string(), author: z.string(), license: z.string() }).optional(),
+  }),
+  z.object({ type: z.literal("check"), question: str(240), options: z.array(str(120)).min(2).max(4), answer: z.number().int().min(0).max(3), explain: str(240).default("") }),
+  z.object({ type: z.literal("flow"), steps: z.array(z.object({ label: str(40), detail: str(160).default("") })).min(2).max(7) }),
+  z.object({
+    type: z.literal("balance"),
+    reactants: z.array(z.object({ formula: str(30), coef: num(1, 12) })).min(1).max(4),
+    products: z.array(z.object({ formula: str(30), coef: num(1, 12) })).min(1).max(4),
+  }),
   z.object({ type: z.literal("compare"), left: z.object({ title: str(40), points: z.array(str(120)).max(5) }), right: z.object({ title: str(40), points: z.array(str(120)).max(5) }) }),
 ]);
 export type Block = z.output<typeof blockSchema>;
@@ -32,7 +51,7 @@ export type Block = z.output<typeof blockSchema>;
 export const sceneSchema = z.object({ narration: str(600), caption: str(120).default(""), block: blockSchema });
 export type Scene = z.output<typeof sceneSchema>;
 
-export const lessonScriptSchema = z.object({ title: str(100), scenes: z.array(z.unknown()).min(1).max(14) });
+export const lessonScriptSchema = z.object({ title: str(100), scenes: z.array(z.unknown()).min(1).max(20) });
 export interface LessonScript {
   title: string;
   scenes: Scene[];
@@ -75,6 +94,12 @@ function sanitizeBlock(b: Block): Block | null {
       return { ...b, num: Math.min(b.num, b.den * 2) };
     case "text":
       return b.heading || b.bullets.length ? b : null;
+    case "figure":
+      return b.src && !isAllowedImageUrl(b.src.url) ? { ...b, src: undefined } : b;
+    case "check":
+      return b.answer < b.options.length ? b : null;
+    case "balance":
+      return [...b.reactants, ...b.products].every((t) => parseFormula(t.formula)) ? b : null;
     default:
       return b;
   }
@@ -105,5 +130,9 @@ Write 5 to 10 scenes in teaching order: hook, build the idea, let the learner tr
 - {"type":"motion","v0":20,"angle":45,"g":9.81} an animated projectile.
 - {"type":"fraction","num":3,"den":4} an interactive fraction bar.
 - {"type":"timeline","items":[{"label":"1884","detail":"..."}]} for history, processes and sequences.
+- {"type":"figure","query":"Arduino Uno board","caption":"...","parts":[{"name":"USB port","detail":"powers and programs the board"}]} a real picture from the internet with its named parts. Use it whenever the learner needs to SEE a real object, equipment, organ, map or diagram. "query" must be a short, specific search phrase in English.
+- {"type":"flow","steps":[{"label":"Collect","detail":"..."}]} a process or procedure shown step by step.
+- {"type":"balance","reactants":[{"formula":"H2","coef":2},{"formula":"O2","coef":1}],"products":[{"formula":"H2O","coef":2}]} a chemical equation the learner balances; coef is the correct answer. Formulas like Ca(OH)2.
+- {"type":"check","question":"...","options":["...","..."],"answer":0,"explain":"..."} one quick question with instant feedback. End every lesson with one.
 - {"type":"compare","left":{"title":"...","points":["..."]},"right":{"title":"...","points":["..."]}} for contrasts.
 Pick the block that makes the idea visible and let the learner play with it. Use only facts from the notes provided; do not invent figures. Plain text only inside strings (no markdown).`;

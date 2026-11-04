@@ -14,7 +14,7 @@ const SPEEDS = [0.75, 1, 1.5];
  * Plays a lesson scene by scene: an animated, interactive block, the teacher's narration (spoken, and always shown as text),
  * with play/pause, step back/forward and a speed control. Works without sound, and a failed voice never stops the lesson.
  */
-export function TeachPlayer({ script }: { script: LessonScript }) {
+export function TeachPlayer({ script, finish }: { script: LessonScript; finish?: { label: string; onClick: () => void } }) {
   const [i, setI] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [voice, setVoice] = useState(true);
@@ -95,6 +95,12 @@ export function TeachPlayer({ script }: { script: LessonScript }) {
           ))}
         </div>
       </div>
+
+      {finish && i >= total - 1 && (
+        <button type="button" onClick={finish.onClick} className="w-full rounded-xl border-2 border-teal-600 px-4 py-2.5 text-sm font-bold text-teal-700 dark:text-teal-300 hover:bg-teal-500/10">
+          {finish.label}
+        </button>
+      )}
 
       <div className="flex justify-center gap-1.5" role="tablist" aria-label="Scenes">
         {script.scenes.map((s, k) => (

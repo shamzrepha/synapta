@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { clamp, fractionFacts, projectileAt, projectileSummary, round, sampleFunction, triangleSquares } from "@/lib/teach/math";
+import { isBalanced, countSide, subscripts } from "@/lib/teach/chem";
 import type { Block } from "@/lib/teach/script";
 
 type Of<T extends Block["type"]> = Extract<Block, { type: T }>;
@@ -275,6 +276,144 @@ export function CompareBlock({ b }: { b: Of<"compare"> }) {
   );
 }
 
+export function FigureBlock({ b, ms }: { b: Of<"figure">; ms: number }) {
+  const [shown] = useReveal(b.parts.length, ms, b);
+  const [broken, setBroken] = useState(false);
+  return (
+    <div className="space-y-3">
+      {b.src && !broken ? (
+        <figure className="space-y-1">
+          {/* a real picture from Wikimedia Commons; plain <img> because the host is fixed and the licence line must stay visible */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={b.src.url} alt={b.caption || b.query} loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="mx-auto max-h-72 w-auto max-w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white object-contain" />
+          <figcaption className="text-center text-[11px] text-slate-500">
+            {b.caption && <span className="block text-xs text-slate-700 dark:text-slate-200 font-semibold">{b.caption}</span>}
+            <a href={b.src.page} target="_blank" rel="noopener noreferrer" className="underline">{b.src.author}, {b.src.license}, via Wikimedia Commons</a>
+          </figcaption>
+        </figure>
+      ) : (
+        <p className="rounded-xl border border-dashed border-slate-300 dark:border-slate-700 p-4 text-center text-xs text-slate-500">{b.caption || b.query} (no picture available right now)</p>
+      )}
+      {b.parts.length > 0 && (
+        <ol className="grid gap-1.5 sm:grid-cols-2">
+          {b.parts.map((p, i) => (
+            <li key={i} className={`flex gap-2 rounded-lg border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 text-xs transition-all duration-500 ${i < shown ? "opacity-100" : "opacity-0"}`}>
+              <span className="font-mono font-bold text-teal-600">{i + 1}</span>
+              <span><b>{p.name}</b>{p.detail ? `: ${p.detail}` : ""}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+export function CheckBlock({ b }: { b: Of<"check"> }) {
+  const [picked, setPicked] = useState<number | null>(null);
+  const done = picked !== null;
+  return (
+    <div className="space-y-3">
+      <p className="font-bold text-sm md:text-base">{b.question}</p>
+      <div className="space-y-2" role="group" aria-label="Answers">
+        {b.options.map((o, i) => {
+          const right = i === b.answer;
+          return (
+            <button
+              key={i}
+              type="button"
+              disabled={done}
+              onClick={() => setPicked(i)}
+              className={`w-full text-left rounded-xl border px-3 py-2 text-sm transition-colors ${done ? (right ? "border-emerald-500 bg-emerald-500/10" : i === picked ? "border-rose-500 bg-rose-500/10" : "border-slate-200 dark:border-slate-800 opacity-60") : "border-slate-300 dark:border-slate-700 hover:border-teal-500"}`}
+            >
+              {o}
+            </button>
+          );
+        })}
+      </div>
+      {done && (
+        <p className={`text-sm font-semibold ${picked === b.answer ? "text-emerald-600" : "text-rose-600"}`} role="status">
+          {picked === b.answer ? "Correct! " : "Not quite. "}
+          <span className="font-normal text-slate-600 dark:text-slate-300">{b.explain}</span>
+        </p>
+      )}
+      {done && (
+        <button type="button" onClick={() => setPicked(null)} className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Try again</button>
+      )}
+    </div>
+  );
+}
+
+export function FlowBlock({ b, ms }: { b: Of<"flow">; ms: number }) {
+  const [shown, setShown] = useReveal(b.steps.length, ms * 1.6, b);
+  return (
+    <div className="space-y-2">
+      <ol className="space-y-1">
+        {b.steps.map((st, i) => (
+          <li key={i} className={`transition-all duration-500 ${i < shown ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
+            <div className="flex items-start gap-3 rounded-xl border border-teal-500/40 bg-teal-500/5 px-3 py-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white">{i + 1}</span>
+              <div>
+                <p className="font-bold text-sm">{st.label}</p>
+                {st.detail && <p className="text-xs text-slate-600 dark:text-slate-300">{st.detail}</p>}
+              </div>
+            </div>
+            {i < b.steps.length - 1 && <p className="text-center text-teal-500 leading-none" aria-hidden>↓</p>}
+          </li>
+        ))}
+      </ol>
+      {shown < b.steps.length && (
+        <button type="button" onClick={() => setShown((n) => n + 1)} className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Show the next step</button>
+      )}
+    </div>
+  );
+}
+
+export function BalanceBlock({ b }: { b: Of<"balance"> }) {
+  const [re, setRe] = useState(b.reactants.map(() => 1));
+  const [pr, setPr] = useState(b.products.map(() => 1));
+  const L = b.reactants.map((t, i) => ({ formula: t.formula, coef: re[i] }));
+  const R = b.products.map((t, i) => ({ formula: t.formula, coef: pr[i] }));
+  const ok = isBalanced(L, R);
+  const a = countSide(L) || {};
+  const c = countSide(R) || {};
+  const els = [...new Set([...Object.keys(a), ...Object.keys(c)])];
+  const stepper = (val: number, set: (n: number) => void, label: string) => (
+    <span className="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-700">
+      <button type="button" aria-label={`Less ${label}`} onClick={() => set(Math.max(1, val - 1))} className="h-8 w-7 text-base">−</button>
+      <span className="w-6 text-center font-mono font-bold">{val}</span>
+      <button type="button" aria-label={`More ${label}`} onClick={() => set(Math.min(12, val + 1))} className="h-8 w-7 text-base">+</button>
+    </span>
+  );
+  const side = (items: typeof b.reactants, vals: number[], setVals: React.Dispatch<React.SetStateAction<number[]>>) =>
+    items.map((t, i) => (
+      <span key={i} className="inline-flex items-center gap-1.5">
+        {i > 0 && <span className="text-slate-400">+</span>}
+        {stepper(vals[i], (n) => setVals((o) => o.map((x, k) => (k === i ? n : x))), t.formula)}
+        <span className="font-semibold text-base">{subscripts(t.formula)}</span>
+      </span>
+    ));
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
+        {side(b.reactants, re, setRe)}
+        <span className="px-1 text-lg">→</span>
+        {side(b.products, pr, setPr)}
+      </div>
+      <table className="mx-auto text-xs font-mono">
+        <thead><tr className="text-slate-500"><th className="px-3 text-left">atom</th><th className="px-3">left</th><th className="px-3">right</th></tr></thead>
+        <tbody>
+          {els.map((el) => (
+            <tr key={el} className={(a[el] || 0) === (c[el] || 0) ? "text-emerald-600" : "text-rose-600"}>
+              <td className="px-3 font-bold">{el}</td><td className="px-3 text-center">{a[el] || 0}</td><td className="px-3 text-center">{c[el] || 0}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className={`text-center text-sm font-bold ${ok ? "text-emerald-600" : "text-slate-500"}`} role="status">{ok ? "Balanced! Both sides have the same atoms." : "Change the numbers until every atom matches."}</p>
+    </div>
+  );
+}
+
 /** Draws one block. The blocks are the only things an AI lesson can show, so nothing the AI writes is ever executed. */
 export function BlockView({ block, ms }: { block: Block; ms: number }) {
   switch (block.type) {
@@ -294,5 +433,13 @@ export function BlockView({ block, ms }: { block: Block; ms: number }) {
       return <TimelineBlock b={block} ms={ms} />;
     case "compare":
       return <CompareBlock b={block} />;
+    case "figure":
+      return <FigureBlock b={block} ms={ms} />;
+    case "check":
+      return <CheckBlock b={block} />;
+    case "flow":
+      return <FlowBlock b={block} ms={ms} />;
+    case "balance":
+      return <BalanceBlock b={block} />;
   }
 }
