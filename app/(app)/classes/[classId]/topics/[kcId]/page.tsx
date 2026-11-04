@@ -752,7 +752,7 @@ export default function TopicPage({
 
           {/* QUIZ */}
           {shownTab === "prove" && <ProveIt classId={classId} kcId={kcId} topicTitle={kc.title} />}
-          {shownTab === "teach" && <TeachPanel source={{ type: "kc", classId, kcId }} canRegenerate={canManage} />}
+          {shownTab === "teach" && <TeachPanel source={{ type: "kc", classId, kcId }} canRegenerate={canManage} finish={profile.needs.practice ? { label: "Take the quiz to count toward your mastery →", onClick: () => setActiveTab("quiz") } : undefined} />}
           {shownTab === "build" && <TopicLabs classId={classId} kcId={kcId} topicTitle={kc.title} />}
 
           {shownTab === "quiz" && (

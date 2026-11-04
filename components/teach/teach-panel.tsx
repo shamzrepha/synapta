@@ -11,7 +11,7 @@ import type { LessonScript } from "@/lib/teach/script";
 export type TeachSource = { type: "kc"; classId: string; kcId: string } | { type: "note"; id: string };
 
 /** Fetches (and the first time, writes) the interactive lesson for a topic or notes, then plays it. */
-export function TeachPanel({ source, canRegenerate = false }: { source: TeachSource; canRegenerate?: boolean }) {
+export function TeachPanel({ source, canRegenerate = false, finish }: { source: TeachSource; canRegenerate?: boolean; finish?: { label: string; onClick: () => void } }) {
   const [script, setScript] = useState<LessonScript | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
@@ -50,7 +50,7 @@ export function TeachPanel({ source, canRegenerate = false }: { source: TeachSou
     );
   return (
     <div className="space-y-2">
-      {script && <TeachPlayer script={script} />}
+      {script && <TeachPlayer script={script} finish={finish} />}
       {canRegenerate && (
         <div className="flex justify-end">
           <Button size="sm" variant="outline" disabled={busy} onClick={() => load(true)}>

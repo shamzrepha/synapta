@@ -1,4 +1,4 @@
-import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { MAX_VERSIONS } from "./notes";
 
@@ -28,7 +28,8 @@ export async function addVersion(id: string, markdown: string, instruction: stri
     const snap = await tx.get(ref);
     const next = (Number(snap.data()?.head) || 0) + 1;
     tx.set(versions.doc(String(next)), { n: next, markdown, instruction: instruction.slice(0, 300), createdAt: new Date().toISOString() });
-    tx.update(ref, { head: next, updatedAt: Timestamp.now() });
+    // flashcards, the quiz and the lesson were made from the old text, so they are made fresh from the new one
+    tx.update(ref, { head: next, updatedAt: Timestamp.now(), practice: FieldValue.delete(), teachScript: FieldValue.delete() });
     return next;
   });
   if (n > MAX_VERSIONS) {

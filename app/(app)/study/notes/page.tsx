@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { TeachPanel } from "@/components/teach/teach-panel";
+import { NoteFlashcards, NoteQuiz } from "@/components/study/note-practice";
+import { ImageFinder } from "@/components/study/image-finder";
 import { extractTextFromFile } from "@/lib/pdf/extractor";
 import { fetchJson, asArray } from "@/lib/api/client";
 import { REFINE_PRESETS, linkCitations } from "@/lib/study/notes";
@@ -42,7 +44,7 @@ export default function StudyNotesPage() {
   const [busy, setBusy] = useState("");
   const [custom, setCustom] = useState("");
   const [page, setPage] = useState<{ n: number; text: string } | null>(null);
-  const [teaching, setTeaching] = useState(false);
+  const [mode, setMode] = useState<"notes" | "teach" | "cards" | "quiz" | "pictures">("notes");
   const fileRef = useRef<HTMLInputElement>(null);
   const camRef = useRef<HTMLInputElement>(null);
 
@@ -59,7 +61,7 @@ export default function StudyNotesPage() {
     async (id: string, version?: number) => {
       setOpenId(id);
       setPage(null);
-      if (!version) setTeaching(false);
+      if (!version) setMode((m) => (m === "teach" ? "notes" : m));
       const j = await fetchJson<NoteView>(`/api/study/notes/${id}${version ? `?version=${version}` : ""}`);
       if (j.ok) setView(j.data);
       else toast({ title: "Couldn't open these notes", description: j.error.message, variant: "destructive" });
@@ -208,7 +210,6 @@ export default function StudyNotesPage() {
             <div className="flex-1" />
             {view && (
               <>
-                <Button variant={teaching ? "default" : "outline"} size="sm" onClick={() => setTeaching((v) => !v)}><PlayCircle className="h-4 w-4 mr-1" /> {teaching ? "Show notes" : "Teach me"}</Button>
                 <Button variant="outline" size="sm" onClick={download}><Download className="h-4 w-4 mr-1" /> Download</Button>
                 <Button variant="outline" size="sm" onClick={() => window.print()}><Printer className="h-4 w-4 mr-1" /> Print</Button>
                 <Button variant="ghost" size="sm" onClick={remove} aria-label="Delete notes"><Trash2 className="h-4 w-4" /></Button>
@@ -227,9 +228,18 @@ export default function StudyNotesPage() {
                     <Button size="sm" variant="outline" onClick={() => open(view.id)}>Back to newest</Button>
                   </Card>
                 )}
-                {teaching ? (
-                  <TeachPanel key={`${view.id}-${view.head}`} source={{ type: "note", id: view.id }} canRegenerate />
-                ) : (
+                <div className="flex flex-wrap gap-1.5 print:hidden" role="tablist" aria-label="Ways to study these notes">
+                  {([["notes", "Notes"], ["teach", "Teach me"], ["cards", "Flashcards"], ["quiz", "Quiz me"], ["pictures", "Pictures"]] as const).map(([k, label]) => (
+                    <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className={cn("rounded-full px-4 py-1.5 text-xs font-bold", mode === k ? "bg-teal-600 text-white" : "border border-slate-300 dark:border-slate-700 hover:border-teal-500")}>
+                      {k === "teach" && <PlayCircle className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />}{label}
+                    </button>
+                  ))}
+                </div>
+                {mode === "teach" && <TeachPanel key={`${view.id}-${view.head}`} source={{ type: "note", id: view.id }} canRegenerate finish={{ label: "Quiz me on these notes →", onClick: () => setMode("quiz") }} />}
+                {mode === "cards" && <NoteFlashcards key={view.id} noteId={view.id} />}
+                {mode === "quiz" && <NoteQuiz key={view.id} noteId={view.id} />}
+                {mode === "pictures" && <ImageFinder key={view.id} initialQuery={view.title} />}
+                {mode === "notes" && (
                   <Card className="p-4 md:p-6" onClick={onNotesClick}>
                     <MarkdownRenderer content={linkCitations(view.markdown)} />
                   </Card>
