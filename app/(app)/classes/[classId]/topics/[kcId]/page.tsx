@@ -121,7 +121,7 @@ export default function TopicPage({
   // Deep link: ?tab=build or ?tab=prove (lab notifications, and the Back button inside a lab)
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t === "build" || t === "prove") {
+    if (t === "build" || t === "prove" || t === "teach" || t === "quiz" || t === "flashcards" || t === "simulate" || t === "tutor") {
       const h = setTimeout(() => setActiveTab(t), 0);
       return () => clearTimeout(h);
     }

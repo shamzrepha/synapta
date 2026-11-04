@@ -200,6 +200,7 @@ export const TASK_GROUPS: Record<string, TaskGroup> = {
   assignment_author: "build",
   assignment_reviewer: "build",
   grading_high_stakes: "grading",
+  student_evaluation: "grading",
   voice: "voice",
   voice_tts: "voice",
 };

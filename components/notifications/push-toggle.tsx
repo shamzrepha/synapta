@@ -5,8 +5,15 @@ import { BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { clientApp } from "@/lib/firebase/client";
+import { checkPushConfig, explainPushError } from "@/lib/push/config-check";
 
 const VAPID = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
+
+/** The settings problems (a mixed-up or wrong key), found without calling Google. */
+function pushProblems(): string[] {
+  const o = clientApp().options;
+  return checkPushConfig({ apiKey: o.apiKey, projectId: o.projectId, messagingSenderId: o.messagingSenderId, appId: o.appId, vapidKey: VAPID });
+}
 
 async function getPushToken(): Promise<string> {
   const { getMessaging, getToken, isSupported } = await import("firebase/messaging");
@@ -56,7 +63,10 @@ export function PushToggle() {
       setState("on");
       toast({ title: "Push notifications on", description: "You'll get alerts even when Sunroot is closed.", variant: "success" });
     } catch (e) {
-      toast({ title: "Couldn't enable push", description: e instanceof Error ? e.message : undefined, variant: "destructive" });
+      const problems = pushProblems();
+      // for whoever fixes it: the real error and what was checked (never the secret parts of a key)
+      console.warn("[push] couldn't enable:", e, problems);
+      toast({ title: "Couldn't enable push", description: explainPushError(e, problems), variant: "destructive" });
     } finally {
       setBusy(false);
     }
