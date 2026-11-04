@@ -19,10 +19,8 @@ async function getPushToken(): Promise<string> {
     messagingSenderId: String(opts.messagingSenderId || ""),
     appId: String(opts.appId || ""),
   });
-  // Explicit root scope so service worker registration succeeds regardless of current subpath
-  const registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${qs}`, {
-    scope: "/",
-  });
+  // its own scope (Firebase's default), so it never replaces the offline worker (/sw.js), which owns the whole site ("/")
+  const registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${qs}`, { scope: "/firebase-cloud-messaging-push-scope" });
   return getToken(getMessaging(app), { vapidKey: VAPID, serviceWorkerRegistration: registration });
 }
 
