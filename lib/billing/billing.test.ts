@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import crypto from "node:crypto";
 import { PLANS, allowance, extendedExpiry, limitMessage, planOf, priceFor } from "./plans";
-import { readCharge, verifySignature } from "./paystack";
+import { PAYSTACK_CHANNELS, readCharge, readTransaction, verifySignature } from "./paystack";
 
 const DAY = 86_400_000;
 
@@ -49,7 +49,7 @@ describe("paying", () => {
   });
   const ok = (over: Record<string, unknown> = {}) => ({ event: "charge.success", data: { status: "success", reference: "r1", amount: priceFor("plus", "month") * 100, currency: "NGN", metadata: { uid: "u1", plan: "plus", term: "month" }, ...over } });
   it("reads a good payment", () => {
-    expect(readCharge(ok())).toEqual({ reference: "r1", uid: "u1", plan: "plus", term: "month" });
+    expect(readCharge(ok({ channel: "bank_transfer", customer: { email: "a@b.com" } }))).toEqual({ reference: "r1", uid: "u1", plan: "plus", term: "month", amountKobo: 200_000, channel: "bank_transfer", email: "a@b.com" });
   });
   it("rejects underpaying, wrong currency, unknown plan, wrong event", () => {
     expect(readCharge(ok({ amount: 100 }))).toBeNull();
@@ -63,5 +63,18 @@ describe("paying", () => {
     const now = 1_000 * DAY;
     expect(extendedExpiry(now + 10 * DAY, "month", now)).toBe(now + 40 * DAY);
     expect(extendedExpiry(now - 10 * DAY, "term", now)).toBe(now + 120 * DAY);
+  });
+});
+
+describe("Paystack verify and channels", () => {
+  it("reads a verified transaction the same way as a webhook, and refuses an unsuccessful one", () => {
+    const tx = { status: "success", reference: "r9", amount: 650_000, currency: "NGN", channel: "card", customer: { email: "x@y.z" }, metadata: { uid: "u2", plan: "plus", term: "term" } };
+    expect(readTransaction(tx)).toMatchObject({ reference: "r9", uid: "u2", term: "term", channel: "card" });
+    expect(readTransaction({ ...tx, status: "abandoned" })).toBeNull();
+    expect(readTransaction({ ...tx, amount: 1000 })).toBeNull();
+    expect(readTransaction(undefined)).toBeNull();
+  });
+  it("offers every payment method Paystack supports in Nigeria", () => {
+    for (const c of ["card", "bank", "ussd", "bank_transfer", "qr", "mobile_money"]) expect(PAYSTACK_CHANNELS).toContain(c);
   });
 });

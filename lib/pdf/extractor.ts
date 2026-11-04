@@ -1,4 +1,5 @@
 import { readDocx, readPptx } from "@/lib/documents/office";
+import { isUpgradeCode, promptUpgrade } from "@/lib/billing/upgrade-event";
 import { MAX_VISION_PAGES, VISION_BATCH, cleanVisionText, mergePages, pageNeedsVision, type ReadPage } from "@/lib/documents/pages";
 
 export type ReadProgress = (message: string) => void;
@@ -39,6 +40,7 @@ async function readImages(images: string[]): Promise<string[]> {
     body: JSON.stringify({ images }),
   });
   const j = await res.json().catch(() => null);
+  if (!j?.ok && isUpgradeCode(j?.error?.code)) promptUpgrade(j.error.message);
   if (!j?.ok) throw new Error(j?.error?.message || "Couldn't read those pages. Please try again.");
   return (j.data.pages as string[]).map(cleanVisionText);
 }
