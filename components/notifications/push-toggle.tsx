@@ -19,7 +19,8 @@ async function getPushToken(): Promise<string> {
     messagingSenderId: String(opts.messagingSenderId || ""),
     appId: String(opts.appId || ""),
   });
-  const registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${qs}`);
+  // its own scope (Firebase's default), so it never replaces the offline worker (/sw.js), which owns the whole site ("/")
+  const registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${qs}`, { scope: "/firebase-cloud-messaging-push-scope" });
   return getToken(getMessaging(app), { vapidKey: VAPID, serviceWorkerRegistration: registration });
 }
 
