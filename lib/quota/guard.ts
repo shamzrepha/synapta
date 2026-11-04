@@ -33,14 +33,20 @@ const currentPeriod = () => new Date().toISOString().slice(0, 7); // YYYY-MM
 
 interface UserBudget {
   isTeacherOrAdmin: boolean;
+  /** no monthly token cap: admins always, teachers until billing is switched on (then their plan's budget applies) */
+  uncapped: boolean;
+  perMinute: number;
   used: number;
   limit: number;
 }
 
 function budgetOf(data: FirebaseFirestore.DocumentData, period: string): UserBudget {
   const isTeacherOrAdmin = data.role === "teacher" || data.role === "admin";
+  const enforced = billingEnforced();
   return {
     isTeacherOrAdmin,
+    uncapped: data.role === "admin" || (data.role === "teacher" && !enforced),
+    perMinute: enforced ? planOf(data).perMinute : isTeacherOrAdmin ? TEACHER_MAX_CALLS_PER_WINDOW : MAX_CALLS_PER_WINDOW,
     // a new billing month starts from zero
     used: (data.usagePeriod || "") === period ? data.monthlyTokensUsed || 0 : 0,
     // a custom limit set by an admin still counts; once billing is switched on, a paid plan raises the floor to its own budget
@@ -61,13 +67,13 @@ export async function checkRateLimitAndQuota(uid: string, estimatedTokens = 1000
   const period = currentPeriod();
   const b = budgetOf(userDoc.data()!, period);
 
-  const maxCalls = b.isTeacherOrAdmin ? TEACHER_MAX_CALLS_PER_WINDOW : MAX_CALLS_PER_WINDOW;
+  const maxCalls = b.perMinute;
   const rate = await evaluateSharedRateLimit(`user:${uid}:ai`, maxCalls, RATE_LIMIT_WINDOW_MS);
   if (!rate.success) {
     throw new QuotaError("RATE_LIMITED", "Rate limit exceeded. Please wait a moment before trying again.", 429, { "Retry-After": String(Math.max(1, Math.ceil(rate.resetMs / 1000))) });
   }
 
-  if (!b.isTeacherOrAdmin) {
+  if (!b.uncapped) {
     const outstanding = await outstandingReservations(uid);
     if (b.used + outstanding + estimatedTokens > b.limit) {
       throw new QuotaError("QUOTA_EXCEEDED", quotaMessage(b.used + outstanding, b.limit), 429);
@@ -100,7 +106,7 @@ export async function reserveQuota(uid: string, estimatedTokens: number, now = D
     const userSnap = await t.get(userRef);
     if (!userSnap.exists) throw new AuthError("UNAUTHENTICATED", "User record not found", 401);
     const b = budgetOf(userSnap.data()!, period);
-    if (b.isTeacherOrAdmin) return { id: null, uid, tokens: estimatedTokens };
+    if (b.uncapped) return { id: null, uid, tokens: estimatedTokens };
 
     const open = await t.get(db.collection("quotaReservations").where("uid", "==", uid).where("status", "==", "open"));
     const outstanding = open.docs.reduce((sum, d) => (Number(d.data().expiresAtMs) > now ? sum + (Number(d.data().tokens) || 0) : sum), 0);

@@ -24,7 +24,7 @@ const call = (body: unknown, sig?: string | null) => {
   const s = sig === undefined ? crypto.createHmac("sha512", SECRET).update(raw).digest("hex") : sig;
   return POST(new Request("http://x/api/billing/webhook", { method: "POST", body: raw, headers: s ? { "x-paystack-signature": s } : {} }) as never);
 };
-const charge = (over: Record<string, unknown> = {}) => ({ event: "charge.success", data: { status: "success", reference: "ref1", amount: 200_000, currency: "NGN", metadata: { uid: "u1", plan: "plus", term: "month" }, ...over } });
+const charge = (over: Record<string, unknown> = {}) => ({ event: "charge.success", data: { status: "success", reference: "ref1", amount: 250_000, currency: "NGN", metadata: { uid: "u1", plan: "plus", term: "month" }, ...over } });
 
 describe("paystack webhook", () => {
   beforeEach(() => {

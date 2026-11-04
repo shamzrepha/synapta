@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { fetchJson } from "@/lib/api/client";
-import { FEATURES, FEATURE_LABEL, type FeatureKey } from "@/lib/billing/plans";
+import { FEATURES, FEATURE_LABEL, termSavingsPercent, type FeatureKey } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
 
 interface WirePlan {
@@ -16,6 +16,7 @@ interface WirePlan {
   blurb: string;
   priceMonthNgn: number;
   priceTermNgn: number;
+  perSeatTermNgn?: number;
   perks: string[];
   limits: Record<FeatureKey, number | null>;
 }
@@ -52,6 +53,7 @@ export default function PlansPage() {
   const { toast } = useToast();
   const [me, setMe] = useState<Me | null>(null);
   const [busy, setBusy] = useState("");
+  const [term, setTerm] = useState<"month" | "term">("term");
   const [grant, setGrant] = useState({ email: "", plan: "plus", days: "30" });
 
   const load = useCallback(async () => {
@@ -73,9 +75,9 @@ export default function PlansPage() {
     return () => clearTimeout(t);
   }, [load, toast]);
 
-  const buy = async (plan: string, term: "month" | "term") => {
-    setBusy(`${plan}-${term}`);
-    const j = await fetchJson<{ url: string }>("/api/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan, term }) });
+  const buy = async (plan: string, period: "month" | "term") => {
+    setBusy(`${plan}-${period}`);
+    const j = await fetchJson<{ url: string }>("/api/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan, term: period }) });
     setBusy("");
     if (j.ok) window.location.assign(j.data.url);
     else toast({ title: "Couldn't start the payment", description: j.error.message, variant: "destructive" });
@@ -113,6 +115,17 @@ export default function PlansPage() {
         </div>
       </Card>
 
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex rounded-full border border-slate-300 dark:border-slate-700 p-1" role="group" aria-label="Billing period">
+          {(["month", "term"] as const).map((t) => (
+            <button key={t} type="button" aria-pressed={term === t} onClick={() => setTerm(t)} className={cn("rounded-full px-4 py-1.5 text-xs font-bold", term === t ? "bg-teal-600 text-white" : "text-slate-600 dark:text-slate-300")}>
+              {t === "month" ? "Monthly" : "Semester (4 months)"}
+            </button>
+          ))}
+        </div>
+        {term === "term" && <span className="text-xs font-semibold text-emerald-600">Pay once for the semester and save up to {Math.max(...me.plans.map((p) => termSavingsPercent(p)))}%</span>}
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {me.plans.map((p) => {
           const current = p.id === me.plan.id;
@@ -123,8 +136,22 @@ export default function PlansPage() {
                 <p className="font-extrabold text-lg">{p.label}</p>
                 <p className="text-xs text-slate-500">{p.blurb}</p>
               </div>
-              <p className="text-2xl font-extrabold">{p.id === "free" ? "₦0" : p.id === "school" ? "Per seat" : naira(p.priceMonthNgn)}{buyable && <span className="text-xs font-normal text-slate-500"> / month</span>}</p>
-              {buyable && <p className="text-xs text-slate-500 -mt-2">or {naira(p.priceTermNgn)} for a whole term (4 months)</p>}
+              {p.id === "free" ? (
+                <p className="text-2xl font-extrabold">₦0<span className="text-xs font-normal text-slate-500"> / month</span></p>
+              ) : p.id === "school" ? (
+                <div>
+                  <p className="text-2xl font-extrabold">{naira(p.perSeatTermNgn ?? 1200)}<span className="text-xs font-normal text-slate-500"> / student / semester</span></p>
+                  <p className="text-xs text-slate-500">Custom price for a whole department</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-2xl font-extrabold">
+                    {naira(term === "month" ? p.priceMonthNgn : p.priceTermNgn)}
+                    <span className="text-xs font-normal text-slate-500"> / {term === "month" ? "month" : "semester"}</span>
+                  </p>
+                  <p className="text-xs text-emerald-600 min-h-4">{term === "term" ? `Save ${termSavingsPercent(p)}% against paying monthly` : `or ${naira(p.priceTermNgn)} for a semester`}</p>
+                </div>
+              )}
               <ul className="space-y-1.5 text-xs flex-1">
                 {p.perks.map((perk) => (
                   <li key={perk} className="flex gap-1.5"><Check className="h-3.5 w-3.5 mt-0.5 shrink-0 text-teal-600" /> {perk}</li>
@@ -134,15 +161,14 @@ export default function PlansPage() {
                 <p className="text-xs font-bold text-teal-700 dark:text-teal-300">Your current plan</p>
               ) : buyable ? (
                 me.paymentsReady ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button size="sm" variant="outline" disabled={!!busy} onClick={() => buy(p.id, "month")}>{busy === `${p.id}-month` ? <Loader2 className="h-4 w-4 animate-spin" /> : "Monthly"}</Button>
-                    <Button size="sm" disabled={!!busy} onClick={() => buy(p.id, "term")}>{busy === `${p.id}-term` ? <Loader2 className="h-4 w-4 animate-spin" /> : "Whole term"}</Button>
-                  </div>
+                  <Button size="sm" disabled={!!busy} onClick={() => buy(p.id, term)}>
+                    {busy === `${p.id}-${term}` ? <Loader2 className="h-4 w-4 animate-spin" /> : `Upgrade to ${p.label}`}
+                  </Button>
                 ) : (
                   <p className="text-xs text-slate-500">Online payment opens soon.</p>
                 )
               ) : p.id === "school" ? (
-                <p className="text-xs text-slate-500">Schools: ask us for a quote.</p>
+                <p className="text-xs text-slate-500">Departments and schools: contact us for an invoice and a quote.</p>
               ) : null}
             </Card>
           );
