@@ -190,7 +190,7 @@ export default function StudyNotesPage() {
           </div>
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (optional)" maxLength={120} className="w-full h-10 rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent px-3 text-sm" />
           <div className="flex flex-wrap gap-2">
-            <input ref={fileRef} type="file" accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.webp,image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
+            <input ref={fileRef} type="file" accept=".pdf,.docx,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,image/*" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
             <input ref={camRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => onFile(e.target.files?.[0])} />
             <Button variant="outline" size="sm" disabled={!!reading} onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1" /> PDF or photo</Button>
             <Button variant="outline" size="sm" disabled={!!reading} onClick={() => camRef.current?.click()}><Camera className="h-4 w-4 mr-1" /> Take a photo</Button>

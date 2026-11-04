@@ -1,3 +1,4 @@
+import { readDocx, readPptx } from "@/lib/documents/office";
 import { MAX_VISION_PAGES, VISION_BATCH, cleanVisionText, mergePages, pageNeedsVision, type ReadPage } from "@/lib/documents/pages";
 
 export type ReadProgress = (message: string) => void;
@@ -121,12 +122,26 @@ export async function extractTextFromPdf(file: File): Promise<string> {
 export async function extractTextFromFile(file: File, onProgress?: ReadProgress): Promise<string> {
   if (isPdf(file)) return readPdf(file, onProgress);
   if (isImage(file)) return readImageFile(file, onProgress);
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith(".docx")) {
+    onProgress?.("Reading your Word file…");
+    return readDocx(await file.arrayBuffer());
+  }
+  if (lower.endsWith(".pptx")) {
+    onProgress?.("Reading your slides…");
+    return readPptx(await file.arrayBuffer());
+  }
+  if (/\.(doc|ppt|xls|xlsx|odt|odp|pages|key)$/.test(lower)) {
+    throw new Error("Please save this file as a PDF or .docx and upload that. This older format can't be read here.");
+  }
   return file.text();
 }
 
-/** True for photos and for PDFs whose first pages carry no text, which the server can't read but vision can. */
+/** True for photos, Word/PowerPoint files and PDFs whose first pages carry no text: the browser reads those itself. */
 export async function needsVisionReading(file: File): Promise<boolean> {
   if (isImage(file)) return true;
+  // Word and PowerPoint files are read here too, so the class builder gets their real text
+  if (/\.(docx|pptx)$/i.test(file.name)) return true;
   if (!isPdf(file)) return false;
   try {
     const pdfjsLib = await import("pdfjs-dist");
