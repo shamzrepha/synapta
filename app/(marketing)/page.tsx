@@ -239,7 +239,7 @@ export default function LandingPage() {
             download
             className="inline-flex shrink-0 items-center gap-2.5 rounded-full bg-[#14b8a6] px-7 py-4 text-base font-bold text-[#0E1F18] shadow-[0_12px_30px_-8px_rgba(20,184,166,0.6)] transition-transform hover:scale-105 active:scale-95"
           >
-            <Download className="h-5 w-5 stroke-[2.5]" /> Download APK (v1.0)
+            <Download className="h-5 w-5 stroke-[2.5]" /> Download Sunroot App (Android)
           </a>
         </div>
       </section>
