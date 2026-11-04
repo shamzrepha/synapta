@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EnforcementPanel } from "@/components/billing/enforcement-panel";
 import { fetchJson, asArray } from "@/lib/api/client";
 
 interface Overview {
@@ -56,6 +57,8 @@ export default function AdminBilling() {
         <Link href="/plans" className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Give someone a plan</Link>
         <Link href="/admin" className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Back to admin</Link>
       </div>
+
+      <EnforcementPanel />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Revenue this month" value={naira(totals.thisMonthNgn)} hint={`${totals.paymentsThisMonth} payments`} />

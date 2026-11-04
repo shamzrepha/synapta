@@ -2,7 +2,8 @@ import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { AuthError } from "@/lib/auth/requireUser";
 import { ApiError } from "@/lib/api/errors";
 import { evaluateSharedRateLimit } from "@/lib/rateLimit";
-import { billingEnforced, planOf } from "@/lib/billing/plans";
+import { planOf } from "@/lib/billing/plans";
+import { isEnforced } from "@/lib/billing/config";
 
 /**
  * AI budget enforcement.
@@ -40,9 +41,8 @@ interface UserBudget {
   limit: number;
 }
 
-function budgetOf(data: FirebaseFirestore.DocumentData, period: string): UserBudget {
+function budgetOf(data: FirebaseFirestore.DocumentData, period: string, enforced: boolean): UserBudget {
   const isTeacherOrAdmin = data.role === "teacher" || data.role === "admin";
-  const enforced = billingEnforced();
   return {
     isTeacherOrAdmin,
     uncapped: data.role === "admin" || (data.role === "teacher" && !enforced),
@@ -50,7 +50,7 @@ function budgetOf(data: FirebaseFirestore.DocumentData, period: string): UserBud
     // a new billing month starts from zero
     used: (data.usagePeriod || "") === period ? data.monthlyTokensUsed || 0 : 0,
     // a custom limit set by an admin still counts; once billing is switched on, a paid plan raises the floor to its own budget
-    limit: Math.max(data.monthlyTokenLimit || (isTeacherOrAdmin ? TEACHER_DEFAULT_LIMIT : STUDENT_DEFAULT_LIMIT), billingEnforced() ? planOf(data).monthlyTokens : 0),
+    limit: Math.max(data.monthlyTokenLimit || (isTeacherOrAdmin ? TEACHER_DEFAULT_LIMIT : STUDENT_DEFAULT_LIMIT), enforced ? planOf(data).monthlyTokens : 0),
   };
 }
 
@@ -65,7 +65,7 @@ export async function checkRateLimitAndQuota(uid: string, estimatedTokens = 1000
   const userDoc = await adminDb().collection("users").doc(uid).get();
   if (!userDoc.exists) throw new AuthError("UNAUTHENTICATED", "User record not found", 401);
   const period = currentPeriod();
-  const b = budgetOf(userDoc.data()!, period);
+  const b = budgetOf(userDoc.data()!, period, await isEnforced(uid));
 
   const maxCalls = b.perMinute;
   const rate = await evaluateSharedRateLimit(`user:${uid}:ai`, maxCalls, RATE_LIMIT_WINDOW_MS);
@@ -102,10 +102,12 @@ export async function reserveQuota(uid: string, estimatedTokens: number, now = D
   const db = adminDb();
   const userRef = db.collection("users").doc(uid);
   const period = currentPeriod();
+  // read the on/off switch before the transaction: a transaction may not make other reads after its first write
+  const enforced = await isEnforced(uid);
   return db.runTransaction(async (t) => {
     const userSnap = await t.get(userRef);
     if (!userSnap.exists) throw new AuthError("UNAUTHENTICATED", "User record not found", 401);
-    const b = budgetOf(userSnap.data()!, period);
+    const b = budgetOf(userSnap.data()!, period, enforced);
     if (b.uncapped) return { id: null, uid, tokens: estimatedTokens };
 
     const open = await t.get(db.collection("quotaReservations").where("uid", "==", uid).where("status", "==", "open"));
