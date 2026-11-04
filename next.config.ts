@@ -26,15 +26,15 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com https://www.gstatic.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "media-src 'self' blob:",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: https: blob:",
-      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://generativelanguage.googleapis.com",
+      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://generativelanguage.googleapis.com https://fcmregistrations.googleapis.com",
       // build videos embed from YouTube (privacy-enhanced) and Vimeo
       "frame-src 'self' https://*.firebaseapp.com https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
-      "worker-src 'self' blob:",
+      "worker-src 'self' blob: https://www.gstatic.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -62,6 +62,19 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      {
+        source: "/firebase-messaging-sw.js",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
+          },
+          {
+            key: "Service-Worker-Allowed",
+            value: "/",
+          },
+        ],
+      },
       {
         source: "/(.*)",
         headers: securityHeaders,

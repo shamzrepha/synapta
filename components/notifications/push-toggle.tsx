@@ -19,7 +19,10 @@ async function getPushToken(): Promise<string> {
     messagingSenderId: String(opts.messagingSenderId || ""),
     appId: String(opts.appId || ""),
   });
-  const registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${qs}`);
+  // Explicit root scope so service worker registration succeeds regardless of current subpath
+  const registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${qs}`, {
+    scope: "/",
+  });
   return getToken(getMessaging(app), { vapidKey: VAPID, serviceWorkerRegistration: registration });
 }
 
