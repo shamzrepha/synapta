@@ -25,6 +25,7 @@ import {
 } from "./health";
 import { adminDb } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
+import { getSiteConfig } from "@/lib/config/site";
 
 import { AiTaskKey } from "./tasks";
 
@@ -461,6 +462,10 @@ export async function generateWithFallback<T>(opts: GenerateWithFallbackOptions<
   // Not on behalf of a user (health probes, system jobs): nothing to charge
   if (!opts.userId) return generateWithFallbackInner(opts, false);
   const userId = opts.userId;
+
+  // the admin's cost kill switch (/admin/controls): stop before reserving or spending anything
+  const site = await getSiteConfig();
+  if (site.aiPaused) throw new ApiError(503, "AI_PAUSED", site.aiPausedMessage);
 
   // Answer in the learner's language; cached answers are kept per language so nobody gets another language's copy
   if (opts.learnerLanguage !== false) opts = withLearnerLanguage(opts, await getUserLanguage(userId));

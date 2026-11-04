@@ -8,6 +8,7 @@ import { HubTabs } from "@/components/shell/hub-tabs";
 import { ThemeApplier } from "@/components/shop/theme-applier";
 import { VerifyEmailBanner } from "@/components/shell/verify-email-banner";
 import { UpgradeDialog } from "@/components/billing/upgrade-dialog";
+import { SiteNotice } from "@/components/shell/site-notice";
 
 export default function AppLayout({
   children,
@@ -27,6 +28,7 @@ export default function AppLayout({
         <Topbar />
         <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none px-3 py-4 sm:p-5 md:p-6 lg:p-8 max-w-[1200px] mx-auto w-full pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-8 overflow-x-hidden">
           <VerifyEmailBanner />
+          <SiteNotice />
           <UpgradeDialog />
           <HubTabs />
           {children}
