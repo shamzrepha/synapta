@@ -1,12 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import {
   User as FirebaseUser,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithCustomToken,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
   signOut as fbSignOut,
   updateProfile,
   sendEmailVerification,
@@ -20,7 +24,8 @@ interface AuthContextType {
   firebaseUser: FirebaseUser | null;
   userProfile: UserProfile | null;
   isLoading: boolean;
-  signInWithEmail: (email: string, pass: string) => Promise<void>;
+  /** `remember` (default true) is the "Keep me signed in" box: false signs you out when the browser is closed */
+  signInWithEmail: (email: string, pass: string, remember?: boolean) => Promise<void>;
   signUpWithEmail: (
     email: string,
     pass: string,
@@ -28,12 +33,58 @@ interface AuthContextType {
     requestTeacher: boolean,
     username?: string
   ) => Promise<void>;
-  signInWithGoogle: (requestTeacher?: boolean) => Promise<void>;
+  signInWithGoogle: (requestTeacher?: boolean, remember?: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const REMEMBER_KEY = "sunroot:remember";
+/** The "Keep me signed in" choice made at the last sign-in (on unless the person turned it off). */
+function readRemember(): boolean {
+  try {
+    return localStorage.getItem(REMEMBER_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+function saveRemember(remember: boolean) {
+  try {
+    localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
+  } catch {}
+}
+async function applyPersistence(remember: boolean) {
+  try {
+    await setPersistence(clientAuth(), remember ? browserLocalPersistence : browserSessionPersistence);
+  } catch {
+    // some browsers refuse (private mode); sign-in still works for this visit
+  }
+  saveRemember(remember);
+}
+
+/** Asks the server to turn a still-valid session cookie into a sign-in. "none": the server has no valid session; "unavailable": it couldn't say. */
+async function restoreFromCookie(auth: ReturnType<typeof clientAuth>): Promise<"restored" | "none" | "unavailable"> {
+  try {
+    const res = await fetch("/api/auth/restore", { method: "POST" });
+    if (res.status === 401) return "none";
+    if (!res.ok) return "unavailable";
+    const j = await res.json().catch(() => null);
+    if (!j?.ok || !j.data?.token) return "unavailable";
+    await signInWithCustomToken(auth, j.data.token);
+    return "restored";
+  } catch {
+    return "unavailable";
+  }
+}
+
+/** The server said its cookie is no good (or there is no one signed in): clear it, so the login page isn't bounced to the dashboard by it. */
+async function dropStaleCookie() {
+  const cleared = await fetch("/api/auth/session", { method: "DELETE" }).then((r) => r.ok, () => false);
+  const here = window.location.pathname;
+  // on a protected page the server now sees no cookie and sends them to sign in
+  if (cleared && here !== "/" && !/^\/(login|signup)(\/|$)/.test(here)) window.location.assign(`/login?redirect=${encodeURIComponent(here + window.location.search)}`);
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
@@ -41,12 +92,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { user: userProfile, setUser } = useUserStore();
   const router = useRouter();
 
-  const establishSessionCookie = async (idToken: string): Promise<boolean> => {
+  // set while signing out, so the saved-session restore below doesn't sign the person straight back in
+  const signingOut = useRef(false);
+  const restoreTried = useRef(false);
+
+  const establishSessionCookie = async (idToken: string, remember: boolean = readRemember()): Promise<boolean> => {
     try {
       const sessionRes = await fetch("/api/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
+        body: JSON.stringify({ idToken, remember }),
       });
       if (!sessionRes.ok) {
         const errJson = await sessionRes.json().catch(() => ({}));
@@ -113,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const auth = clientAuth();
       unsubscribe = onAuthStateChanged(auth, async (user) => {
         setFirebaseUser(user);
+        let restored = false;
         try {
           if (user) {
             // The browser stays signed in far longer than the 5-day server cookie lives, so every time the app opens
@@ -133,17 +189,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             adoptAccountPrefs(user.uid).catch(() => null);
           } else {
             setUser(null);
-            // Not signed in on this browser: drop any leftover server cookie, or it bounces /login and the user has
-            // to clear their cache to sign in again.
-            const cleared = await fetch("/api/auth/session", { method: "DELETE" }).then((r) => r.ok, () => false);
-            const here = window.location.pathname;
-            // on a protected page the server now sees no cookie and sends them to sign in
-            if (cleared && here !== "/" && !/^\/(login|signup)(\/|$)/.test(here)) router.refresh();
+            // The browser has no saved sign-in. If the server still knows the person (a valid session cookie), sign them back
+            // in from it instead of asking for a password: storage can vanish in private mode, in-app browsers and some
+            // phones even though the cookie is fine. Tried once per page load, and never while signing out.
+            if (!signingOut.current && !restoreTried.current) {
+              restoreTried.current = true;
+              const outcome = await restoreFromCookie(auth);
+              if (outcome === "restored") {
+                restored = true; // signing in fires this listener again with the person; keep the loading state until then
+                return;
+              }
+              // only when the server itself says the session is no good; if it merely couldn't answer, the cookie stays
+              if (outcome === "none") await dropStaleCookie();
+            }
           }
         } catch (err) {
           console.warn("Auth state change error:", err);
         } finally {
-          setIsLoading(false);
+          if (!restored) setIsLoading(false);
         }
       });
     } catch (err) {
@@ -157,13 +220,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [setUser, bootstrapUser, router]);
 
-  const signInWithEmail = async (email: string, pass: string) => {
+  const signInWithEmail = async (email: string, pass: string, remember = true) => {
     setIsLoading(true);
+    signingOut.current = false;
     try {
       const auth = clientAuth();
+      await applyPersistence(remember);
       const cred = await signInWithEmailAndPassword(auth, email, pass);
       const idToken = await cred.user.getIdToken(true);
-      await establishSessionCookie(idToken);
+      await establishSessionCookie(idToken, remember);
       await bootstrapUser(cred.user);
     } finally {
       setIsLoading(false);
@@ -178,8 +243,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     username?: string
   ) => {
     setIsLoading(true);
+    signingOut.current = false;
     try {
       const auth = clientAuth();
+      await applyPersistence(true);
       const cred = await createUserWithEmailAndPassword(auth, email, pass);
       if (name) {
         await updateProfile(cred.user, { displayName: name });
@@ -194,13 +261,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signInWithGoogle = async (requestTeacher = false) => {
+  const signInWithGoogle = async (requestTeacher = false, remember = true) => {
     setIsLoading(true);
+    signingOut.current = false;
     try {
       const auth = clientAuth();
+      await applyPersistence(remember);
       const cred = await signInWithPopup(auth, googleProvider);
       const idToken = await cred.user.getIdToken(true);
-      await establishSessionCookie(idToken);
+      await establishSessionCookie(idToken, remember);
       await bootstrapUser(cred.user, requestTeacher ? "pending" : "none");
     } finally {
       setIsLoading(false);
@@ -209,13 +278,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     setIsLoading(true);
+    // end the server session first and block the restore, or the saved cookie would sign the person straight back in
+    signingOut.current = true;
+    await fetch("/api/auth/session", { method: "DELETE" }).catch(() => {});
     try {
       const auth = clientAuth();
       await fbSignOut(auth);
     } catch {
       // ignore
     }
-    await fetch("/api/auth/session", { method: "DELETE" }).catch(() => {});
     setUser(null);
     setFirebaseUser(null);
     setIsLoading(false);

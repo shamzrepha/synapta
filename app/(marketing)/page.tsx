@@ -1,3 +1,4 @@
+import { LandingButtons } from "@/components/auth/landing-buttons";
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -69,10 +70,7 @@ export default function LandingPage() {
             <a href="#teachers" className="hover:text-[#F28C28]">For lecturers</a>
           </nav>
           <div className="flex items-center gap-2">
-            <Link href="/login" className="rounded-full px-4 py-2 text-sm font-semibold text-[#FBF6EC] hover:bg-white/10">Log in</Link>
-            <Link href="/signup" className="inline-flex items-center gap-1.5 rounded-full bg-[#F28C28] px-4 py-2 text-sm font-bold text-[#12241C] hover:bg-[#F59E45]">
-              Start free <ArrowRight className="h-4 w-4" />
-            </Link>
+            <LandingButtons />
           </div>
         </div>
       </header>

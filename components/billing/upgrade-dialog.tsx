@@ -2,8 +2,12 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Sparkles, X } from "lucide-react";
 import { UPGRADE_EVENT } from "@/lib/billing/upgrade-event";
+import { pickNudge } from "@/lib/billing/nudge";
+import { useUserStore } from "@/lib/store/use-user-store";
+import { useBilling } from "./use-billing";
 
 /**
  * Appears whenever something the learner tried is over their plan's allowance or isn't in it. Mounted once in the app
@@ -11,13 +15,44 @@ import { UPGRADE_EVENT } from "@/lib/billing/upgrade-event";
  */
 export function UpgradeDialog() {
   const [message, setMessage] = useState<string | null>(null);
+  const [title, setTitle] = useState("Time to upgrade");
   const closeRef = useRef<HTMLButtonElement>(null);
+  const me = useBilling();
+  const { user } = useUserStore();
+  const pathname = usePathname();
 
   useEffect(() => {
-    const on = (e: Event) => setMessage(String((e as CustomEvent<{ message?: string }>).detail?.message || "This needs a bigger plan."));
+    const on = (e: Event) => {
+      setTitle("Time to upgrade");
+      setMessage(String((e as CustomEvent<{ message?: string }>).detail?.message || "This needs a bigger plan."));
+    };
     window.addEventListener(UPGRADE_EVENT, on);
     return () => window.removeEventListener(UPGRADE_EVENT, on);
   }, []);
+
+  // Without being asked: a welcome for someone on the free tier, and a warning when an allowance is nearly used up.
+  // Only when plan limits apply to this person, never on the plans page itself, and each notice at most once a day (welcome: once).
+  useEffect(() => {
+    if (!me || !user || me.role === "admin" || pathname.startsWith("/plans") || pathname.startsWith("/admin")) return;
+    const nudge = pickNudge(me, user.uid);
+    if (!nudge) return;
+    const storageKey = `sunroot:nudge:${nudge.key}`;
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const seen = localStorage.getItem(storageKey);
+      if (nudge.everyDay ? seen === today : !!seen) return;
+    } catch {
+      // storage blocked: show it, it will simply repeat
+    }
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(storageKey, today);
+      } catch {}
+      setTitle(nudge.title);
+      setMessage(nudge.message);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [me, user, pathname]);
   useEffect(() => {
     if (!message) return;
     closeRef.current?.focus();
@@ -33,7 +68,7 @@ export function UpgradeDialog() {
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600"><Sparkles className="h-5 w-5" /></span>
           <div className="flex-1 min-w-0">
-            <h2 id="upgrade-title" className="font-extrabold text-lg leading-tight">Time to upgrade</h2>
+            <h2 id="upgrade-title" className="font-extrabold text-lg leading-tight">{title}</h2>
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">{message}</p>
           </div>
           <button ref={closeRef} type="button" onClick={() => setMessage(null)} aria-label="Close" className="p-1 text-slate-400 hover:text-slate-700"><X className="h-4 w-4" /></button>

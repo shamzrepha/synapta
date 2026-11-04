@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import crypto from "node:crypto";
-import { MONTH_DAYS, PAYABLE, PLANS, TERM_DAYS, allowance, extendedExpiry, limitMessage, planOf, priceFor, termSavingsPercent } from "./plans";
+import { FEATURES, MONTH_DAYS, PAYABLE, PLANS, PLAN_IDS, TERM_DAYS, allowance, canBuy, extendedExpiry, limitMessage, nextTier, planOf, plansForRole, priceFor, termSavingsPercent } from "./plans";
+import { grantExpiry, matchesPerson, planFitsRole } from "./admin-actions";
 import { PAYSTACK_CHANNELS, readCharge, readTransaction, verifySignature } from "./paystack";
 
 const DAY = 86_400_000;
@@ -28,7 +29,7 @@ describe("monthly allowances", () => {
     expect(allowance(PLANS.free, { notes: 2 }, "notes").ok).toBe(true);
     const a = allowance(PLANS.free, { notes: 3 }, "notes");
     expect(a.ok).toBe(false);
-    expect(limitMessage(PLANS.free, "notes", a)).toContain("Upgrade to Student Plus");
+    expect(limitMessage(PLANS.free, "notes", a)).toContain("Upgrade to Plus");
   });
   it("counts scanned pages by the amount asked for", () => {
     expect(allowance(PLANS.free, { scan_pages: 13 }, "scan_pages", 3).ok).toBe(false);
@@ -101,7 +102,8 @@ describe("the agreed prices and limits", () => {
   });
   it("school is invoiced per student", () => {
     expect(PLANS.school.perSeatTermNgn).toBe(1_200);
-    expect(PAYABLE).toEqual(["plus", "teacher"]);
+    expect(PAYABLE).toEqual(["plus", "pro", "promax", "ultra", "teacher", "teacherpro"]);
+    expect(PLANS.school.audience).toBe("school");
   });
   it("a semester is 120 days and a month 30", () => {
     expect(TERM_DAYS).toBe(120);
@@ -115,5 +117,75 @@ describe("the agreed prices and limits", () => {
   it("won't accept a student plus payment of the old price", () => {
     const old = { event: "charge.success", data: { status: "success", reference: "r2", amount: 200_000, currency: "NGN", metadata: { uid: "u", plan: "plus", term: "month" } } };
     expect(readCharge(old)).toBeNull();
+  });
+});
+
+describe("the plan ladder", () => {
+  const ladder = (a: "student" | "teacher") => PLAN_IDS.filter((id) => PLANS[id].audience === a).map((id) => PLANS[id]).sort((x, y) => x.priceMonthNgn - y.priceMonthNgn);
+
+  it("students have Free, Plus, Pro, Pro Max and Ultra; teachers have Teacher and Teacher Pro", () => {
+    expect(ladder("student").map((p) => p.label)).toEqual(["Free", "Plus", "Pro", "Pro Max", "Ultra"]);
+    expect(ladder("teacher").map((p) => p.label)).toEqual(["Teacher", "Teacher Pro"]);
+  });
+  it("every step up costs more and never gives less of anything", () => {
+    for (const a of ["student", "teacher"] as const) {
+      const l = ladder(a);
+      for (let i = 1; i < l.length; i++) {
+        expect(l[i].priceMonthNgn, `${l[i].label} price`).toBeGreaterThan(l[i - 1].priceMonthNgn);
+        expect(l[i].priceTermNgn, `${l[i].label} semester price`).toBeGreaterThan(l[i - 1].priceTermNgn);
+        expect(l[i].monthlyTokens).toBeGreaterThan(l[i - 1].monthlyTokens);
+        expect(l[i].perMinute).toBeGreaterThanOrEqual(l[i - 1].perMinute);
+        for (const f of FEATURES) expect(l[i].limits[f], `${l[i].label} ${f}`).toBeGreaterThanOrEqual(l[i - 1].limits[f]);
+      }
+    }
+  });
+  it("a semester is always cheaper than four months paid monthly", () => {
+    for (const id of PAYABLE) expect(termSavingsPercent(PLANS[id]), id).toBeGreaterThan(0);
+  });
+  it("every plan has a name, a tagline and a short code name", () => {
+    for (const id of PLAN_IDS) expect(PLANS[id].codename.length, id).toBeGreaterThan(2);
+  });
+  it("shows students the student ladder only, and teachers and admins both", () => {
+    expect(plansForRole("student").every((p) => p.audience === "student")).toBe(true);
+    expect(plansForRole("teacher").some((p) => p.id === "teacherpro")).toBe(true);
+    expect(plansForRole("admin").length).toBe(PLAN_IDS.length);
+  });
+  it("only teacher and admin accounts can buy teacher plans", () => {
+    expect(canBuy("teacher", "student")).toBe(false);
+    expect(canBuy("teacherpro", "teacher")).toBe(true);
+    expect(canBuy("ultra", "student")).toBe(true);
+    expect(canBuy("school", "admin")).toBe(false);
+    expect(canBuy("free", "student")).toBe(false);
+  });
+  it("points to the next plan up, and says class building is for teachers when no student plan has it", () => {
+    expect(nextTier(PLANS.free)?.id).toBe("plus");
+    expect(nextTier(PLANS.pro)?.id).toBe("promax");
+    expect(nextTier(PLANS.ultra)).toBeNull();
+    expect(nextTier(PLANS.teacher)?.id).toBe("teacherpro");
+    expect(limitMessage(PLANS.free, "class_build", allowance(PLANS.free, {}, "class_build"))).toContain("teacher accounts");
+  });
+});
+
+describe("admin giving plans", () => {
+  const DAY = 86_400_000;
+  it("extends the same plan from where it ends, otherwise starts today", () => {
+    const now = 1_000 * DAY;
+    expect(grantExpiry(now, now + 10 * DAY, "pro", "pro", 30)).toBe(now + 40 * DAY);
+    expect(grantExpiry(now, now + 10 * DAY, "plus", "pro", 30)).toBe(now + 30 * DAY);
+    expect(grantExpiry(now, now - DAY, "pro", "pro", 7)).toBe(now + 7 * DAY);
+  });
+  it("keeps teacher plans for teacher accounts unless the admin confirms", () => {
+    expect(planFitsRole("teacher", "student")).toBe(false);
+    expect(planFitsRole("teacher", "teacher")).toBe(true);
+    expect(planFitsRole("pro", "student")).toBe(true);
+    expect(planFitsRole("school", "student")).toBe(true);
+  });
+  it("finds people by part of a name, username or email, ignoring case", () => {
+    const p = { displayName: "Ada Okafor", email: "ada.okafor@futo.edu.ng", username: "ada_o", uid: "u123" };
+    expect(matchesPerson("okaf", p)).toBe(true);
+    expect(matchesPerson("FUTO.EDU", p)).toBe(true);
+    expect(matchesPerson("ada_o", p)).toBe(true);
+    expect(matchesPerson("zzz", p)).toBe(false);
+    expect(matchesPerson("a", p)).toBe(false);
   });
 });

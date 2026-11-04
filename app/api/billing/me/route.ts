@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
-import { FEATURES, PLANS, PLAN_IDS, type Plan } from "@/lib/billing/plans";
+import { FEATURES, plansForRole, type Plan } from "@/lib/billing/plans";
 import { isEnforced } from "@/lib/billing/config";
 import { usageOf } from "@/lib/billing/usage";
 
@@ -24,9 +24,14 @@ export async function GET(req: NextRequest) {
         paymentsReady: !!process.env.PAYSTACK_SECRET_KEY,
         plan: wire(plan),
         planExpiresAt: expires && expires > Date.now() ? new Date(expires).toISOString() : null,
+        paid: !!data.plan && !!expires && expires > Date.now(),
+        resetAt: (data.usageResetAt as { toMillis?: () => number } | undefined)?.toMillis?.() ?? 0,
         usage: Object.fromEntries(FEATURES.map((f) => [f, usage[f] || 0])),
         tokens: { used: (data.usagePeriod || "") === period ? data.monthlyTokensUsed || 0 : 0, limit: Math.max(data.monthlyTokenLimit || 0, enforced ? plan.monthlyTokens : 0) || plan.monthlyTokens },
-        plans: PLAN_IDS.map((id) => wire(PLANS[id])),
+        // a student sees the student ladder; teachers and admins see the teacher ladder as well
+        plans: plansForRole(caller.role).map(wire),
+        role: caller.role,
+        grant: data.planGrant ? { kind: String(data.planGrant.kind || ""), note: String(data.planGrant.note || "") } : null,
         isAdmin: caller.role === "admin",
       },
     });

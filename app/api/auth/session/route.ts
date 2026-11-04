@@ -3,14 +3,15 @@ import { adminAuth } from "@/lib/firebase/admin";
 import { z } from "zod";
 import { classifyAuthFailure, logAuthFailure } from "@/lib/auth/failures";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { SESSION_MS, sessionCookieOptions } from "@/lib/auth/session-cookie";
 
 export const runtime = "nodejs";
 
 const sessionSchema = z.object({
   idToken: z.string().min(1, "idToken is required"),
+  /** "Keep me signed in": true (the default) keeps the cookie for 14 days, false drops it when the browser closes */
+  remember: z.boolean().optional(),
 });
-
-const FIVE_DAYS_MS = 60 * 60 * 24 * 5 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,14 +31,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { idToken } = parsed.data;
+    const { idToken, remember = true } = parsed.data;
 
     // Verify token first
     await adminAuth().verifyIdToken(idToken);
 
     // Create session cookie
     const sessionCookie = await adminAuth().createSessionCookie(idToken, {
-      expiresIn: FIVE_DAYS_MS,
+      expiresIn: SESSION_MS,
     });
 
     const response = NextResponse.json({
@@ -49,11 +50,7 @@ export async function POST(req: NextRequest) {
     response.cookies.set({
       name: "__session",
       value: sessionCookie,
-      maxAge: Math.floor(FIVE_DAYS_MS / 1000),
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      sameSite: "lax",
+      ...sessionCookieOptions(remember, process.env.NODE_ENV === "production"),
     });
 
     return response;

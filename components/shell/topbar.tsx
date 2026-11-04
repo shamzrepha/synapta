@@ -14,6 +14,7 @@ import { formatNumber } from "@/lib/utils";
 import { ROOT_PATHS } from "./nav-items";
 import { useT } from "@/components/settings/use-t";
 import { LanguageMenu } from "@/components/settings/language-picker";
+import { PlanChip } from "@/components/billing/plan-chip";
 
 export function Topbar() {
   const t = useT();
@@ -78,6 +79,8 @@ export function Topbar() {
 
       {/* Right controls */}
       <div className="flex items-center gap-1.5 md:gap-2.5 shrink-0">
+        {user && <PlanChip />}
+
         {user && (
           <Link
             href="/profile"

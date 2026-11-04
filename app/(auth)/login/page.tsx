@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { BrainCircuit, AlertCircle, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { safeRedirect } from "@/lib/auth/redirect";
+import { AutoSignIn } from "@/components/auth/auto-sign-in";
 
 function LoginForm() {
   const { signInWithEmail, signInWithGoogle, isLoading } = useAuth();
@@ -17,6 +18,8 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // "Keep me signed in": on by default; turn it off on a shared computer so the sign-in ends when the browser closes
+  const [remember, setRemember] = useState(true);
   const searchParams = useSearchParams();
   const redirectPath = safeRedirect(searchParams.get("redirect"));
   const invitedToClass = redirectPath.startsWith("/classes/");
@@ -31,7 +34,7 @@ function LoginForm() {
 
     setSubmitting(true);
     try {
-      await signInWithEmail(email, password);
+      await signInWithEmail(email, password, remember);
       window.location.assign(redirectPath);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to sign in";
@@ -55,7 +58,7 @@ function LoginForm() {
     setError(null);
     setSubmitting(true);
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(false, remember);
       window.location.assign(redirectPath);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
@@ -76,6 +79,7 @@ function LoginForm() {
         <CardDescription>Enter your email credentials or use Google</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <AutoSignIn />
         {redirectPath !== "/dashboard" && (
           <div className="rounded-xl border border-teal-500/30 bg-teal-500/10 p-3 text-xs text-teal-800 dark:text-teal-300">
             {invitedToClass ? "Sign in — or create a free account — to open the class you were invited to." : "Sign in to continue to the page you opened."}{" "}
@@ -124,6 +128,14 @@ function LoginForm() {
               required
             />
           </div>
+
+          <label className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-teal-600" />
+            <span>
+              <span className="font-semibold">Keep me signed in</span>
+              <span className="block text-slate-500">For 14 days on this device. Untick it on a shared computer.</span>
+            </span>
+          </label>
 
           <Button
             type="submit"
