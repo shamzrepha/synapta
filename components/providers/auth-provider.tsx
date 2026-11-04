@@ -271,9 +271,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const auth = clientAuth();
       await applyPersistence(remember);
       const cred = await nativeGoogleSignIn(auth, googleProvider);
-      const idToken = await cred.user.getIdToken(true);
-      await establishSessionCookie(idToken, remember);
-      await bootstrapUser(cred.user, requestTeacher ? "pending" : "none");
+      if (cred && cred.user) {
+        setFirebaseUser(cred.user);
+        const idToken = await cred.user.getIdToken(true);
+        await establishSessionCookie(idToken, remember);
+        await bootstrapUser(cred.user, requestTeacher ? "pending" : "none");
+      }
     } finally {
       setIsLoading(false);
     }

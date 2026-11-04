@@ -66,7 +66,8 @@ export default function SignupPage() {
     setSubmitting(true);
     try {
       await signInWithGoogle(requestTeacher);
-      window.location.assign(redirectFromLocation());
+      const dest = redirectFromLocation();
+      window.location.replace(dest || "/dashboard");
     } catch (err: unknown) {
       const errCode = (err as { code?: string })?.code;
       const msg = err instanceof Error ? err.message : "Google sign-in failed";

@@ -59,7 +59,8 @@ function LoginForm() {
     setSubmitting(true);
     try {
       await signInWithGoogle(false, remember);
-      window.location.assign(redirectPath);
+      // In native WebViews and standard browsers, replace window location to avoid stuck history states
+      window.location.replace(redirectPath || "/dashboard");
     } catch (err: unknown) {
       const errCode = (err as { code?: string })?.code;
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
