@@ -19,9 +19,9 @@ const WAYS = [
 
 const STEPS = [
   ["Drop the syllabus", "The lecturer adds the course outline."],
-  ["AI builds each topic", "Notes, a two-voice podcast, a simulation and a 60-question practice bank."],
+  ["AI builds each topic", "Whatever the subject needs: notes, a two-voice podcast, an interactive lesson, practice, and for science a simulation or lab."],
   ["Lecturer approves", "Nothing reaches students until the teacher pushes it."],
-  ["Students learn four ways", "Listen, simulate, practise, then build it."],
+  ["Students learn their way", "Listen, play with it, practise, and where it fits, build it."],
   ["Mastery updates live", "Every answer and every build moves the skill map."],
 ];
 
@@ -82,7 +82,7 @@ export default function LandingPage() {
         <div aria-hidden className="pointer-events-none absolute -right-40 top-20 h-[640px] w-[640px] rounded-full bg-[radial-gradient(circle,rgba(242,140,40,0.28)_0%,rgba(16,185,129,0.10)_45%,transparent_70%)]" />
         <div className="relative mx-auto grid max-w-[1200px] items-center gap-12 px-4 pb-16 pt-14 md:grid-cols-[1.1fr_0.9fr] md:pb-24 md:pt-20">
           <div className="min-w-0 space-y-7">
-            <p className="inline-flex rounded-full bg-[#F28C28] px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-[#12241C]">AI STEM tutor + virtual lab</p>
+            <p className="inline-flex rounded-full bg-[#F28C28] px-4 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-[#12241C]">AI tutor for any subject</p>
             <h1 className="font-display text-5xl font-bold leading-[0.98] tracking-tight sm:text-6xl lg:text-7xl">
               Stop cramming.
               <br />
@@ -91,7 +91,7 @@ export default function LandingPage() {
               <span className="text-[#F28C28]">Prove you know it.</span>
             </h1>
             <p className="max-w-xl text-lg leading-relaxed text-[#D7E2D9]">
-              Every topic as a two-voice podcast, a live circuit and physics lab, practice that finds your weak spots, and a 3D studio where you build it yourself. On your phone, in your language.
+              Upload your notes, even handwritten photos, and get clear notes, a two-voice podcast, an interactive lesson and practice that finds your weak spots. For science and engineering there is a live lab and a 3D studio too. On your phone, in your language.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
               <Link href="/signup" className="inline-flex items-center justify-center gap-2 rounded-full bg-[#F28C28] px-7 py-3.5 text-base font-bold text-[#12241C] shadow-[0_16px_40px_-12px_rgba(242,140,40,0.6)] hover:bg-[#F59E45]">

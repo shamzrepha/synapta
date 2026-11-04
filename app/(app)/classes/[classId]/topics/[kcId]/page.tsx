@@ -44,6 +44,7 @@ import { LanguagePreview } from "@/components/lesson/language-preview";
 import { PracticeBankTools } from "@/components/lesson/practice-bank-tools";
 import { ReadAloud } from "@/components/ui/read-aloud";
 import { ShareButton, SaveButton } from "@/components/social/share-button";
+import { TeachPanel } from "@/components/teach/teach-panel";
 import { StudyProfileCard } from "@/components/study/profile-card";
 import { resolveProfile, type StudyProfile } from "@/lib/study/profile";
 
@@ -76,7 +77,7 @@ interface ChatMessage {
   isError?: boolean;
 }
 
-type Tab = "learn" | "simulate" | "build" | "flashcards" | "quiz" | "prove" | "tutor";
+type Tab = "learn" | "teach" | "simulate" | "build" | "flashcards" | "quiz" | "prove" | "tutor";
 
 const THIN_LESSON_CHARS = 600;
 const TUTOR_STARTERS = [
@@ -88,6 +89,7 @@ const TUTOR_STARTERS = [
 
 const TAB_HINT: Record<Tab, string> = {
   learn: "Read the lesson, or press play to listen to it as a short podcast.",
+  teach: "Watch and play with an animated lesson: change the numbers and see the idea move. Press Play lesson to have it explained step by step.",
   simulate: "Play with an interactive model: change things on screen and watch what happens.",
   build: "See a finished, working build for this topic: open it, read the code, run it and change it to see what happens. Then try Prove it to rebuild it yourself.",
   flashcards: "Quick flashcards to remember the key points.",
@@ -395,6 +397,7 @@ export default function TopicPage({
 
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode; step?: number; onOpen?: () => void }> = [
     { key: "learn", label: "Read & listen", step: 1, icon: <BookOpen className="h-4 w-4" /> },
+    { key: "teach", label: "Interactive lesson", step: 2, icon: <PlayCircle className="h-4 w-4" /> },
     { key: "simulate", label: "Simulation", step: 2, icon: <Gamepad2 className="h-4 w-4" /> },
     {
       key: "flashcards",
@@ -413,6 +416,7 @@ export default function TopicPage({
   const profile = resolveProfile(kc);
   const shownKeys: Record<Tab, boolean> = {
     learn: true,
+    teach: profile.needs.animation,
     simulate: profile.needs.simulation,
     flashcards: profile.needs.flashcards,
     quiz: profile.needs.practice,
@@ -748,6 +752,7 @@ export default function TopicPage({
 
           {/* QUIZ */}
           {shownTab === "prove" && <ProveIt classId={classId} kcId={kcId} topicTitle={kc.title} />}
+          {shownTab === "teach" && <TeachPanel source={{ type: "kc", classId, kcId }} canRegenerate={canManage} />}
           {shownTab === "build" && <TopicLabs classId={classId} kcId={kcId} topicTitle={kc.title} />}
 
           {shownTab === "quiz" && (
