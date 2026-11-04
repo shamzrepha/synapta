@@ -21,6 +21,7 @@ import { clientAuth, googleProvider } from "@/lib/firebase/client";
 import { useUserStore, UserProfile } from "@/lib/store/use-user-store";
 import { useRouter } from "next/navigation";
 import { adoptAccountPrefs } from "@/components/settings/use-prefs";
+import { nativeGoogleSignIn } from "@/lib/auth/native-google";
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
@@ -269,7 +270,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const auth = clientAuth();
       await applyPersistence(remember);
-      const cred = await signInWithPopup(auth, googleProvider);
+      const cred = await nativeGoogleSignIn(auth, googleProvider);
       const idToken = await cred.user.getIdToken(true);
       await establishSessionCookie(idToken, remember);
       await bootstrapUser(cred.user, requestTeacher ? "pending" : "none");
