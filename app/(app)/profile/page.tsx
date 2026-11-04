@@ -238,7 +238,7 @@ export default function ProfilePage() {
                     <p className="text-[10px] text-slate-400">Lowercase letters, numbers, and underscores only</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <Button type="submit" size="sm" isLoading={savingProfile} className="text-xs">
                     Save Profile Changes
                   </Button>

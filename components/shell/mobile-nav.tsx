@@ -126,7 +126,7 @@ export function MobileNav() {
                 )}
               >
                 <Icon className="h-5 w-5" />
-                {t(item.label)}
+                <span className="max-w-full truncate px-0.5 leading-tight">{t(item.short ?? item.label)}</span>
               </Link>
             );
           })}
