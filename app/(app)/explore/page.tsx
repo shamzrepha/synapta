@@ -25,6 +25,8 @@ import {
   Headphones,
 } from "lucide-react";
 import { asArray } from "@/lib/api/client";
+import { extractTextFromFile } from "@/lib/pdf/extractor";
+import { condenseForSyllabus, SYLLABUS_SEED_MAX } from "@/lib/documents/outline";
 import { ClassroomPlanView, outlineToText, type ClassroomPlan } from "@/components/teacher/classroom-plan";
 
 interface ClassItem {
@@ -75,6 +77,29 @@ export default function ExplorePage() {
   const [createWeeks, setCreateWeeks] = useState(4);
   const [createAudienceTags, setCreateAudienceTags] = useState<string[]>([]);
   const [seedText, setSeedText] = useState("");
+  const [readingOutline, setReadingOutline] = useState("");
+  const [outlineNote, setOutlineNote] = useState("");
+
+  /** Reads each uploaded file (typed or scanned PDF, Word, slides, photo, text) and puts its text in the outline box. */
+  const readOutlineFiles = async (files: File[]) => {
+    const parts: string[] = [];
+    try {
+      for (const f of files.slice(0, 5)) {
+        setReadingOutline(`Reading ${f.name}…`);
+        const got = await extractTextFromFile(f, (m) => setReadingOutline(m));
+        if (got.trim()) parts.push(files.length > 1 ? `### ${f.name}\n${got.trim()}` : got.trim());
+      }
+      const joined = parts.join("\n\n");
+      if (!joined.trim()) throw new Error("Couldn't find any text in that file.");
+      const c = condenseForSyllabus(joined, SYLLABUS_SEED_MAX);
+      setSeedText((prev) => (prev.trim() ? `${prev.trim()}\n\n${c.text}` : c.text).slice(0, SYLLABUS_SEED_MAX));
+      setOutlineNote(c.condensed ? `Read ${files.length} file${files.length > 1 ? "s" : ""}. It's long, so the AI gets the start plus every chapter and section heading.` : `Read ${files.length} file${files.length > 1 ? "s" : ""}.`);
+    } catch (err) {
+      toast({ title: "Couldn't read that file", description: err instanceof Error ? err.message : "Try another file.", variant: "destructive" });
+    } finally {
+      setReadingOutline("");
+    }
+  };
   const [buildWithAi, setBuildWithAi] = useState(true);
   const [audioLessons, setAudioLessons] = useState(true);
   const [narratorVoice, setNarratorVoice] = useState<"female" | "male">("female");
@@ -601,26 +626,25 @@ export default function ExplorePage() {
                         Course Outline / Syllabus Notes (Outline-First Mode)
                       </label>
                       <label className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold cursor-pointer hover:underline">
-                        Upload outline file
+                        {readingOutline ? "Reading…" : "Upload syllabus, course pack or textbook"}
                         <input
                           type="file"
-                          accept=".txt,.md,.json,.csv"
+                          multiple
+                          disabled={!!readingOutline}
+                          accept=".pdf,.docx,.pptx,.txt,.md,.json,.csv,.png,.jpg,.jpeg,.webp,image/*"
                           className="hidden"
                           onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (ev) => {
-                                const text = ev.target?.result;
-                                if (typeof text === "string") setSeedText(text);
-                              };
-                              reader.readAsText(file);
-                            }
+                            const files = Array.from(e.target.files || []);
+                            e.target.value = "";
+                            if (files.length) void readOutlineFiles(files);
                           }}
                         />
                       </label>
                     </div>
 
+                    {readingOutline && <p className="text-[11px] font-semibold text-teal-600 animate-pulse">{readingOutline}</p>}
+                    {outlineNote && !readingOutline && <p className="text-[11px] text-slate-500">{outlineNote}</p>}
+                    <p className="text-[11px] text-slate-500">PDF, Word, slides, scanned pages or photos of a syllabus or textbook all work. Sunroot reads them and maps the topics for you.</p>
                     <textarea
                       rows={6}
                       placeholder={`1. Introduction to Feedback Control\n2. Frequency Domain Analysis & Transfer Functions\n3. Stability Criteria & Root Locus\n4. PID Controller Design & Tuning`}

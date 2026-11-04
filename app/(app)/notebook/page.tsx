@@ -1416,7 +1416,7 @@ export default function NotebookPage() {
                   </div>
                   <input
                     type="file"
-                    accept=".pdf,.txt,.md,.png,.jpg,.jpeg,.webp,image/*"
+                    accept=".pdf,.docx,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,image/*"
                     onChange={handleFileUpload}
                     disabled={uploadingFile}
                     className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer"
