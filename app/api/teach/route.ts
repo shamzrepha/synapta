@@ -10,6 +10,7 @@ import { extractJsonPayload, generateWithFallback } from "@/lib/ai/router";
 import { lessonForStudents } from "@/lib/classes/live";
 import { classSourceLanguage, localizeFor } from "@/lib/i18n/serve";
 import { loadOwnNote, readVersions } from "@/lib/study/notes-store";
+import { checkFeature, recordFeature } from "@/lib/billing/usage";
 import { searchImages } from "@/lib/images/commons";
 import { SCRIPT_SYSTEM, fallbackScript, parseScript, type LessonScript } from "@/lib/teach/script";
 
@@ -75,9 +76,11 @@ export async function POST(req: NextRequest) {
       const versions = await readVersions(source.id);
       const notes = (versions.find((v) => v.n === data.head) ?? versions[0])?.markdown || "";
       if (!notes) throw new ApiError(404, "NOT_FOUND", "Notes not found");
+      await checkFeature(caller.uid, "lessons");
       await checkRateLimitAndQuota(caller.uid, 7000);
       const { script } = await writeScript(String(data.title || "Lesson"), notes, caller.uid, true);
       await ref.update({ teachScript: script, teachAt: Timestamp.now() });
+      await recordFeature(caller.uid, "lessons");
       return NextResponse.json({ ok: true, data: { script } });
     }
 

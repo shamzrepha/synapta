@@ -43,6 +43,7 @@ const protectedPrefixes = [
   "/activity",
   "/teach",
   "/settings",
+  "/plans",
   "/experiments",
 ];
 

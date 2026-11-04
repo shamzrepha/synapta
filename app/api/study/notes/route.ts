@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
 import { generateWithFallback } from "@/lib/ai/router";
 import { Timestamp } from "@/lib/firebase/admin";
+import { checkFeature, recordFeature } from "@/lib/billing/usage";
 import { NOTES_SYSTEM, NOTE_SOURCE_MAX, generatePrompt, noteTitle } from "@/lib/study/notes";
 import { addVersion, notesCol } from "@/lib/study/notes-store";
 
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest) {
     const mine = await notesCol().where("uid", "==", caller.uid).limit(MAX_NOTES + 1).get();
     if (mine.size >= MAX_NOTES) throw new ApiError(409, "LIMIT", `You can keep up to ${MAX_NOTES} sets of notes. Delete one to make room.`);
 
+    await checkFeature(caller.uid, "notes");
     await checkRateLimitAndQuota(caller.uid, 9000);
     const sourceTitle = (body.title || "").trim() || "Untitled";
     const sourceText = body.text.trim().slice(0, NOTE_SOURCE_MAX * 1.25);
@@ -61,6 +63,7 @@ export async function POST(req: NextRequest) {
     const ref = notesCol().doc();
     await ref.set({ uid: caller.uid, title: noteTitle(markdown, sourceTitle), sourceTitle, sourceText, head: 0, createdAt: Timestamp.now(), updatedAt: Timestamp.now() });
     await addVersion(ref.id, markdown, "First draft");
+    await recordFeature(caller.uid, "notes");
     return NextResponse.json({ ok: true, data: { id: ref.id } });
   } catch (error) {
     return handleAuthError(error);
