@@ -2,7 +2,7 @@ import { LandingButtons } from "@/components/auth/landing-buttons";
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, Check, Headphones, SlidersHorizontal, ListChecks, Cpu, Languages, ShieldCheck, Radar } from "lucide-react";
+import { ArrowRight, Check, Headphones, SlidersHorizontal, ListChecks, Cpu, Languages, ShieldCheck, Radar, Smartphone, Download } from "lucide-react";
 import { SITE_ALT_NAME, SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/site";
 
 /*
@@ -98,6 +98,9 @@ export default function LandingPage() {
               <Link href="/signup" className="inline-flex items-center justify-center rounded-full border-2 border-[#FBF6EC]/30 px-7 py-3.5 text-base font-bold text-[#FBF6EC] hover:border-[#FBF6EC]/60">
                 I teach a class
               </Link>
+              <a href="/sunroot.apk" download className="group inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#14b8a6] bg-[#14b8a6]/15 px-6 py-3.5 text-base font-bold text-[#FBF6EC] backdrop-blur-sm transition-all hover:bg-[#14b8a6] hover:text-[#0E1F18] shadow-[0_8px_20px_-6px_rgba(20,184,166,0.5)]">
+                <Smartphone className="h-5 w-5 text-[#14b8a6] group-hover:text-[#0E1F18] transition-colors" /> Download Android App
+              </a>
             </div>
           </div>
           <div className="relative mx-auto h-[520px] w-full max-w-[460px] sm:h-[600px]">
@@ -215,6 +218,29 @@ export default function LandingPage() {
               </li>
             ))}
           </ol>
+        </div>
+      </section>
+
+      {/* Mobile App Download Card */}
+      <section className="border-t border-[#2E4B3D] bg-[#0A1812] px-4 py-16 text-[#FBF6EC]">
+        <div className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-8 rounded-3xl border border-[#2E4B3D] bg-[#0E1F18] p-8 md:flex-row md:p-12 shadow-[0_24px_50px_-12px_rgba(0,0,0,0.5)]">
+          <div className="flex items-center gap-5">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#14b8a6] to-[#0d9488] shadow-lg">
+              <Smartphone className="h-8 w-8 text-white" />
+            </div>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#14b8a6]">Mobile Edition</p>
+              <h3 className="font-display text-2xl font-bold md:text-3xl">Take Sunroot with you anywhere</h3>
+              <p className="text-sm text-[#D7E2D9] max-w-md mt-1">Study offline summaries, listen to audio lessons, and get instant push study notifications directly on Android.</p>
+            </div>
+          </div>
+          <a
+            href="/sunroot.apk"
+            download
+            className="inline-flex shrink-0 items-center gap-2.5 rounded-full bg-[#14b8a6] px-7 py-4 text-base font-bold text-[#0E1F18] shadow-[0_12px_30px_-8px_rgba(20,184,166,0.6)] transition-transform hover:scale-105 active:scale-95"
+          >
+            <Download className="h-5 w-5 stroke-[2.5]" /> Download APK (v1.0)
+          </a>
         </div>
       </section>
 
