@@ -24,6 +24,11 @@ export const AI_TASK_DEFINITIONS = {
     label: "Material Router",
     description: "Incremental document mapping to topics and curriculum proposal creation.",
   },
+  student_evaluation: {
+    key: "student_evaluation",
+    label: "Student Evaluation",
+    description: "Reads a learner's wrong answers and mastery scores, names their knowledge gaps and misconceptions, and writes a short study plan.",
+  },
   grading_high_stakes: {
     key: "grading_high_stakes",
     label: "High-Stakes Grading",
