@@ -61,7 +61,12 @@ function LoginForm() {
       await signInWithGoogle(false, remember);
       window.location.assign(redirectPath);
     } catch (err: unknown) {
+      const errCode = (err as { code?: string })?.code;
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
+      if (errCode === "auth/popup-closed-by-user" || msg.includes("popup-closed-by-user")) {
+        // User closed the popup or switched apps; do not display a scary red error
+        return;
+      }
       if (msg.includes("Cloud Firestore API") || msg.includes("FIRESTORE_DISABLED")) {
         setError("Cloud Firestore is not initialized yet in your Firebase Console. Please go to https://console.firebase.google.com/project/synapta-learning/firestore and click 'Create database'.");
       } else {

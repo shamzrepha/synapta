@@ -68,7 +68,12 @@ export default function SignupPage() {
       await signInWithGoogle(requestTeacher);
       window.location.assign(redirectFromLocation());
     } catch (err: unknown) {
+      const errCode = (err as { code?: string })?.code;
       const msg = err instanceof Error ? err.message : "Google sign-in failed";
+      if (errCode === "auth/popup-closed-by-user" || msg.includes("popup-closed-by-user")) {
+        // User closed the popup; do not display an alarming error
+        return;
+      }
       if (msg.includes("Cloud Firestore API") || msg.includes("FIRESTORE_DISABLED")) {
         setError("Cloud Firestore is not initialized yet in your Firebase Console. Please go to https://console.firebase.google.com/project/synapta-learning/firestore and click 'Create database'.");
       } else {
