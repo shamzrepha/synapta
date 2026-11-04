@@ -619,6 +619,9 @@ export default function AdminConsolePage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link href="/admin/billing">
+            <Button variant="outline" size="sm" className="text-xs">Payments &amp; plans</Button>
+          </Link>
           <Button
             variant="outline"
             size="sm"

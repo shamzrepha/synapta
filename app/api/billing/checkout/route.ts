@@ -4,6 +4,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { PAYABLE, priceFor, type PlanId } from "@/lib/billing/plans";
+import { PAYSTACK_CHANNELS } from "@/lib/billing/paystack";
 
 export const runtime = "nodejs";
 
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
         email: caller.email,
         amount: priceFor(plan as PlanId, term) * 100,
         currency: "NGN",
+        channels: PAYSTACK_CHANNELS,
         callback_url: `${req.nextUrl.origin}/plans?paid=1`,
         metadata: { uid: caller.uid, plan, term },
       }),

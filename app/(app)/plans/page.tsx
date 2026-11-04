@@ -60,14 +60,18 @@ export default function PlansPage() {
   }, []);
   useEffect(() => {
     const t = setTimeout(() => void load(), 0);
-    // coming back from the payment page: the plan appears once Paystack has told us, usually within seconds
-    const paid = new URLSearchParams(window.location.search).get("paid") === "1";
-    const again = paid ? setTimeout(() => void load(), 6000) : undefined;
-    return () => {
-      clearTimeout(t);
-      if (again) clearTimeout(again);
-    };
-  }, [load]);
+    // coming back from Paystack: ask Paystack straight away whether the payment went through, so the plan shows at once
+    const q = new URLSearchParams(window.location.search);
+    const reference = q.get("reference") || q.get("trxref");
+    if (q.get("paid") === "1" && reference) {
+      fetchJson<{ paid: boolean; plan?: string }>(`/api/billing/verify?reference=${encodeURIComponent(reference)}`).then((j) => {
+        if (j.ok && j.data.paid) toast({ title: "Payment received", description: "Your plan is active. Thank you!", variant: "success" });
+        else toast({ title: "Checking your payment…", description: "If it doesn't show in a minute, contact us with your payment reference.", variant: "amber" });
+        void load();
+      });
+    }
+    return () => clearTimeout(t);
+  }, [load, toast]);
 
   const buy = async (plan: string, term: "month" | "term") => {
     setBusy(`${plan}-${term}`);
@@ -147,7 +151,10 @@ export default function PlansPage() {
 
       {me.isAdmin && (
         <Card className="p-4 space-y-2">
-          <p className="font-bold text-sm">Give someone a plan (admin)</p>
+          <div className="flex items-center gap-2">
+            <p className="font-bold text-sm flex-1">Give someone a plan (admin)</p>
+            <a href="/admin/billing" className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Payments and subscribers →</a>
+          </div>
           <form onSubmit={give} className="flex flex-wrap gap-2">
             <input required type="email" value={grant.email} onChange={(e) => setGrant({ ...grant, email: e.target.value })} placeholder="their email" className="flex-1 min-w-[200px] h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent px-3 text-sm" />
             <select value={grant.plan} onChange={(e) => setGrant({ ...grant, plan: e.target.value })} aria-label="Plan" className="h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent px-2 text-sm">

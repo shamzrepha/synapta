@@ -23,7 +23,7 @@ const STUDENT_DEFAULT_LIMIT = 50_000;
 const TEACHER_DEFAULT_LIMIT = 10_000_000;
 
 export class QuotaError extends ApiError {
-  constructor(code: "QUOTA_EXCEEDED" | "RATE_LIMITED", message: string, status: number, headers?: Record<string, string>) {
+  constructor(code: "QUOTA_EXCEEDED" | "RATE_LIMITED" | "PLAN_LIMIT", message: string, status: number, headers?: Record<string, string>) {
     super(status, code, message, headers);
     this.name = "QuotaError";
   }

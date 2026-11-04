@@ -19,7 +19,7 @@ export async function checkFeature(uid: string, feature: FeatureKey, amount = 1)
   if (!billingEnforced()) return;
   const { plan, usage } = await usageOf(uid);
   const a = allowance(plan, usage, feature, amount);
-  if (!a.ok) throw new QuotaError("QUOTA_EXCEEDED", limitMessage(plan, feature, a), 429);
+  if (!a.ok) throw new QuotaError("PLAN_LIMIT", limitMessage(plan, feature, a), 429);
 }
 
 export async function recordFeature(uid: string, feature: FeatureKey, amount = 1): Promise<void> {
