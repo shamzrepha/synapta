@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { TeachPanel } from "@/components/teach/teach-panel";
 import { NoteFlashcards, NoteQuiz } from "@/components/study/note-practice";
+import { UsageStrip } from "@/components/billing/usage-strip";
 import { ImageFinder } from "@/components/study/image-finder";
 import { extractTextFromFile } from "@/lib/pdf/extractor";
 import { fetchJson, asArray } from "@/lib/api/client";
@@ -158,6 +159,8 @@ export default function StudyNotesPage() {
         <h1 className="text-2xl font-extrabold">Notes that make sense</h1>
         <p className="text-sm text-slate-500 max-w-2xl">Upload a PDF, photograph your notes or paste text. Sunroot reads it, even handwriting, and writes clean notes with topics, worked examples and questions to check yourself. Ask for changes any time.</p>
       </div>
+
+      <UsageStrip features={[{ key: "notes", label: "notes sets" }, { key: "scan_pages", label: "scanned pages" }, { key: "lessons", label: "lessons" }]} />
 
       {!openId && !creating && (
         <div className="space-y-3">

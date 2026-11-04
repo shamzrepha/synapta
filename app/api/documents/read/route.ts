@@ -5,6 +5,7 @@ import { ApiError, parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
 import { generateWithFallback } from "@/lib/ai/router";
+import { checkFeature, recordFeature } from "@/lib/billing/usage";
 import { parseImageDataUrl } from "@/lib/snap/image";
 import { READ_SYSTEM, VISION_BATCH, cleanVisionText, splitVisionAnswer } from "@/lib/documents/pages";
 
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
     const parsed = images.map((i) => parseImageDataUrl(i));
     if (parsed.some((p) => !p)) throw new ApiError(400, "BAD_IMAGE", "Please use JPEG, PNG or WebP pages under 2 MB each.");
 
+    await checkFeature(caller.uid, "scan_pages", images.length);
     await checkRateLimitAndQuota(caller.uid, 3000 * images.length);
     const result = await generateWithFallback({
       task: "long_document",
@@ -49,6 +51,7 @@ export async function POST(req: NextRequest) {
     if (pages.every((p) => !p) && !(result.text || "").trim()) {
       throw new ApiError(502, "AI_GENERATION_FAILED", "The AI couldn't read those pages. Try clearer photos.");
     }
+    await recordFeature(caller.uid, "scan_pages", images.length);
     return NextResponse.json({ ok: true, data: { pages } });
   } catch (error) {
     return handleAuthError(error);

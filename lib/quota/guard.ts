@@ -2,6 +2,7 @@ import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { AuthError } from "@/lib/auth/requireUser";
 import { ApiError } from "@/lib/api/errors";
 import { evaluateSharedRateLimit } from "@/lib/rateLimit";
+import { billingEnforced, planOf } from "@/lib/billing/plans";
 
 /**
  * AI budget enforcement.
@@ -42,7 +43,8 @@ function budgetOf(data: FirebaseFirestore.DocumentData, period: string): UserBud
     isTeacherOrAdmin,
     // a new billing month starts from zero
     used: (data.usagePeriod || "") === period ? data.monthlyTokensUsed || 0 : 0,
-    limit: data.monthlyTokenLimit || (isTeacherOrAdmin ? TEACHER_DEFAULT_LIMIT : STUDENT_DEFAULT_LIMIT),
+    // a custom limit set by an admin still counts; once billing is switched on, a paid plan raises the floor to its own budget
+    limit: Math.max(data.monthlyTokenLimit || (isTeacherOrAdmin ? TEACHER_DEFAULT_LIMIT : STUDENT_DEFAULT_LIMIT), billingEnforced() ? planOf(data).monthlyTokens : 0),
   };
 }
 

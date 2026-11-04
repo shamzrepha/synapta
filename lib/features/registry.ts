@@ -57,4 +57,5 @@ export const FEATURES: FeatureEntry[] = [
   { n: 38, id: "announcements", title: "Class announcements", blurb: "Announcements with read receipts.", emoji: "📣", href: "/classes/announcements", group: "Teachers", status: "live" },
   { n: 39, id: "offline", title: "Offline mode", blurb: "Download lessons and notes for patchy internet.", emoji: "📴", href: "/offline", group: "Everywhere", status: "live" },
   { n: 40, id: "datasaver", title: "Data-saver mode", blurb: "Skip audio and 3D unless you tap.", emoji: "📉", href: "/settings", group: "Everywhere", status: "live" },
+  { n: 42, id: "plans", title: "Plans & usage", blurb: "See your monthly AI allowance and upgrade.", emoji: "💳", href: "/plans", group: "Everywhere", status: "live" },
 ];
