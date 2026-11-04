@@ -37,7 +37,7 @@ export async function nativeGoogleSignIn(auth: Auth, fallbackProvider: GoogleAut
       console.log("[NativeAuth] Received SocialLogin result:", JSON.stringify(res));
 
       // Extract the verified Google ID token from Credential Manager result
-      const resultObj = res.result as Record<string, unknown> | undefined;
+      const resultObj = res.result as unknown as Record<string, unknown> | undefined;
       const idToken =
         (resultObj?.idToken as string | undefined) ||
         ((resultObj?.response as Record<string, unknown> | undefined)?.idToken as string | undefined) ||
