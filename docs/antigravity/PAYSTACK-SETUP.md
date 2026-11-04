@@ -28,8 +28,10 @@ settings, in the right places, without ever putting the key in git or in a log.*
    - Open `/plans`, choose Student Plus > Monthly. Pay with Paystack's published **test card** (see Paystack docs, "Test payments").
    - You return to `/plans?paid=1` and the page says "Payment received". Your plan shows as Student Plus.
    - As an admin, open `/admin/billing`: the payment, amount, channel and subscriber should be listed.
-7. When ready to enforce limits (after the pitch): set `BILLING_ENFORCED=1` on Vercel and redeploy. From then on, a free user
-   who uses up their monthly allowance sees the "Time to upgrade" pop-up.
+7. Turning limits on and off needs no redeploy and no environment variable: open `/admin/billing` as an admin.
+   - **Test accounts only**: add the dummy account's email. Only that account hits limits, sees the upgrade pop-up and can pay; real users are untouched. Use this to test the whole flow.
+   - **Everyone**: limits apply to all users. **Off**: nobody is limited (usage is still counted).
+   - Leave `BILLING_ENFORCED` empty. It is only a fallback used until an admin has saved a choice on that page.
 8. Going live: replace the test key with the live key on Vercel, set the live webhook URL, redeploy, and make one small real payment.
 
 ## What not to change

@@ -1,6 +1,7 @@
 import { adminDb, FieldValue } from "@/lib/firebase/admin";
 import { QuotaError } from "@/lib/quota/guard";
-import { allowance, billingEnforced, currentPeriod, limitMessage, planOf, type FeatureKey } from "./plans";
+import { isEnforced } from "./config";
+import { allowance, currentPeriod, limitMessage, planOf, type FeatureKey } from "./plans";
 
 /**
  * Per-feature monthly allowances (study notes, scanned pages, lessons...). Two steps so a failed AI call is never charged:
@@ -16,7 +17,7 @@ export async function usageOf(uid: string) {
 }
 
 export async function checkFeature(uid: string, feature: FeatureKey, amount = 1): Promise<void> {
-  if (!billingEnforced()) return;
+  if (!(await isEnforced(uid))) return;
   const { plan, usage } = await usageOf(uid);
   const a = allowance(plan, usage, feature, amount);
   if (!a.ok) throw new QuotaError("PLAN_LIMIT", limitMessage(plan, feature, a), 429);

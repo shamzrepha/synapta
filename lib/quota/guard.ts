@@ -2,7 +2,8 @@ import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { AuthError } from "@/lib/auth/requireUser";
 import { ApiError } from "@/lib/api/errors";
 import { evaluateSharedRateLimit } from "@/lib/rateLimit";
-import { billingEnforced, planOf } from "@/lib/billing/plans";
+import { planOf } from "@/lib/billing/plans";
+import { isEnforced } from "@/lib/billing/config";
 
 /**
  * AI budget enforcement.
@@ -33,18 +34,23 @@ const currentPeriod = () => new Date().toISOString().slice(0, 7); // YYYY-MM
 
 interface UserBudget {
   isTeacherOrAdmin: boolean;
+  /** no monthly token cap: admins always, teachers until billing is switched on (then their plan's budget applies) */
+  uncapped: boolean;
+  perMinute: number;
   used: number;
   limit: number;
 }
 
-function budgetOf(data: FirebaseFirestore.DocumentData, period: string): UserBudget {
+function budgetOf(data: FirebaseFirestore.DocumentData, period: string, enforced: boolean): UserBudget {
   const isTeacherOrAdmin = data.role === "teacher" || data.role === "admin";
   return {
     isTeacherOrAdmin,
+    uncapped: data.role === "admin" || (data.role === "teacher" && !enforced),
+    perMinute: enforced ? planOf(data).perMinute : isTeacherOrAdmin ? TEACHER_MAX_CALLS_PER_WINDOW : MAX_CALLS_PER_WINDOW,
     // a new billing month starts from zero
     used: (data.usagePeriod || "") === period ? data.monthlyTokensUsed || 0 : 0,
     // a custom limit set by an admin still counts; once billing is switched on, a paid plan raises the floor to its own budget
-    limit: Math.max(data.monthlyTokenLimit || (isTeacherOrAdmin ? TEACHER_DEFAULT_LIMIT : STUDENT_DEFAULT_LIMIT), billingEnforced() ? planOf(data).monthlyTokens : 0),
+    limit: Math.max(data.monthlyTokenLimit || (isTeacherOrAdmin ? TEACHER_DEFAULT_LIMIT : STUDENT_DEFAULT_LIMIT), enforced ? planOf(data).monthlyTokens : 0),
   };
 }
 
@@ -59,15 +65,15 @@ export async function checkRateLimitAndQuota(uid: string, estimatedTokens = 1000
   const userDoc = await adminDb().collection("users").doc(uid).get();
   if (!userDoc.exists) throw new AuthError("UNAUTHENTICATED", "User record not found", 401);
   const period = currentPeriod();
-  const b = budgetOf(userDoc.data()!, period);
+  const b = budgetOf(userDoc.data()!, period, await isEnforced(uid));
 
-  const maxCalls = b.isTeacherOrAdmin ? TEACHER_MAX_CALLS_PER_WINDOW : MAX_CALLS_PER_WINDOW;
+  const maxCalls = b.perMinute;
   const rate = await evaluateSharedRateLimit(`user:${uid}:ai`, maxCalls, RATE_LIMIT_WINDOW_MS);
   if (!rate.success) {
     throw new QuotaError("RATE_LIMITED", "Rate limit exceeded. Please wait a moment before trying again.", 429, { "Retry-After": String(Math.max(1, Math.ceil(rate.resetMs / 1000))) });
   }
 
-  if (!b.isTeacherOrAdmin) {
+  if (!b.uncapped) {
     const outstanding = await outstandingReservations(uid);
     if (b.used + outstanding + estimatedTokens > b.limit) {
       throw new QuotaError("QUOTA_EXCEEDED", quotaMessage(b.used + outstanding, b.limit), 429);
@@ -96,11 +102,13 @@ export async function reserveQuota(uid: string, estimatedTokens: number, now = D
   const db = adminDb();
   const userRef = db.collection("users").doc(uid);
   const period = currentPeriod();
+  // read the on/off switch before the transaction: a transaction may not make other reads after its first write
+  const enforced = await isEnforced(uid);
   return db.runTransaction(async (t) => {
     const userSnap = await t.get(userRef);
     if (!userSnap.exists) throw new AuthError("UNAUTHENTICATED", "User record not found", 401);
-    const b = budgetOf(userSnap.data()!, period);
-    if (b.isTeacherOrAdmin) return { id: null, uid, tokens: estimatedTokens };
+    const b = budgetOf(userSnap.data()!, period, enforced);
+    if (b.uncapped) return { id: null, uid, tokens: estimatedTokens };
 
     const open = await t.get(db.collection("quotaReservations").where("uid", "==", uid).where("status", "==", "open"));
     const outstanding = open.docs.reduce((sum, d) => (Number(d.data().expiresAtMs) > now ? sum + (Number(d.data().tokens) || 0) : sum), 0);

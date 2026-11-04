@@ -23,15 +23,18 @@ export async function POST(req: NextRequest) {
     if (!caller.email) throw new ApiError(400, "VALIDATION", "Add an email address to your account before paying.");
     if (caller.role !== "admin" && plan === "teacher" && caller.role !== "teacher") throw new ApiError(403, "FORBIDDEN", "The Teacher plan is for teacher accounts. Ask to become a teacher first.");
 
+    // our own reference, so the return link can carry it and the payment can be traced back to the account
+    const reference = `sr_${caller.uid.slice(0, 8)}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`.replace(/[^A-Za-z0-9_.=-]/g, "");
     const res = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         email: caller.email,
+        reference,
         amount: priceFor(plan as PlanId, term) * 100,
         currency: "NGN",
         channels: PAYSTACK_CHANNELS,
-        callback_url: `${req.nextUrl.origin}/plans?paid=1`,
+        callback_url: `${req.nextUrl.origin}/plans?paid=1&reference=${reference}`,
         metadata: { uid: caller.uid, plan, term },
       }),
       signal: AbortSignal.timeout(15_000),
