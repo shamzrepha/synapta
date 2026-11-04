@@ -67,19 +67,6 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/firebase-messaging-sw.js",
-        headers: [
-          {
-            key: "Content-Type",
-            value: "application/javascript; charset=utf-8",
-          },
-          {
-            key: "Service-Worker-Allowed",
-            value: "/",
-          },
-        ],
-      },
-      {
         source: "/(.*)",
         headers: securityHeaders,
       },
@@ -91,6 +78,8 @@ const nextConfig: NextConfig = {
         headers: [
           ...securityHeaders.filter((h) => h.key !== "Content-Security-Policy"),
           { key: "Content-Security-Policy", value: contentSecurityPolicy(["https://www.gstatic.com"]) },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Service-Worker-Allowed", value: "/" },
           // browsers re-check a worker file for changes, so never serve a stale copy
           { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
         ],
