@@ -19,6 +19,8 @@ export async function nativeGoogleSignIn(auth: Auth, fallbackProvider: GoogleAut
         await SocialLogin.initialize({
           google: {
             webClientId: WEB_CLIENT_ID,
+            mode: "online",
+            skipAuthOnlyAuthorizationAfterSignIn: true,
           },
         });
         inited = true;
@@ -28,7 +30,7 @@ export async function nativeGoogleSignIn(auth: Auth, fallbackProvider: GoogleAut
       const res = await SocialLogin.login({
         provider: "google",
         options: {
-          scopes: ["email", "profile"],
+          scopes: ["openid", "email", "profile"],
           autoSelectEnabled: false,
           filterByAuthorizedAccounts: false,
         } as unknown as Record<string, unknown>,
@@ -60,9 +62,8 @@ export async function nativeGoogleSignIn(auth: Auth, fallbackProvider: GoogleAut
       if (msg.includes("cancel") || msg.includes("16") || msg.includes("popup-closed") || msg.includes("USER_CANCELLED")) {
         throw new Error("auth/popup-closed-by-user");
       }
-      // If native bridge failed unexpectedly, fall back to browser popup
-      console.log("[NativeAuth] Falling back to standard browser sign-in...");
-      return await signInWithPopup(auth, fallbackProvider);
+      // Re-throw actual native error so the user sees the real reason instead of triggering a broken web popup
+      throw err;
     }
   }
 
