@@ -7,7 +7,7 @@ import { useT } from "./use-t";
 import { LANGUAGES, languageInfo } from "@/lib/i18n/languages";
 import { cn } from "@/lib/utils";
 
-function LanguageList({ onPick }: { onPick?: () => void }) {
+export function LanguageList({ onPick }: { onPick?: () => void }) {
   const [prefs, update] = usePrefs();
   return (
     <ul role="listbox" aria-label="Language" translate="no" className="grid gap-1">

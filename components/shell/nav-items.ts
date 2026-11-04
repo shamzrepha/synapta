@@ -2,6 +2,8 @@ import { Home, GraduationCap, User, ShieldCheck, Bookmark, BookOpen, Users, Layo
 
 export interface NavItem {
   label: string;
+  /** one short word for the phone's bottom bar, where the full name would wrap */
+  short?: string;
   href: string;
   /** one plain sentence shown under the label where there is room */
   hint?: string;
@@ -24,6 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Home", href: "/dashboard", hint: "Your daily path", icon: Home, roles: ALL, group: "main", primary: true },
   {
     label: "My classes",
+    short: "Classes",
     href: "/classes/manage",
     hint: "Your courses · find new ones",
     icon: GraduationCap,
@@ -34,6 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   {
     label: "Notebook & Studio",
+    short: "Study",
     href: "/study",
     hint: "Study alone · build things",
     icon: BookOpen,

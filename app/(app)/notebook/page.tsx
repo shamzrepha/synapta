@@ -992,7 +992,7 @@ export default function NotebookPage() {
                         onClick={handleGeneratePodcast}
                         isLoading={generatingPodcast}
                         disabled={activeSources.length === 0}
-                        className="text-xs"
+                        className="text-xs max-w-full whitespace-normal h-auto py-2"
                       >
                         <Sparkles className="h-3.5 w-3.5 mr-1.5" /> Generate Deep Dive Audio
                       </Button>

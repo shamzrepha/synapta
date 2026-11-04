@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowLeft, Search, Flame, Sun, Moon, LogOut, MessageSquare, User, Bell, BrainCircuit, Bookmark } from "lucide-react";
+import { ArrowLeft, Search, Flame, Sun, Moon, LogOut, MessageSquare, User, Bell, BrainCircuit, Bookmark, Globe } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useTheme } from "@/components/providers/theme-provider";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -13,7 +13,7 @@ import { levelFromXp } from "@/lib/game/levels";
 import { formatNumber } from "@/lib/utils";
 import { ROOT_PATHS } from "./nav-items";
 import { useT } from "@/components/settings/use-t";
-import { LanguageMenu } from "@/components/settings/language-picker";
+import { LanguageList, LanguageMenu } from "@/components/settings/language-picker";
 import { PlanChip } from "@/components/billing/plan-chip";
 
 export function Topbar() {
@@ -31,6 +31,7 @@ export function Topbar() {
     else router.push(pathname.split("/").slice(0, -1).join("/") || "/dashboard");
   };
   const [menuOpen, setMenuOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const [query, setQuery] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const level = levelFromXp(user?.xp || 0);
@@ -45,7 +46,7 @@ export function Topbar() {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 md:h-16 w-full items-center justify-between gap-2 border-b border-slate-200/80 bg-white/85 px-3 md:px-4 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/85">
+    <header className="sticky top-0 z-[45] flex h-14 md:h-16 w-full items-center justify-between gap-2 border-b border-slate-200/80 bg-white/85 px-3 md:px-4 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/85">
       {/* Left: brand on phones (sidebar is hidden there), search from sm up */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
         {canGoBack && (
@@ -78,13 +79,13 @@ export function Topbar() {
       </div>
 
       {/* Right controls */}
-      <div className="flex items-center gap-1.5 md:gap-2.5 shrink-0">
+      <div className="flex items-center gap-1.5 md:gap-2.5 shrink-0 min-w-0">
         {user && <PlanChip />}
 
         {user && (
           <Link
             href="/profile"
-            className="flex items-center gap-2 rounded-full bg-teal-500/10 pl-1 pr-2.5 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300 border border-teal-500/20 hover:bg-teal-500/15"
+            className="hidden sm:flex items-center gap-2 rounded-full bg-teal-500/10 pl-1 pr-2.5 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300 border border-teal-500/20 hover:bg-teal-500/15"
             title={`Level ${level.level} ${level.title} · ${formatNumber(level.xp)} XP · ${formatNumber(level.nextLevelXp - level.xp)} XP to next level`}
           >
             <span className="relative h-7 w-7">
@@ -121,7 +122,7 @@ export function Topbar() {
           href="/messages"
           title="Messages"
           aria-label={`Messages${dmUnread ? `, ${dmUnread} unread` : ""}`}
-          className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-teal-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-teal-400"
+          className="relative hidden sm:flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-teal-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-teal-400"
         >
           <MessageSquare className="h-4 w-4" />
           {dmUnread > 0 && (
@@ -131,7 +132,11 @@ export function Topbar() {
           )}
         </Link>
 
-        {user && <LanguageMenu />}
+        {user && (
+          <div className="hidden sm:block">
+            <LanguageMenu />
+          </div>
+        )}
 
         {user && <NotificationBell />}
 
@@ -142,23 +147,29 @@ export function Topbar() {
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Account menu"
               aria-expanded={menuOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-white font-semibold text-xs border border-teal-500/30 shadow-sm overflow-hidden"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-white font-semibold text-xs border border-teal-500/30 shadow-sm"
             >
               {user.photoURL ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={user.photoURL} alt="" className="h-full w-full object-cover" />
+                <img src={user.photoURL} alt="" className="h-full w-full rounded-full object-cover" />
               ) : (
                 (user.displayName || user.email || "U").charAt(0).toUpperCase()
               )}
+              {dmUnread > 0 && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-teal-500 ring-2 ring-white dark:ring-slate-950 sm:hidden" />}
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-11 w-56 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl py-2 z-50">
+              <div className="absolute right-0 top-11 w-[min(14rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl py-2 z-50">
                 <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
                   <p className="text-sm font-semibold truncate">{user.displayName || user.email}</p>
                   <p className="text-xs text-slate-500">
                     Level {level.level} · {level.title}
                   </p>
                 </div>
+                <p className="sm:hidden px-4 pb-1 text-xs font-semibold text-teal-700 dark:text-teal-300">{formatNumber(level.xp)} XP</p>
+                <Link href="/messages" onClick={() => setMenuOpen(false)} className="sm:hidden flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
+                  <MessageSquare className="h-4 w-4" /> Messages
+                  {dmUnread > 0 && <span className="ml-auto rounded-full bg-teal-600 px-1.5 text-[10px] font-bold text-white">{dmUnread > 99 ? "99+" : dmUnread}</span>}
+                </Link>
                 <Link href="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                   <User className="h-4 w-4" /> Profile & badges
                 </Link>
@@ -171,6 +182,14 @@ export function Topbar() {
                 <Link href="/saved" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                   <Bookmark className="h-4 w-4" /> Saved
                 </Link>
+                <button type="button" onClick={() => setLangOpen((v) => !v)} aria-expanded={langOpen} className="sm:hidden w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
+                  <Globe className="h-4 w-4" /> Language
+                </button>
+                {langOpen && (
+                  <div className="sm:hidden mx-2 mb-1 max-h-56 overflow-y-auto rounded-xl border border-slate-200 p-1 dark:border-slate-800">
+                    <LanguageList onPick={() => { setLangOpen(false); setMenuOpen(false); }} />
+                  </div>
+                )}
                 <button type="button" onClick={toggleTheme} className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                   {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4" />}
                   {theme === "dark" ? "Light mode" : "Dark mode"}
