@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EnforcementPanel } from "@/components/billing/enforcement-panel";
+import { AdminPeople } from "@/components/billing/admin-people";
 import { fetchJson, asArray } from "@/lib/api/client";
 
 interface Overview {
@@ -54,11 +55,12 @@ export default function AdminBilling() {
           <p className="text-xs font-mono tracking-widest text-teal-600">ADMIN</p>
           <h1 className="text-2xl font-extrabold">Payments and subscribers</h1>
         </div>
-        <Link href="/plans" className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Give someone a plan</Link>
         <Link href="/admin" className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Back to admin</Link>
       </div>
 
       <EnforcementPanel />
+
+      <AdminPeople />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Revenue this month" value={naira(totals.thisMonthNgn)} hint={`${totals.paymentsThisMonth} payments`} />

@@ -7,6 +7,15 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { clientAuth } from "@/lib/firebase/client";
 
 /** Shown to email/password accounts until they confirm their address; posting publicly waits for it. */
+/** The "Keep me signed in" choice from the last sign-in (on unless turned off), so renewing the session keeps the same behaviour. */
+function rememberChoice(): boolean {
+  try {
+    return localStorage.getItem("sunroot:remember") !== "0";
+  } catch {
+    return true;
+  }
+}
+
 export function VerifyEmailBanner() {
   const { firebaseUser } = useAuth();
   const [status, setStatus] = useState<string | null>(null);
@@ -40,7 +49,7 @@ export function VerifyEmailBanner() {
       }
       // the session cookie carries the verified flag, so mint a fresh one
       const idToken = await user.getIdToken(true);
-      await fetch("/api/auth/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken }) });
+      await fetch("/api/auth/session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, remember: rememberChoice() }) });
       setDone(true);
     } catch {
       setStatus("Couldn't check right now. Try again in a moment.");

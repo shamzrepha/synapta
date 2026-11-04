@@ -1,5 +1,6 @@
 "use client";
 
+import { AutoSignIn } from "@/components/auth/auto-sign-in";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -102,6 +103,7 @@ export default function SignupPage() {
             <CardDescription>Choose your learning role and credentials</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <AutoSignIn />
             {redirectPath.startsWith("/classes/") && (
               <div className="rounded-xl border border-teal-500/30 bg-teal-500/10 p-3 text-xs text-teal-800 dark:text-teal-300">
                 Create your free account and we&apos;ll take you straight to the class you were invited to.
