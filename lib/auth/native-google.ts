@@ -7,8 +7,9 @@ const WEB_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || "391688654
 
 /**
  * Handles seamless Google Sign-In.
- * On Native Android/iOS: triggers the Android Credential Manager account sheet directly,
- * letting the user tap their existing phone Google account without typing email/password.
+ * On Native Android: triggers the native Android Credential Manager account sheet
+ * showing ALL Google accounts present on the device (auto-select disabled, filtering disabled),
+ * letting the user explicitly pick which account they want to use.
  * In a normal browser: uses standard Firebase popup.
  */
 export async function nativeGoogleSignIn(auth: Auth, fallbackProvider: GoogleAuthProvider): Promise<UserCredential> {
@@ -25,11 +26,16 @@ export async function nativeGoogleSignIn(auth: Auth, fallbackProvider: GoogleAut
         inited = true;
       }
 
+      // Explicitly tell Credential Manager:
+      // 1. autoSelectEnabled: false -> NEVER auto-pick, always show the full account list
+      // 2. filterByAuthorizedAccounts: false -> show ALL phone accounts, not just previously authorized ones
       const res = await SocialLogin.login({
         provider: "google",
         options: {
           scopes: ["email", "profile"],
-        },
+          autoSelectEnabled: false,
+          filterByAuthorizedAccounts: false,
+        } as unknown as Record<string, unknown>,
       });
 
       // Extract the verified Google ID token from Credential Manager
@@ -39,8 +45,7 @@ export async function nativeGoogleSignIn(auth: Auth, fallbackProvider: GoogleAut
         return await signInWithCredential(auth, credential);
       }
     } catch (err: unknown) {
-      console.warn("Native Google login fell back to web flow:", err);
-      // If user dismissed the native account picker, re-throw clean error
+      console.warn("Native Google login error:", err);
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("cancel") || msg.includes("16") || msg.includes("popup-closed")) {
         throw new Error("auth/popup-closed-by-user");
