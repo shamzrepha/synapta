@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     });
     const j = (await res.json().catch(() => null)) as { status?: boolean; data?: { authorization_url?: string } } | null;
     if (!res.ok || !j?.status || !j.data?.authorization_url) throw new ApiError(502, "PAYMENTS_UNAVAILABLE", "Couldn't start the payment. Please try again.");
-    return NextResponse.json({ ok: true, data: { url: j.data.authorization_url } });
+    return NextResponse.json({ ok: true, data: { url: j.data.authorization_url, reference } });
   } catch (error) {
     return handleAuthError(error);
   }

@@ -7,6 +7,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInWithCredential,
+  GoogleAuthProvider,
   signInWithRedirect,
   getRedirectResult,
   signInWithCustomToken,
@@ -20,6 +22,7 @@ import {
 import { clientAuth, googleProvider } from "@/lib/firebase/client";
 import { useUserStore, UserProfile } from "@/lib/store/use-user-store";
 import { useRouter } from "next/navigation";
+import { isAndroidWebView, isNativeApp, nativePlugin } from "@/lib/native/bridge";
 import { adoptAccountPrefs } from "@/components/settings/use-prefs";
 
 interface AuthContextType {
@@ -63,6 +66,30 @@ async function applyPersistence(remember: boolean) {
     // some browsers refuse (private mode); sign-in still works for this visit
   }
   saveRemember(remember);
+}
+
+/**
+ * Google refuses to sign anyone in inside an app's embedded web view, so the Android app signs in with Google natively
+ * (the "FirebaseAuthentication" plugin) and hands the result to Firebase here. In a normal browser it is the usual popup.
+ */
+async function googleSignInUser(auth: ReturnType<typeof clientAuth>): Promise<FirebaseUser> {
+  const native = isNativeApp() ? nativePlugin<{ signInWithGoogle: (o?: { skipNativeAuth?: boolean }) => Promise<{ credential?: { idToken?: string } }> }>("FirebaseAuthentication") : null;
+  if (native) {
+    let idToken: string | undefined;
+    try {
+      idToken = (await native.signInWithGoogle({ skipNativeAuth: true })).credential?.idToken;
+    } catch (e) {
+      // closing the Google sheet is not an error worth showing
+      if (/cancel/i.test(e instanceof Error ? e.message : String(e))) throw Object.assign(new Error("popup-closed-by-user"), { code: "auth/popup-closed-by-user" });
+      throw e;
+    }
+    if (!idToken) throw new Error("Google didn't finish signing you in. Please try again.");
+    return (await signInWithCredential(auth, GoogleAuthProvider.credential(idToken))).user;
+  }
+  if (isAndroidWebView()) {
+    throw new Error("Google sign-in isn't set up in this version of the app yet. Please sign in with your email and password, or update the app.");
+  }
+  return (await signInWithPopup(auth, googleProvider)).user;
 }
 
 /** Asks the server to turn a still-valid session cookie into a sign-in. "none": the server has no valid session; "unavailable": it couldn't say. */
@@ -269,10 +296,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const auth = clientAuth();
       await applyPersistence(remember);
-      const cred = await signInWithPopup(auth, googleProvider);
-      const idToken = await cred.user.getIdToken(true);
+      const user = await googleSignInUser(auth);
+      const idToken = await user.getIdToken(true);
       await establishSessionCookie(idToken, remember);
-      await bootstrapUser(cred.user, requestTeacher ? "pending" : "none");
+      await bootstrapUser(user, requestTeacher ? "pending" : "none");
     } finally {
       setIsLoading(false);
     }

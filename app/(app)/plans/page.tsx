@@ -7,6 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
+import { openExternal } from "@/lib/native/bridge";
+import { savePending, readPending, clearPending } from "@/lib/native/pending-payment";
 import { fetchJson } from "@/lib/api/client";
 import { FEATURES, FEATURE_LABEL, termSavingsPercent, type FeatureKey } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
@@ -102,15 +104,37 @@ export default function PlansPage() {
         void load();
       });
     }
-    return () => clearTimeout(t);
+    // back from Paystack without the return link (the app's browser tab, or a closed tab): confirm the payment we started
+    const confirmPending = () => {
+      if (document.visibilityState !== "visible") return;
+      const pending = readPending();
+      if (!pending) return;
+      fetchJson<{ paid: boolean }>(`/api/billing/verify?reference=${encodeURIComponent(pending.reference)}`).then((r) => {
+        if (r.ok && r.data.paid) {
+          clearPending();
+          toast({ title: "Payment received", description: "Your plan is active. Thank you!", variant: "success" });
+          void load();
+        }
+      });
+    };
+    document.addEventListener("visibilitychange", confirmPending);
+    window.addEventListener("focus", confirmPending);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("visibilitychange", confirmPending);
+      window.removeEventListener("focus", confirmPending);
+    };
   }, [load, toast]);
 
   const buy = async (plan: string, period: "month" | "term") => {
     setBusy(`${plan}-${period}`);
-    const j = await fetchJson<{ url: string }>("/api/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan, term: period }) });
+    const j = await fetchJson<{ url: string; reference?: string }>("/api/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan, term: period }) });
     setBusy("");
-    if (j.ok) window.location.assign(j.data.url);
-    else toast({ title: "Couldn't start the payment", description: j.error.message, variant: "destructive" });
+    if (j.ok) {
+      // remember it, so we can confirm the payment when the person is back from Paystack (in the app they pay in the phone's browser)
+      if (j.data.reference) savePending(j.data.reference);
+      await openExternal(j.data.url);
+    } else toast({ title: "Couldn't start the payment", description: j.error.message, variant: "destructive" });
   };
 
   if (!me) return <Skeleton className="h-96 rounded-2xl" />;
