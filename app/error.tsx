@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, RefreshCw, Home, LifeBuoy } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isChunkError, recoverFromChunkError } from "@/lib/recover/chunk-error";
 
 export default function ErrorBoundary({
   error,
@@ -15,6 +16,8 @@ export default function ErrorBoundary({
   useEffect(() => {
     // Log exception to telemetry / console
     console.error("Uncaught application error boundary caught:", error);
+    // a missing app file (weak connection, or a page saved before an update): clear the saved copies and reload once, automatically
+    if (isChunkError(error)) void recoverFromChunkError();
   }, [error]);
 
   return (
