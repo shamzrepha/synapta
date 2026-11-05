@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import { AdminAlerts } from "@/components/admin/admin-alerts";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useToast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
@@ -635,6 +636,8 @@ export default function AdminConsolePage() {
           </Button>
         </div>
       </div>
+
+      <AdminAlerts />
 
       {/* PLATFORM KPI METRICS OVERVIEW CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

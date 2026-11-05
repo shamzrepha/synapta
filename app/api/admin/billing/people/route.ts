@@ -8,6 +8,7 @@ import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { PLANS, PLAN_IDS, currentPeriod, planOf, type PlanId } from "@/lib/billing/plans";
 import { getBillingConfig, saveBillingConfig } from "@/lib/billing/config";
 import { grantExpiry, matchesPerson, planFitsRole } from "@/lib/billing/admin-actions";
+import { matchesFilter, parseFilters, sortPeople } from "@/lib/billing/people-browse";
 
 export const runtime = "nodejs";
 
@@ -28,8 +29,14 @@ function describePerson(uid: string, d: FirebaseFirestore.DocumentData, testers:
     planExpiresAt: exp > Date.now() && d.plan ? new Date(exp).toISOString() : null,
     grantKind: d.planGrant?.kind ? String(d.planGrant.kind) : null,
     isTester: testers.includes(uid),
+    createdAt: ms(d.createdAt),
+    xp: typeof d.xp === "number" ? d.xp : 0,
+    lastActive: Date.parse(String(d.lastActiveDate || "")) || 0,
   };
 }
+
+const SCAN_PAGES = 5; // up to 1,500 accounts are looked at per request
+const BROWSE_SHOWN = 50;
 
 /** Finds people by part of their name, username or email (up to 1,500 accounts are searched). */
 export async function GET(req: NextRequest) {
@@ -37,6 +44,26 @@ export async function GET(req: NextRequest) {
     const admin = await requireUser(req, ["admin"]);
     const limited = await checkRateLimit(req, { uid: admin.uid, keyPrefix: "admin_people", limit: 30, windowMs: 60_000 });
     if (limited) return limited;
+    // browse without typing: filter by account type and plan, sorted
+    if (req.nextUrl.searchParams.get("browse") === "1") {
+      const { role, plan, sort } = parseFilters(req.nextUrl.searchParams);
+      const testers = (await getBillingConfig())?.testers ?? [];
+      const all: ReturnType<typeof describePerson>[] = [];
+      let cursor: string | null = null;
+      let capped = false;
+      for (let page = 0; page < SCAN_PAGES; page++) {
+        let query: FirebaseFirestore.Query = adminDb().collection("users").orderBy(FieldPath.documentId()).limit(300);
+        if (cursor) query = query.startAfter(cursor);
+        const snap = await query.get();
+        for (const doc of snap.docs) all.push(describePerson(doc.id, doc.data(), testers));
+        if (snap.docs.length < 300) break;
+        cursor = snap.docs[snap.docs.length - 1].id;
+        if (page === SCAN_PAGES - 1) capped = true;
+      }
+      const now = Date.now();
+      const matching = sortPeople(all.filter((p) => matchesFilter(p, role, plan, now)), sort);
+      return NextResponse.json({ ok: true, data: { people: matching.slice(0, BROWSE_SHOWN), total: matching.length, scanned: all.length, capped } });
+    }
     const q = (req.nextUrl.searchParams.get("q") || "").trim().slice(0, 80);
     if (q.length < 2) return NextResponse.json({ ok: true, data: { people: [] } });
     const testers = (await getBillingConfig())?.testers ?? [];
