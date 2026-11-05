@@ -59,6 +59,20 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    // Attach each person's last reported device (phone/tablet/computer, app or website), when they have one.
+    const deviceDocs = docs.length
+      ? await adminDb().getAll(...docs.map((d) => adminDb().collection("deviceStats").doc(d.id)))
+      : [];
+    const deviceByUid = new Map(
+      deviceDocs
+        .filter((d) => d.exists)
+        .map((d) => {
+          const v = d.data() ?? {};
+          return [d.id, { platform: v.platform ?? null, formFactor: v.formFactor ?? null, mode: v.mode ?? null, browser: v.browser ?? null, lastSeen: v.lastSeen ?? null }] as const;
+        })
+    );
+    users = users.map((u) => ({ ...u, device: deviceByUid.get(u.uid) ?? null }));
+
     if (query) {
       users = users.filter(
         (u) =>

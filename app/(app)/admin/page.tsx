@@ -54,6 +54,7 @@ interface AdminUserItem {
   monthlyTokenLimit: number;
   createdAt: string | null;
   lastActiveDate: string | null;
+  device?: { platform: string | null; formFactor: string | null; mode: string | null; browser: string | null; lastSeen: string | null } | null;
 }
 
 interface AdminClassItem {
@@ -160,6 +161,8 @@ export default function AdminConsolePage() {
   // Filter & Search
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [deviceFilter, setDeviceFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("newest");
   const [reportFilter, setReportFilter] = useState<string>("all");
   const [updatingUid, setUpdatingUid] = useState<string | null>(null);
   const [deletingClassId, setDeletingClassId] = useState<string | null>(null);
@@ -584,16 +587,52 @@ export default function AdminConsolePage() {
   }
 
   // Filter users
-  const filteredUsers = asArray(users).filter((u) => {
-    const matchQuery =
-      u.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.uid.toLowerCase().includes(searchQuery.toLowerCase());
+  const matchesDevice = (u: AdminUserItem) => {
+    if (deviceFilter === "all") return true;
+    const d = u.device;
+    if (deviceFilter === "none") return !d;
+    if (!d) return false;
+    if (deviceFilter === "android-app" || deviceFilter === "installed-web-app" || deviceFilter === "browser") return d.mode === deviceFilter;
+    if (deviceFilter === "phone" || deviceFilter === "tablet" || deviceFilter === "desktop") return d.formFactor === deviceFilter;
+    return d.platform === deviceFilter;
+  };
+  const lastSeenMs = (u: AdminUserItem) => Math.max(Date.parse(u.device?.lastSeen ?? "") || 0, Date.parse(u.lastActiveDate ?? "") || 0);
+  const createdMs = (u: AdminUserItem) => Date.parse(u.createdAt ?? "") || 0;
+  const filteredUsers = asArray(users)
+    .filter((u) => {
+      const matchQuery =
+        u.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.uid.toLowerCase().includes(searchQuery.toLowerCase());
 
-    if (!matchQuery) return false;
-    if (roleFilter !== "all" && u.role !== roleFilter) return false;
-    return true;
-  });
+      if (!matchQuery) return false;
+      if (roleFilter !== "all" && u.role !== roleFilter) return false;
+      return matchesDevice(u);
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "oldest":
+          return createdMs(a) - createdMs(b);
+        case "name-asc":
+          return a.displayName.localeCompare(b.displayName, undefined, { sensitivity: "base" });
+        case "name-desc":
+          return b.displayName.localeCompare(a.displayName, undefined, { sensitivity: "base" });
+        case "recent":
+          return lastSeenMs(b) - lastSeenMs(a);
+        case "xp":
+          return b.xp - a.xp;
+        default:
+          return createdMs(b) - createdMs(a);
+      }
+    });
+  const deviceLabel = (u: AdminUserItem) => {
+    const d = u.device;
+    if (!d) return "Not reported yet";
+    const where = d.mode === "android-app" ? "Android app" : d.mode === "installed-web-app" ? "Installed web app" : "Website";
+    const kind = d.formFactor === "phone" ? "Phone" : d.formFactor === "tablet" ? "Tablet" : "Computer";
+    const os = { android: "Android", ios: "iOS", windows: "Windows", mac: "Mac", linux: "Linux", chromeos: "Chromebook" }[d.platform ?? ""] ?? "Other";
+    return `${kind} · ${os} · ${where}`;
+  };
 
   // Filter reports
   const filteredReports = asArray(reports).filter((r) => {
@@ -917,6 +956,45 @@ export default function AdminConsolePage() {
                   <option value="admin">Administrators Only</option>
                 </select>
               </div>
+
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-3.5 w-3.5 text-slate-400" />
+                <select
+                  value={deviceFilter}
+                  onChange={(e) => setDeviceFilter(e.target.value)}
+                  aria-label="Filter by device"
+                  className="h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-teal-500"
+                >
+                  <option value="all">All devices</option>
+                  <option value="android-app">Android app</option>
+                  <option value="browser">Website (browser)</option>
+                  <option value="installed-web-app">Installed web app</option>
+                  <option value="phone">Phones</option>
+                  <option value="tablet">Tablets</option>
+                  <option value="desktop">Computers</option>
+                  <option value="android">Android devices</option>
+                  <option value="ios">iPhone / iPad</option>
+                  <option value="windows">Windows</option>
+                  <option value="mac">Mac</option>
+                  <option value="none">Not reported yet</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  aria-label="Sort users"
+                  className="h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-teal-500"
+                >
+                  <option value="newest">Newest first (date added)</option>
+                  <option value="oldest">Oldest first (date added)</option>
+                  <option value="recent">Recently active</option>
+                  <option value="name-asc">Name A to Z</option>
+                  <option value="name-desc">Name Z to A</option>
+                  <option value="xp">Most XP</option>
+                </select>
+              </div>
             </div>
           </Card>
 
@@ -928,6 +1006,7 @@ export default function AdminConsolePage() {
                   <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">
                     <th className="p-3.5 font-bold">User Identity</th>
                     <th className="p-3 font-semibold">System Role</th>
+                    <th className="p-3 font-semibold">Device</th>
                     <th className="p-3 font-semibold text-center">XP & Streak</th>
                     <th className="p-3 font-semibold text-center">Monthly AI Quota</th>
                     <th className="p-3 font-semibold">Registered</th>
@@ -937,7 +1016,7 @@ export default function AdminConsolePage() {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-400 italic">
+                      <td colSpan={7} className="p-8 text-center text-slate-400 italic">
                         No registered users match your query filter.
                       </td>
                     </tr>
@@ -991,6 +1070,8 @@ export default function AdminConsolePage() {
                               <option value="admin">Administrator</option>
                             </select>
                           </td>
+
+                          <td className="p-3 text-[11px] text-slate-600 dark:text-slate-400">{deviceLabel(u)}</td>
 
                           <td className="p-3 text-center">
                             <div className="inline-flex items-center gap-1 font-bold text-slate-700 dark:text-slate-300">
