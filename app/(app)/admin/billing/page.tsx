@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EnforcementPanel } from "@/components/billing/enforcement-panel";
 import { AdminPeople } from "@/components/billing/admin-people";
+import { AdminAlerts } from "@/components/admin/admin-alerts";
 import { fetchJson, asArray } from "@/lib/api/client";
 
 interface Overview {
@@ -58,6 +59,7 @@ export default function AdminBilling() {
         <Link href="/admin" className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Back to admin</Link>
       </div>
 
+      <AdminAlerts />
       <EnforcementPanel />
 
       <AdminPeople />

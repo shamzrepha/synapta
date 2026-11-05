@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { fetchJson, asArray } from "@/lib/api/client";
 import { PLANS, plansForRole, type PlanId } from "@/lib/billing/plans";
 import { cn } from "@/lib/utils";
+import type { PlanFilter, RoleFilter, SortKey } from "@/lib/billing/people-browse";
 
 interface Person {
   uid: string;
@@ -21,6 +22,8 @@ interface Person {
   planExpiresAt: string | null;
   grantKind: string | null;
   isTester: boolean;
+  createdAt?: number;
+  xp?: number;
 }
 
 const KIND_LABEL: Record<string, string> = { gift: "free subscription", trial: "free trial", test: "test account" };
@@ -38,6 +41,29 @@ export function AdminPeople() {
   const [days, setDays] = useState("30");
   const [trialDays, setTrialDays] = useState("14");
   const [note, setNote] = useState("");
+  // browse without typing
+  const [open, setOpen] = useState(false);
+  const [role, setRole] = useState<RoleFilter>("all");
+  const [planF, setPlanF] = useState<PlanFilter>("all");
+  const [sort, setSort] = useState<SortKey>("newest");
+  const [browse, setBrowse] = useState<{ people: Person[]; total: number; capped: boolean } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    const t = setTimeout(async () => {
+      setLoading(true);
+      const j = await fetchJson<{ people: Person[]; total: number; capped: boolean }>(`/api/admin/billing/people?browse=1&role=${role}&plan=${planF}&sort=${sort}`);
+      if (!live) return;
+      setLoading(false);
+      setBrowse(j.ok ? { people: asArray<Person>(j.data.people), total: j.data.total, capped: j.data.capped } : null);
+    }, 0);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [open, role, planF, sort]);
 
   useEffect(() => {
     if (q.trim().length < 2) {
@@ -84,6 +110,70 @@ export function AdminPeople() {
       <div className="relative">
         <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a name or email…" className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent pl-9 pr-3 text-sm" />
+      </div>
+      <div className="space-y-2">
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="text-xs font-semibold text-teal-700 dark:text-teal-300 hover:underline">
+          {open ? "Hide the list" : "Or browse everyone with filters"}
+        </button>
+        {open && (
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <label className="text-[11px] text-slate-500">Account type
+                <select value={role} onChange={(e) => setRole(e.target.value as RoleFilter)} className="mt-0.5 w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent px-2 text-sm">
+                  <option value="all">Everyone</option>
+                  <option value="student">Students</option>
+                  <option value="teacher">Teachers</option>
+                  <option value="admin">Admins</option>
+                </select>
+              </label>
+              <label className="text-[11px] text-slate-500">Plan
+                <select value={planF} onChange={(e) => setPlanF(e.target.value as PlanFilter)} className="mt-0.5 w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent px-2 text-sm">
+                  <option value="all">Any plan</option>
+                  <option value="free">On the free plan</option>
+                  <option value="paid">Paying</option>
+                  <option value="gifted">Free subscription</option>
+                  <option value="trial">On a free trial</option>
+                  <option value="tester">Test accounts</option>
+                  <option value="ending">Plan ends within 7 days</option>
+                </select>
+              </label>
+              <label className="text-[11px] text-slate-500">Sort by
+                <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className="mt-0.5 w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent px-2 text-sm">
+                  <option value="newest">Newest first</option>
+                  <option value="name">Name A to Z</option>
+                  <option value="ending">Plan ending soonest</option>
+                  <option value="xp">Most XP</option>
+                  <option value="active">Last active</option>
+                </select>
+              </label>
+            </div>
+            {loading && <p className="text-xs text-slate-500">Loading…</p>}
+            {browse && !loading && (
+              <>
+                <p className="text-[11px] text-slate-500">
+                  {browse.total} {browse.total === 1 ? "person" : "people"}{browse.total > browse.people.length ? `, showing the first ${browse.people.length}` : ""}
+                  {browse.capped ? ". Only the first 1,500 accounts were checked; use the search box to find anyone else." : ""}
+                </p>
+                {browse.people.length === 0 ? (
+                  <p className="text-xs text-slate-500">Nobody matches those filters.</p>
+                ) : (
+                  <ul className="max-h-72 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800">
+                    {browse.people.map((p) => (
+                      <li key={p.uid}>
+                        <button type="button" onClick={() => setPerson(p)} className={cn("w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-900", person?.uid === p.uid && "bg-teal-500/10")}>
+                          <span className="flex-1 min-w-0 truncate"><b>{p.name || "Unnamed"}</b> <span className="text-slate-500">{p.email}</span></span>
+                          <span className="capitalize rounded-full bg-slate-200 dark:bg-slate-800 px-2 py-0.5">{p.role}</span>
+                          <span className="rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300 px-2 py-0.5">{p.planLabel}</span>
+                          {p.isTester && <span className="rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5">test</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
       {results && results.length === 0 && <p className="text-xs text-slate-500">Nobody found.</p>}
       {results && results.length > 0 && (
