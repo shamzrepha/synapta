@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseLatest, needsUpdate, installedBuild } from "./app-update";
 
-const ok = { versionCode: 5, versionName: "2.3", url: "https://sunrootlearn.vercel.app/sunroot-2.3.apk" };
+const ok = { versionCode: 5, versionName: "2.3", url: "https://sunrootlearn.vercel.app/sunroot-2.4.apk" };
 
 describe("app update check", () => {
   it("reads the version file", () => {

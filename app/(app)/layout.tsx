@@ -10,6 +10,7 @@ import { VerifyEmailBanner } from "@/components/shell/verify-email-banner";
 import { UpgradeDialog } from "@/components/billing/upgrade-dialog";
 import { SiteNotice } from "@/components/shell/site-notice";
 import { AppUpdateBanner } from "@/components/shell/app-update-banner";
+import { DeviceReporter } from "@/components/shell/device-reporter";
 import { AuthGuard } from "@/components/auth/auth-guard";
 
 export default function AppLayout({
@@ -42,6 +43,7 @@ export default function AppLayout({
       <TutorLauncher />
       <OfflineManager />
       <ThemeApplier />
+      <DeviceReporter />
     </div>
   );
 }

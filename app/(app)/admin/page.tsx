@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { asArray } from "@/lib/api/client";
 import { AiSelfTest } from "@/components/admin/ai-selftest";
 import { AiKeySettings } from "@/components/admin/ai-key";
+import { DeviceStats } from "@/components/admin/device-stats";
 import { AI_TASK_DEFINITIONS } from "@/lib/ai/tasks";
 import {
   ShieldAlert,
@@ -37,7 +38,8 @@ import {
   Clock,
   Activity,
   Save,
-  RotateCcw } from "lucide-react";
+  RotateCcw,
+  Smartphone } from "lucide-react";
 
 interface AdminUserItem {
   uid: string;
@@ -135,7 +137,7 @@ interface ModelCatalogItem {
   notes?: string;
 }
 
-type AdminTab = "overview" | "users" | "requests" | "classes" | "reports" | "usage" | "audit" | "system";
+type AdminTab = "overview" | "users" | "requests" | "classes" | "reports" | "usage" | "audit" | "devices" | "system";
 
 export default function AdminConsolePage() {
   const { user } = useUserStore();
@@ -806,6 +808,17 @@ export default function AdminConsolePage() {
         </button>
 
         <button
+          onClick={() => setActiveTab("devices")}
+          className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
+            activeTab === "devices"
+              ? "bg-teal-600 text-white shadow-sm"
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+          }`}
+        >
+          <Smartphone className="h-4 w-4" /> Devices
+        </button>
+
+        <button
           onClick={() => setActiveTab("system")}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "system"
@@ -816,6 +829,8 @@ export default function AdminConsolePage() {
           <Cpu className="h-4 w-4" /> System & AI Health
         </button>
       </div>
+
+      {activeTab === "devices" && <DeviceStats />}
 
       {/* TAB: OVERVIEW */}
       {activeTab === "overview" && (
