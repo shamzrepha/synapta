@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { isChunkError, recoverFromChunkError } from "@/lib/recover/chunk-error";
 
 export default function GlobalError({
   error,
@@ -9,6 +10,9 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    if (isChunkError(error)) void recoverFromChunkError();
+  }, [error]);
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-[#090d16] text-[#f1f5f9] flex items-center justify-center p-6 font-sans antialiased">
