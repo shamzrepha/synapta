@@ -70,6 +70,8 @@ const nextConfig: NextConfig = {
         source: "/(.*)",
         headers: securityHeaders,
       },
+      // The app's update check reads this file: a saved copy would hide a new release
+      { source: "/app-version.json", headers: [{ key: "Cache-Control", value: "no-store, max-age=0" }] },
       // The push-notification worker loads Firebase's own scripts from gstatic.com with importScripts(). A worker is
       // governed by the policy sent with ITS file, so without this it fails to start ("script evaluation failed") and the
       // notification toggle can't register it. Listed after the rule above so these headers win for this one file.
