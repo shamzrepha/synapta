@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseLatest, needsUpdate, installedBuild } from "./app-update";
 
-const ok = { versionCode: 5, versionName: "2.3", url: "https://sunrootlearn.vercel.app/sunroot-2.4.apk" };
+const ok = { versionCode: 5, versionName: "2.3", url: "https://sunrootlearn.vercel.app/sunroot-2.5.apk" };
 
 describe("app update check", () => {
   it("reads the version file", () => {
@@ -13,7 +13,7 @@ describe("app update check", () => {
     expect(parseLatest({ ...ok, url: "http://sunrootlearn.vercel.app/a.apk" })).toBeNull();
     expect(parseLatest({ versionCode: "5", url: ok.url })).toBeNull();
     expect(parseLatest(null)).toBeNull();
-    const release = { ...ok, url: "https://github.com/shamzrepha/synapta/releases/download/v2.4/sunroot-2.4.apk" };
+    const release = { ...ok, url: "https://github.com/shamzrepha/synapta/releases/download/v2.5/sunroot-2.5.apk" };
     expect(parseLatest(release)).toEqual(release);
     expect(parseLatest({ ...ok, url: "https://github.com/someone-else/x/releases/download/v1/a.apk" })).toBeNull();
   });

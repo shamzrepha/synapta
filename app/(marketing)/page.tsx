@@ -100,8 +100,8 @@ export default function LandingPage() {
               <Link href="/signup" className="inline-flex items-center justify-center rounded-full border-2 border-[#FBF6EC]/30 px-7 py-3.5 text-base font-bold text-[#FBF6EC] hover:border-[#FBF6EC]/60">
                 I teach a class
               </Link>
-              <a href="/sunroot-2.4.apk" download className="group inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#14b8a6] bg-[#14b8a6]/15 px-6 py-3.5 text-base font-bold text-[#FBF6EC] backdrop-blur-sm transition-all hover:bg-[#14b8a6] hover:text-[#0E1F18] shadow-[0_8px_20px_-6px_rgba(20,184,166,0.5)]">
-                <Smartphone className="h-5 w-5 text-[#14b8a6] group-hover:text-[#0E1F18] transition-colors" /> Download Android App (v2.4)
+              <a href="/sunroot-2.5.apk" download className="group inline-flex items-center justify-center gap-2 rounded-full border-2 border-[#14b8a6] bg-[#14b8a6]/15 px-6 py-3.5 text-base font-bold text-[#FBF6EC] backdrop-blur-sm transition-all hover:bg-[#14b8a6] hover:text-[#0E1F18] shadow-[0_8px_20px_-6px_rgba(20,184,166,0.5)]">
+                <Smartphone className="h-5 w-5 text-[#14b8a6] group-hover:text-[#0E1F18] transition-colors" /> Download Android App (v2.5)
               </a>
             </div>
           </div>
@@ -237,11 +237,11 @@ export default function LandingPage() {
             </div>
           </div>
           <a
-            href="/sunroot-2.4.apk"
+            href="/sunroot-2.5.apk"
             download
             className="inline-flex shrink-0 items-center gap-2.5 rounded-full bg-[#14b8a6] px-7 py-4 text-base font-bold text-[#0E1F18] shadow-[0_12px_30px_-8px_rgba(20,184,166,0.6)] transition-transform hover:scale-105 active:scale-95"
           >
-            <Download className="h-5 w-5 stroke-[2.5]" /> Download Sunroot v2.4 (Android)
+            <Download className="h-5 w-5 stroke-[2.5]" /> Download Sunroot v2.5 (Android)
           </a>
         </div>
       </section>
