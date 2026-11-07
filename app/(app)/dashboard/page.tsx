@@ -141,24 +141,6 @@ export default function DashboardPage() {
 
       <LearnAnything />
 
-      <section aria-label="What do you want to do?" className="space-y-2">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-400">What do you want to do?</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[
-            { e: "🎓", t: "Go to my classes", d: "Lessons, quizzes, labs", h: "/classes/manage" },
-            { e: "✨", t: "Get help studying", d: "Notes from any PDF or photo, tutor, practice", h: "/study" },
-            { e: "🛠️", t: "Build something", d: "Circuits, robots, 3D", h: "/studio" },
-            { e: "💬", t: "Meet people", d: "Friends, chat, challenges", h: "/community" },
-          ].map((x) => (
-            <Link key={x.h} href={x.h} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 hover:border-teal-500">
-              <span className="text-2xl" aria-hidden>{x.e}</span>
-              <p className="font-bold text-sm mt-1">{x.t}</p>
-              <p className="text-xs text-slate-500">{x.d}</p>
-            </Link>
-          ))}
-        </div>
-      </section>
-
       <AchievementPrompts max={2} />
 
       {/* Game loop: level, league, daily quests */}

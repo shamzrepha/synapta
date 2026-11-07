@@ -2,8 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight, BrainCircuit } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isActivePath } from "./nav-items";
@@ -34,12 +35,14 @@ export function Sidebar() {
       )}
       aria-label="Main navigation"
     >
-      <div className="flex h-16 items-center justify-between px-3 border-b border-slate-200/80 dark:border-slate-800/80">
-        <Link href="/dashboard" className="flex items-center gap-2.5 overflow-hidden rounded-lg p-1">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm">
-            <BrainCircuit className="h-6 w-6" />
+      <div className="flex h-16 items-center justify-between px-3 border-b border-border/70">
+        <Link href="/dashboard" className="flex items-center gap-2.5 overflow-hidden rounded-xl p-1 group">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-md transition-transform group-hover:scale-105">
+            <Image src="/logo-mark.svg" alt="" width={24} height={24} className="h-6 w-6" priority />
           </div>
-          <span translate="no" className={cn("font-bold text-lg tracking-tight", label)}>Sunroot</span>
+          <span translate="no" className={cn("font-display font-black text-lg tracking-tight text-foreground", label)}>
+            Sunroot<span className="text-amber-500">.</span>
+          </span>
         </Link>
         <button
           onClick={toggleSidebar}

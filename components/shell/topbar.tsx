@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { ArrowLeft, Search, Flame, Sun, Moon, LogOut, MessageSquare, User, Bell, BrainCircuit, Bookmark, Globe } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
@@ -54,8 +55,8 @@ export function Topbar() {
             <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">{t("Back")}</span>
           </button>
         )}
-        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 text-white`} aria-label="Home">
-          <BrainCircuit className="h-5 w-5" />
+        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-sm`} aria-label="Home">
+          <Image src="/logo-mark.svg" alt="" width={22} height={22} className="h-5 w-5" priority />
         </Link>
         <Link href="/search" className="sm:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800" aria-label="Search">
           <Search className="h-4 w-4" />
@@ -146,9 +147,13 @@ export function Topbar() {
           onClick={toggleTheme}
           aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-amber-500 hover:border-amber-400/60 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-amber-400 transition-all active:scale-95 shadow-xs"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-card/70 text-foreground hover:border-teal-500/40 hover:bg-muted transition-all active:scale-95 shadow-xs"
         >
-          {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4 text-amber-400 transition-transform duration-300 hover:rotate-45" />
+          ) : (
+            <Moon className="h-4 w-4 text-teal-600 transition-transform duration-300 hover:-rotate-12" />
+          )}
         </button>
 
         {user && (

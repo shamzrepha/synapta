@@ -80,7 +80,7 @@ export function HomeHero({
   };
 
   const state = homeState({ loading, failed, teacher, classCount: asArray(classes).length, questsAllDone });
-  const btn = "bg-amber-400 text-slate-900 hover:bg-amber-300 font-bold";
+  const btn = "bg-gradient-to-r from-amber-500 via-amber-500 to-amber-600 text-slate-950 font-black shadow-md hover:shadow-amber-500/25 transition-all hover:scale-[1.02] active:scale-95";
 
   let eyebrow = "YOUR NEXT STEP";
   let headline = "Pick up right where you left off.";
@@ -93,7 +93,7 @@ export function HomeHero({
     primary = (
       <Link href="/explore?create=1">
         <Button size="lg" className={btn}>
-          <Sparkles className="h-5 w-5 mr-2" /> Build a new class with AI
+          <Sparkles className="h-5 w-5 mr-2 text-slate-950" /> Build a new class with AI
         </Button>
       </Link>
     );
@@ -106,7 +106,7 @@ export function HomeHero({
           <RefreshCw className="h-5 w-5 mr-2" /> Try again
         </Button>
         <Link href="/classes/manage">
-          <Button size="lg" variant="outline" className="bg-white/10 text-white border-white/30 hover:bg-white/20">
+          <Button size="lg" variant="outline" className="border-border hover:bg-muted">
             Go to my classes
           </Button>
         </Link>
@@ -117,7 +117,7 @@ export function HomeHero({
     primary = (
       <Link href="/explore">
         <Button size="lg" className={btn}>
-          <Sparkles className="h-5 w-5 mr-2" /> Join or pick your first class
+          <Sparkles className="h-5 w-5 mr-2 text-slate-950" /> Join or pick your first class
         </Button>
       </Link>
     );
@@ -134,7 +134,7 @@ export function HomeHero({
     primary = (
       <Link href={href}>
         <Button size="lg" className={btn}>
-          <Play className="h-5 w-5 mr-2" /> {label}
+          <Play className="h-5 w-5 mr-2 text-slate-950 fill-slate-950" /> {label}
         </Button>
       </Link>
     );
@@ -142,44 +142,60 @@ export function HomeHero({
   }
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-3xl bg-gradient-to-br from-[#0b2a5b] via-[#0c3a73] to-teal-800 text-white p-5 md:p-7 space-y-3" aria-busy={state === "loading"}>
-        <p className="text-xs font-mono tracking-widest text-amber-300">{eyebrow}</p>
+    <div className="space-y-4">
+      <div
+        className="relative overflow-hidden rounded-3xl border border-teal-500/25 bg-gradient-to-br from-card via-card to-teal-500/10 p-6 md:p-8 space-y-4 shadow-sm"
+        aria-busy={state === "loading"}
+      >
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+          <p className="text-xs font-mono font-bold tracking-widest text-amber-600 dark:text-amber-400 uppercase">{eyebrow}</p>
+        </div>
+
         {state === "loading" ? (
           <div className="space-y-3" role="status" aria-label="Loading your next step">
-            <div className="h-7 w-3/4 rounded-lg bg-white/15 animate-pulse" />
-            <div className="h-11 w-56 rounded-xl bg-white/15 animate-pulse" />
+            <div className="h-7 w-3/4 rounded-lg bg-muted animate-pulse" />
+            <div className="h-11 w-56 rounded-xl bg-muted animate-pulse" />
           </div>
         ) : (
           <>
-            <h2 className="text-xl md:text-2xl font-extrabold leading-tight flex items-center gap-2">
-              {offline && state === "error" && <WifiOff className="h-6 w-6 shrink-0" aria-hidden />}
+            <h2 className="text-xl md:text-2xl font-black leading-tight flex items-center gap-2 text-foreground">
+              {offline && state === "error" && <WifiOff className="h-6 w-6 shrink-0 text-amber-500" aria-hidden />}
               {headline}
             </h2>
-            {note && <p className="text-sm text-white/80">{note}</p>}
-            <div>{primary}</div>
+            {note && <p className="text-sm text-muted-foreground leading-relaxed">{note}</p>}
+            <div className="pt-1">{primary}</div>
           </>
         )}
       </div>
 
       {!hidden && (
-        <div className="relative rounded-2xl border border-teal-500/30 bg-teal-500/5 p-4">
-          <button type="button" onClick={dismiss} aria-label="Hide this" className="absolute right-2 top-2 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+        <div className="relative rounded-2xl border border-border bg-card p-5 shadow-2xs">
+          <button
+            type="button"
+            onClick={dismiss}
+            aria-label="Hide this"
+            className="absolute right-3 top-3 rounded-lg p-1.5 text-muted-foreground hover:bg-muted"
+          >
             <X className="h-4 w-4" />
           </button>
-          <p className="text-sm font-bold mb-2">How Sunroot works</p>
-          <ol className="grid gap-2 sm:grid-cols-3 text-sm">
+          <p className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 mb-3">
+            How Sunroot Works
+          </p>
+          <ol className="grid gap-4 sm:grid-cols-3 text-sm">
             {[
               { n: 1, t: "Pick a class or upload notes", d: "Join your teacher's class, or use the Notebook for your own PDFs." },
               { n: 2, t: "Learn your way", d: "Listen to the audio lesson, try the interactive lab, practise with flashcards." },
               { n: 3, t: "Prove it and grow", d: "Pass the quiz to raise your mastery score, and your skill map adapts to you." },
             ].map((s) => (
-              <li key={s.n} className="flex gap-2.5">
-                <span className="h-7 w-7 shrink-0 rounded-full bg-teal-600 text-white text-xs font-bold flex items-center justify-center">{s.n}</span>
-                <span>
-                  <b className="block leading-tight">{s.t}</b>
-                  <span className="text-xs text-slate-500">{s.d}</span>
+              <li key={s.n} className="flex gap-3">
+                <span className="h-7 w-7 shrink-0 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 text-xs font-black flex items-center justify-center border border-teal-500/20">
+                  {s.n}
                 </span>
+                <div>
+                  <b className="block text-foreground text-sm leading-tight mb-0.5">{s.t}</b>
+                  <span className="text-xs text-muted-foreground leading-relaxed">{s.d}</span>
+                </div>
               </li>
             ))}
           </ol>
