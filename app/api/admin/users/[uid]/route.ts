@@ -11,6 +11,8 @@ const patchUserSchema = z.object({
   disabled: z.boolean().optional(),
   monthlyTokenLimit: z.number().min(1000).max(10000000).optional(),
   roleRequest: z.enum(["none", "pending", "approved", "rejected"]).optional(),
+  xp: z.number().int().min(0).max(10000000).optional(),
+  streakDays: z.number().int().min(0).max(10000).optional(),
 });
 
 export async function PATCH(
@@ -30,7 +32,7 @@ export async function PATCH(
       );
     }
 
-    const { role, disabled, monthlyTokenLimit, roleRequest } = parsed.data;
+    const { role, disabled, monthlyTokenLimit, roleRequest, xp, streakDays } = parsed.data;
 
     // Safety checks against self-lockout
     if (caller.uid === targetUid) {
@@ -129,6 +131,14 @@ export async function PATCH(
         updates.monthlyTokenLimit = monthlyTokenLimit;
       }
 
+      if (xp !== undefined) {
+        updates.xp = xp;
+      }
+
+      if (streakDays !== undefined) {
+        updates.streakDays = streakDays;
+      }
+
       // Atomic update preserves UID, enrollments, classes, XP, streak, and creation dates
       t.update(userRef, updates);
 
@@ -177,6 +187,8 @@ export async function PATCH(
         roleRequest: updatedUser.roleRequest,
         disabled: updatedUser.disabled ?? false,
         monthlyTokenLimit: updatedUser.monthlyTokenLimit,
+        xp: updatedUser.xp ?? 0,
+        streakDays: updatedUser.streakDays ?? 0,
       },
     });
   } catch (error) {

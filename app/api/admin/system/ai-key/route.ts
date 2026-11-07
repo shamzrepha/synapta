@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { clearGeminiKey, geminiKeyInfo, looksLikeGeminiKey, saveGeminiKey, testGeminiKey } from "@/lib/ai/api-key";
+import { cleanApiKey, clearGeminiKey, geminiKeyInfo, looksLikeGeminiKey, saveGeminiKey, testGeminiKey } from "@/lib/ai/api-key";
 import { clearAllModelExhaustion } from "@/lib/ai/health";
 import { resetVoiceBreakers } from "@/lib/ai/voice";
 import { resolveModelChain } from "@/lib/ai/router";
@@ -27,9 +27,10 @@ export async function PUT(req: NextRequest) {
     const admin = await requireUser(req, ["admin"]);
     const limited = await checkRateLimit(req, { uid: admin.uid, keyPrefix: "admin_ai_key", limit: 10, windowMs: 10 * 60_000, shared: true });
     if (limited) return limited;
-    const { key } = await parseJson(req, z.object({ key: z.string().trim().min(10).max(200) }));
+    const { key: rawKey } = await parseJson(req, z.object({ key: z.string().trim().min(5).max(300) }));
+    const key = cleanApiKey(rawKey);
     if (!looksLikeGeminiKey(key)) {
-      throw new ApiError(400, "VALIDATION", "That doesn't look like a Gemini API key. It should start with \"AIza\" and be 39 characters (copy it from aistudio.google.com/apikey).");
+      throw new ApiError(400, "VALIDATION", "That doesn't look like a valid Gemini API key. Copy your key from https://aistudio.google.com/apikey (typically starts with AIza).");
     }
     const model = (await resolveModelChain("tutor_chat"))[0];
     const problem = await testGeminiKey(key, model);

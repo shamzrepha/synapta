@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { recoveryCost, recoveryState, inferFrozenDays, buildCalendar, daysToNextFreeze, addDays } from "./logic";
+import { recoveryCost, recoveryState, inferFrozenDays, buildCalendar, daysToNextFreeze, addDays, currentStreakDays } from "./logic";
 
 describe("recovery", () => {
   it("is available only after exactly one missed day with no freezes", () => {
@@ -42,5 +42,25 @@ describe("calendar", () => {
     expect(daysToNextFreeze(0)).toBe(7);
     expect(daysToNextFreeze(6)).toBe(1);
     expect(daysToNextFreeze(7)).toBe(7);
+  });
+});
+
+describe("currentStreakDays", () => {
+  it("returns active streak if studied today or yesterday", () => {
+    expect(currentStreakDays({ streakDays: 5, lastActiveDate: "2026-10-15", today: "2026-10-15" })).toBe(5);
+    expect(currentStreakDays({ streakDays: 5, lastActiveDate: "2026-10-14", today: "2026-10-15" })).toBe(5);
+  });
+
+  it("keeps streak alive if missed days are covered by freezes", () => {
+    expect(currentStreakDays({ streakDays: 5, lastActiveDate: "2026-10-13", freezes: 1, today: "2026-10-15" })).toBe(5);
+  });
+
+  it("resets streak to 0 if missed days exceed freezes", () => {
+    expect(currentStreakDays({ streakDays: 5, lastActiveDate: "2026-10-13", freezes: 0, today: "2026-10-15" })).toBe(0);
+    expect(currentStreakDays({ streakDays: 5, lastActiveDate: "2026-10-09", freezes: 1, today: "2026-10-15" })).toBe(0);
+  });
+
+  it("returns 0 for users with no activity", () => {
+    expect(currentStreakDays({ streakDays: 0, lastActiveDate: null, today: "2026-10-15" })).toBe(0);
   });
 });

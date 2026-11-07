@@ -30,15 +30,23 @@ export function AiKeySettings() {
   }, []);
 
   const save = async () => {
+    const cleanKey = key.trim().replace(/^["'`]|["'`]$/g, "").trim();
+    if (!cleanKey) return;
     setBusy(true);
     setMessage(null);
     try {
-      const j = await fetch("/api/admin/system/ai-key", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key }) }).then((r) => r.json());
+      const j = await fetch("/api/admin/system/ai-key", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: cleanKey }),
+      }).then((r) => r.json());
       if (j.ok) {
         setInfo(j.data);
         setKey("");
         setMessage({ ok: true, text: "Key tested and saved. All AI features use it now." });
-      } else setMessage({ ok: false, text: j.error?.message || "Couldn't save the key." });
+      } else {
+        setMessage({ ok: false, text: j.error?.message || "Couldn't save the key." });
+      }
     } catch {
       setMessage({ ok: false, text: "Couldn't save the key." });
     } finally {

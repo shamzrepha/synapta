@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
         roleRequest: data.roleRequest || null,
         disabled: Boolean(data.disabled),
         xp: typeof data.xp === "number" ? data.xp : 0,
-        streakDays: typeof data.streakDays === "number" ? data.streakDays : 1,
+        streakDays: typeof data.streakDays === "number" ? data.streakDays : 0,
         monthlyTokensUsed: typeof data.monthlyTokensUsed === "number" ? data.monthlyTokensUsed : 0,
         monthlyTokenLimit: typeof data.monthlyTokenLimit === "number" ? data.monthlyTokenLimit : 50000,
         createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : null,

@@ -18,7 +18,7 @@ vi.mock("@/lib/firebase/admin", () => ({
   Timestamp: { now: () => ({ toDate: () => new Date("2026-11-02T10:00:00Z") }) },
 }));
 
-import { activeGeminiKey, clearGeminiKey, geminiKeyInfo, looksLikeGeminiKey, refreshGeminiKey, saveGeminiKey } from "./api-key";
+import { activeGeminiKey, cleanApiKey, clearGeminiKey, geminiKeyInfo, looksLikeGeminiKey, refreshGeminiKey, saveGeminiKey } from "./api-key";
 
 const KEY = "AIza" + "B".repeat(35);
 
@@ -28,10 +28,14 @@ describe("Gemini key from the admin console", () => {
     process.env.GEMINI_API_KEY = "AIza" + "E".repeat(31) + "ENV1";
   });
 
-  it("accepts only the AI Studio key shape", () => {
+  it("cleans and accepts AI Studio and Google API key shapes", () => {
     expect(looksLikeGeminiKey(KEY)).toBe(true);
+    expect(looksLikeGeminiKey(` "${KEY}" `)).toBe(true);
+    expect(looksLikeGeminiKey(`'${KEY}'`)).toBe(true);
+    expect(looksLikeGeminiKey("AIza" + "x".repeat(30))).toBe(true);
+    expect(cleanApiKey(` "${KEY}" `)).toBe(KEY);
     expect(looksLikeGeminiKey("sk-123")).toBe(false);
-    expect(looksLikeGeminiKey("AIza" + "x".repeat(10))).toBe(false);
+    expect(looksLikeGeminiKey("AIza" + "x".repeat(5))).toBe(false);
   });
 
   it("uses the admin's key once saved, and the environment key after it is removed", async () => {

@@ -95,3 +95,25 @@ export function daysToNextFreeze(streakDays: number, every = 7): number {
   const s = Math.max(0, Math.floor(streakDays || 0));
   return every - (s % every);
 }
+
+/**
+ * Calculates current active streak considering missed days and streak freezes.
+ * If the user hasn't studied today, the streak remains intact if yesterday was active
+ * or if available freezes cover the missed days.
+ */
+export function currentStreakDays(p: {
+  streakDays: number;
+  lastActiveDate: string | null;
+  freezes?: number;
+  today?: string;
+}): number {
+  const { streakDays, lastActiveDate } = p;
+  if (!lastActiveDate || streakDays <= 0) return 0;
+  const today = p.today || new Date().toISOString().slice(0, 10);
+  if (lastActiveDate === today) return streakDays;
+  const diff = dayDiff(lastActiveDate, today);
+  if (diff <= 1) return streakDays;
+  const freezes = p.freezes || 0;
+  if (freezes >= diff - 1) return streakDays;
+  return 0;
+}

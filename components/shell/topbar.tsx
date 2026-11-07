@@ -109,13 +109,14 @@ export function Topbar() {
         )}
 
         {user && (
-          <div
-            className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400 border border-amber-500/20"
-            title={`${user.streakDays} day study streak`}
+          <Link
+            href="/streak"
+            className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
+            title={`${user.streakDays} day study streak — click to view streak & freezes`}
           >
             <Flame className="h-4 w-4 text-amber-500" />
             <span>{user.streakDays}</span>
-          </div>
+          </Link>
         )}
 
         <Link

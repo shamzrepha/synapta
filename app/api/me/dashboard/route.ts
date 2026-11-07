@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb } from "@/lib/firebase/admin";
+import { currentStreakDays } from "@/lib/streak/logic";
 
 export const runtime = "nodejs";
 
@@ -12,6 +13,13 @@ export async function GET(req: NextRequest) {
     const userDoc = await adminDb().collection("users").doc(caller.uid).get();
     const userData = userDoc.exists ? userDoc.data()! : {};
 
+    const lastActiveDate = userData.lastActiveDate || null;
+    const streakDays = currentStreakDays({
+      streakDays: typeof userData.streakDays === "number" ? userData.streakDays : 0,
+      lastActiveDate,
+      freezes: typeof userData.streakFreezes === "number" ? userData.streakFreezes : 0,
+    });
+
     const profile = {
       uid: caller.uid,
       email: caller.email,
@@ -20,8 +28,8 @@ export async function GET(req: NextRequest) {
       photoURL: userData.photoURL || null,
       role: caller.role,
       xp: userData.xp || 0,
-      streakDays: userData.streakDays || 1,
-      lastActiveDate: userData.lastActiveDate || null,
+      streakDays,
+      lastActiveDate,
       monthlyTokenLimit: userData.monthlyTokenLimit || 50000,
       monthlyTokensUsed: userData.monthlyTokensUsed || 0,
     };

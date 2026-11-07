@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import confetti from "canvas-confetti";
-import { CheckCircle2, XCircle, RotateCw, ArrowRight, Trophy, HelpCircle } from "lucide-react";
+import { CheckCircle2, XCircle, RotateCw, ArrowRight, Trophy, HelpCircle, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,7 +27,7 @@ interface AnswerResult {
 export interface QuizPlayerProps {
   classId: string;
   kcId: string;
-  onEvidence?: (update: { pLAfter?: number; totalXp?: number }) => void;
+  onEvidence?: (update: { pLAfter?: number; totalXp?: number; streakDays?: number }) => void;
   /** a teacher viewing the topic in a translated language */
   viewLang?: string | null;
 }
@@ -53,6 +53,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<Record<number, AnswerResult>>({});
   const [finished, setFinished] = useState(false);
+  const [streakDays, setStreakDays] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [bankSize, setBankSize] = useState<number | null>(null);
 
@@ -115,7 +116,8 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
         ...prev,
         [current]: { selected, correct: !!d.correct, correctIndex: d.correctIndex, explanation: d.explanation || "" },
       }));
-      onEvidence?.({ pLAfter: d.pLAfter, totalXp: d.totalXp });
+      if (typeof d.streakDays === "number") setStreakDays(d.streakDays);
+      onEvidence?.({ pLAfter: d.pLAfter, totalXp: d.totalXp, streakDays: d.streakDays });
       if (d.crossedMasteryFirstTime) {
         confetti({ particleCount: 140, spread: 75, origin: { y: 0.6 } });
         toast({ title: "Mastery achieved!", description: "You crossed 95% mastery. +100 bonus XP.", variant: "success" });
@@ -250,6 +252,17 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
           <h3 className="text-2xl font-extrabold">
             {correct} / {total} correct
           </h3>
+          <div className="flex items-center justify-center gap-2 pt-1">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+              Score: {pct}%
+            </span>
+            {streakDays > 0 && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                <Flame className="h-3.5 w-3.5 text-amber-500" />
+                {streakDays}d streak
+              </span>
+            )}
+          </div>
           {bankSize ? <p className="text-[11px] text-slate-400">Question bank: {bankSize} questions</p> : null}
           <p className="text-sm text-slate-500">
             {pct >= 80 ? "Excellent work — you really know this." : pct >= 50 ? "Good progress. Review the ones you missed below." : "Keep going — read the explanations, then try a fresh quiz."}

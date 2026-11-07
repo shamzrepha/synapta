@@ -165,12 +165,17 @@ export default function TopicPage({
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   const applyEvidenceUpdate = useCallback(
-    (update: { pLAfter?: number; totalXp?: number }) => {
+    (update: { pLAfter?: number; totalXp?: number; streakDays?: number }) => {
       if (typeof update.pLAfter === "number") {
         setCurrentPL(update.pLAfter);
         setAttempts((a) => a + 1);
       }
-      if (user && typeof update.totalXp === "number") updateUser({ xp: update.totalXp });
+      if (user) {
+        const patch: { xp?: number; streakDays?: number } = {};
+        if (typeof update.totalXp === "number") patch.xp = update.totalXp;
+        if (typeof update.streakDays === "number") patch.streakDays = update.streakDays;
+        if (Object.keys(patch).length > 0) updateUser(patch);
+      }
     },
     [user, updateUser]
   );
@@ -293,7 +298,7 @@ export default function TopicPage({
       });
       const data = await res.json();
       if (data.ok) {
-        applyEvidenceUpdate({ pLAfter: data.data.pLAfter, totalXp: data.data.totalXp });
+        applyEvidenceUpdate({ pLAfter: data.data.pLAfter, totalXp: data.data.totalXp, streakDays: data.data.streakDays });
         if (data.data.crossedMasteryFirstTime) confetti({ particleCount: 100, spread: 60 });
       }
     } catch {
@@ -638,7 +643,7 @@ export default function TopicPage({
                             });
                             const data = await res.json();
                             if (data.ok) {
-                              applyEvidenceUpdate({ pLAfter: data.data.pLAfter, totalXp: data.data.totalXp });
+                              applyEvidenceUpdate({ pLAfter: data.data.pLAfter, totalXp: data.data.totalXp, streakDays: data.data.streakDays });
                               toast({ title: data.data.credited === false ? "Lab completed (preview: no XP)" : "Lab completed! +30 XP", description: result.detail, variant: "success" });
                               if (data.data.crossedMasteryFirstTime) confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
                             } else {

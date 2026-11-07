@@ -46,13 +46,20 @@ export function refreshGeminiKey(force = false): Promise<void> {
   return refreshing;
 }
 
+export function cleanApiKey(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  return raw.trim().replace(/^["'`]|["'`]$/g, "").trim();
+}
+
 /** A plausible Google AI Studio / Gemini key (format check only; the live test happens before saving). */
 export function looksLikeGeminiKey(key: string): boolean {
-  return /^AIza[0-9A-Za-z_-]{35}$/.test(key.trim());
+  const k = cleanApiKey(key);
+  if (/^AIza[0-9A-Za-z_\-]{20,}$/.test(k)) return true;
+  return k.length >= 20 && !/\s/.test(k);
 }
 
 export async function saveGeminiKey(key: string, by: { uid: string; email: string | null }) {
-  const k = key.trim();
+  const k = cleanApiKey(key);
   await DOC().set({ key: k, last4: k.slice(-4), updatedAt: Timestamp.now(), updatedBy: by.email || by.uid });
   override = k;
   checkedAt = Date.now();
@@ -76,18 +83,56 @@ export async function geminiKeyInfo(): Promise<ApiKeyInfo> {
 }
 
 /** Proves a key works with one tiny real request. Returns null when it works, else a plain reason for the admin. */
-export async function testGeminiKey(key: string, model: string): Promise<string | null> {
-  try {
-    const probe = await new GoogleGenAI({ apiKey: key }).models.generateContent({ model, contents: "Reply with the single word: ok" });
-    return probe.text ? null : "Gemini answered with nothing. Try again in a moment.";
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/API key not valid|API_KEY_INVALID|PERMISSION_DENIED|401|403/i.test(msg)) {
-      return "Google rejected this key. Check you copied all of it and that the Generative Language API is enabled for its project.";
+export async function testGeminiKey(key: string, preferredModel?: string): Promise<string | null> {
+  const clean = cleanApiKey(key);
+  if (!clean) return "Please provide an API key.";
+
+  // Probe candidates: try preferredModel first, followed by widely available standard Google AI Studio models
+  const candidates = [
+    preferredModel,
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-latest",
+  ].filter((m): m is string => Boolean(m && typeof m === "string" && m.trim()));
+
+  const modelsToTry = Array.from(new Set(candidates));
+  let lastError = "";
+
+  for (const model of modelsToTry) {
+    try {
+      const client = new GoogleGenAI({ apiKey: clean });
+      const probe = await client.models.generateContent({
+        model,
+        contents: "Reply with the single word: ok",
+      });
+      if (probe.text) {
+        return null; // Key works!
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      lastError = msg;
+
+      if (/API key not valid|API_KEY_INVALID|PERMISSION_DENIED|401|403|unregistered project/i.test(msg)) {
+        return "Google rejected this key. Check that you copied the complete key from aistudio.google.com/apikey and that the Generative Language API is enabled.";
+      }
+      if (/RESOURCE_EXHAUSTED|429|quota/i.test(msg)) {
+        return "This key works but its quota is already used up. Turn on billing for its project or wait for the daily reset.";
+      }
+      if (/not found|404|is not supported|NOT_FOUND/i.test(msg)) {
+        continue;
+      }
+      continue;
     }
-    if (/RESOURCE_EXHAUSTED|429|quota/i.test(msg)) {
-      return "This key works but its quota is already used up. Turn on billing for its project or wait for the daily reset.";
-    }
-    return "Couldn't reach Gemini with this key right now. Try again in a moment.";
   }
+
+  if (/API key not valid|API_KEY_INVALID|PERMISSION_DENIED|401|403/i.test(lastError)) {
+    return "Google rejected this key. Check that you copied the complete key from aistudio.google.com/apikey.";
+  }
+  if (/RESOURCE_EXHAUSTED|429|quota/i.test(lastError)) {
+    return "This key works but its quota is already used up. Turn on billing for its project or wait for the daily reset.";
+  }
+
+  return lastError ? `Could not verify key: ${lastError}` : "Couldn't reach Gemini with this key right now. Try again in a moment.";
 }

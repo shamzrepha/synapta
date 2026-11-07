@@ -6,7 +6,7 @@ import { MAX_STREAK_FREEZES } from "@/lib/game/streak";
 import { readActivityDays } from "@/lib/activity/server";
 import { getShopState } from "@/lib/shop/server";
 import { SHOP_ITEMS } from "@/lib/shop/catalog";
-import { buildCalendar, daysToNextFreeze, inferFrozenDays } from "@/lib/streak/logic";
+import { buildCalendar, currentStreakDays, daysToNextFreeze, inferFrozenDays } from "@/lib/streak/logic";
 
 export const runtime = "nodejs";
 
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     // Frozen days can only be inferred where we have activity data; use the earliest recorded day
     const since = [...active].sort()[0] || null;
     const lastActiveDate: string | null = u.lastActiveDate || null;
-    const streakDays: number = u.streakDays || 0;
+    const streakDays: number = currentStreakDays({ streakDays: u.streakDays || 0, lastActiveDate, freezes: u.streakFreezes || 0, today });
     const frozen = inferFrozenDays({ active, lastActiveDate, streakDays, since });
     const calendar = buildCalendar({ today, active, frozen });
 

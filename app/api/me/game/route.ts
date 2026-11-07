@@ -5,6 +5,7 @@ import { levelFromXp } from "@/lib/game/levels";
 import { BADGES, normalizeStats } from "@/lib/game/badges";
 import { getDailyQuests } from "@/lib/game/progress";
 import { tierInfo, weekEndsAt, weekIdFor } from "@/lib/game/leagues";
+import { currentStreakDays } from "@/lib/streak/logic";
 
 export const runtime = "nodejs";
 
@@ -33,14 +34,22 @@ export async function GET(req: NextRequest) {
 
     const tier = typeof u.leagueTier === "number" ? u.leagueTier : 0;
     const owned = (u.badges || {}) as Record<string, { toDate?: () => Date }>;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const lastActiveDate = u.lastActiveDate || null;
+    const streakDays = currentStreakDays({
+      streakDays: typeof u.streakDays === "number" ? u.streakDays : 0,
+      lastActiveDate,
+      freezes: typeof u.streakFreezes === "number" ? u.streakFreezes : 0,
+      today: todayStr,
+    });
     return NextResponse.json({
       ok: true,
       data: {
         xp: u.xp || 0,
-        streakDays: u.streakDays || 0,
+        streakDays,
         streakFreezes: u.streakFreezes || 0,
         // Studied before, but not yet today: today's activity keeps the streak alive
-        streakAtRisk: (u.streakDays || 0) > 0 && !!u.lastActiveDate && u.lastActiveDate !== new Date().toISOString().slice(0, 10),
+        streakAtRisk: streakDays > 0 && !!lastActiveDate && lastActiveDate !== todayStr,
         level: levelFromXp(u.xp || 0),
         stats: normalizeStats(u.stats),
         badges: BADGES.map((b) => ({
