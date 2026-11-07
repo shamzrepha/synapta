@@ -5,105 +5,109 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Sunroot brand system. The app's components are written with Tailwind's teal / slate / amber names; those scales
- * are redefined here so every screen picks up the brand without touching each component:
- *   teal  -> fern: Sunroot's working green (actions, progress, "mastered")
- *   slate -> forest neutrals: warm cream paper in light mode, deep forest in dark mode
- *   amber -> sun orange: highlights, streaks, the one loud accent
- * Type: Space Grotesk for headings and numbers that matter, DM Sans for everything people read.
+ * Sunroot Brand System:
+ * Rooted in modern African & global STEM engineering.
+ * Colors:
+ *   - Solar Amber (Sun): Energy, intellectual spark, streaks, achievement (#F59E0B / #D97706)
+ *   - Electric Cyan-Teal (Root & Growth): High-tech precision, mastery, primary interactive (#0D9488 / #14B8A6)
+ *   - Pristine Slate (Grounded Neutrals): Ultra-crisp, high-contrast, zero-mud canvas in both Light and Dark modes.
+ * Typography: Space Grotesk for bold display/metrics; DM Sans for effortless reading.
  */
 @theme {
   --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-space-grotesk), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --color-teal-50: #EEF7F2;
-  --color-teal-100: #D3EDDF;
-  --color-teal-200: #A9DBC1;
-  --color-teal-300: #74C29C;
-  --color-teal-400: #45A57A;
-  --color-teal-500: #23895F;
-  --color-teal-600: #18714E;
-  --color-teal-700: #135B40;
-  --color-teal-800: #104733;
-  --color-teal-900: #0E3527;
-  --color-teal-950: #082018;
+  /* Electric Cyan-Teal (Sunroot Logo & Brand Primary) */
+  --color-teal-50: #F0FDFA;
+  --color-teal-100: #CCFBF1;
+  --color-teal-200: #99F6E4;
+  --color-teal-300: #5EEAD4;
+  --color-teal-400: #2DD4BF;
+  --color-teal-500: #14B8A6;
+  --color-teal-600: #0D9488;
+  --color-teal-700: #0F766E;
+  --color-teal-800: #115E59;
+  --color-teal-900: #134E4A;
+  --color-teal-950: #042F2E;
 
-  --color-slate-50: #FBF6EC;
-  --color-slate-100: #F3ECDF;
-  --color-slate-200: #E4DBC9;
-  --color-slate-300: #CBC2AE;
-  --color-slate-400: #8F9A8F;
-  --color-slate-500: #66746A;
-  --color-slate-600: #4C5A51;
-  --color-slate-700: #35443B;
-  --color-slate-800: #22332A;
-  --color-slate-900: #16261E;
-  --color-slate-950: #0E1A15;
+  /* Crisp Sophisticated Slate (High Contrast, No Murky Tint) */
+  --color-slate-50: #F8FAFC;
+  --color-slate-100: #F1F5F9;
+  --color-slate-200: #E2E8F0;
+  --color-slate-300: #CBD5E1;
+  --color-slate-400: #94A3B8;
+  --color-slate-500: #64748B;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1E293B;
+  --color-slate-900: #0F172A;
+  --color-slate-950: #0B0F17;
 
-  --color-amber-50: #FEF5EA;
-  --color-amber-100: #FDE6CA;
-  --color-amber-200: #FBCF9E;
-  --color-amber-300: #F8B46C;
-  --color-amber-400: #F59E45;
-  --color-amber-500: #F28C28;
-  --color-amber-600: #D7721A;
-  --color-amber-700: #B05914;
-  --color-amber-800: #8A4612;
-  --color-amber-900: #6B3712;
-  --color-amber-950: #3B1C07;
+  /* Solar Gold / Amber (Energy, Streaks & Trophies) */
+  --color-amber-50: #FFFBEB;
+  --color-amber-100: #FEF3C7;
+  --color-amber-200: #FDE68A;
+  --color-amber-300: #FCD34D;
+  --color-amber-400: #FBBF24;
+  --color-amber-500: #F59E0B;
+  --color-amber-600: #D97706;
+  --color-amber-700: #B45309;
+  --color-amber-800: #92400E;
+  --color-amber-900: #78350F;
+  --color-amber-950: #451A03;
 }
 
 @layer base {
   :root {
-    --background: #FBF6EC;
-    --foreground: #12241C;
-    --card: #FFFDF8;
-    --card-foreground: #12241C;
-    --popover: #FFFDF8;
-    --popover-foreground: #12241C;
-    --primary: #18714E;
-    --primary-foreground: #FBF6EC;
-    --secondary: #F3ECDF;
-    --secondary-foreground: #12241C;
-    --muted: #F3ECDF;
-    --muted-foreground: #5C6B61;
-    --accent: #F28C28;
-    --accent-foreground: #12241C;
-    --amber-accent: #D7721A;
-    --border: #E4DBC9;
-    --input: #E4DBC9;
-    --ring: #F28C28;
-    --radius: 0.875rem;
+    --background: #F8FAFC;
+    --foreground: #0F172A;
+    --card: #FFFFFF;
+    --card-foreground: #0F172A;
+    --popover: #FFFFFF;
+    --popover-foreground: #0F172A;
+    --primary: #0D9488;
+    --primary-foreground: #FFFFFF;
+    --secondary: #F1F5F9;
+    --secondary-foreground: #0F172A;
+    --muted: #F1F5F9;
+    --muted-foreground: #64748B;
+    --accent: #F59E0B;
+    --accent-foreground: #0F172A;
+    --amber-accent: #D97706;
+    --border: #E2E8F0;
+    --input: #E2E8F0;
+    --ring: #0D9488;
+    --radius: 1rem;
 
-    --mastery-unmastered: #C2410C;
-    --mastery-learning: #F28C28;
-    --mastery-mastered: #18714E;
+    --mastery-unmastered: #EF4444;
+    --mastery-learning: #F59E0B;
+    --mastery-mastered: #10B981;
   }
 
   .dark {
-    --background: #0E1A15;
-    --foreground: #FBF6EC;
-    --card: #16261E;
-    --card-foreground: #FBF6EC;
-    --popover: #16261E;
-    --popover-foreground: #FBF6EC;
-    --primary: #45A57A;
-    --primary-foreground: #0E1A15;
-    --secondary: #22332A;
-    --secondary-foreground: #FBF6EC;
-    --muted: #1B2D24;
-    --muted-foreground: #A9B4A8;
-    --accent: #F28C28;
-    --accent-foreground: #12241C;
-    --amber-accent: #F59E45;
-    --border: #2A3D33;
-    --input: #2A3D33;
-    --ring: #F28C28;
+    --background: #0B0F17;
+    --foreground: #F8FAFC;
+    --card: #111827;
+    --card-foreground: #F8FAFC;
+    --popover: #111827;
+    --popover-foreground: #F8FAFC;
+    --primary: #14B8A6;
+    --primary-foreground: #042F2E;
+    --secondary: #1E293B;
+    --secondary-foreground: #F8FAFC;
+    --muted: #1E293B;
+    --muted-foreground: #94A3B8;
+    --accent: #F59E0B;
+    --accent-foreground: #0B0F17;
+    --amber-accent: #FBBF24;
+    --border: #1E293B;
+    --input: #1E293B;
+    --ring: #14B8A6;
 
-    --mastery-unmastered: #F0855A;
-    --mastery-learning: #F8B46C;
-    --mastery-mastered: #74C29C;
+    --mastery-unmastered: #F87171;
+    --mastery-learning: #FBBF24;
+    --mastery-mastered: #34D399;
   }
 }
 
@@ -112,7 +116,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   min-height: 100vh;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -120,11 +124,11 @@ body {
 /* Headings and big numbers speak in the display face */
 h1, h2, h3, .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
 }
 h1, h2 { text-wrap: balance; }
 
-::selection { background: #F28C28; color: #12241C; }
+::selection { background: #14B8A6; color: #FFFFFF; }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {

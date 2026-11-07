@@ -1,5 +1,12 @@
 import { getServerEnv, DEFAULT_GEMINI_MODEL } from "@/lib/env";
 import { refreshGeminiKey } from "@/lib/ai/api-key";
+import {
+  getActiveAiProvider,
+  activeGroqKey,
+  refreshGroqKey,
+  callGroqChat,
+  mapToGroqModel,
+} from "@/lib/ai/groq";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { languageDirective, type LanguageCode } from "@/lib/i18n/languages";
 import { getGeminiClient } from "@/lib/gemini/client";
@@ -63,13 +70,13 @@ export class AiGenerationError extends ApiError {
   }
 }
 
-/** Raised when the Gemini API key is missing, invalid or lacks permission. */
+/** Raised when the Gemini or Groq API key is missing, invalid or lacks permission. */
 export class AiNotConfiguredError extends ApiError {
-  constructor() {
+  constructor(message?: string) {
     super(
       503,
       "AI_NOT_CONFIGURED",
-      "The AI service isn't configured correctly (missing or invalid GEMINI_API_KEY). Ask an admin to check the server settings."
+      message || "The AI service isn't configured correctly (missing or invalid GEMINI_API_KEY). Ask an admin to check the server settings."
     );
     this.name = "AiNotConfiguredError";
   }
@@ -500,15 +507,17 @@ async function generateWithFallbackInner<T>({
   tools,
   temperature,
   schema,
-  userId,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  userId: _userId,
   budget,
   isPrivileged = false,
   cacheKey,
   maxRetriesPerModel = 2,
   maxWaitMs,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 }: GenerateWithFallbackOptions<T>, _reserved: boolean): Promise<GenerateWithFallbackResult<T>> {
   // the admin may have just set a new API key: make sure this call uses it, not a used-up one
-  await refreshGeminiKey();
+  await Promise.all([refreshGeminiKey(), refreshGroqKey()]);
   const startTime = Date.now();
 
   // 1. Budget Guard Check
@@ -539,11 +548,109 @@ async function generateWithFallbackInner<T>({
     } catch {}
   }
 
+  // 3. Provider check: Groq vs Gemini
+  const activeProvider = await getActiveAiProvider();
+  const groqKey = activeGroqKey();
+
+  if (activeProvider === "groq") {
+    if (groqKey) {
+      try {
+        const groqModel = mapToGroqModel(undefined, isHeavyTask(task));
+        const groqRes = await callGroqChat({
+          model: groqModel,
+          systemInstruction,
+          userPrompt,
+          contents,
+          schema: Boolean(schema),
+          temperature,
+        });
+
+        let parsedData: T | undefined = undefined;
+        if (schema) {
+          const rawObj = extractJsonPayload(groqRes.text);
+          const parsed = schema.safeParse(rawObj);
+          if (!parsed.success) {
+            throw new AiGenerationError(`Groq output did not match expected schema: ${parsed.error.message}`);
+          }
+          parsedData = parsed.data;
+        }
+
+        if (cacheKey) {
+          adminDb().collection("aiCache").doc(cacheKey).set({
+            text: groqRes.text,
+            data: parsedData ?? null,
+            modelUsed: groqRes.model,
+            createdAt: new Date().toISOString(),
+          }).catch(() => {});
+        }
+
+        return {
+          text: groqRes.text,
+          data: parsedData,
+          modelUsed: groqRes.model,
+          tokensIn: groqRes.tokensIn,
+          tokensOut: groqRes.tokensOut,
+          latencyMs: Date.now() - startTime,
+          fallbackTriggered: false,
+        };
+      } catch (groqErr) {
+        console.warn("[ai-router] Active Groq provider failed, falling back to Gemini chain:", groqErr);
+      }
+    } else {
+      console.warn("[ai-router] Provider is set to Groq, but no Groq key configured. Falling back to Gemini chain.");
+    }
+  }
+
   let ai: ReturnType<typeof getGeminiClient>;
   try {
     ai = getGeminiClient();
-  } catch {
-    throw new AiNotConfiguredError();
+  } catch (geminiInitErr) {
+    if (groqKey) {
+      console.warn("[ai-router] Gemini not initialized, routing to Groq:", geminiInitErr);
+      const groqModel = mapToGroqModel(undefined, isHeavyTask(task));
+      const groqRes = await callGroqChat({
+        model: groqModel,
+        systemInstruction,
+        userPrompt,
+        contents,
+        schema: Boolean(schema),
+        temperature,
+      });
+
+      let parsedData: T | undefined = undefined;
+      if (schema) {
+        const rawObj = extractJsonPayload(groqRes.text);
+        const parsed = schema.safeParse(rawObj);
+        if (!parsed.success) {
+          throw new AiGenerationError(`Groq output did not match expected schema: ${parsed.error.message}`);
+        }
+        parsedData = parsed.data;
+      }
+
+      if (cacheKey) {
+        adminDb().collection("aiCache").doc(cacheKey).set({
+          text: groqRes.text,
+          data: parsedData ?? null,
+          modelUsed: groqRes.model,
+          createdAt: new Date().toISOString(),
+        }).catch(() => {});
+      }
+
+      return {
+        text: groqRes.text,
+        data: parsedData,
+        modelUsed: groqRes.model,
+        tokensIn: groqRes.tokensIn,
+        tokensOut: groqRes.tokensOut,
+        latencyMs: Date.now() - startTime,
+        fallbackTriggered: true,
+      };
+    }
+    throw new AiNotConfiguredError(
+      activeProvider === "groq"
+        ? "AI provider is set to Groq, but GROQ_API_KEY is not configured. Add a Groq key in Admin Console."
+        : undefined
+    );
   }
   // Always load admin-assigned models BEFORE resolving the chain (serverless cold starts
   // otherwise ignore admin configuration and fall back to env/default models).
@@ -802,6 +909,54 @@ async function generateWithFallbackInner<T>({
   if (lastError) {
     console.warn(`[lib/ai/router] All models failed for task "${task}". Last error:`, lastError instanceof Error ? lastError.message : String(lastError));
   }
+
+  // Emergency safety net: If Gemini exhausted quota or failed, and a Groq key is configured, invoke Groq!
+  if (groqKey) {
+    try {
+      console.warn(`[lib/ai/router] All Gemini models exhausted for task "${task}". Activating Groq emergency fallback.`);
+      const groqModel = mapToGroqModel(undefined, isHeavyTask(task));
+      const groqRes = await callGroqChat({
+        model: groqModel,
+        systemInstruction,
+        userPrompt,
+        contents,
+        schema: Boolean(schema),
+        temperature,
+      });
+
+      let parsedData: T | undefined = undefined;
+      if (schema) {
+        const rawObj = extractJsonPayload(groqRes.text);
+        const parsed = schema.safeParse(rawObj);
+        if (!parsed.success) {
+          throw new AiGenerationError(`Groq output did not match expected schema: ${parsed.error.message}`);
+        }
+        parsedData = parsed.data;
+      }
+
+      if (cacheKey) {
+        adminDb().collection("aiCache").doc(cacheKey).set({
+          text: groqRes.text,
+          data: parsedData ?? null,
+          modelUsed: groqRes.model,
+          createdAt: new Date().toISOString(),
+        }).catch(() => {});
+      }
+
+      return {
+        text: groqRes.text,
+        data: parsedData,
+        modelUsed: groqRes.model,
+        tokensIn: groqRes.tokensIn,
+        tokensOut: groqRes.tokensOut,
+        latencyMs: Date.now() - startTime,
+        fallbackTriggered: true,
+      };
+    } catch (groqEmergencyErr) {
+      console.warn("[lib/ai/router] Groq emergency fallback also failed:", groqEmergencyErr);
+    }
+  }
+
   // Only blame quota when quota was actually the problem; otherwise surface a retryable generation error.
   if (!sawQuotaProblem) {
     throw new AiGenerationError();

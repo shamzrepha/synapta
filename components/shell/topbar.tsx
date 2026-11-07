@@ -141,6 +141,16 @@ export function Topbar() {
 
         {user && <NotificationBell />}
 
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-amber-500 hover:border-amber-400/60 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-amber-400 transition-all active:scale-95 shadow-xs"
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+        </button>
+
         {user && (
           <div className="relative" ref={menuRef}>
             <button
@@ -159,7 +169,7 @@ export function Topbar() {
               {dmUnread > 0 && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-teal-500 ring-2 ring-white dark:ring-slate-950 sm:hidden" />}
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-11 w-[min(14rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl py-2 z-50">
+              <div className="absolute right-0 top-11 w-[min(14rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl py-2 z-50">
                 <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
                   <p className="text-sm font-semibold truncate">{user.displayName || user.email}</p>
                   <p className="text-xs text-slate-500">
