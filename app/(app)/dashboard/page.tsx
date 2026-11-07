@@ -209,15 +209,15 @@ export default function DashboardPage() {
         <Skeleton className="h-48 w-full rounded-2xl" />
       ) : classes.length === 0 && failed ? null : classes.length === 0 ? (
         /* Clean Zero-Data Onboarding State */
-        <Card className="p-8 border-slate-200 dark:border-slate-800 text-center space-y-6">
+        <Card className="p-8 border-border/70 text-center space-y-6">
           <div className="max-w-md mx-auto space-y-3">
             <div className="h-16 w-16 rounded-3xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mx-auto shadow-sm">
               <BrainCircuit className="h-8 w-8" />
             </div>
-            <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
+            <h2 className="font-display text-xl font-bold tracking-tight text-foreground">
               Welcome! Here is where to start
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               You haven&apos;t joined a class yet. Do these three things, in any order — each one opens by tapping its card.
             </p>
           </div>
@@ -225,35 +225,35 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto pt-2 text-left">
             <Link
               href="/explore"
-              className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-teal-500/50 hover:shadow-md transition-all group"
+              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50 hover:shadow-md hover:-translate-y-0.5 transition-all group"
             >
-              <div className="h-9 w-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                 <Compass className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">1. Find your class</h3>
-              <p className="text-xs text-slate-500 mt-1">Search for your class or ask your teacher for its code, then tap Join.</p>
+              <h3 className="text-sm font-bold text-foreground">1. Find your class</h3>
+              <p className="text-xs text-muted-foreground mt-1">Search for your class or ask your teacher for its code, then tap Join.</p>
             </Link>
 
             <Link
               href="/community"
-              className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-teal-500/50 hover:shadow-md transition-all group"
+              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50 hover:shadow-md hover:-translate-y-0.5 transition-all group"
             >
-              <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                 <Users className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">2. Meet people</h3>
-              <p className="text-xs text-slate-500 mt-1">Add classmates, chat, and join study sessions.</p>
+              <h3 className="text-sm font-bold text-foreground">2. Meet people</h3>
+              <p className="text-xs text-muted-foreground mt-1">Add classmates, chat, and join study sessions.</p>
             </Link>
 
             <Link
               href="/study"
-              className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-teal-500/50 hover:shadow-md transition-all group"
+              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50 hover:shadow-md hover:-translate-y-0.5 transition-all group"
             >
-              <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                 <BookOpen className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">3. Study with AI</h3>
-              <p className="text-xs text-slate-500 mt-1">Ask the AI tutor, make notes, flashcards and practice quizzes.</p>
+              <h3 className="text-sm font-bold text-foreground">3. Study with AI</h3>
+              <p className="text-xs text-muted-foreground mt-1">Ask the AI tutor, make notes, flashcards and practice quizzes.</p>
             </Link>
           </div>
         </Card>
@@ -261,7 +261,7 @@ export default function DashboardPage() {
         /* Real Enrolled Classes Section */
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
               <GraduationCap className="h-5 w-5 text-teal-600 dark:text-teal-400" />
               Your Active Courses ({asArray(classes).length})
             </h2>
@@ -274,11 +274,11 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {asArray(classes).map((cls) => (
-              <Card key={cls.id} className="flex flex-col justify-between hover:shadow-md transition-shadow">
+              <Card key={cls.id} className="flex flex-col justify-between hover:shadow-md hover:border-teal-500/40 hover:-translate-y-0.5 transition-all duration-300">
                 <CardHeader>
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <Badge variant="outline" className="text-[10px]">{cls.subject}</Badge>
-                    <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                       <Users className="h-3 w-3" /> {cls.studentCount || 0} students
                     </span>
                   </div>

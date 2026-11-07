@@ -12,27 +12,32 @@ import { formatCountdown, useNow, type GameState } from "./use-game";
 export function LevelCard({ game }: { game: GameState }) {
   const l = game.level;
   return (
-    <Card className="p-5 overflow-hidden relative">
-      <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-teal-500/10" />
+    <Card className="p-5 overflow-hidden relative border border-border/70 hover:border-teal-500/40 transition-all duration-300">
+      <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-teal-500/10 blur-xl pointer-events-none" />
       <div className="flex items-center gap-4 relative">
-        <div className="h-16 w-16 shrink-0 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white flex flex-col items-center justify-center shadow-lg">
-          <span className="text-[10px] font-semibold uppercase opacity-80">Level</span>
-          <span className="text-2xl font-extrabold leading-none">{l.level}</span>
+        <div className="h-16 w-16 shrink-0 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-white flex flex-col items-center justify-center shadow-md">
+          <span className="text-[10px] font-mono font-bold uppercase tracking-wider opacity-90">Level</span>
+          <span className="font-display text-2xl font-black leading-none">{l.level}</span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="font-bold text-lg leading-tight">{l.title}</p>
-          <p className="text-xs text-slate-500">
+          <p className="font-display font-bold text-lg leading-tight text-foreground">{l.title}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {formatNumber(game.xp)} XP total · 🔥 {game.streakDays}-day streak
             {game.streakFreezes ? ` · 🧊 ${game.streakFreezes} freeze${game.streakFreezes === 1 ? "" : "s"}` : ""}
           </p>
-          <div className="mt-2 h-2.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-            <div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-500 transition-all duration-700" style={{ width: `${Math.round(l.progress * 100)}%` }} />
+          <div className="mt-2.5 h-2 rounded-full bg-muted overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-700 shadow-xs"
+              style={{ width: `${Math.round(l.progress * 100)}%` }}
+            />
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">{formatNumber(l.nextLevelXp - l.xp)} XP to level {l.level + 1}</p>
+          <p className="text-[11px] text-muted-foreground font-medium mt-1">
+            {formatNumber(l.nextLevelXp - l.xp)} XP to level {l.level + 1}
+          </p>
         </div>
       </div>
       {game.streakAtRisk && (
-        <div className="relative mt-3 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs font-semibold text-amber-800 dark:text-amber-200">
+        <div className="relative mt-3 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
           🔥 Study today to keep your {game.streakDays}-day streak
           {game.streakFreezes ? ` (or a 🧊 freeze will cover you)` : ""} — ends at midnight UTC.
         </div>
@@ -44,26 +49,26 @@ export function LevelCard({ game }: { game: GameState }) {
 export function QuestsCard({ game }: { game: GameState }) {
   const done = game.quests.filter((q) => q.done).length;
   return (
-    <Card className="p-5 space-y-3">
+    <Card className="p-5 space-y-3 border border-border/70 hover:border-teal-500/40 transition-all duration-300">
       <div className="flex items-center justify-between">
-        <p className="font-bold">Daily quests</p>
-        <span className="text-xs font-semibold text-slate-500">{done}/{game.quests.length} done · resets at midnight UTC</span>
+        <p className="font-display font-bold text-foreground">Daily Quests</p>
+        <span className="text-xs font-semibold text-muted-foreground">{done}/{game.quests.length} done</span>
       </div>
       <ul className="space-y-3">
         {game.quests.map((q) => (
           <li key={q.id} className="flex items-center gap-3">
-            <span className={cn("h-9 w-9 shrink-0 rounded-xl flex items-center justify-center text-lg", q.done ? "bg-emerald-500/15" : "bg-slate-100 dark:bg-slate-800")}>
+            <span className={cn("h-9 w-9 shrink-0 rounded-xl flex items-center justify-center text-lg border border-border/50", q.done ? "bg-emerald-500/15 border-emerald-500/30" : "bg-muted/70")}>
               {q.done ? <CheckCircle2 className="h-5 w-5 text-emerald-500" /> : q.emoji}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
-                <p className={cn("text-sm font-medium truncate", q.done && "line-through text-slate-400")}>{q.title}</p>
+                <p className={cn("text-sm font-medium truncate text-foreground", q.done && "line-through text-muted-foreground")}>{q.title}</p>
                 <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 shrink-0">+{q.rewardXp} XP</span>
               </div>
-              <div className="mt-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                <div className={cn("h-full rounded-full transition-all duration-700", q.done ? "bg-emerald-500" : "bg-amber-500")} style={{ width: `${Math.min(100, (q.value / q.target) * 100)}%` }} />
+              <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className={cn("h-full rounded-full transition-all duration-700", q.done ? "bg-emerald-500" : "bg-gradient-to-r from-amber-500 to-amber-600")} style={{ width: `${Math.min(100, (q.value / q.target) * 100)}%` }} />
               </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">{q.value}/{q.target}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{q.value}/{q.target}</p>
             </div>
           </li>
         ))}
@@ -76,28 +81,28 @@ export function LeagueCard({ game }: { game: GameState }) {
   const now = useNow(30000);
   const s = game.league.standing;
   return (
-    <Link href="/leaderboard" className="block">
-      <Card className="p-5 space-y-2 hover:border-teal-500/50 transition-colors">
+    <Link href="/leaderboard" className="block group">
+      <Card className="p-5 space-y-2 border border-border/70 group-hover:border-teal-500/50 group-hover:-translate-y-0.5 transition-all duration-300">
         <div className="flex items-center justify-between">
-          <p className="font-bold flex items-center gap-2">
+          <p className="font-display font-bold flex items-center gap-2 text-foreground">
             <span className="text-2xl">{game.league.emoji}</span> {game.league.name} League
           </p>
-          <span className="text-xs text-slate-500 flex items-center gap-1">
+          <span className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
             <Timer className="h-3.5 w-3.5" /> {formatCountdown(new Date(game.league.endsAt).getTime() - now)}
           </span>
         </div>
         {s ? (
-          <div className="flex items-end justify-between">
+          <div className="flex items-end justify-between pt-1">
             <div>
-              <p className="text-3xl font-extrabold">#{s.rank}</p>
-              <p className="text-xs text-slate-500">of {s.cohortSize} this week · {formatNumber(s.weeklyXp)} XP</p>
+              <p className="font-display text-3xl font-black text-foreground">#{s.rank}</p>
+              <p className="text-xs text-muted-foreground">of {s.cohortSize} this week · {formatNumber(s.weeklyXp)} XP</p>
             </div>
-            <p className={cn("text-xs font-semibold", s.rank <= 7 ? "text-emerald-600" : "text-slate-500")}>
-              {s.rank <= 7 ? "In the promotion zone ⬆️" : "Top 7 get promoted"}
+            <p className={cn("text-xs font-semibold px-2 py-0.5 rounded-full border", s.rank <= 7 ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30" : "bg-muted text-muted-foreground border-border/50")}>
+              {s.rank <= 7 ? "Promotion zone ⬆️" : "Top 7 get promoted"}
             </p>
           </div>
         ) : (
-          <p className="text-sm text-slate-500">Earn XP this week to join a league of ~30 learners. The top 7 move up!</p>
+          <p className="text-sm text-muted-foreground">Earn XP this week to join a league of ~30 learners. Top 7 move up!</p>
         )}
       </Card>
     </Link>

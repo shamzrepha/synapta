@@ -122,11 +122,25 @@ body {
 }
 
 /* Headings and big numbers speak in the display face */
-h1, h2, h3, .font-display {
+h1, h2, h3, h4, .font-display {
   font-family: var(--font-display);
   letter-spacing: -0.025em;
 }
-h1, h2 { text-wrap: balance; }
+h1, h2, h3 { text-wrap: balance; }
+
+/* Layered ambient shadows */
+.shadow-soft {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+}
+.dark .shadow-soft {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35), 0 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+.shadow-elevated {
+  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+}
+.dark .shadow-elevated {
+  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+}
 
 ::selection { background: #14B8A6; color: #FFFFFF; }
 

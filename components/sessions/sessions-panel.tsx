@@ -192,10 +192,10 @@ export function SessionsPanel({
   const visible = (sessions || []).filter((s) => (compact ? s.status !== "ended" : true)).slice(0, compact ? 4 : 50);
 
   return (
-    <Card className="p-4 sm:p-5 space-y-3">
+    <Card className="p-4 sm:p-5 space-y-3 border border-border/70 hover:border-teal-500/30 transition-all duration-300">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-bold flex items-center gap-2">
-          <CalendarClock className="h-4 w-4 text-teal-600" /> {title}
+        <p className="font-display font-bold flex items-center gap-2 text-foreground">
+          <CalendarClock className="h-4 w-4 text-teal-600 dark:text-teal-400" /> {title}
         </p>
         {classes.length > 0 && !showForm && (
           <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
@@ -216,9 +216,9 @@ export function SessionsPanel({
       )}
 
       {sessions === null ? (
-        <div className="h-16 rounded-xl bg-slate-100 dark:bg-slate-900 animate-pulse" />
+        <div className="h-16 rounded-xl bg-muted animate-pulse" />
       ) : visible.length === 0 ? (
-        <p className="text-sm text-slate-500 py-2">No sessions scheduled. Start one and study together!</p>
+        <p className="text-sm text-muted-foreground py-2">No sessions scheduled. Start one and study together!</p>
       ) : (
         <ul className="space-y-2.5">
           {visible.map((s) => {
@@ -230,8 +230,8 @@ export function SessionsPanel({
               <li
                 key={s.id}
                 className={cn(
-                  "rounded-2xl border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3",
-                  live ? "border-rose-500/50 bg-rose-500/5" : soon ? "border-amber-500/50 bg-amber-500/5" : "border-slate-200 dark:border-slate-800",
+                  "rounded-2xl border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 transition-colors",
+                  live ? "border-rose-500/50 bg-rose-500/5" : soon ? "border-amber-500/50 bg-amber-500/5" : "border-border/70 bg-card/60 hover:border-border",
                   ended && "opacity-60",
                   focusId === s.id && "ring-2 ring-teal-500"
                 )}
@@ -239,14 +239,14 @@ export function SessionsPanel({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     {live && <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500 text-white animate-pulse">LIVE</span>}
-                    <p className="font-semibold">{s.title}</p>
+                    <p className="font-semibold text-foreground">{s.title}</p>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {!classId && `${s.classTitle} · `}
                     {new Date(s.startAt).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · {s.durationMin} min · by{" "}
                     {s.isHost ? "you" : s.hostName}
                   </p>
-                  <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                     <Users className="h-3.5 w-3.5" /> {live || ended ? `${s.attendeeCount} joined` : "Starts"}
                     {!live && !ended && until > 0 && <span className="ml-1 font-semibold text-slate-700 dark:text-slate-300">in {formatCountdown(until)}</span>}
                   </p>
