@@ -13,6 +13,10 @@ const eslintConfig = defineConfig([
     "build/**",
     "public/**",
     "next-env.d.ts",
+    // third-party design skills installed for the coding assistant: not our code, never linted
+    ".agent/**",
+    ".antigravity/**",
+    ".claude/**",
   ]),
 ]);
 
