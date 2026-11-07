@@ -1,5 +1,6 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { cleanApiKey } from "@/lib/ai/api-key";
+import { isHeavyModelName, isModelUnavailable, parseModelList, pickGroqModels } from "@/lib/ai/groq-models";
 
 /**
  * Groq AI Engine Integration:
@@ -161,40 +162,63 @@ export async function aiProviderInfo(): Promise<ProviderInfo> {
   };
 }
 
-/** Tests a Groq API key with a tiny lightweight request. Returns null on success or error string. */
+/** What Groq says this key can use (cached for a few minutes; the key itself is never stored). Null when the list couldn't be read. */
+const modelCache = new Map<string, { at: number; models: string[] }>();
+const MODEL_TTL_MS = 10 * 60_000;
+/** Models that just failed as unavailable, so we don't try them again on every request. */
+const badModels = new Map<string, number>();
+const BAD_TTL_MS = 10 * 60_000;
+
+export async function listGroqModels(key: string): Promise<string[] | null> {
+  const id = key.slice(-8);
+  const hit = modelCache.get(id);
+  if (hit && Date.now() - hit.at < MODEL_TTL_MS) return hit.models;
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/models", { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10_000) });
+    if (!res.ok) return null;
+    const models = parseModelList(await res.json().catch(() => null));
+    if (models.length === 0) return null;
+    modelCache.set(id, { at: Date.now(), models });
+    return models;
+  } catch {
+    return null;
+  }
+}
+
+function skippedModels(): Set<string> {
+  const now = Date.now();
+  const out = new Set<string>();
+  for (const [m, at] of badModels) {
+    if (now - at > BAD_TTL_MS) badModels.delete(m);
+    else out.add(m);
+  }
+  return out;
+}
+
+/**
+ * Tests a Groq API key. It asks Groq for the models the key can use, so it works whichever models Groq has retired or kept
+ * for this account (it used to send a fixed model, and a key without access to it was refused even though the key was fine).
+ * Returns null on success or a plain-words error.
+ */
 export async function testGroqKey(key: string): Promise<string | null> {
   const clean = cleanApiKey(key);
   if (!clean) return "Please provide a Groq API key.";
 
   try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${clean}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
-        messages: [{ role: "user", content: "Reply with the single word: ok" }],
-        max_tokens: 5,
-        temperature: 0,
-      }),
-    });
-
+    const res = await fetch("https://api.groq.com/openai/v1/models", { headers: { Authorization: `Bearer ${clean}` }, signal: AbortSignal.timeout(15_000) });
     if (res.ok) {
+      const models = parseModelList(await res.json().catch(() => null));
+      if (models.length > 0 && pickGroqModels(models, false).length === 0) return "This Groq key works, but it has no chat models available. Check your Groq account's model access.";
       return null; // Key works!
     }
-
     const data = await res.json().catch(() => ({}));
     const msg = data.error?.message || `HTTP ${res.status}`;
-
     if (res.status === 401 || /invalid_api_key|unauthorized/i.test(msg)) {
       return "Groq rejected this API key. Please check you copied the complete key from console.groq.com/keys.";
     }
     if (res.status === 429 || /rate_limit/i.test(msg)) {
       return "This Groq key works, but its rate limit is currently reached. Please try again shortly.";
     }
-
     return `Groq error: ${msg}`;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -237,7 +261,6 @@ export async function callGroqChat(opts: GroqCallOptions): Promise<GroqCallResul
     throw new Error("GROQ_API_KEY is not configured. Add a Groq key in Admin Console → AI Key & Provider.");
   }
 
-  const model = opts.model || "llama-3.3-70b-versatile";
   const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [];
 
   if (opts.systemInstruction) {
@@ -280,35 +303,54 @@ export async function callGroqChat(opts: GroqCallOptions): Promise<GroqCallResul
 
   const startTime = Date.now();
 
-  const payload: Record<string, unknown> = {
-    model,
+  const basePayload: Record<string, unknown> = {
     messages,
     temperature: typeof opts.temperature === "number" ? opts.temperature : 0.4,
   };
 
   if (opts.schema) {
-    payload.response_format = { type: "json_object" };
+    basePayload.response_format = { type: "json_object" };
   }
   if (opts.maxTokens) {
-    payload.max_tokens = opts.maxTokens;
+    basePayload.max_tokens = opts.maxTokens;
   }
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  // Ask Groq which models this key can use, then try the best ones in turn. A model that Groq says doesn't exist (or that
+  // this account can't use) is skipped, for this request and for a few minutes after, instead of failing the whole call.
+  const available = await listGroqModels(apiKey);
+  const candidates = pickGroqModels(available, isHeavyModelName(opts.model), opts.model, skippedModels());
+  if (candidates.length === 0) {
+    throw new Error("[Groq Error] No Groq chat model is available for this key. Check your Groq account's model access.");
+  }
+
+  let model = candidates[0];
+  let res: Response | null = null;
+  let lastMessage = "";
+  for (const candidate of candidates) {
+    model = candidate;
+    const attempt = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ...basePayload, model: candidate }),
+    });
+    if (attempt.ok) {
+      res = attempt;
+      break;
+    }
+    const errData = await attempt.json().catch(() => ({}));
+    lastMessage = errData.error?.message || `HTTP ${attempt.status}`;
+    if (isModelUnavailable(attempt.status, lastMessage)) {
+      badModels.set(candidate, Date.now());
+      continue; // try the next model
+    }
+    throw new Error(`[Groq Error] ${lastMessage}`);
+  }
 
   const latencyMs = Date.now() - startTime;
-
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    const errMsg = errData.error?.message || `HTTP ${res.status}`;
-    throw new Error(`[Groq Error] ${errMsg}`);
-  }
+  if (!res) throw new Error(`[Groq Error] ${lastMessage || "No Groq model could answer."}`);
 
   const json = await res.json();
   const choice = json.choices?.[0];
