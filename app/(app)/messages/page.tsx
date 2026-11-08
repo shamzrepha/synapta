@@ -110,7 +110,7 @@ function NewChatModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
         <ul className="overflow-y-auto flex-1 -mx-1">
           {shown.length === 0 && (
             <li className="text-sm text-slate-500 p-4 text-center">
-              No friends yet. <Link href="/friends" className="text-teal-600 font-semibold">Find people</Link>
+              No friends yet. <Link href="/friends" className="text-brand-600 font-semibold">Find people</Link>
             </li>
           )}
           {shown.map((f) => {
@@ -124,7 +124,7 @@ function NewChatModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
                 >
                   <Avatar name={f.displayName} photoURL={f.photoURL} seed={f.uid} size={36} />
                   <span className="flex-1 text-left text-sm font-medium">{f.displayName}</span>
-                  <span className={cn("h-5 w-5 rounded-full border-2 flex items-center justify-center", on ? "bg-teal-600 border-teal-600 text-white" : "border-slate-300")}>
+                  <span className={cn("h-5 w-5 rounded-full border-2 flex items-center justify-center", on ? "bg-brand-600 border-brand-600 text-white" : "border-slate-300")}>
                     {on && <Check className="h-3 w-3" />}
                   </span>
                 </button>
@@ -291,7 +291,7 @@ function Conversation({ chatId, onBack, onChanged }: { chatId: string; onBack: (
                     title={exactTime(m.createdAt)}
                     className={cn(
                       "rounded-2xl px-3.5 py-2 text-sm space-y-2",
-                      mine ? "bg-teal-600 text-white rounded-br-md [&_a]:text-white" : "bg-slate-100 dark:bg-slate-900 rounded-bl-md"
+                      mine ? "bg-brand-600 text-white rounded-br-md [&_a]:text-white" : "bg-slate-100 dark:bg-slate-900 rounded-bl-md"
                     )}
                   >
                     {m.text && <MarkdownRenderer content={m.text} className={cn("prose-p:my-0 text-sm", mine && "text-white prose-invert")} />}
@@ -321,7 +321,7 @@ function Conversation({ chatId, onBack, onChanged }: { chatId: string; onBack: (
                       <button
                         key={e}
                         onClick={() => react(m.id, e)}
-                        className={cn("text-xs rounded-full px-1.5 py-0.5 border", me && uids.includes(me) ? "border-teal-500 bg-teal-500/10" : "border-slate-200 dark:border-slate-700")}
+                        className={cn("text-xs rounded-full px-1.5 py-0.5 border", me && uids.includes(me) ? "border-brand-500 bg-brand-500/10" : "border-slate-200 dark:border-slate-700")}
                       >
                         {e} {uids.length}
                       </button>
@@ -355,9 +355,9 @@ function Conversation({ chatId, onBack, onChanged }: { chatId: string; onBack: (
           onChange={(e) => onType(e.target.value)}
           maxLength={4000}
           placeholder="Message…"
-          className="flex-1 h-11 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 text-sm focus:outline-none focus:border-teal-500"
+          className="flex-1 h-11 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-4 text-sm focus:outline-none focus:border-brand-500"
         />
-        <button type="submit" disabled={!text.trim() || sending} className="h-11 w-11 rounded-full bg-teal-600 text-white flex items-center justify-center disabled:opacity-40" aria-label="Send">
+        <button type="submit" disabled={!text.trim() || sending} className="h-11 w-11 rounded-full bg-brand-600 text-white flex items-center justify-center disabled:opacity-40" aria-label="Send">
           <Send className="h-4 w-4" />
         </button>
       </form>
@@ -407,7 +407,7 @@ export default function MessagesPage() {
         <div className={cn("flex flex-col min-h-0 border-r border-slate-100 dark:border-slate-800", active && "hidden md:flex")}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
             <h1 className="font-extrabold text-lg flex items-center gap-2">
-              <MessageCircle className="h-5 w-5 text-teal-600" /> Messages
+              <MessageCircle className="h-5 w-5 text-brand-600" /> Messages
             </h1>
             <Button size="sm" onClick={() => setShowNew(true)} aria-label="New message">
               <Plus className="h-4 w-4" />
@@ -431,7 +431,7 @@ export default function MessagesPage() {
                 <li key={c.id}>
                   <button
                     onClick={() => open(c.id)}
-                    className={cn("w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60", active === c.id && "bg-teal-500/10")}
+                    className={cn("w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60", active === c.id && "bg-brand-500/10")}
                   >
                     {c.type === "group" ? (
                       <span className="h-11 w-11 rounded-full bg-indigo-600 text-white flex items-center justify-center shrink-0">
@@ -449,7 +449,7 @@ export default function MessagesPage() {
                         <span className={cn("truncate text-xs", c.unread ? "text-slate-900 dark:text-slate-100 font-medium" : "text-slate-500")}>
                           {c.lastMessage ? `${c.type === "group" && c.lastMessage.senderName ? `${c.lastMessage.senderName.split(" ")[0]}: ` : ""}${c.lastMessage.text}` : "No messages yet"}
                         </span>
-                        {c.unread > 0 && <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-teal-600 text-white text-[10px] font-bold flex items-center justify-center">{c.unread}</span>}
+                        {c.unread > 0 && <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center">{c.unread}</span>}
                       </span>
                     </span>
                   </button>

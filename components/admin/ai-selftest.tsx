@@ -37,7 +37,7 @@ export function AiSelfTest() {
   return (
     <Card className="p-5 space-y-3">
       <div className="flex flex-wrap items-center gap-3">
-        <Activity className="h-5 w-5 text-teal-600" />
+        <Activity className="h-5 w-5 text-brand-600" />
         <div className="flex-1 min-w-0">
           <h3 className="font-extrabold text-base">AI self-test</h3>
           <p className="text-xs text-slate-500">Calls every AI path live: tutor, quizzes/flashcards JSON, class builds, both voice engines, and an Igbo podcast line (translation + both voices, to listen to).</p>

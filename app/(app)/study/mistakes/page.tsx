@@ -99,7 +99,7 @@ export default function MistakesPage() {
 
       <div className="flex gap-1.5">
         {(["open", "mastered"] as const).map((s) => (
-          <button key={s} type="button" onClick={() => setStatus(s)} className={cn("rounded-full px-4 py-2 text-xs font-semibold border capitalize", status === s ? "bg-teal-600 text-white border-teal-600" : "border-slate-200 dark:border-slate-700")}>
+          <button key={s} type="button" onClick={() => setStatus(s)} className={cn("rounded-full px-4 py-2 text-xs font-semibold border capitalize", status === s ? "bg-brand-600 text-white border-brand-600" : "border-slate-200 dark:border-slate-700")}>
             {s} {data ? `(${data.counts[s]})` : ""}
           </button>
         ))}
@@ -197,7 +197,7 @@ function Retest({ items, onExit }: { items: RetestQ[]; onExit: () => void }) {
           const right = result && i === result.correctIndex;
           const wrong = result && i === result.selected && !result.correct;
           return (
-            <button key={i} type="button" disabled={!!result || busy} onClick={() => void answer(i)} className={cn("w-full min-h-[48px] text-left rounded-xl border px-3 py-2.5 text-sm", !result && "border-slate-300 dark:border-slate-700 hover:border-teal-500", right && "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30", wrong && "border-rose-500 bg-rose-50 dark:bg-rose-950/30", result && !right && !wrong && "opacity-60")}>
+            <button key={i} type="button" disabled={!!result || busy} onClick={() => void answer(i)} className={cn("w-full min-h-[48px] text-left rounded-xl border px-3 py-2.5 text-sm", !result && "border-slate-300 dark:border-slate-700 hover:border-brand-500", right && "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30", wrong && "border-rose-500 bg-rose-50 dark:bg-rose-950/30", result && !right && !wrong && "opacity-60")}>
               {o}
             </button>
           );

@@ -62,7 +62,7 @@ export default function FocusStatsPage() {
             <div className="flex items-end gap-1 h-28" role="img" aria-label="Focus minutes per day for the last 14 days">
               {asArray<{ day: string; minutes: number }>(stats.last14).map((d) => (
                 <div key={d.day} className="flex-1 flex flex-col justify-end h-full" title={`${d.day}: ${d.minutes} min`}>
-                  <div className={d.minutes ? "bg-teal-500 rounded-t" : "bg-slate-200 dark:bg-slate-800 rounded-t"} style={{ height: `${Math.max(4, (d.minutes / max) * 100)}%` }} />
+                  <div className={d.minutes ? "bg-brand-500 rounded-t" : "bg-slate-200 dark:bg-slate-800 rounded-t"} style={{ height: `${Math.max(4, (d.minutes / max) * 100)}%` }} />
                 </div>
               ))}
             </div>

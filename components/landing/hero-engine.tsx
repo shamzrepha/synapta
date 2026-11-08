@@ -35,7 +35,7 @@ export function HeroEngine() {
                   <span className="block truncate text-sm">{s.name}</span>
                   <span className="block truncate font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{s.kind}</span>
                 </span>
-                <span className="pipe-dot h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" style={{ ["--pipe-delay" as string]: s.delay }} />
+                <span className="pipe-dot h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" style={{ ["--pipe-delay" as string]: s.delay }} />
               </li>
             ))}
           </ul>
@@ -57,7 +57,7 @@ export function HeroEngine() {
                 </div>
                 <p className="mt-0.5 pl-[22px] text-xs text-muted-foreground">{o.meta}</p>
                 <div className="mt-2 h-px w-full overflow-hidden bg-border pl-[22px]">
-                  <div className="pipe-bar h-px w-full bg-teal-500" style={{ ["--pipe-delay" as string]: o.delay }} />
+                  <div className="pipe-bar h-px w-full bg-brand-500" style={{ ["--pipe-delay" as string]: o.delay }} />
                 </div>
               </li>
             ))}

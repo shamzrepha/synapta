@@ -706,12 +706,12 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const explodeSlider = parts3d.some((p) => p.explode) ? (
     <label className="flex items-center gap-2 text-xs font-semibold">
       Explode
-      <input type="range" min={0} max={100} value={Math.round(explode * 100)} onChange={(e) => setExplode(Number(e.target.value) / 100)} className="flex-1 accent-teal-600" />
+      <input type="range" min={0} max={100} value={Math.round(explode * 100)} onChange={(e) => setExplode(Number(e.target.value) / 100)} className="flex-1 accent-brand-600" />
     </label>
   ) : null;
 
   const followButton = activeDrive ? (
-    <button type="button" onClick={() => setFollow((f) => !f)} className={cn("absolute right-2 top-2 z-10 rounded-lg px-2.5 py-1.5 text-xs font-bold", follow ? "bg-teal-600 text-white" : "bg-black/50 text-white hover:bg-black/70")}>
+    <button type="button" onClick={() => setFollow((f) => !f)} className={cn("absolute right-2 top-2 z-10 rounded-lg px-2.5 py-1.5 text-xs font-bold", follow ? "bg-brand-600 text-white" : "bg-black/50 text-white hover:bg-black/70")}>
       {follow ? "Following robot" : "Follow robot"}
     </button>
   ) : null;
@@ -731,8 +731,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const codePanel = shown.circuit ? (
     <div className="space-y-2">
       <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-700 p-0.5 text-xs font-semibold">
-        <button type="button" disabled={!canEdit} onClick={() => switchCodeMode("blocks")} className={cn("px-3 py-1.5 rounded-lg", mode3 === "blocks" ? "bg-teal-600 text-white" : "text-slate-500")}>Blocks</button>
-        <button type="button" disabled={!canEdit} onClick={() => switchCodeMode("text")} className={cn("px-3 py-1.5 rounded-lg", mode3 === "text" ? "bg-teal-600 text-white" : "text-slate-500")}>Raw code</button>
+        <button type="button" disabled={!canEdit} onClick={() => switchCodeMode("blocks")} className={cn("px-3 py-1.5 rounded-lg", mode3 === "blocks" ? "bg-brand-600 text-white" : "text-slate-500")}>Blocks</button>
+        <button type="button" disabled={!canEdit} onClick={() => switchCodeMode("text")} className={cn("px-3 py-1.5 rounded-lg", mode3 === "text" ? "bg-brand-600 text-white" : "text-slate-500")}>Raw code</button>
       </div>
       {mode3 === "blocks" ? (
         <>
@@ -774,7 +774,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
           {shown.params.map((p) => (
             <label key={p.key} className="flex items-center gap-2 text-xs">
               <span className="w-28 font-semibold">{p.label}</span>
-              <input type="range" min={p.min} max={p.max} step={p.step} value={p.value} disabled={!canEdit} onChange={(e) => edit({ params: shown.params.map((x) => (x.key === p.key ? { ...x, value: Number(e.target.value) } : x)) })} className="flex-1 accent-teal-600" />
+              <input type="range" min={p.min} max={p.max} step={p.step} value={p.value} disabled={!canEdit} onChange={(e) => edit({ params: shown.params.map((x) => (x.key === p.key ? { ...x, value: Number(e.target.value) } : x)) })} className="flex-1 accent-brand-600" />
               <span className="font-mono w-20 text-right">{p.value} {p.unit}</span>
             </label>
           ))}
@@ -941,7 +941,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
             </>
           )}
           {stageOpen && (
-            <button type="button" onClick={() => setStageOpen(true)} className="w-full rounded-2xl border border-dashed border-teal-500/50 p-6 text-sm text-slate-500">
+            <button type="button" onClick={() => setStageOpen(true)} className="w-full rounded-2xl border border-dashed border-brand-500/50 p-6 text-sm text-slate-500">
               Simulation is open full screen.
             </button>
           )}
@@ -954,7 +954,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
             {tabs
               .filter((t) => t.show)
               .map((t) => (
-                <button key={t.key} type="button" onClick={() => setTab(t.key)} className={cn("px-3 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2", tab === t.key ? "border-teal-600 text-teal-700 dark:text-teal-300" : "border-transparent text-slate-500")}>
+                <button key={t.key} type="button" onClick={() => setTab(t.key)} className={cn("px-3 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2", tab === t.key ? "border-brand-600 text-brand-700 dark:text-brand-300" : "border-transparent text-slate-500")}>
                   {t.label}
                 </button>
               ))}
@@ -985,7 +985,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
                     {shown.params.map((p) => (
                       <label key={p.key} className="flex items-center gap-2 text-xs">
                         <span className="w-28 font-semibold">{p.label}</span>
-                        <input type="range" min={p.min} max={p.max} step={p.step} value={p.value} disabled={!canEdit} onChange={(e) => edit({ params: shown.params.map((x) => (x.key === p.key ? { ...x, value: Number(e.target.value) } : x)) })} className="flex-1 accent-teal-600" />
+                        <input type="range" min={p.min} max={p.max} step={p.step} value={p.value} disabled={!canEdit} onChange={(e) => edit({ params: shown.params.map((x) => (x.key === p.key ? { ...x, value: Number(e.target.value) } : x)) })} className="flex-1 accent-brand-600" />
                         <span className="font-mono w-20 text-right">{p.value} {p.unit}</span>
                       </label>
                     ))}
@@ -1055,7 +1055,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
                     .filter((v) => v !== "class" || design.classId)
                     .map((v) => (
                       <label key={v} className="flex items-center gap-2">
-                        <input type="radio" name="vis" checked={design.visibility === v} disabled={!data.isOwner} onChange={() => setVisibility(v)} className="accent-teal-600" />
+                        <input type="radio" name="vis" checked={design.visibility === v} disabled={!data.isOwner} onChange={() => setVisibility(v)} className="accent-brand-600" />
                         {v === "private" ? <Lock className="h-4 w-4" /> : v === "public" ? <Globe className="h-4 w-4" /> : <GraduationCap className="h-4 w-4" />}
                         {v === "private" ? "Only me and collaborators" : v === "public" ? "Everyone (shows in the Maker World gallery)" : "My class"}
                       </label>
@@ -1135,7 +1135,7 @@ function CollaboratorPicker({ designId, members, onChanged }: { designId: string
         return (
           <div key={f.uid} className="flex items-center gap-2 text-xs">
             <span className="flex-1">{f.displayName}</span>
-            <button type="button" onClick={() => toggle(f.uid, !isMember)} className={cn("rounded-lg px-2 py-1 font-semibold", isMember ? "text-rose-600" : "text-teal-600")}>
+            <button type="button" onClick={() => toggle(f.uid, !isMember)} className={cn("rounded-lg px-2 py-1 font-semibold", isMember ? "text-rose-600" : "text-brand-600")}>
               {isMember ? "Remove" : "Add"}
             </button>
           </div>

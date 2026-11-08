@@ -17,7 +17,7 @@ export function OfflineDownloadButton({ url, title, className }: { url: string; 
       className={cn(
         "inline-flex h-9 items-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-colors",
         downloaded
-          ? "border-teal-500/40 bg-teal-500/10 text-teal-700 dark:text-teal-300"
+          ? "border-brand-500/40 bg-brand-500/10 text-brand-700 dark:text-brand-300"
           : "border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900",
         className
       )}

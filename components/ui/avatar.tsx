@@ -1,7 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-const COLORS = ["bg-teal-600", "bg-amber-600", "bg-indigo-600", "bg-rose-600", "bg-emerald-600", "bg-sky-600", "bg-purple-600", "bg-orange-600"];
+const COLORS = ["bg-brand-600", "bg-amber-600", "bg-indigo-600", "bg-rose-600", "bg-emerald-600", "bg-sky-600", "bg-purple-600", "bg-orange-600"];
 
 function colorFor(seed: string): string {
   let h = 0;

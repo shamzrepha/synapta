@@ -107,7 +107,7 @@ export default function ContestsPage() {
               {SHOP.map((p) => {
                 const on = allowed.includes(p.type);
                 return (
-                  <button key={p.type} type="button" onClick={() => setAllowed(on ? allowed.filter((t) => t !== p.type) : [...allowed, p.type])} className={cn("rounded-full border px-3 py-1.5 text-xs font-semibold min-h-[36px]", on ? "bg-teal-600 text-white border-teal-600" : "border-slate-300 dark:border-slate-700")}>
+                  <button key={p.type} type="button" onClick={() => setAllowed(on ? allowed.filter((t) => t !== p.type) : [...allowed, p.type])} className={cn("rounded-full border px-3 py-1.5 text-xs font-semibold min-h-[36px]", on ? "bg-brand-600 text-white border-brand-600" : "border-slate-300 dark:border-slate-700")}>
                     {p.name.replace(/ \(.*\)$/, "")}
                   </button>
                 );
@@ -126,7 +126,7 @@ export default function ContestsPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           {list.map((c) => (
             <Link key={c.id} href={`/studio/contests/${c.id}`}>
-              <Card className="p-4 h-full space-y-2 hover:border-teal-500/60 transition-colors">
+              <Card className="p-4 h-full space-y-2 hover:border-brand-500/60 transition-colors">
                 <div className="flex items-center gap-2">
                   <Badge variant={c.status === "open" ? "emerald" : "secondary"}>{c.status === "open" ? "Open" : "Closed"}</Badge>
                   <span className="text-xs text-slate-500 ml-auto">{c.status === "open" ? `Ends ${fmt(c.deadline)}` : `Ended ${fmt(c.deadline)}`}</span>

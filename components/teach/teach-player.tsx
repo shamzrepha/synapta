@@ -80,7 +80,7 @@ export function TeachPlayer({ script, finish }: { script: LessonScript; finish?:
               setPlaying(true);
             }
           }}
-          className="h-9 rounded-xl bg-teal-600 px-4 text-sm font-bold text-white flex items-center gap-1.5"
+          className="h-9 rounded-xl bg-brand-600 px-4 text-sm font-bold text-white flex items-center gap-1.5"
         >
           {playing ? <><Pause className="h-4 w-4" /> Pause</> : <><Play className="h-4 w-4" /> {i >= total - 1 ? "Replay" : "Play lesson"}</>}
         </button>
@@ -91,20 +91,20 @@ export function TeachPlayer({ script, finish }: { script: LessonScript; finish?:
         </button>
         <div className="flex rounded-xl border border-slate-300 dark:border-slate-700 overflow-hidden" role="group" aria-label="Speed">
           {SPEEDS.map((s) => (
-            <button key={s} type="button" onClick={() => setSpeed(s)} aria-pressed={speed === s} className={cn("px-2.5 h-9 text-xs font-semibold", speed === s ? "bg-teal-600 text-white" : "hover:bg-slate-100 dark:hover:bg-slate-900")}>{s}×</button>
+            <button key={s} type="button" onClick={() => setSpeed(s)} aria-pressed={speed === s} className={cn("px-2.5 h-9 text-xs font-semibold", speed === s ? "bg-brand-600 text-white" : "hover:bg-slate-100 dark:hover:bg-slate-900")}>{s}×</button>
           ))}
         </div>
       </div>
 
       {finish && i >= total - 1 && (
-        <button type="button" onClick={finish.onClick} className="w-full rounded-xl border-2 border-teal-600 px-4 py-2.5 text-sm font-bold text-teal-700 dark:text-teal-300 hover:bg-teal-500/10">
+        <button type="button" onClick={finish.onClick} className="w-full rounded-xl border-2 border-brand-600 px-4 py-2.5 text-sm font-bold text-brand-700 dark:text-brand-300 hover:bg-brand-500/10">
           {finish.label}
         </button>
       )}
 
       <div className="flex justify-center gap-1.5" role="tablist" aria-label="Scenes">
         {script.scenes.map((s, k) => (
-          <button key={k} type="button" onClick={() => go(k)} aria-label={`Scene ${k + 1}: ${s.caption || s.block.type}`} aria-selected={k === i} className={cn("h-2 rounded-full transition-all", k === i ? "w-6 bg-teal-600" : "w-2 bg-slate-300 dark:bg-slate-700")} />
+          <button key={k} type="button" onClick={() => go(k)} aria-label={`Scene ${k + 1}: ${s.caption || s.block.type}`} aria-selected={k === i} className={cn("h-2 rounded-full transition-all", k === i ? "w-6 bg-brand-600" : "w-2 bg-slate-300 dark:bg-slate-700")} />
         ))}
       </div>
     </Card>

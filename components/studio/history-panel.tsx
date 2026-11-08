@@ -72,7 +72,7 @@ export function HistoryPanel({
             <div key={c.uid} className="flex items-center gap-2 text-xs">
               <span className="w-28 truncate font-semibold">{c.name}</span>
               <div className="flex-1 h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                <div className="h-full bg-teal-500" style={{ width: `${(c.commits / total) * 100}%` }} />
+                <div className="h-full bg-brand-500" style={{ width: `${(c.commits / total) * 100}%` }} />
               </div>
               <span className="font-mono w-16 text-right">
                 {c.commits} commit{c.commits === 1 ? "" : "s"}
@@ -93,13 +93,13 @@ export function HistoryPanel({
               const isHead = c.id === headCommitId;
               return (
                 <li key={c.id} className="ml-4">
-                  <span className={cn("absolute -left-[7px] mt-1 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-slate-950", isHead ? "bg-teal-500" : "bg-slate-300 dark:bg-slate-700")} />
+                  <span className={cn("absolute -left-[7px] mt-1 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-slate-950", isHead ? "bg-brand-500" : "bg-slate-300 dark:bg-slate-700")} />
                   <div className="flex items-start gap-1.5">
                     {SOURCE_ICON[c.source] || <GitCommit className="h-3.5 w-3.5 text-slate-400 mt-0.5" />}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold break-words">{c.message}</p>
                       <p className="text-[11px] text-slate-500" title={c.createdAt ? exactTime(c.createdAt) : undefined}>
-                        {c.authorName} · {c.createdAt ? timeAgo(c.createdAt) : ""} {isHead && <span className="ml-1 font-bold text-teal-600">CURRENT</span>}
+                        {c.authorName} · {c.createdAt ? timeAgo(c.createdAt) : ""} {isHead && <span className="ml-1 font-bold text-brand-600">CURRENT</span>}
                       </p>
                       <ul className="mt-1 text-[11px] font-mono text-slate-600 dark:text-slate-400 space-y-0.5">
                         {asArray<string>(c.diff?.lines)

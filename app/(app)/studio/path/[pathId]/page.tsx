@@ -57,7 +57,7 @@ export default function PathPage({ params }: { params: Promise<{ pathId: string 
   }, [pathId]);
 
   if (path === null) return <Skeleton className="h-96 rounded-2xl" />;
-  if (path === "missing") return <Card className="p-8 text-center">Path not found. <Link href="/studio/path" className="text-teal-600 underline">Back</Link></Card>;
+  if (path === "missing") return <Card className="p-8 text-center">Path not found. <Link href="/studio/path" className="text-brand-600 underline">Back</Link></Card>;
 
   const tick = async (key: string, done: boolean) => {
     setPath({ ...path, done: { ...path.done, [key.replace(":", "_")]: done } });
@@ -85,7 +85,7 @@ export default function PathPage({ params }: { params: Promise<{ pathId: string 
         <h1 className="text-2xl font-extrabold">{path.title}</h1>
         <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{path.summary}</p>
         <div className="mt-2 h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-          <div className="h-full bg-teal-500 transition-all" style={{ width: `${(done / Math.max(1, total)) * 100}%` }} />
+          <div className="h-full bg-brand-500 transition-all" style={{ width: `${(done / Math.max(1, total)) * 100}%` }} />
         </div>
         <p className="text-xs text-slate-500 mt-1">{done}/{total} checklist items</p>
       </div>

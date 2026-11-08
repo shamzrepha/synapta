@@ -72,14 +72,14 @@ export function WallPublish({ designId, isOwner, onPublished }: { designId: stri
   };
 
   return (
-    <div className="rounded-2xl border border-teal-500/40 bg-teal-500/5 p-3 space-y-2">
+    <div className="rounded-2xl border border-brand-500/40 bg-brand-500/5 p-3 space-y-2">
       <p className="font-bold flex items-center gap-1.5"><Rocket className="h-4 w-4" /> Maker Wall</p>
       {!open ? (
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={() => setOpen(true)}>{onWall ? "Edit wall post" : "Publish to the Maker Wall"}</Button>
           {onWall && (
             <>
-              <Link href={`/studio/wall/${designId}`} className="text-xs font-semibold text-teal-600">View</Link>
+              <Link href={`/studio/wall/${designId}`} className="text-xs font-semibold text-brand-600">View</Link>
               <button type="button" disabled={busy} onClick={() => call("DELETE")} className="text-xs font-semibold text-rose-600 min-h-[36px]">Take down</button>
             </>
           )}

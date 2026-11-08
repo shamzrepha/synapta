@@ -692,12 +692,12 @@ export default function AdminConsolePage() {
               <span className="text-2xl font-black text-slate-900 dark:text-slate-100">
                 {usageData?.counts.totalUsers ?? asArray(users).length}
               </span>
-              <span className="text-[10px] text-teal-600 font-semibold">
+              <span className="text-[10px] text-brand-600 font-semibold">
                 {usageData?.counts.teachers ?? asArray(users).filter((u) => u.role === "teacher").length} Teachers
               </span>
             </div>
           </div>
-          <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
             <Users className="h-5 w-5" />
           </div>
         </Card>
@@ -763,7 +763,7 @@ export default function AdminConsolePage() {
           onClick={() => setActiveTab("overview")}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "overview"
-              ? "bg-teal-600 text-white shadow-sm"
+              ? "bg-brand-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
@@ -774,7 +774,7 @@ export default function AdminConsolePage() {
           onClick={() => setActiveTab("users")}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "users"
-              ? "bg-teal-600 text-white shadow-sm"
+              ? "bg-brand-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
@@ -785,7 +785,7 @@ export default function AdminConsolePage() {
           onClick={() => setActiveTab("requests")}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "requests"
-              ? "bg-teal-600 text-white shadow-sm"
+              ? "bg-brand-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
@@ -801,7 +801,7 @@ export default function AdminConsolePage() {
           onClick={() => setActiveTab("classes")}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "classes"
-              ? "bg-teal-600 text-white shadow-sm"
+              ? "bg-brand-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
@@ -812,7 +812,7 @@ export default function AdminConsolePage() {
           onClick={() => setActiveTab("reports")}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "reports"
-              ? "bg-teal-600 text-white shadow-sm"
+              ? "bg-brand-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
@@ -828,7 +828,7 @@ export default function AdminConsolePage() {
           onClick={() => setActiveTab("usage")}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "usage"
-              ? "bg-teal-600 text-white shadow-sm"
+              ? "bg-brand-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
@@ -839,7 +839,7 @@ export default function AdminConsolePage() {
           onClick={() => setActiveTab("audit")}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "audit"
-              ? "bg-teal-600 text-white shadow-sm"
+              ? "bg-brand-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
@@ -850,7 +850,7 @@ export default function AdminConsolePage() {
           onClick={() => setActiveTab("devices")}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "devices"
-              ? "bg-teal-600 text-white shadow-sm"
+              ? "bg-brand-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
@@ -861,7 +861,7 @@ export default function AdminConsolePage() {
           onClick={() => setActiveTab("system")}
           className={`flex items-center gap-1.5 px-3 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all shrink-0 ${
             activeTab === "system"
-              ? "bg-teal-600 text-white shadow-sm"
+              ? "bg-brand-600 text-white shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
           }`}
         >
@@ -893,20 +893,20 @@ export default function AdminConsolePage() {
 
               <div
                 onClick={() => setActiveTab("system")}
-                className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900/50 space-y-1 cursor-pointer hover:border-teal-400 dark:hover:border-teal-700 transition-all group"
+                className="p-4 rounded-2xl bg-brand-50 dark:bg-brand-950/20 border border-brand-200 dark:border-brand-900/50 space-y-1 cursor-pointer hover:border-brand-400 dark:hover:border-brand-700 transition-all group"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] uppercase font-bold text-teal-700 dark:text-teal-300">
+                  <span className="text-[10px] uppercase font-bold text-brand-700 dark:text-brand-300">
                     Model Routing & Fallbacks
                   </span>
-                  <span className="text-[10px] font-bold text-teal-600 dark:text-teal-400 group-hover:underline">
+                  <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 group-hover:underline">
                     Configure →
                   </span>
                 </div>
-                <p className="text-sm font-bold text-teal-950 dark:text-teal-100">
+                <p className="text-sm font-bold text-brand-950 dark:text-brand-100">
                   Dynamic Task Router Engaged
                 </p>
-                <p className="text-xs text-teal-700 dark:text-teal-300">
+                <p className="text-xs text-brand-700 dark:text-brand-300">
                   Assign models to workloads and manage quota cooldowns.
                 </p>
               </div>
@@ -948,7 +948,7 @@ export default function AdminConsolePage() {
                 <select
                   value={roleFilter}
                   onChange={(e) => setRoleFilter(e.target.value)}
-                  className="h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-teal-500"
+                  className="h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-brand-500"
                 >
                   <option value="all">All Roles</option>
                   <option value="student">Students Only</option>
@@ -963,7 +963,7 @@ export default function AdminConsolePage() {
                   value={deviceFilter}
                   onChange={(e) => setDeviceFilter(e.target.value)}
                   aria-label="Filter by device"
-                  className="h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-teal-500"
+                  className="h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-brand-500"
                 >
                   <option value="all">All devices</option>
                   <option value="android-app">Android app</option>
@@ -985,7 +985,7 @@ export default function AdminConsolePage() {
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
                   aria-label="Sort users"
-                  className="h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-teal-500"
+                  className="h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:ring-1 focus:ring-brand-500"
                 >
                   <option value="newest">Newest first (date added)</option>
                   <option value="oldest">Oldest first (date added)</option>
@@ -1036,7 +1036,7 @@ export default function AdminConsolePage() {
                         >
                           <td className="p-3.5">
                             <div className="flex items-center gap-3">
-                              <div className="h-8 w-8 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold flex items-center justify-center shrink-0">
+                              <div className="h-8 w-8 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold flex items-center justify-center shrink-0">
                                 {u.displayName[0]?.toUpperCase() || "U"}
                               </div>
                               <div className="space-y-0.5">
@@ -1096,7 +1096,7 @@ export default function AdminConsolePage() {
                                       ? "bg-rose-500"
                                       : quotaPercent > 70
                                       ? "bg-amber-500"
-                                      : "bg-teal-500"
+                                      : "bg-brand-500"
                                   }`}
                                   style={{ width: `${quotaPercent}%` }}
                                 />
@@ -1242,7 +1242,7 @@ export default function AdminConsolePage() {
                     asArray(classes).map((cls) => (
                       <tr key={cls.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
                         <td className="p-3.5">
-                          <Link href={`/classes/${cls.id}`} className="font-bold hover:text-teal-600 transition-colors">
+                          <Link href={`/classes/${cls.id}`} className="font-bold hover:text-brand-600 transition-colors">
                             {cls.title}
                           </Link>
                           <p className="text-[10px] text-slate-400 font-mono">ID: {cls.id}</p>
@@ -1267,7 +1267,7 @@ export default function AdminConsolePage() {
                           {cls.studentCount ?? 0} students
                         </td>
 
-                        <td className="p-3 text-center font-mono font-bold text-teal-600 dark:text-teal-400">
+                        <td className="p-3 text-center font-mono font-bold text-brand-600 dark:text-brand-400">
                           {cls.joinCode || "None"}
                         </td>
 
@@ -1452,7 +1452,7 @@ export default function AdminConsolePage() {
                     {asArray(usageData.monthlyBreakdown).map((row, i) => (
                       <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/40">
                         <td className="p-3.5 font-mono font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                          <Calendar className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
+                          <Calendar className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" />
                           {row.period}
                         </td>
                         <td className="p-3 text-center font-mono">{row.calls.toLocaleString()}</td>
@@ -1474,8 +1474,8 @@ export default function AdminConsolePage() {
           </Card>
 
           {/* Quota Policy Reference Card */}
-          <Card className="p-5 border-teal-500/20 bg-teal-50/20 dark:bg-teal-950/20 space-y-2">
-            <h4 className="font-bold text-xs text-teal-800 dark:text-teal-300">
+          <Card className="p-5 border-brand-500/20 bg-brand-50/20 dark:bg-brand-950/20 space-y-2">
+            <h4 className="font-bold text-xs text-brand-800 dark:text-brand-300">
               Active Platform Rate Limit & Quota Policies:
             </h4>
             <ul className="text-xs text-slate-600 dark:text-slate-400 space-y-1 list-disc list-inside">
@@ -1565,7 +1565,7 @@ export default function AdminConsolePage() {
                 </span>
                 <span className="text-[10px] text-slate-400">Google Gemini API models</span>
               </div>
-              <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
                 <Cpu className="h-5 w-5" />
               </div>
             </Card>
@@ -1679,7 +1679,7 @@ export default function AdminConsolePage() {
                               <div className="w-20 bg-slate-200 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
                                 <div
                                   className={`h-full ${
-                                    percent >= 90 ? "bg-rose-500" : percent >= 60 ? "bg-amber-500" : "bg-teal-500"
+                                    percent >= 90 ? "bg-rose-500" : percent >= 60 ? "bg-amber-500" : "bg-brand-500"
                                   }`}
                                   style={{ width: `${percent}%` }}
                                 />
@@ -1754,7 +1754,7 @@ export default function AdminConsolePage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <Cpu className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                  <Cpu className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                   Dynamic Task Model Routing & Assignment
                 </h3>
                 <p className="text-xs text-slate-500">
@@ -1790,7 +1790,7 @@ export default function AdminConsolePage() {
                     </div>
                     <p className="text-[11px] text-slate-500 leading-snug">{desc}</p>
                   <select
-                    className="w-full text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    className="w-full text-xs font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-500"
                     value={modelAssignments[task] || ""}
                     onChange={(e) =>
                       setModelAssignments((prev) => ({

@@ -106,7 +106,7 @@ export default function CommunityPage({ params }: { params: Promise<{ id: string
   if (error) {
     return (
       <div className="mx-auto max-w-xl space-y-3">
-        <Link href="/communities" className="inline-flex items-center gap-1 text-sm font-semibold text-teal-600">
+        <Link href="/communities" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-600">
           <ArrowLeft className="h-4 w-4" /> Communities
         </Link>
         <Card className="p-8 text-center text-sm text-slate-500">{error}</Card>
@@ -118,7 +118,7 @@ export default function CommunityPage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
-      <Link href="/communities" className="inline-flex items-center gap-1 text-sm font-semibold text-teal-600">
+      <Link href="/communities" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-600">
         <ArrowLeft className="h-4 w-4" /> Communities
       </Link>
       <div>
@@ -142,12 +142,12 @@ export default function CommunityPage({ params }: { params: Promise<{ id: string
                 navigator.clipboard?.writeText(detail.joinCode!).catch(() => null);
                 toast({ title: "Join code copied" });
               }}
-              className="flex w-full items-center justify-between rounded-xl border border-dashed border-teal-500/50 bg-teal-500/5 px-3 py-2 text-sm"
+              className="flex w-full items-center justify-between rounded-xl border border-dashed border-brand-500/50 bg-brand-500/5 px-3 py-2 text-sm"
             >
               <span>
                 Join code: <b className="font-mono tracking-widest">{detail.joinCode}</b>
               </span>
-              <Copy className="h-4 w-4 text-teal-600" />
+              <Copy className="h-4 w-4 text-brand-600" />
             </button>
           )}
           <div className="flex gap-1">
@@ -155,7 +155,7 @@ export default function CommunityPage({ params }: { params: Promise<{ id: string
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={cn("h-9 rounded-xl px-4 text-sm font-semibold capitalize", tab === t ? "bg-teal-600 text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900")}
+                className={cn("h-9 rounded-xl px-4 text-sm font-semibold capitalize", tab === t ? "bg-brand-600 text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900")}
               >
                 {t}
               </button>
@@ -169,7 +169,7 @@ export default function CommunityPage({ params }: { params: Promise<{ id: string
             <div className="space-y-3">
               <CommunityComposer communityId={id} isOwner={isOwner} onPosted={() => setVersion((v) => v + 1)} />
               {tag && (
-                <button onClick={() => setTag("")} className="flex items-center gap-1 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-semibold text-teal-700 dark:text-teal-300">
+                <button onClick={() => setTag("")} className="flex items-center gap-1 rounded-full bg-brand-500/10 px-3 py-1 text-xs font-semibold text-brand-700 dark:text-brand-300">
                   #{tag} <X className="h-3 w-3" />
                 </button>
               )}

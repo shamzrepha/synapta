@@ -160,7 +160,7 @@ export function ProjectileLab({ config = {}, onComplete }: LabProps) {
         <div className="grid grid-cols-4 gap-2 w-full max-w-lg pt-4 border-t border-slate-100 dark:border-slate-800">
           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900 text-center">
             <span className="text-[9px] text-slate-500 uppercase font-semibold block">Calculated Range</span>
-            <span className={`text-sm font-bold ${isHit ? "text-emerald-500" : "text-teal-600 dark:text-teal-400"}`}>
+            <span className={`text-sm font-bold ${isHit ? "text-emerald-500" : "text-brand-600 dark:text-brand-400"}`}>
               {range.toFixed(1)} m
             </span>
           </div>
@@ -193,7 +193,7 @@ export function ProjectileLab({ config = {}, onComplete }: LabProps) {
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs">
             <span className="font-semibold">Launch Angle θ</span>
-            <span className="font-mono text-teal-600 font-bold">{angle}°</span>
+            <span className="font-mono text-brand-600 font-bold">{angle}°</span>
           </div>
           <input
             type="range"
@@ -202,14 +202,14 @@ export function ProjectileLab({ config = {}, onComplete }: LabProps) {
             step="1"
             value={angle}
             onChange={(e) => setAngle(parseInt(e.target.value))}
-            className="w-full accent-teal-600 cursor-pointer"
+            className="w-full accent-brand-600 cursor-pointer"
           />
         </div>
 
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs">
             <span className="font-semibold">Initial Speed v₀</span>
-            <span className="font-mono text-teal-600 font-bold">{speed} m/s</span>
+            <span className="font-mono text-brand-600 font-bold">{speed} m/s</span>
           </div>
           <input
             type="range"
@@ -218,7 +218,7 @@ export function ProjectileLab({ config = {}, onComplete }: LabProps) {
             step="1"
             value={speed}
             onChange={(e) => setSpeed(parseInt(e.target.value))}
-            className="w-full accent-teal-600 cursor-pointer"
+            className="w-full accent-brand-600 cursor-pointer"
           />
         </div>
 
@@ -242,7 +242,7 @@ export function ProjectileLab({ config = {}, onComplete }: LabProps) {
               <CheckCircle2 className="h-4 w-4" /> Lab Completed! Target distance struck successfully (+30 XP).
             </span>
           ) : isHit && hasLaunched ? (
-            <span className="flex items-center gap-1.5 font-bold text-teal-600 dark:text-teal-400">
+            <span className="flex items-center gap-1.5 font-bold text-brand-600 dark:text-brand-400">
               <Sparkles className="h-4 w-4" /> Target reached! Recording Bayesian evidence...
             </span>
           ) : (

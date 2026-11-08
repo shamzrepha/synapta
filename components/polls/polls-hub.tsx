@@ -126,13 +126,13 @@ function PollCard({ poll, onChanged, isAdmin, initiallyOpen }: { poll: Poll; onC
             const r = results[i];
             const mineVote = poll.myVote === o.id;
             return (
-              <button key={o.id} type="button" disabled={showResults || voting} onClick={() => vote(o.id)} className={cn("relative flex min-h-[110px] flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 p-2 text-center text-sm font-semibold", mineVote ? "border-teal-600" : "border-slate-300 dark:border-slate-700", !showResults && "hover:border-teal-500")}>
+              <button key={o.id} type="button" disabled={showResults || voting} onClick={() => vote(o.id)} className={cn("relative flex min-h-[110px] flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-2 p-2 text-center text-sm font-semibold", mineVote ? "border-brand-600" : "border-slate-300 dark:border-slate-700", !showResults && "hover:border-brand-500")}>
                 {o.image && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={o.image} alt="" className="h-20 w-full rounded-xl object-cover" />
                 )}
                 <span className="break-words">{o.text}</span>
-                {showResults && <span className={cn("text-lg font-bold", r.leading ? "text-teal-600" : "text-slate-500")}>{r.percent}%</span>}
+                {showResults && <span className={cn("text-lg font-bold", r.leading ? "text-brand-600" : "text-slate-500")}>{r.percent}%</span>}
               </button>
             );
           })}
@@ -143,8 +143,8 @@ function PollCard({ poll, onChanged, isAdmin, initiallyOpen }: { poll: Poll; onC
             const r = results[i];
             const mineVote = poll.myVote === o.id;
             return (
-              <button key={o.id} type="button" disabled={showResults || voting} onClick={() => vote(o.id)} className={cn("relative flex min-h-[44px] w-full items-center overflow-hidden rounded-xl border px-3 text-left text-sm", mineVote ? "border-teal-600" : "border-slate-300 dark:border-slate-700", !showResults && "hover:border-teal-500")}>
-                {showResults && <span className={cn("absolute inset-y-0 left-0 transition-all", r.leading ? "bg-teal-500/25" : "bg-slate-400/15")} style={{ width: `${r.percent}%` }} />}
+              <button key={o.id} type="button" disabled={showResults || voting} onClick={() => vote(o.id)} className={cn("relative flex min-h-[44px] w-full items-center overflow-hidden rounded-xl border px-3 text-left text-sm", mineVote ? "border-brand-600" : "border-slate-300 dark:border-slate-700", !showResults && "hover:border-brand-500")}>
+                {showResults && <span className={cn("absolute inset-y-0 left-0 transition-all", r.leading ? "bg-brand-500/25" : "bg-slate-400/15")} style={{ width: `${r.percent}%` }} />}
                 <span className="relative min-w-0 flex-1 break-words">{o.text}{mineVote && " ✓"}</span>
                 {showResults && <span className="relative ml-2 font-semibold">{r.percent}%</span>}
               </button>
@@ -202,10 +202,10 @@ function Creator({ onCreated, onCancel }: { onCreated: () => void; onCancel: () 
   };
 
   return (
-    <Card className="space-y-3 border-teal-500 p-4">
+    <Card className="space-y-3 border-brand-500 p-4">
       <div className="grid grid-cols-2 gap-2">
         {([["poll", "📊 Poll"], ["thisorthat", "⚖️ This or that"]] as const).map(([k, label]) => (
-          <button key={k} type="button" onClick={() => pickKind(k)} className={cn("min-h-[44px] rounded-xl border text-sm font-semibold", kind === k ? "border-teal-600 bg-teal-50 dark:bg-teal-950/40" : "border-slate-300 dark:border-slate-700")}>{label}</button>
+          <button key={k} type="button" onClick={() => pickKind(k)} className={cn("min-h-[44px] rounded-xl border text-sm font-semibold", kind === k ? "border-brand-600 bg-brand-50 dark:bg-brand-950/40" : "border-slate-300 dark:border-slate-700")}>{label}</button>
         ))}
       </div>
       <Input value={question} onChange={(e) => setQuestion(e.target.value)} maxLength={POLL_LIMITS.question} placeholder={kind === "poll" ? "Ask a question" : "Which would you rather?"} />
@@ -299,7 +299,7 @@ export function PollsHub({ isAdmin, focusId }: { isAdmin: boolean; focusId?: str
       {focus && <PollCard key={`focus-${focus.id}`} poll={focus} onChanged={refresh} isAdmin={isAdmin} initiallyOpen />}
       <div className="flex gap-2">
         {(["open", "closed"] as const).map((s) => (
-          <button key={s} type="button" onClick={() => { setStatus(s); setPolls(null); }} className={cn("min-h-[36px] rounded-full border px-3.5 text-xs font-semibold", status === s ? "border-teal-600 bg-teal-600 text-white" : "border-slate-300 dark:border-slate-700")}>{s === "open" ? "Open" : "Closed"}</button>
+          <button key={s} type="button" onClick={() => { setStatus(s); setPolls(null); }} className={cn("min-h-[36px] rounded-full border px-3.5 text-xs font-semibold", status === s ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300 dark:border-slate-700")}>{s === "open" ? "Open" : "Closed"}</button>
         ))}
       </div>
       {polls === null && <Skeleton className="h-36 w-full rounded-2xl" />}

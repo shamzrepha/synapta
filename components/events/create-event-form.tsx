@@ -127,7 +127,7 @@ export function CreateEventForm({
           {[
             { k: "quiz_sprint" as const, label: "Quiz sprint", desc: "Timed AI quiz, speed scoring", icon: <Zap className="h-5 w-5 text-amber-500" /> },
             { k: "hackathon" as const, label: "Hackathon", desc: "Build & submit, peers vote", icon: <Hammer className="h-5 w-5 text-indigo-500" /> },
-            { k: "build" as const, label: "Build challenge", desc: "Design in Maker Studio, auto-scored by simulation", icon: <Wrench className="h-5 w-5 text-teal-500" /> },
+            { k: "build" as const, label: "Build challenge", desc: "Design in Maker Studio, auto-scored by simulation", icon: <Wrench className="h-5 w-5 text-brand-500" /> },
           ].map((o) => (
             <button
               type="button"
@@ -136,7 +136,7 @@ export function CreateEventForm({
                 setKind(o.k);
                 setDuration(o.k === "quiz_sprint" ? 30 : o.k === "build" ? 60 : 1440);
               }}
-              className={cn("p-3 rounded-2xl border-2 text-left", kind === o.k ? "border-teal-500 bg-teal-500/5" : "border-slate-200 dark:border-slate-800")}
+              className={cn("p-3 rounded-2xl border-2 text-left", kind === o.k ? "border-brand-500 bg-brand-500/5" : "border-slate-200 dark:border-slate-800")}
             >
               {o.icon}
               <p className="font-semibold text-sm mt-1">{o.label}</p>
@@ -257,7 +257,7 @@ export function CreateEventForm({
                 type="button"
                 key={m}
                 onClick={() => setDuration(m)}
-                className={cn("px-3 py-1.5 rounded-full border text-xs font-semibold", duration === m ? "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-300" : "border-slate-200 dark:border-slate-800")}
+                className={cn("px-3 py-1.5 rounded-full border text-xs font-semibold", duration === m ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:text-brand-300" : "border-slate-200 dark:border-slate-800")}
               >
                 {presetLabel(m)}
               </button>

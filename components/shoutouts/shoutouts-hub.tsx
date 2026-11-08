@@ -119,7 +119,7 @@ export function ShoutoutsHub({ initialTab }: { initialTab?: string | null }) {
       </div>
       <div className="flex gap-2">
         {([["send", "Send"], ["received", "Received"], ["sent", "Sent"]] as const).map(([id, label]) => (
-          <button key={id} type="button" onClick={() => { setTab(id); setItems(null); }} className={cn("min-h-[36px] rounded-full border px-3.5 text-xs font-semibold", tab === id ? "border-teal-600 bg-teal-600 text-white" : "border-slate-300 dark:border-slate-700")}>{label}</button>
+          <button key={id} type="button" onClick={() => { setTab(id); setItems(null); }} className={cn("min-h-[36px] rounded-full border px-3.5 text-xs font-semibold", tab === id ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300 dark:border-slate-700")}>{label}</button>
         ))}
       </div>
 
@@ -128,7 +128,7 @@ export function ShoutoutsHub({ initialTab }: { initialTab?: string | null }) {
           <UserPicker value={to} onPick={setTo} />
           <div className="grid grid-cols-2 gap-2">
             {SHOUTOUT_BADGES.map((b) => (
-              <button key={b.id} type="button" onClick={() => setBadge(b.id)} className={cn("flex min-h-[44px] items-center gap-2 rounded-xl border px-3 text-sm font-medium", badge === b.id ? "border-teal-600 bg-teal-50 dark:bg-teal-950/40" : "border-slate-300 dark:border-slate-700")}>
+              <button key={b.id} type="button" onClick={() => setBadge(b.id)} className={cn("flex min-h-[44px] items-center gap-2 rounded-xl border px-3 text-sm font-medium", badge === b.id ? "border-brand-600 bg-brand-50 dark:bg-brand-950/40" : "border-slate-300 dark:border-slate-700")}>
                 <span className="text-lg">{b.emoji}</span> {b.label}
               </button>
             ))}

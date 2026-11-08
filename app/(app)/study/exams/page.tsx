@@ -55,7 +55,7 @@ export default function ExamsPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2"><CalendarClock className="h-7 w-7 text-teal-600" /> Exam planner</h1>
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2"><CalendarClock className="h-7 w-7 text-brand-600" /> Exam planner</h1>
         <p className="text-sm text-slate-500">Tell us the exam and we plan your revision backwards from it, giving weaker topics more time.</p>
       </div>
       {!adding ? (
@@ -119,7 +119,7 @@ function NewExam({ today, onDone }: { today: string; onDone: (created: boolean) 
           <p className="text-xs text-slate-500">Include all topics from your classes (uses your mastery to find weak spots)</p>
           <div className="flex flex-wrap gap-1.5">
             {asArray(classes).map((c) => (
-              <button key={c.id} type="button" onClick={() => setPicked((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id].slice(0, 5)))} className={cn("rounded-full px-3 py-1.5 text-xs font-semibold border", picked.includes(c.id) ? "bg-teal-600 text-white border-teal-600" : "border-slate-200 dark:border-slate-700")}>{c.title}</button>
+              <button key={c.id} type="button" onClick={() => setPicked((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id].slice(0, 5)))} className={cn("rounded-full px-3 py-1.5 text-xs font-semibold border", picked.includes(c.id) ? "bg-brand-600 text-white border-brand-600" : "border-slate-200 dark:border-slate-700")}>{c.title}</button>
             ))}
           </div>
         </div>
@@ -177,13 +177,13 @@ function ExamCard({ exam, today, onChange, onDeleted }: { exam: Exam; today: str
           <p className="font-bold leading-tight break-words">{exam.name}</p>
           <p className="text-xs text-slate-500">{niceDate(exam.examDate)} · {Math.round(exam.minutesPerDay / 6) / 10} h/day · {exam.topics.length} topics</p>
         </div>
-        <div className={cn("rounded-xl px-3 py-1.5 text-center shrink-0", left <= 3 ? "bg-rose-50 dark:bg-rose-950/30 text-rose-600" : "bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-300")}>
+        <div className={cn("rounded-xl px-3 py-1.5 text-center shrink-0", left <= 3 ? "bg-rose-50 dark:bg-rose-950/30 text-rose-600" : "bg-brand-50 dark:bg-brand-950/30 text-brand-700 dark:text-brand-300")}>
           <p className="text-xl font-extrabold tabular-nums leading-none">{Math.max(0, left)}</p>
           <p className="text-[10px]">{left === 1 ? "day left" : left <= 0 ? "exam day" : "days left"}</p>
         </div>
       </div>
       <div>
-        <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><div className="h-full bg-teal-500 transition-all" style={{ width: `${prog.percent}%` }} /></div>
+        <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden"><div className="h-full bg-brand-500 transition-all" style={{ width: `${prog.percent}%` }} /></div>
         <p className="text-xs text-slate-500 mt-1">{prog.doneItems} of {prog.totalItems} sessions done · {prog.percent}%</p>
       </div>
       <div className="flex gap-2">
@@ -198,7 +198,7 @@ function ExamCard({ exam, today, onChange, onDeleted }: { exam: Exam; today: str
           {exam.plan.length === 0 && <p className="text-sm text-slate-500">No study days left before this exam.</p>}
           {visible.map((d) => (
             <div key={d.date} className="space-y-1.5">
-              <p className={cn("text-xs font-bold uppercase tracking-wide", d.date === today ? "text-teal-600" : d.date < today ? "text-rose-500" : "text-slate-400")}>
+              <p className={cn("text-xs font-bold uppercase tracking-wide", d.date === today ? "text-brand-600" : d.date < today ? "text-rose-500" : "text-slate-400")}>
                 {d.date === today ? "Today" : niceDate(d.date)}{d.date < today ? " · missed" : ""}
               </p>
               {d.items.map((it) => {

@@ -72,7 +72,7 @@ export function NotificationBell() {
         aria-label={`Notifications${badge ? `, ${badge} unread` : ""}`}
         className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors"
       >
-        <Bell className={cn("h-4 w-4", badge > 0 && "text-teal-600 dark:text-teal-400")} />
+        <Bell className={cn("h-4 w-4", badge > 0 && "text-brand-600 dark:text-brand-400")} />
         {badge > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-slate-950 animate-in zoom-in">
             {badge > 99 ? "99+" : badge}
@@ -84,7 +84,7 @@ export function NotificationBell() {
         <div className="fixed sm:absolute inset-x-2 sm:inset-x-auto top-16 sm:top-11 sm:right-0 sm:w-96 max-h-[75vh] flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-2xl z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
             <p className="font-bold text-sm">Notifications</p>
-            <button type="button" onClick={markAllRead} className="text-xs font-semibold text-teal-600 dark:text-teal-400 flex items-center gap-1">
+            <button type="button" onClick={markAllRead} className="text-xs font-semibold text-brand-600 dark:text-brand-400 flex items-center gap-1">
               <CheckCheck className="h-3.5 w-3.5" /> Mark all read
             </button>
           </div>

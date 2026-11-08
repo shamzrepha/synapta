@@ -36,7 +36,7 @@ export function ShoutoutsStrip({ userRef, limit = 3 }: { userRef: string; limit?
     <section className="rounded-2xl border border-slate-200/80 bg-white p-4 dark:border-slate-800/80 dark:bg-slate-900/60">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Shout-outs 💌 <span className="font-normal text-slate-500">({data.total})</span></h3>
-        <Link href="/shoutouts" className="text-xs font-semibold text-teal-600 hover:underline">Send one</Link>
+        <Link href="/shoutouts" className="text-xs font-semibold text-brand-600 hover:underline">Send one</Link>
       </div>
       <div className="mb-2 flex flex-wrap gap-1.5">
         {Object.entries(data.counts).map(([badge, n]) => (

@@ -79,7 +79,7 @@ export function PracticeBankTools({ classId, kcId }: { classId: string; kcId: st
   return (
     <div className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-2">
       <p className="text-sm font-semibold flex items-center gap-2">
-        <Database className="h-4 w-4 text-teal-600" /> Practice bank
+        <Database className="h-4 w-4 text-brand-600" /> Practice bank
         <span className="font-normal text-xs text-slate-500">
           {sizes ? `${sizes.questions} questions · ${sizes.cards} flashcards` : "…"}
         </span>
@@ -130,7 +130,7 @@ export function PracticeBankTools({ classId, kcId }: { classId: string; kcId: st
               </div>
               <ul className="mt-1.5 grid gap-1 pl-5 text-xs">
                 {q.options.map((o, k) => (
-                  <li key={k} className={k === q.correctIndex ? "font-semibold text-teal-700 dark:text-teal-300" : "text-slate-600 dark:text-slate-400"}>
+                  <li key={k} className={k === q.correctIndex ? "font-semibold text-brand-700 dark:text-brand-300" : "text-slate-600 dark:text-slate-400"}>
                     {String.fromCharCode(65 + k)}. {o} {k === q.correctIndex && "✓"}
                   </li>
                 ))}

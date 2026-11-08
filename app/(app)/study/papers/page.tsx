@@ -103,7 +103,7 @@ export default function PapersPage() {
   if (view.kind === "review") {
     return (
       <div className="max-w-3xl mx-auto space-y-3 pb-8">
-        <button type="button" onClick={() => setView({ kind: "home" })} className="flex items-center gap-1 text-sm font-semibold text-teal-700 dark:text-teal-300 h-9">
+        <button type="button" onClick={() => setView({ kind: "home" })} className="flex items-center gap-1 text-sm font-semibold text-brand-700 dark:text-brand-300 h-9">
           <ArrowLeft className="h-4 w-4" /> Papers
         </button>
         <PaperReview paper={view.paper} result={view.result} />
@@ -152,7 +152,7 @@ export default function PapersPage() {
             <div key={t.topic}>
               <div className="flex justify-between text-xs"><span className="font-semibold">{t.topic}</span><span className="text-slate-500">{t.pct}% · {t.awarded}/{t.max}</span></div>
               <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                <div className={cn("h-full rounded-full", t.weak ? "bg-rose-500" : "bg-teal-500")} style={{ width: `${t.pct}%` }} />
+                <div className={cn("h-full rounded-full", t.weak ? "bg-rose-500" : "bg-brand-500")} style={{ width: `${t.pct}%` }} />
               </div>
             </div>
           ))}
@@ -179,7 +179,7 @@ export default function PapersPage() {
 
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={on} className={cn("h-10 px-4 rounded-full border text-sm font-semibold", on ? "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-300" : "border-slate-200 dark:border-slate-800")}>
+    <button type="button" onClick={onClick} aria-pressed={on} className={cn("h-10 px-4 rounded-full border text-sm font-semibold", on ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:text-brand-300" : "border-slate-200 dark:border-slate-800")}>
       {children}
     </button>
   );

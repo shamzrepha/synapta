@@ -137,11 +137,11 @@ export default function ProfilePage() {
         {/* User Card */}
         <Card className="md:col-span-1">
           <CardHeader className="text-center pb-2">
-            <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-teal-600 text-2xl font-bold text-white shadow-md">
+            <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-brand-600 text-2xl font-bold text-white shadow-md">
               {user?.displayName ? user.displayName.charAt(0).toUpperCase() : "U"}
             </div>
             <CardTitle className="text-lg">{user?.displayName || "Learner"}</CardTitle>
-            <p className="text-xs font-semibold text-teal-600 dark:text-teal-400">
+            <p className="text-xs font-semibold text-brand-600 dark:text-brand-400">
               @{user?.username || "choose_handle"}
             </p>
             <EquippedTitle />
@@ -172,7 +172,7 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-3">
               <span className="flex items-center gap-1.5">
-                <Zap className="h-4 w-4 text-teal-500" /> Total XP
+                <Zap className="h-4 w-4 text-brand-500" /> Total XP
               </span>
               <span className="font-bold text-slate-900 dark:text-slate-100">
                 {formatNumber(user?.xp || 0)} XP
@@ -200,7 +200,7 @@ export default function ProfilePage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                <User className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                 <CardTitle className="text-base">Profile & Handle Settings</CardTitle>
               </div>
               <CardDescription>
@@ -245,7 +245,7 @@ export default function ProfilePage() {
                   <Link href="/settings"><Button type="button" variant="outline" size="sm" className="text-xs">Settings</Button></Link>
                   <Link href="/friends">
                     <Button type="button" variant="outline" size="sm" className="text-xs">
-                      <Users className="h-3.5 w-3.5 mr-1 text-teal-600 dark:text-teal-400" /> Go to Friends & Chat
+                      <Users className="h-3.5 w-3.5 mr-1 text-brand-600 dark:text-brand-400" /> Go to Friends & Chat
                     </Button>
                   </Link>
                 </div>
@@ -256,7 +256,7 @@ export default function ProfilePage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                <Shield className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                 <CardTitle className="text-base">Role Privileges & Authorization</CardTitle>
               </div>
               <CardDescription>

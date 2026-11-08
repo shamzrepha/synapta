@@ -154,7 +154,7 @@ export function ShareSheet({
           rows={2}
           maxLength={2000}
           placeholder={postId ? "Add a comment (for Quote or a message)…" : "Say something about it…"}
-          className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:border-teal-500"
+          className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2 text-sm focus:outline-none focus:border-brand-500"
         />
 
         <div className="space-y-2">
@@ -172,7 +172,7 @@ export function ShareSheet({
                 <span className="relative">
                   <Avatar name={t.name} photoURL={t.photoURL} seed={t.key} size={48} />
                   {picked.has(t.key) && (
-                    <span className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-teal-600 text-white flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
+                    <span className="absolute -bottom-0.5 -right-0.5 h-5 w-5 rounded-full bg-brand-600 text-white flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
                       <Check className="h-3 w-3" />
                     </span>
                   )}

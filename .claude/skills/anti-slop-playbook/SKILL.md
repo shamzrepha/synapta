@@ -5,13 +5,14 @@ description: Design rules for Sunroot's frontend. Use whenever you write or chan
 
 # Anti-slop playbook for Sunroot
 
-Design language: "Sun on Ink" (premium, editorial; see `docs/design/DESIGN-SYSTEM.md`). Defined in `app/globals.css`; use the scale classes, never raw hex.
-- `slate` = ink (dark) and paper (light). **`teal` = Sun orange**, the single action colour (the class name is historical). `amber` = gold for energy/caution. Green (`emerald`, `--mastery-*`) means growth only, never a button.
-- Text on an orange fill is ink (`text-slate-950`), never white.
-- Type: Instrument Sans; one emphasised word per headline in Instrument Serif italic (`font-serif italic`); IBM Plex Mono uppercase, widely tracked, for labels.
-- Hairline borders, small crisp radii, shadows only for floating layers; no gradients as decoration.
-- Motion with purpose (reveals, the hero pipeline, `.edge-sweep`, `PixelField`); everything off under `prefers-reduced-motion`.
-- Light and dark are both first-class; the choice is applied before first paint (`app/layout.tsx`).
+Design language: see `docs/design/DESIGN-SYSTEM.md`. Use the scale classes, never raw hex.
+- `brand-*` = blue: the action and knowledge colour. `amber-*` = reward gold (streaks, XP; never a button). `teal-*` = success/confirmation. `rose-*` and `orange-*` = needs attention (always with an icon or words). `slate-*` = ink-navy and cool paper neutrals.
+- Data is encoded by lightness and pattern, not hue alone (mastery heatmap: blue scale + hatched warm cell + a number).
+- Use the semantic classes (`bg-card`, `border-border`, `text-muted-foreground`, `bg-background`); they are declared in `@theme inline` in `app/globals.css`.
+- One primary action per screen; short grouped lists instead of walls of equal cards; wide tables become cards on phones.
+- Type: Instrument Sans; IBM Plex Mono labels. Hairline borders, small crisp radii, shadows only for floating layers.
+- Motion with purpose; everything off under `prefers-reduced-motion`.
+- Light and dark are both first-class; the choice is applied before first paint.
 - Feature icons are line icons (`components/shell/feature-icon.tsx`), never emoji.
 
 ## Never

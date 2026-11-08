@@ -106,10 +106,10 @@ export default function NewBuildPage() {
       <div className="flex items-center gap-2">
         <Link href="/studio" className="h-9 w-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Back to Maker Studio"><ArrowLeft className="h-4 w-4" /></Link>
         <div>
-          <p className="text-xs font-mono tracking-widest text-teal-600">MAKER SPACE</p>
+          <p className="text-xs font-mono tracking-widest text-brand-600">MAKER SPACE</p>
           <h1 className="text-xl font-extrabold">Plan a build</h1>
         </div>
-        <Link href="/studio/shop" className="ml-auto text-xs font-semibold text-teal-600 flex items-center gap-1"><Wrench className="h-3.5 w-3.5" /> Parts shop</Link>
+        <Link href="/studio/shop" className="ml-auto text-xs font-semibold text-brand-600 flex items-center gap-1"><Wrench className="h-3.5 w-3.5" /> Parts shop</Link>
       </div>
 
       <Card className="p-4 space-y-3">
@@ -174,14 +174,14 @@ export default function NewBuildPage() {
           <div className="space-y-1">
             <pre className="whitespace-pre-wrap text-xs rounded-xl bg-slate-100 dark:bg-slate-900 p-3">{research.notes}</pre>
             {research.sources.length > 0 && (
-              <ul className="text-xs space-y-0.5">{research.sources.map((s) => <li key={s.uri}><a href={s.uri} target="_blank" rel="noreferrer" className="text-teal-600 inline-flex items-center gap-1">{s.title || s.uri}<ExternalLink className="h-3 w-3" /></a></li>)}</ul>
+              <ul className="text-xs space-y-0.5">{research.sources.map((s) => <li key={s.uri}><a href={s.uri} target="_blank" rel="noreferrer" className="text-brand-600 inline-flex items-center gap-1">{s.title || s.uri}<ExternalLink className="h-3 w-3" /></a></li>)}</ul>
             )}
           </div>
         )}
       </Card>
 
       <div className={cn("sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-3 z-30")}>
-        <Button className="w-full h-12 text-base bg-teal-600 hover:bg-teal-700" onClick={build} isLoading={building} disabled={prompt.trim().length < 4 || tray.length === 0}>
+        <Button className="w-full h-12 text-base bg-brand-600 hover:bg-brand-700" onClick={build} isLoading={building} disabled={prompt.trim().length < 4 || tray.length === 0}>
           <Sparkles className="h-5 w-5 mr-2" /> Build it with these {total} part{total === 1 ? "" : "s"}
         </Button>
         {building && <p className="text-center text-xs text-slate-500 mt-1">The AI is wiring, coding and testing it in the simulator — this can take up to a minute.</p>}

@@ -17,7 +17,7 @@ export default function ShopPage() {
       <div className="flex items-center gap-2">
         <Link href="/studio" className="h-9 w-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Back to Maker Studio"><ArrowLeft className="h-4 w-4" /></Link>
         <div>
-          <p className="text-xs font-mono tracking-widest text-teal-600">MAKER SPACE</p>
+          <p className="text-xs font-mono tracking-widest text-brand-600">MAKER SPACE</p>
           <h1 className="text-xl font-extrabold">Parts shop</h1>
         </div>
       </div>

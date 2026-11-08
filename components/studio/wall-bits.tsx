@@ -38,7 +38,7 @@ export function WallCard({ item, compact }: { item: WallItem; compact?: boolean 
   const k = KIND_META[item.kind] || KIND_META.assembly;
   return (
     <Link href={`/studio/wall/${item.id}`} className="block">
-      <Card className={cn("overflow-hidden h-full hover:border-teal-500/60 transition-colors", compact && "w-64 shrink-0")}>
+      <Card className={cn("overflow-hidden h-full hover:border-brand-500/60 transition-colors", compact && "w-64 shrink-0")}>
         <div className="relative aspect-video bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
           {item.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

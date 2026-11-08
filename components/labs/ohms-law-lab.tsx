@@ -188,7 +188,7 @@ export function OhmsLawLab({ config = {}, onComplete }: LabProps) {
         <div className="space-y-2">
           <div className="flex justify-between items-center text-xs">
             <span className="font-semibold text-slate-700 dark:text-slate-300">Supply Voltage: V</span>
-            <span className="font-mono font-bold text-teal-600 dark:text-teal-400">{voltage} Volts</span>
+            <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{voltage} Volts</span>
           </div>
           <input
             type="range"
@@ -197,7 +197,7 @@ export function OhmsLawLab({ config = {}, onComplete }: LabProps) {
             step="0.5"
             value={voltage}
             onChange={(e) => setVoltage(parseFloat(e.target.value))}
-            className="w-full accent-teal-600 cursor-pointer"
+            className="w-full accent-brand-600 cursor-pointer"
           />
           <div className="flex justify-between text-[10px] text-slate-400">
             <span>1 V</span>
@@ -209,7 +209,7 @@ export function OhmsLawLab({ config = {}, onComplete }: LabProps) {
         <div className="space-y-2">
           <div className="flex justify-between items-center text-xs">
             <span className="font-semibold text-slate-700 dark:text-slate-300">Resistor Rating: R</span>
-            <span className="font-mono font-bold text-teal-600 dark:text-teal-400">{resistance} Ohms</span>
+            <span className="font-mono font-bold text-brand-600 dark:text-brand-400">{resistance} Ohms</span>
           </div>
           <input
             type="range"
@@ -218,7 +218,7 @@ export function OhmsLawLab({ config = {}, onComplete }: LabProps) {
             step="5"
             value={resistance}
             onChange={(e) => setResistance(parseInt(e.target.value))}
-            className="w-full accent-teal-600 cursor-pointer"
+            className="w-full accent-brand-600 cursor-pointer"
           />
           <div className="flex justify-between text-[10px] text-slate-400">
             <span>10 Ω</span>
@@ -236,7 +236,7 @@ export function OhmsLawLab({ config = {}, onComplete }: LabProps) {
               <CheckCircle2 className="h-4 w-4" /> Lab Completed! +30 XP awarded to your Cognitive Twin.
             </span>
           ) : isGoalMet ? (
-            <span className="flex items-center gap-1.5 font-bold text-teal-600 dark:text-teal-400">
+            <span className="flex items-center gap-1.5 font-bold text-brand-600 dark:text-brand-400">
               <Sparkles className="h-4 w-4" /> Target reached! Click verify to record evidence.
             </span>
           ) : (

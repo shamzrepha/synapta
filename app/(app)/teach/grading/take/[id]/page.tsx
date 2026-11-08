@@ -60,7 +60,7 @@ export default function TakeGradingSetPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-4 sm:px-6">
-      <Link href="/teach/grading" className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-teal-600 dark:text-slate-400"><ArrowLeft className="h-4 w-4" /> All sets</Link>
+      <Link href="/teach/grading" className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-brand-600 dark:text-slate-400"><ArrowLeft className="h-4 w-4" /> All sets</Link>
       {error ? (
         <p className="text-sm text-rose-600">{error}</p>
       ) : !set ? (
@@ -71,7 +71,7 @@ export default function TakeGradingSetPage({ params }: { params: Promise<{ id: s
           {set.submitted && set.released && set.result ? (
             <>
               <Card><CardContent className="p-5 text-center">
-                <p className="text-3xl font-extrabold text-teal-600 dark:text-teal-400">{set.result.total} / {set.result.max}</p>
+                <p className="text-3xl font-extrabold text-brand-600 dark:text-brand-400">{set.result.total} / {set.result.max}</p>
                 <p className="text-sm text-slate-500">{set.result.percent}%</p>
               </CardContent></Card>
               {set.questions.map((q, i) => {

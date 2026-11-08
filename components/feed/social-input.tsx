@@ -144,7 +144,7 @@ export function SocialInput({ value, onChange, as = "textarea", className, onKey
                   e.preventDefault();
                   pick(it.value);
                 }}
-                className={cn("w-full flex items-center gap-2 px-3 py-2 text-left text-sm", i === index ? "bg-teal-500/10" : "hover:bg-slate-50 dark:hover:bg-slate-800")}
+                className={cn("w-full flex items-center gap-2 px-3 py-2 text-left text-sm", i === index ? "bg-brand-500/10" : "hover:bg-slate-50 dark:hover:bg-slate-800")}
               >
                 {token!.kind === "@" ? (
                   <>
@@ -154,7 +154,7 @@ export function SocialInput({ value, onChange, as = "textarea", className, onKey
                   </>
                 ) : (
                   <>
-                    <Hash className="h-4 w-4 text-teal-600 shrink-0" />
+                    <Hash className="h-4 w-4 text-brand-600 shrink-0" />
                     <span className="font-semibold truncate">{(it.node as TagHit).tag}</span>
                     <span className="ml-auto text-xs text-slate-500">{(it.node as TagHit).total ? `${(it.node as TagHit).total} posts` : "new tag"}</span>
                   </>

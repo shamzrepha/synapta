@@ -24,7 +24,7 @@ type Mode = { name: "home" } | { name: "review"; deck: Deck } | { name: "manage"
 const RATE: Array<{ key: "again" | "hard" | "good" | "easy"; label: string; cls: string }> = [
   { key: "again", label: "Again", cls: "bg-rose-600 hover:bg-rose-700 text-white" },
   { key: "hard", label: "Hard", cls: "bg-amber-500 hover:bg-amber-600 text-slate-950" },
-  { key: "good", label: "Good", cls: "bg-teal-600 hover:bg-teal-700 text-white" },
+  { key: "good", label: "Good", cls: "bg-brand-600 hover:bg-brand-700 text-white" },
   { key: "easy", label: "Easy", cls: "bg-sky-600 hover:bg-sky-700 text-white" },
 ];
 
@@ -78,7 +78,7 @@ export default function FlashcardsPage() {
     <div className="max-w-2xl mx-auto space-y-4">
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-          <Layers className="h-7 w-7 text-teal-600" /> Flashcards
+          <Layers className="h-7 w-7 text-brand-600" /> Flashcards
         </h1>
         <p className="text-sm text-slate-500">AI-made decks with spaced repetition, so you review each card right before you would forget it.</p>
       </div>
@@ -115,7 +115,7 @@ export default function FlashcardsPage() {
               </button>
             </div>
             <p className="text-xs text-slate-500">
-              <span className={cn("font-semibold", d.dueCount > 0 && "text-teal-600")}>{d.dueCount} due</span> · {d.newCount} new · {d.cardCount} cards
+              <span className={cn("font-semibold", d.dueCount > 0 && "text-brand-600")}>{d.dueCount} due</span> · {d.newCount} new · {d.cardCount} cards
             </p>
             <div className="flex gap-2">
               <Button className="flex-1" disabled={d.dueCount === 0} onClick={() => setMode({ name: "review", deck: d })}>
@@ -192,7 +192,7 @@ function NewDeck({ onCreated }: { onCreated: () => void }) {
       </div>
       <div className="flex gap-1.5">
         {([["class", "Class lesson"], ["notebook", "Notebook"], ["text", "Pasted text"]] as const).map(([k, l]) => (
-          <button key={k} type="button" onClick={() => setKind(k)} className={cn("flex-1 rounded-full px-3 py-2 text-xs font-semibold border", kind === k ? "bg-teal-600 text-white border-teal-600" : "border-slate-200 dark:border-slate-700")}>{l}</button>
+          <button key={k} type="button" onClick={() => setKind(k)} className={cn("flex-1 rounded-full px-3 py-2 text-xs font-semibold border", kind === k ? "bg-brand-600 text-white border-brand-600" : "border-slate-200 dark:border-slate-700")}>{l}</button>
         ))}
       </div>
       {!sources && kind !== "text" && <Skeleton className="h-11 w-full" />}
@@ -309,7 +309,7 @@ function Review({ deck, onExit }: { deck: Deck; onExit: () => void }) {
     <div className="max-w-2xl mx-auto space-y-4">
       {header}
       <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-        <div className="h-full bg-teal-500 transition-all" style={{ width: `${Math.round((pos / queue.length) * 100)}%` }} />
+        <div className="h-full bg-brand-500 transition-all" style={{ width: `${Math.round((pos / queue.length) * 100)}%` }} />
       </div>
       <p className="text-xs text-slate-500 text-center">{pos + 1} / {queue.length}</p>
       <Card className="p-5 min-h-[260px] flex flex-col justify-center gap-4 text-center">
@@ -390,7 +390,7 @@ function Manage({ deck, onExit }: { deck: Deck; onExit: () => void }) {
   };
 
   const editor = (
-    <Card className="p-3 space-y-2 border-teal-500">
+    <Card className="p-3 space-y-2 border-brand-500">
       <Textarea value={front} onChange={(e) => setFront(e.target.value)} rows={2} placeholder="Front (question)" maxLength={300} />
       <Textarea value={back} onChange={(e) => setBack(e.target.value)} rows={3} placeholder="Back (answer)" maxLength={600} />
       <div className="flex gap-2">

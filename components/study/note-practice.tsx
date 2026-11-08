@@ -33,7 +33,7 @@ function Shell({ busy, error, retry, children, label }: { busy: boolean; error: 
   if (busy)
     return (
       <Card className="p-8 text-center space-y-2">
-        <Loader2 className="h-6 w-6 animate-spin text-teal-600 mx-auto" />
+        <Loader2 className="h-6 w-6 animate-spin text-brand-600 mx-auto" />
         <p className="text-sm font-semibold">{label}</p>
       </Card>
     );
@@ -72,7 +72,7 @@ export function NoteFlashcards({ noteId }: { noteId: string }) {
             </div>
           ) : (
             <>
-              <button type="button" onClick={() => setFlip((f) => !f)} className={cn("w-full min-h-[180px] rounded-2xl border-2 p-5 text-left transition-colors", flip ? "border-teal-500 bg-teal-500/5" : "border-slate-300 dark:border-slate-700")} aria-label={flip ? "Show the question" : "Show the answer"}>
+              <button type="button" onClick={() => setFlip((f) => !f)} className={cn("w-full min-h-[180px] rounded-2xl border-2 p-5 text-left transition-colors", flip ? "border-brand-500 bg-brand-500/5" : "border-slate-300 dark:border-slate-700")} aria-label={flip ? "Show the question" : "Show the answer"}>
                 <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-2">{flip ? "Answer" : "Question"}</p>
                 <MarkdownRenderer content={flip ? card.back : card.front} className="text-base" localized />
                 {!flip && <p className="text-xs text-slate-400 mt-3">Tap to flip</p>}
@@ -126,7 +126,7 @@ export function NoteQuiz({ noteId }: { noteId: string }) {
                 {cur.options.map((o, k) => {
                   const right = k === cur.correctIndex;
                   return (
-                    <button key={k} type="button" disabled={picked !== null} onClick={() => { setPicked(k); if (right) setScore((s) => s + 1); }} className={cn("w-full text-left rounded-xl border px-3 py-2 text-sm", picked === null ? "border-slate-300 dark:border-slate-700 hover:border-teal-500" : right ? "border-emerald-500 bg-emerald-500/10" : k === picked ? "border-rose-500 bg-rose-500/10" : "border-slate-200 dark:border-slate-800 opacity-60")}>
+                    <button key={k} type="button" disabled={picked !== null} onClick={() => { setPicked(k); if (right) setScore((s) => s + 1); }} className={cn("w-full text-left rounded-xl border px-3 py-2 text-sm", picked === null ? "border-slate-300 dark:border-slate-700 hover:border-brand-500" : right ? "border-emerald-500 bg-emerald-500/10" : k === picked ? "border-rose-500 bg-rose-500/10" : "border-slate-200 dark:border-slate-800 opacity-60")}>
                       <MarkdownRenderer content={o} className="prose-p:my-0" localized />
                     </button>
                   );

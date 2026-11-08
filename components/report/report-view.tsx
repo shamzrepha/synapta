@@ -29,7 +29,7 @@ export function ReportView({ name, numbers, summary, suggestion }: { name?: stri
       {summary && (
         <Card className="p-4 space-y-2">
           <p className="text-sm leading-relaxed">{summary}</p>
-          {suggestion && <p className="text-sm font-semibold text-teal-700 dark:text-teal-300">Next step: {suggestion}</p>}
+          {suggestion && <p className="text-sm font-semibold text-brand-700 dark:text-brand-300">Next step: {suggestion}</p>}
         </Card>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

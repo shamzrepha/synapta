@@ -136,7 +136,7 @@ export default function LeaderboardPage() {
             }}
             className={cn(
               "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all",
-              scope === t.key ? "bg-teal-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
+              scope === t.key ? "bg-brand-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
             )}
           >
             {t.icon} {t.label}
@@ -171,7 +171,7 @@ export default function LeaderboardPage() {
                 title={t.name}
                 className={cn(
                   "shrink-0 flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl",
-                  i === tierIdx ? "bg-teal-500/15 ring-2 ring-teal-500" : i < tierIdx ? "opacity-60" : "opacity-30 grayscale"
+                  i === tierIdx ? "bg-brand-500/15 ring-2 ring-brand-500" : i < tierIdx ? "opacity-60" : "opacity-30 grayscale"
                 )}
               >
                 <span className="text-2xl">{t.emoji}</span>
@@ -215,7 +215,7 @@ export default function LeaderboardPage() {
                     {place === 1 && <Crown className="absolute -top-5 left-1/2 -translate-x-1/2 h-5 w-5 text-amber-500" />}
                     <Avatar name={r.displayName} photoURL={r.photoURL} seed={r.uid} size={place === 1 ? 64 : 52} level={r.level} />
                   </div>
-                  <p className={cn("text-xs sm:text-sm font-semibold truncate max-w-full", r.isMe && "text-teal-600")}>{r.isMe ? "You" : r.displayName}</p>
+                  <p className={cn("text-xs sm:text-sm font-semibold truncate max-w-full", r.isMe && "text-brand-600")}>{r.isMe ? "You" : r.displayName}</p>
                   <div
                     className={cn(
                       "w-full rounded-t-2xl flex flex-col items-center justify-start pt-2 text-white font-extrabold",
@@ -241,7 +241,7 @@ export default function LeaderboardPage() {
                     key={r.uid}
                     className={cn(
                       "flex items-center gap-3 px-4 py-2.5",
-                      r.isMe && "bg-teal-500/10",
+                      r.isMe && "bg-brand-500/10",
                       promote && "border-l-4 border-emerald-500",
                       demote && "border-l-4 border-rose-500"
                     )}
@@ -249,7 +249,7 @@ export default function LeaderboardPage() {
                     <span className="w-7 text-center text-sm font-bold text-slate-500">{r.rank}</span>
                     <Avatar name={r.displayName} photoURL={r.photoURL} seed={r.uid} size={36} level={r.level} />
                     <div className="min-w-0 flex-1">
-                      <p className={cn("text-sm font-semibold truncate", r.isMe && "text-teal-700 dark:text-teal-300")}>{r.isMe ? `${r.displayName} (you)` : r.displayName}</p>
+                      <p className={cn("text-sm font-semibold truncate", r.isMe && "text-brand-700 dark:text-brand-300")}>{r.isMe ? `${r.displayName} (you)` : r.displayName}</p>
                       <p className="text-[11px] text-slate-500 flex items-center gap-2">
                         <span>{LEAGUE_TIERS[r.tier]?.emoji} {LEAGUE_TIERS[r.tier]?.name}</span>
                         {r.streakDays > 0 && (
@@ -268,8 +268,8 @@ export default function LeaderboardPage() {
 
           {data?.me && data.me.rank > 3 && (
             <div className="sticky bottom-20 md:bottom-4 z-10">
-              <Card className="flex items-center gap-3 px-4 py-3 border-teal-500/50 shadow-xl">
-                <span className="w-7 text-center text-sm font-extrabold text-teal-600">#{data.me.rank}</span>
+              <Card className="flex items-center gap-3 px-4 py-3 border-brand-500/50 shadow-xl">
+                <span className="w-7 text-center text-sm font-extrabold text-brand-600">#{data.me.rank}</span>
                 <Avatar name={data.me.displayName} photoURL={data.me.photoURL} seed={data.me.uid} size={36} level={data.me.level} />
                 <p className="flex-1 text-sm font-semibold">Your position</p>
                 <span className="text-sm font-bold">{formatNumber(showScore(data.me))} XP</span>

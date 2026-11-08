@@ -55,7 +55,7 @@ export function ExplainLevelToggle({
           onClick={() => onChange(l)}
           className={cn(
             "h-8 px-2.5 rounded-md text-xs font-semibold transition-colors",
-            value === l ? "bg-teal-600 text-white" : "text-slate-500 hover:text-teal-700 dark:hover:text-teal-300"
+            value === l ? "bg-brand-600 text-white" : "text-slate-500 hover:text-brand-700 dark:hover:text-brand-300"
           )}
         >
           {EXPLAIN_LEVEL_LABELS[l]}

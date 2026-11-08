@@ -17,7 +17,7 @@ export default function OfflinePage() {
     <div className="space-y-5 max-w-2xl mx-auto">
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-          <CloudOff className="h-7 w-7 text-teal-600" /> Offline
+          <CloudOff className="h-7 w-7 text-brand-600" /> Offline
         </h1>
         <p className="text-sm text-slate-500">
           Use &ldquo;Download for offline&rdquo; on a notebook or lesson to read it without internet. {formatBytes(totalBytes(items))} used on this device.
@@ -38,7 +38,7 @@ export default function OfflinePage() {
             {items.map((i) => (
               <div key={i.url} className="flex items-center gap-3 p-3">
                 <div className="min-w-0 flex-1">
-                  <Link href={i.page} className="block truncate text-sm font-semibold hover:text-teal-600">
+                  <Link href={i.page} className="block truncate text-sm font-semibold hover:text-brand-600">
                     {i.title}
                   </Link>
                   <p className="text-[11px] text-slate-500">

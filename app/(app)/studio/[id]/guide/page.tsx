@@ -57,7 +57,7 @@ export default function BuildGuidePage({ params }: { params: Promise<{ id: strin
     return (
       <Card className="p-8 text-center text-sm space-y-3">
         <p>{error}</p>
-        <Link href={`/studio/${id}`} className="text-teal-600 font-semibold">Back to the design</Link>
+        <Link href={`/studio/${id}`} className="text-brand-600 font-semibold">Back to the design</Link>
       </Card>
     );
   }
@@ -81,7 +81,7 @@ export default function BuildGuidePage({ params }: { params: Promise<{ id: strin
       </div>
 
       <article className="guide-print rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 text-slate-900 dark:text-slate-100 p-5 sm:p-8 text-[15px] leading-relaxed">
-        <p className="text-[11px] font-mono tracking-widest text-teal-700">SUNROOT MAKER STUDIO · BUILD GUIDE</p>
+        <p className="text-[11px] font-mono tracking-widest text-brand-700">SUNROOT MAKER STUDIO · BUILD GUIDE</p>
         <h1 className="text-2xl sm:text-3xl font-extrabold leading-tight mt-1">{g.title}</h1>
         <p className="text-xs text-slate-500 mt-1">Design by {data.author}</p>
         {g.summary && <p className="mt-3">{g.summary}</p>}

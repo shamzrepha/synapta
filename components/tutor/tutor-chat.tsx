@@ -184,7 +184,7 @@ export function TutorChat({
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-        <GraduationCap className="h-4 w-4 text-teal-600 shrink-0" />
+        <GraduationCap className="h-4 w-4 text-brand-600 shrink-0" />
         <select
           value={classId}
           onChange={(e) => {
@@ -227,8 +227,8 @@ export function TutorChat({
       <div className={cn("flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-3", compact ? "text-sm" : "text-sm md:text-[15px]")}>
         {messages.length === 0 && (
           <div className="text-center py-6 space-y-4">
-            <div className="mx-auto h-12 w-12 rounded-2xl bg-teal-500/10 flex items-center justify-center">
-              <Sparkles className="h-6 w-6 text-teal-600" />
+            <div className="mx-auto h-12 w-12 rounded-2xl bg-brand-500/10 flex items-center justify-center">
+              <Sparkles className="h-6 w-6 text-brand-600" />
             </div>
             <div>
               <p className="font-bold">Ask your AI tutor anything</p>
@@ -238,7 +238,7 @@ export function TutorChat({
             </div>
             <div className="flex flex-wrap justify-center gap-2">
               {SUGGESTIONS.map((s) => (
-                <button key={s} type="button" onClick={() => send(s)} className="rounded-full border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs hover:border-teal-500 hover:text-teal-700 dark:hover:text-teal-300">
+                <button key={s} type="button" onClick={() => send(s)} className="rounded-full border border-slate-200 dark:border-slate-800 px-3 py-1.5 text-xs hover:border-brand-500 hover:text-brand-700 dark:hover:text-brand-300">
                   {s}
                 </button>
               ))}
@@ -251,7 +251,7 @@ export function TutorChat({
               className={cn(
                 "max-w-[92%] rounded-2xl px-3.5 py-2.5",
                 m.role === "user"
-                  ? "bg-teal-600 text-white"
+                  ? "bg-brand-600 text-white"
                   : m.isError
                     ? "bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300"
                     : "bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
@@ -268,7 +268,7 @@ export function TutorChat({
               )}
             </div>
             {m.role === "model" && m.text && !m.isError && (
-              <button type="button" onClick={() => speak(m)} className="mt-1 flex items-center gap-1 text-[11px] text-slate-400 hover:text-teal-600">
+              <button type="button" onClick={() => speak(m)} className="mt-1 flex items-center gap-1 text-[11px] text-slate-400 hover:text-brand-600">
                 {speakingId === m.id ? <Square className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
                 {speakingId === m.id ? "Stop" : "Read aloud"}
               </button>
@@ -297,9 +297,9 @@ export function TutorChat({
           rows={1}
           maxLength={4000}
           placeholder="Ask a question…"
-          className="flex-1 resize-none max-h-32 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm focus:outline-none focus:border-teal-500"
+          className="flex-1 resize-none max-h-32 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm focus:outline-none focus:border-brand-500"
         />
-        <button type="submit" disabled={busy || !input.trim()} aria-label="Send" className="h-11 w-11 shrink-0 rounded-xl bg-teal-600 text-white flex items-center justify-center disabled:opacity-40">
+        <button type="submit" disabled={busy || !input.trim()} aria-label="Send" className="h-11 w-11 shrink-0 rounded-xl bg-brand-600 text-white flex items-center justify-center disabled:opacity-40">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>
       </form>

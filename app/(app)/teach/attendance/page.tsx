@@ -123,10 +123,10 @@ function TeacherAttendance() {
       {classId && (
         <>
           {active ? (
-            <Card className="border-teal-400">
+            <Card className="border-brand-400">
               <CardContent className="space-y-3 p-5 text-center">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Check-in code</p>
-                <p className="select-all font-mono text-5xl font-extrabold tracking-[0.25em] text-teal-600 dark:text-teal-400">{active.code}</p>
+                <p className="select-all font-mono text-5xl font-extrabold tracking-[0.25em] text-brand-600 dark:text-brand-400">{active.code}</p>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
                   {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")} left · {active.checkedIn} checked in
                 </p>

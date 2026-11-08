@@ -94,7 +94,7 @@ export function HackathonPanel({ detail, onChanged }: { detail: EventDetail; onC
               const mine = e.isMe;
               const voted = detail.myVote === e.uid;
               return (
-                <Card key={e.uid} className={cn("p-4 space-y-3", voted && "border-teal-500", e.rank === 1 && ev.status === "ended" && "border-amber-400")}>
+                <Card key={e.uid} className={cn("p-4 space-y-3", voted && "border-brand-500", e.rank === 1 && ev.status === "ended" && "border-amber-400")}>
                   <div className="flex items-start gap-3">
                     <Avatar name={e.displayName} photoURL={e.photoURL} seed={e.uid} size={36} level={e.level} />
                     <div className="min-w-0 flex-1">
@@ -109,7 +109,7 @@ export function HackathonPanel({ detail, onChanged }: { detail: EventDetail; onC
                   {e.summary && <MarkdownRenderer content={e.summary} className="prose-p:my-1 text-sm" />}
                   <div className="flex flex-wrap items-center gap-2">
                     {e.link && (
-                      <a href={e.link} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 dark:text-teal-300 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                      <a href={e.link} target="_blank" rel="noopener noreferrer nofollow" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-300 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
                         <ExternalLink className="h-3.5 w-3.5" /> Open
                       </a>
                     )}

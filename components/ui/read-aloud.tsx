@@ -33,7 +33,7 @@ export function ReadAloud({ text, className }: { text: string; className?: strin
       onClick={toggle}
       aria-label={state === "idle" ? "Read aloud" : "Stop reading"}
       title={state === "idle" ? "Read aloud" : "Stop"}
-      className={className || "inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-teal-600 mt-1"}
+      className={className || "inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-brand-600 mt-1"}
     >
       {state === "loading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : state === "speaking" ? <Square className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />} {state === "idle" ? "Listen" : "Stop"}
     </button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { MobileHeatmap } from "@/components/classes/mobile-heatmap";
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/toast";
@@ -207,17 +208,19 @@ export default function ClassHeatmapPage({
     return 0;
   });
 
+  // One hue by lightness (light = still learning, dark = mastered) plus a warm hatched cell for "needs work".
+  // Blue against orange survives every common kind of colour blindness, and every cell also shows its number.
   const getCellColor = (pL: number) => {
     if (pL >= MASTERY_THRESHOLD) {
-      return "bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30";
+      return "bg-brand-700 text-white border-brand-800 dark:bg-brand-500 dark:text-white dark:border-brand-400";
     }
     if (pL >= 0.7) {
-      return "bg-teal-500/20 text-teal-800 dark:text-teal-300 border-teal-500/40 hover:bg-teal-500/30";
+      return "bg-brand-200 text-brand-950 border-brand-300 dark:bg-brand-400/35 dark:text-brand-100 dark:border-brand-400/50";
     }
     if (pL >= 0.4) {
-      return "bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-500/40 hover:bg-amber-500/30";
+      return "bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600";
     }
-    return "bg-rose-500/20 text-rose-800 dark:text-rose-300 border-rose-500/40 hover:bg-rose-500/30";
+    return "cell-hatch bg-orange-100 text-orange-950 border-orange-400 dark:bg-orange-500/20 dark:text-orange-100 dark:border-orange-400/60";
   };
 
   if (loading) {
@@ -291,7 +294,7 @@ export default function ClassHeatmapPage({
       </div>
 
       {/* Class KPI Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Class Average Mastery */}
         <Card className="p-4 flex items-center justify-between">
           <div>
@@ -316,7 +319,7 @@ export default function ClassHeatmapPage({
               </Badge>
             </div>
           </div>
-          <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
             <BarChart3 className="h-5 w-5" />
           </div>
         </Card>
@@ -413,7 +416,7 @@ export default function ClassHeatmapPage({
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-                className="h-9 px-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                className="h-9 px-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
               >
                 <option value="all">All Statuses ({data.students.length})</option>
                 <option value="struggling">Struggling (&lt;40%)</option>
@@ -427,7 +430,7 @@ export default function ClassHeatmapPage({
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              className="h-9 px-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500"
+              className="h-9 px-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-brand-500"
             >
               <option value="mastery_asc">Sort: Lowest Mastery First (Intervention)</option>
               <option value="mastery_desc">Sort: Highest Mastery First</option>
@@ -441,16 +444,16 @@ export default function ClassHeatmapPage({
         <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500">
           <span className="font-semibold text-slate-700 dark:text-slate-300">Legend:</span>
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-md bg-emerald-500 inline-block" /> Mastered (&ge;95%)
+            <span className="h-3 w-3 rounded-[3px] border border-brand-800 bg-brand-700 inline-block dark:bg-brand-500" /> Mastered (&ge;95%)
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-md bg-teal-500 inline-block" /> Competent (70-94%)
+            <span className="h-3 w-3 rounded-[3px] border border-brand-300 bg-brand-200 inline-block dark:bg-brand-400/35" /> Competent (70-94%)
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-md bg-amber-500 inline-block" /> Emerging (40-69%)
+            <span className="h-3 w-3 rounded-[3px] border border-slate-300 bg-slate-100 inline-block dark:border-slate-600 dark:bg-slate-800" /> Emerging (40-69%)
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-md bg-rose-500 inline-block" /> Struggling / Novice (&lt;40%)
+            <span className="cell-hatch h-3 w-3 rounded-[3px] border border-orange-400 bg-orange-100 inline-block dark:bg-orange-500/20" /> Needs work (&lt;40%)
           </span>
           <span className="ml-auto italic">Click any cell or row to drill down into student Cognitive Twin</span>
         </div>
@@ -474,7 +477,9 @@ export default function ClassHeatmapPage({
           </div>
         </Card>
       ) : (
-        <Card className="overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
+        <>
+        <MobileHeatmap students={filteredStudents} kcs={data.kcs} cellClass={getCellColor} onOpen={(st) => setSelectedStudent(st as StudentRow)} />
+        <Card className="hidden md:block overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-xs">
               {/* Table Header: Students Column + Knowledge Components */}
@@ -524,7 +529,7 @@ export default function ClassHeatmapPage({
                       {/* Sticky Student Profile Cell */}
                       <td className="sticky left-0 z-10 bg-white dark:bg-slate-950 group-hover:bg-slate-50 dark:group-hover:bg-slate-900 p-3 border-r border-slate-200 dark:border-slate-800 transition-colors">
                         <div className="flex items-center gap-2.5">
-                          <div className="h-8 w-8 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold flex items-center justify-center text-xs shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold flex items-center justify-center text-xs shrink-0">
                             {student.displayName[0]?.toUpperCase() || "S"}
                           </div>
                           <div className="min-w-0">
@@ -605,7 +610,7 @@ export default function ClassHeatmapPage({
                     </td>
                   ))}
 
-                  <td className="p-3 text-center font-extrabold text-teal-600 dark:text-teal-400">
+                  <td className="p-3 text-center font-extrabold text-brand-600 dark:text-brand-400">
                     {(data.summary.classAverageMastery * 100).toFixed(1)}%
                   </td>
                 </tr>
@@ -613,6 +618,7 @@ export default function ClassHeatmapPage({
             </table>
           </div>
         </Card>
+        </>
       )}
 
       {/* STUDENT SKILL MAP DRILL-DOWN MODAL */}
@@ -622,7 +628,7 @@ export default function ClassHeatmapPage({
             {/* Modal Header */}
             <div className="sticky top-0 z-10 bg-white/95 dark:bg-slate-900/95  p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 font-extrabold flex items-center justify-center text-lg">
+                <div className="h-12 w-12 rounded-2xl bg-brand-500/10 text-brand-600 dark:text-brand-400 font-extrabold flex items-center justify-center text-lg">
                   {selectedStudent.displayName[0]?.toUpperCase() || "S"}
                 </div>
                 <div>
@@ -654,7 +660,7 @@ export default function ClassHeatmapPage({
                   <span className="text-[10px] text-slate-400 uppercase font-semibold block">
                     Overall P(L)
                   </span>
-                  <span className="text-lg font-black text-teal-600 dark:text-teal-400">
+                  <span className="text-lg font-black text-brand-600 dark:text-brand-400">
                     {(selectedStudent.averagePL * 100).toFixed(1)}%
                   </span>
                 </div>
@@ -703,8 +709,8 @@ export default function ClassHeatmapPage({
               )}
 
               {/* Targeted AI Teacher Intervention Recommendation */}
-              <div className="p-4 rounded-2xl border border-teal-500/20 bg-teal-500/5 dark:bg-teal-950/20 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-teal-700 dark:text-teal-300">
+              <div className="p-4 rounded-2xl border border-brand-500/20 bg-brand-500/5 dark:bg-brand-950/20 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-brand-700 dark:text-brand-300">
                   <BrainCircuit className="h-4 w-4" />
                   <span>AI teaching recommendation</span>
                 </div>

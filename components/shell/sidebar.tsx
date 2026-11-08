@@ -4,12 +4,13 @@ import { BrandMark } from "@/components/landing/brand-mark";
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { cn } from "@/lib/utils";
 import { NAV_ITEMS, isActivePath } from "./nav-items";
 import { useRealtime } from "@/components/providers/realtime-provider";
 import { useT } from "@/components/settings/use-t";
+import { openAddMaterial } from "./add-material";
 
 const GROUP_LABEL: Record<string, string> = { main: "Menu", account: "You" };
 
@@ -37,7 +38,7 @@ export function Sidebar() {
     >
       <div className="flex h-16 items-center justify-between px-3 border-b border-border/70">
         <Link href="/dashboard" className="flex items-center gap-2.5 overflow-hidden rounded-xl p-1 group">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-teal-500 text-slate-950">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-600 text-white dark:bg-brand-500">
             <BrandMark className="h-6 w-6" />
           </div>
           <span translate="no" className={cn("font-display font-black text-lg tracking-tight text-foreground", label)}>
@@ -50,6 +51,21 @@ export function Sidebar() {
           className={cn("h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800", isSidebarCollapsed ? "hidden" : "hidden lg:flex")}
         >
           <ChevronLeft className="h-4 w-4" />
+        </button>
+      </div>
+
+      <div className="p-2.5 pb-0">
+        <button
+          type="button"
+          onClick={openAddMaterial}
+          title="Add material"
+          className={cn(
+            "flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white transition-colors hover:bg-brand-700 dark:bg-brand-500",
+            !isSidebarCollapsed && "lg:justify-start lg:px-3"
+          )}
+        >
+          <Plus className="h-4 w-4 shrink-0" />
+          <span className={label}>Add material</span>
         </button>
       </div>
 
@@ -72,11 +88,11 @@ export function Sidebar() {
                       "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors relative justify-center",
                       !isSidebarCollapsed && "lg:justify-start",
                       active
-                        ? "bg-teal-500/10 text-teal-700 font-semibold dark:bg-teal-500/20 dark:text-teal-300"
+                        ? "bg-brand-500/10 text-brand-700 font-semibold dark:bg-brand-500/20 dark:text-brand-300"
                         : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
                     )}
                   >
-                    <Icon className={cn("h-5 w-5 shrink-0", active ? "text-teal-600 dark:text-teal-400" : "text-slate-400")} />
+                    <Icon className={cn("h-5 w-5 shrink-0", active ? "text-brand-600 dark:text-brand-400" : "text-slate-400")} />
                     <span className={cn("min-w-0 flex-1", label)}>
                       <span className="block truncate">{t(item.label)}</span>
                       {item.hint && group === "main" && <span className="block truncate text-[10px] font-normal text-slate-400">{t(item.hint)}</span>}
@@ -86,7 +102,7 @@ export function Sidebar() {
                         {dmUnread > 99 ? "99+" : dmUnread}
                       </span>
                     )}
-                    {active && <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-teal-500 rounded-l-full" />}
+                    {active && <span className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand-500 rounded-l-full" />}
                   </Link>
                 );
               })}

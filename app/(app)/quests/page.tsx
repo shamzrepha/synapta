@@ -21,7 +21,7 @@ interface DailyQuest {
 function Bar({ value, target, done }: { value: number; target: number; done: boolean }) {
   return (
     <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-      <div className={cn("h-full rounded-full transition-all", done ? "bg-emerald-500" : "bg-teal-500")} style={{ width: `${Math.min(100, Math.round((value / Math.max(1, target)) * 100))}%` }} />
+      <div className={cn("h-full rounded-full transition-all", done ? "bg-emerald-500" : "bg-brand-500")} style={{ width: `${Math.min(100, Math.round((value / Math.max(1, target)) * 100))}%` }} />
     </div>
   );
 }
@@ -90,7 +90,7 @@ export default function QuestsPage() {
               <p className="text-lg font-extrabold">{s.emoji} {s.name}</p>
               <p className="text-xs text-slate-500">{s.blurb}</p>
             </div>
-            <span className="shrink-0 rounded-full bg-teal-500/10 px-2.5 py-1 text-[11px] font-semibold text-teal-700 dark:text-teal-300">{s.daysLeft} day{s.daysLeft === 1 ? "" : "s"} left</span>
+            <span className="shrink-0 rounded-full bg-brand-500/10 px-2.5 py-1 text-[11px] font-semibold text-brand-700 dark:text-brand-300">{s.daysLeft} day{s.daysLeft === 1 ? "" : "s"} left</span>
           </div>
           <div className="space-y-3">
             {s.tasks.map((t) => (

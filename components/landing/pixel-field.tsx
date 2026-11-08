@@ -39,7 +39,7 @@ export function PixelField({ className }: { className?: string }) {
     const draw = (t: number) => {
       const { width, height } = canvas.getBoundingClientRect();
       ctx.clearRect(0, 0, width, height);
-      const warm = dark() ? "255,122,26" : "204,82,8";
+      const warm = dark() ? "111,141,255" : "53,82,224";
       const cool = dark() ? "236,241,238" : "18,25,24";
       for (let y = 0; y < rows; y++) {
         const fall = 1 - y / rows; // brightest at the top, gone at the bottom

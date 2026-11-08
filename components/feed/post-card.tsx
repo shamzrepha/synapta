@@ -344,7 +344,7 @@ export function PostCard({
   const mine = REACTIONS.find((r) => r.key === myReaction);
 
   return (
-    <Card className={cn("p-4 sm:p-5 space-y-3", isAchievement && "bg-teal-500/5")}>
+    <Card className={cn("p-4 sm:p-5 space-y-3", isAchievement && "bg-brand-500/5")}>
       {isRepost && !post.text && (
         <p className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 -mb-1">
           <Repeat2 className="h-3.5 w-3.5" /> {post.mine ? "You" : post.authorName} reposted
@@ -401,9 +401,9 @@ export function PostCard({
                 type="button"
                 disabled={poll.closed}
                 onClick={() => vote(o.id)}
-                className={cn("relative w-full text-left rounded-xl border-2 px-3 py-2.5 overflow-hidden", chosen ? "border-teal-500" : "border-slate-200 dark:border-slate-800 hover:border-teal-400/60")}
+                className={cn("relative w-full text-left rounded-xl border-2 px-3 py-2.5 overflow-hidden", chosen ? "border-brand-500" : "border-slate-200 dark:border-slate-800 hover:border-brand-400/60")}
               >
-                {showResults && <span className="absolute inset-y-0 left-0 bg-teal-500/15 transition-all duration-500" style={{ width: `${pct}%` }} />}
+                {showResults && <span className="absolute inset-y-0 left-0 bg-brand-500/15 transition-all duration-500" style={{ width: `${pct}%` }} />}
                 <span className="relative flex items-center justify-between gap-2 text-sm">
                   <span className={cn(chosen && "font-semibold")}>{o.text}</span>
                   {showResults && <span className="font-bold tabular-nums">{pct}%</span>}
@@ -441,7 +441,7 @@ export function PostCard({
           href={post.link}
           target="_blank"
           rel="noopener noreferrer nofollow"
-          className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm text-teal-700 dark:text-teal-300 hover:bg-slate-50 dark:hover:bg-slate-900 break-all"
+          className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm text-brand-700 dark:text-brand-300 hover:bg-slate-50 dark:hover:bg-slate-900 break-all"
         >
           <Link2 className="h-4 w-4 shrink-0" /> {post.link}
         </a>
@@ -498,7 +498,7 @@ export function PostCard({
           }}
           className={cn(
             "flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors",
-            mine ? "text-teal-700 dark:text-teal-300" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900"
+            mine ? "text-brand-700 dark:text-brand-300" : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900"
           )}
           aria-pressed={!!mine}
         >
@@ -567,9 +567,9 @@ export function PostCard({
               onChange={setDraft}
               maxLength={1500}
               placeholder={replyTo ? `Reply to ${replyTo.authorName}…` : post.kind === "question" ? "Write an answer… (@mention someone)" : "Write a comment…"}
-              className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:border-teal-500"
+              className="h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:border-brand-500"
             />
-            <button type="submit" disabled={!draft.trim() || sending} className="h-10 w-10 rounded-xl bg-teal-600 text-white flex items-center justify-center disabled:opacity-40" aria-label="Send comment">
+            <button type="submit" disabled={!draft.trim() || sending} className="h-10 w-10 rounded-xl bg-brand-600 text-white flex items-center justify-center disabled:opacity-40" aria-label="Send comment">
               <Send className="h-4 w-4" />
             </button>
           </form>

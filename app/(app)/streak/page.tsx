@@ -24,7 +24,7 @@ interface StreakData {
 }
 
 const CELL: Record<CalendarDay["status"], string> = {
-  active: "bg-teal-500 text-white",
+  active: "bg-brand-500 text-white",
   frozen: "bg-sky-300 text-sky-950 dark:bg-sky-500/70 dark:text-white",
   missed: "bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-500",
 };
@@ -123,14 +123,14 @@ export default function StreakPage() {
               <div
                 key={d.date}
                 title={`${d.date}: ${d.status}`}
-                className={cn("aspect-square rounded-lg flex items-center justify-center text-[11px] font-semibold", CELL[d.status], d.today && "ring-2 ring-offset-1 ring-teal-600 dark:ring-offset-slate-900")}
+                className={cn("aspect-square rounded-lg flex items-center justify-center text-[11px] font-semibold", CELL[d.status], d.today && "ring-2 ring-offset-1 ring-brand-600 dark:ring-offset-slate-900")}
               >
                 {d.status === "frozen" ? "🧊" : Number(d.date.slice(8))}
               </div>
             ))}
           </div>
           <div className="flex flex-wrap gap-3 text-[11px] text-slate-500">
-            <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded bg-teal-500" /> Studied</span>
+            <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded bg-brand-500" /> Studied</span>
             <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded bg-sky-300" /> Frozen</span>
             <span className="flex items-center gap-1"><i className="h-2.5 w-2.5 rounded bg-slate-300 dark:bg-slate-700" /> Missed</span>
           </div>
@@ -151,7 +151,7 @@ export default function StreakPage() {
       </section>
 
       <p className="text-xs text-slate-500">
-        More ways to spend XP in the <Link href="/shop" className="font-semibold text-teal-600 dark:text-teal-400 underline">shop</Link>.
+        More ways to spend XP in the <Link href="/shop" className="font-semibold text-brand-600 dark:text-brand-400 underline">shop</Link>.
       </p>
     </div>
   );

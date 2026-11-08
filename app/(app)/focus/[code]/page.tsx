@@ -46,7 +46,7 @@ async function post(code: string, body: Record<string, unknown>): Promise<{ ok: 
 function Ring({ fraction, phase, children }: { fraction: number; phase: "focus" | "break" | "idle"; children: React.ReactNode }) {
   const r = 88;
   const c = 2 * Math.PI * r;
-  const color = phase === "focus" ? "stroke-teal-500" : phase === "break" ? "stroke-amber-500" : "stroke-slate-300 dark:stroke-slate-700";
+  const color = phase === "focus" ? "stroke-brand-500" : phase === "break" ? "stroke-amber-500" : "stroke-slate-300 dark:stroke-slate-700";
   return (
     <div className="relative mx-auto w-64 h-64 max-w-full">
       <svg viewBox="0 0 200 200" className="w-full h-full -rotate-90" aria-hidden>
@@ -195,7 +195,7 @@ export default function FocusRoomPage() {
         <Link href="/focus" className="inline-flex items-center gap-1 text-sm text-slate-500 min-h-9">
           <ArrowLeft className="h-4 w-4" /> Focus rooms
         </Link>
-        <Link href="/focus/stats" className="text-sm text-teal-700 dark:text-teal-400 min-h-9 inline-flex items-center">
+        <Link href="/focus/stats" className="text-sm text-brand-700 dark:text-brand-400 min-h-9 inline-flex items-center">
           My stats
         </Link>
       </div>
@@ -211,7 +211,7 @@ export default function FocusRoomPage() {
         <Ring fraction={t ? t.remainingMs / t.totalMs : 0} phase={phase}>
           {t ? (
             <>
-              <p className={cn("text-xs font-bold uppercase tracking-wider", phase === "focus" ? "text-teal-600" : "text-amber-600")}>{phase === "focus" ? "Focus" : "Break"}</p>
+              <p className={cn("text-xs font-bold uppercase tracking-wider", phase === "focus" ? "text-brand-600" : "text-amber-600")}>{phase === "focus" ? "Focus" : "Break"}</p>
               <p className="text-5xl font-extrabold tabular-nums" aria-live="off">
                 {formatClock(t.remainingMs)}
               </p>
@@ -320,7 +320,7 @@ export default function FocusRoomPage() {
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium truncate">
                     {m.displayName}
-                    {m.isOwner && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300">host</span>}
+                    {m.isOwner && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-brand-500/15 text-brand-700 dark:text-brand-300">host</span>}
                   </span>
                   {m.doing && <span className="block text-xs text-slate-500 truncate">{m.doing}</span>}
                 </span>

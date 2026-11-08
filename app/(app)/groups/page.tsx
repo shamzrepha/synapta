@@ -85,7 +85,7 @@ export default function GroupsPage() {
     <div className="max-w-xl mx-auto space-y-4 px-4 sm:px-0 pb-8">
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-          <Users className="h-7 w-7 text-teal-600" /> Study groups
+          <Users className="h-7 w-7 text-brand-600" /> Study groups
         </h1>
         <p className="text-sm text-slate-500">Shared notes, goals and a streak you keep alive together.</p>
       </div>
@@ -98,7 +98,7 @@ export default function GroupsPage() {
         <div className="space-y-2.5">
           {groups.map((g) => (
             <Link key={g.id} href={`/groups/${g.id}`} className="block">
-              <Card className="p-4 flex items-center gap-3 hover:border-teal-500/50">
+              <Card className="p-4 flex items-center gap-3 hover:border-brand-500/50">
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold truncate">{g.name}</p>
                   <p className="text-xs text-slate-500">

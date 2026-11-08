@@ -52,7 +52,7 @@ export default function SavedPage() {
             <button
               key={k}
               onClick={() => setFilter(k)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize ${filter === k ? "bg-teal-600 text-white" : "bg-slate-100 dark:bg-slate-900"}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize ${filter === k ? "bg-brand-600 text-white" : "bg-slate-100 dark:bg-slate-900"}`}
             >
               {k}
             </button>

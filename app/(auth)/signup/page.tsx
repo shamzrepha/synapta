@@ -91,7 +91,7 @@ export default function SignupPage() {
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <Link href="/" className="inline-flex items-center gap-2 mb-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 font-bold shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white dark:bg-brand-500 dark:text-slate-950 font-bold shadow-sm">
               <BrainCircuit className="h-6 w-6" />
             </div>
             <span translate="no" className="font-bold text-2xl tracking-tight">Sunroot</span>
@@ -111,7 +111,7 @@ export default function SignupPage() {
           <CardContent className="space-y-4">
             <AutoSignIn />
             {redirectPath.startsWith("/classes/") && (
-              <div className="rounded-xl border border-teal-500/30 bg-teal-500/10 p-3 text-xs text-teal-800 dark:text-teal-300">
+              <div className="rounded-xl border border-brand-500/30 bg-brand-500/10 p-3 text-xs text-brand-800 dark:text-brand-300">
                 Create your free account and we&apos;ll take you straight to the class you were invited to.
               </div>
             )}
@@ -137,11 +137,11 @@ export default function SignupPage() {
                   className={cn(
                     "flex flex-col items-center p-3 rounded-xl border text-left transition-all",
                     !requestTeacher
-                      ? "border-teal-500 bg-teal-500/10 text-teal-900 dark:text-teal-200 ring-2 ring-teal-500/30"
+                      ? "border-brand-500 bg-brand-500/10 text-brand-900 dark:text-brand-200 ring-2 ring-brand-500/30"
                       : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400"
                   )}
                 >
-                  <User className="h-5 w-5 mb-1.5 text-teal-600 dark:text-teal-400" />
+                  <User className="h-5 w-5 mb-1.5 text-brand-600 dark:text-brand-400" />
                   <span className="text-xs font-bold">Student</span>
                   <span className="text-[10px] opacity-80 text-center">Instant Access</span>
                 </button>
@@ -273,7 +273,7 @@ export default function SignupPage() {
           <CardFooter className="justify-center border-t border-slate-100 dark:border-slate-800/60 pt-4">
             <p className="text-xs text-slate-500">
               Already have an account?{" "}
-              <Link href={redirectPath !== "/dashboard" ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"} className="font-semibold text-teal-600 dark:text-teal-400 hover:underline">
+              <Link href={redirectPath !== "/dashboard" ? `/login?redirect=${encodeURIComponent(redirectPath)}` : "/login"} className="font-semibold text-brand-600 dark:text-brand-400 hover:underline">
                 Sign in
               </Link>
             </p>

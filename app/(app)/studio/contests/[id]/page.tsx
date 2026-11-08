@@ -73,7 +73,7 @@ export default function ContestPage({ params }: { params: Promise<{ id: string }
     return (
       <Card className="p-8 text-center text-sm space-y-3">
         <p>{error}</p>
-        <Link href="/studio/contests" className="text-teal-600 font-semibold">All contests</Link>
+        <Link href="/studio/contests" className="text-brand-600 font-semibold">All contests</Link>
       </Card>
     );
   }
@@ -134,7 +134,7 @@ export default function ContestPage({ params }: { params: Promise<{ id: string }
           <Trophy className="h-8 w-8 text-amber-500 shrink-0" />
           <div>
             <p className="font-extrabold">Winner: {c.winnerName}</p>
-            {c.winnerDesignId && <Link href={`/studio/${c.winnerDesignId}`} className="text-xs font-semibold text-teal-600">See the winning design</Link>}
+            {c.winnerDesignId && <Link href={`/studio/${c.winnerDesignId}`} className="text-xs font-semibold text-brand-600">See the winning design</Link>}
           </div>
         </Card>
       )}
@@ -143,7 +143,7 @@ export default function ContestPage({ params }: { params: Promise<{ id: string }
         <Card className="p-4 space-y-3">
           <h2 className="font-extrabold">Enter a design</h2>
           {myDesigns.length === 0 ? (
-            <p className="text-sm text-slate-500">You have no designs yet. <Link href="/studio" className="text-teal-600 font-semibold">Build one in the Studio</Link>.</p>
+            <p className="text-sm text-slate-500">You have no designs yet. <Link href="/studio" className="text-brand-600 font-semibold">Build one in the Studio</Link>.</p>
           ) : (
             <>
               <select value={pick} onChange={(e) => setPick(e.target.value)} className="h-10 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-sm" aria-label="Your design">

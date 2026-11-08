@@ -155,7 +155,7 @@ export default function StudyNotesPage() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-mono tracking-widest text-teal-600">STUDY NOTES</p>
+        <p className="text-xs font-mono tracking-widest text-brand-600">STUDY NOTES</p>
         <h1 className="text-2xl font-extrabold">Notes that make sense</h1>
         <p className="text-sm text-slate-500 max-w-2xl">Upload a PDF, photograph your notes or paste text. Sunroot reads it, even handwriting, and writes clean notes with topics, worked examples and questions to check yourself. Ask for changes any time.</p>
       </div>
@@ -172,8 +172,8 @@ export default function StudyNotesPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {list.map((n) => (
-                <button key={n.id} onClick={() => open(n.id)} className="text-left rounded-2xl border border-slate-200 dark:border-slate-800 p-4 hover:border-teal-500">
-                  <p className="font-bold flex items-center gap-2"><FileText className="h-4 w-4 text-teal-600" /> {n.title}</p>
+                <button key={n.id} onClick={() => open(n.id)} className="text-left rounded-2xl border border-slate-200 dark:border-slate-800 p-4 hover:border-brand-500">
+                  <p className="font-bold flex items-center gap-2"><FileText className="h-4 w-4 text-brand-600" /> {n.title}</p>
                   <p className="text-xs text-slate-500 mt-1">From {n.sourceTitle || "your source"}</p>
                 </button>
               ))}
@@ -195,7 +195,7 @@ export default function StudyNotesPage() {
             <Button variant="outline" size="sm" disabled={!!reading} onClick={() => fileRef.current?.click()}><Upload className="h-4 w-4 mr-1" /> PDF or photo</Button>
             <Button variant="outline" size="sm" disabled={!!reading} onClick={() => camRef.current?.click()}><Camera className="h-4 w-4 mr-1" /> Take a photo</Button>
           </div>
-          {reading && <p className="text-xs text-teal-600 font-semibold animate-pulse">{reading}</p>}
+          {reading && <p className="text-xs text-brand-600 font-semibold animate-pulse">{reading}</p>}
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} placeholder="…or paste your notes or lecture text here. A scanned PDF or a photo is read for you." className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent p-3 text-sm" />
           <div className="flex items-center gap-2">
             <Button disabled={busy === "make" || !!reading || text.trim().length < 40} onClick={make}>
@@ -233,7 +233,7 @@ export default function StudyNotesPage() {
                 )}
                 <div className="flex flex-wrap gap-1.5 print:hidden" role="tablist" aria-label="Ways to study these notes">
                   {([["notes", "Notes"], ["teach", "Teach me"], ["cards", "Flashcards"], ["quiz", "Quiz me"], ["pictures", "Pictures"]] as const).map(([k, label]) => (
-                    <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className={cn("rounded-full px-4 py-1.5 text-xs font-bold", mode === k ? "bg-teal-600 text-white" : "border border-slate-300 dark:border-slate-700 hover:border-teal-500")}>
+                    <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className={cn("rounded-full px-4 py-1.5 text-xs font-bold", mode === k ? "bg-brand-600 text-white" : "border border-slate-300 dark:border-slate-700 hover:border-brand-500")}>
                       {k === "teach" && <PlayCircle className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />}{label}
                     </button>
                   ))}
@@ -262,7 +262,7 @@ export default function StudyNotesPage() {
                   <p className="font-bold text-sm">Change the notes</p>
                   <div className="flex flex-wrap gap-1.5">
                     {REFINE_PRESETS.map((p) => (
-                      <button key={p.id} disabled={!!busy || !latest} onClick={() => refine({ preset: p.id })} className="rounded-full border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs font-semibold hover:border-teal-500 disabled:opacity-50">
+                      <button key={p.id} disabled={!!busy || !latest} onClick={() => refine({ preset: p.id })} className="rounded-full border border-slate-300 dark:border-slate-700 px-3 py-1 text-xs font-semibold hover:border-brand-500 disabled:opacity-50">
                         {busy === p.id ? "Working…" : p.label}
                       </button>
                     ))}
@@ -277,7 +277,7 @@ export default function StudyNotesPage() {
                   <ul className="space-y-1">
                     {view.versions.map((v) => (
                       <li key={v.n}>
-                        <button onClick={() => open(view.id, v.n)} className={cn("w-full text-left text-xs rounded-lg px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-900", v.n === view.shown && "bg-teal-500/10 font-semibold")}>
+                        <button onClick={() => open(view.id, v.n)} className={cn("w-full text-left text-xs rounded-lg px-2 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-900", v.n === view.shown && "bg-brand-500/10 font-semibold")}>
                           <span className="font-mono text-slate-400 mr-1">v{v.n}</span>{v.instruction}{v.n === view.head ? " (newest)" : ""}
                         </button>
                       </li>

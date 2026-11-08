@@ -46,7 +46,7 @@ function Breakdown({ title, counts, total }: { title: string; counts: Record<str
               </span>
             </div>
             <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-              <div className="h-full bg-teal-600" style={{ width: `${pct}%` }} />
+              <div className="h-full bg-brand-600" style={{ width: `${pct}%` }} />
             </div>
           </div>
         );

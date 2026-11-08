@@ -695,7 +695,7 @@ export default function NotebookPage() {
             className={cn(
               "py-2 rounded-lg transition-all text-center min-h-[44px] flex items-center justify-center gap-1.5",
               mobileTab === "chat"
-                ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-sm"
+                ? "bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
             )}
           >
@@ -708,7 +708,7 @@ export default function NotebookPage() {
             className={cn(
               "py-2 rounded-lg transition-all text-center min-h-[44px] flex items-center justify-center gap-1.5",
               mobileTab === "sources"
-                ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-sm"
+                ? "bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
             )}
           >
@@ -721,7 +721,7 @@ export default function NotebookPage() {
             className={cn(
               "py-2 rounded-lg transition-all text-center min-h-[44px] flex items-center justify-center gap-1.5",
               mobileTab === "studio"
-                ? "bg-white dark:bg-slate-900 text-teal-600 dark:text-teal-400 shadow-sm"
+                ? "bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
             )}
           >
@@ -738,7 +738,7 @@ export default function NotebookPage() {
           <Card className="p-4 border-slate-200 dark:border-slate-800">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-3">
               <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 dark:text-slate-100">
-                <BookOpen className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                <BookOpen className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                 <span>Sources Library ({sources.length})</span>
               </div>
               <Badge variant="secondary" className="text-[10px]">
@@ -761,7 +761,7 @@ export default function NotebookPage() {
                     key={src.id}
                     className={`p-3 rounded-xl border transition-all ${
                       src.active
-                        ? "border-teal-500/40 bg-teal-50/40 dark:bg-teal-950/20"
+                        ? "border-brand-500/40 bg-brand-50/40 dark:bg-brand-950/20"
                         : "border-slate-200 dark:border-slate-800 opacity-60 bg-slate-50/50 dark:bg-slate-900/40"
                     }`}
                   >
@@ -771,7 +771,7 @@ export default function NotebookPage() {
                         className="flex items-start gap-2 text-left min-w-0"
                       >
                         {src.active ? (
-                          <CheckSquare className="h-4 w-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
+                          <CheckSquare className="h-4 w-4 text-brand-600 dark:text-brand-400 shrink-0 mt-0.5" />
                         ) : (
                           <Square className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                         )}
@@ -817,7 +817,7 @@ export default function NotebookPage() {
             {/* Grounding Header */}
             <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                <Sparkles className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                 <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                   Grounded Synthesis Engine
                 </span>
@@ -840,7 +840,7 @@ export default function NotebookPage() {
                   <div
                     className={`max-w-[90%] rounded-2xl p-4 text-xs ${
                       m.role === "user"
-                        ? "bg-teal-600 text-white shadow-sm"
+                        ? "bg-brand-600 text-white shadow-sm"
                         : "bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100"
                     }`}
                   >
@@ -856,7 +856,7 @@ export default function NotebookPage() {
                           <button
                             key={i}
                             onClick={() => setActiveCitationPopover(c)}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-teal-500/10 hover:bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 text-[10px] font-mono font-bold transition-all"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-500/10 hover:bg-brand-500/20 text-brand-700 dark:text-brand-300 border border-brand-500/30 text-[10px] font-mono font-bold transition-all"
                             title={`Inspect ${c.tag} excerpt`}
                           >
                             <span>{c.tag}</span>
@@ -873,7 +873,7 @@ export default function NotebookPage() {
 
               {isChatLoading && (
                 <div className="flex items-center gap-2 text-xs text-slate-400 italic">
-                  <Sparkles className="h-4 w-4 animate-spin text-teal-500" />
+                  <Sparkles className="h-4 w-4 animate-spin text-brand-500" />
                   <span>Synthesizing source-grounded response with citations...</span>
                 </div>
               )}
@@ -892,7 +892,7 @@ export default function NotebookPage() {
                   <button
                     key={i}
                     onClick={() => handleSendChat(undefined, prompt)}
-                    className="text-[11px] px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-teal-500 hover:text-teal-600 transition-all text-left"
+                    className="text-[11px] px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-brand-500 hover:text-brand-600 transition-all text-left"
                   >
                     &ldquo;{prompt}&rdquo;
                   </button>
@@ -930,7 +930,7 @@ export default function NotebookPage() {
                 onClick={() => setStudioTab("deepdive")}
                 className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   studioTab === "deepdive"
-                    ? "bg-teal-600 text-white"
+                    ? "bg-brand-600 text-white"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
                 }`}
               >
@@ -941,7 +941,7 @@ export default function NotebookPage() {
                 onClick={() => setStudioTab("summary")}
                 className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   studioTab === "summary"
-                    ? "bg-teal-600 text-white"
+                    ? "bg-brand-600 text-white"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
                 }`}
               >
@@ -952,7 +952,7 @@ export default function NotebookPage() {
                 onClick={() => setStudioTab("flashcards")}
                 className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   studioTab === "flashcards"
-                    ? "bg-teal-600 text-white"
+                    ? "bg-brand-600 text-white"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
                 }`}
               >
@@ -963,7 +963,7 @@ export default function NotebookPage() {
                 onClick={() => setStudioTab("quiz")}
                 className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   studioTab === "quiz"
-                    ? "bg-teal-600 text-white"
+                    ? "bg-brand-600 text-white"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
                 }`}
               >
@@ -1000,10 +1000,10 @@ export default function NotebookPage() {
                   ) : (
                     <div className="space-y-4">
                       {/* Audio Player Widget */}
-                      <div className="p-4 rounded-2xl border border-teal-500/30 bg-teal-50/40 dark:bg-teal-950/20 space-y-3">
+                      <div className="p-4 rounded-2xl border border-brand-500/30 bg-brand-50/40 dark:bg-brand-950/20 space-y-3">
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 block">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 block">
                               Now Playing Deep Dive
                             </span>
                             <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
@@ -1016,7 +1016,7 @@ export default function NotebookPage() {
                               onClick={() => setStudioVoiceEnabled((v) => !v)}
                               className={`px-2 py-0.5 rounded-full text-[10px] font-bold transition-colors flex items-center gap-1 ${
                                 studioVoiceEnabled
-                                  ? "bg-teal-600 text-white shadow-sm"
+                                  ? "bg-brand-600 text-white shadow-sm"
                                   : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
                               }`}
                             >
@@ -1030,7 +1030,7 @@ export default function NotebookPage() {
                         </div>
 
                         {/* Player Controls Bar */}
-                        <div className="flex items-center justify-between gap-3 pt-2 border-t border-teal-500/20">
+                        <div className="flex items-center justify-between gap-3 pt-2 border-t border-brand-500/20">
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
@@ -1056,7 +1056,7 @@ export default function NotebookPage() {
                               <RotateCcw className="h-3.5 w-3.5" />
                             </Button>
                             {loadingTurnAudio && (
-                              <span className="text-[10px] text-teal-600 dark:text-teal-400 flex items-center gap-1 font-mono">
+                              <span className="text-[10px] text-brand-600 dark:text-brand-400 flex items-center gap-1 font-mono">
                                 <RefreshCw className="h-2.5 w-2.5 animate-spin" /> Voicing this line…
                               </span>
                             )}
@@ -1078,7 +1078,7 @@ export default function NotebookPage() {
                                 }}
                                 className={`px-1.5 py-0.5 rounded ${
                                   playbackSpeed === speed
-                                    ? "bg-teal-600 text-white font-bold"
+                                    ? "bg-brand-600 text-white font-bold"
                                     : "hover:bg-slate-200 dark:hover:bg-slate-800"
                                 }`}
                               >
@@ -1102,7 +1102,7 @@ export default function NotebookPage() {
                               onClick={() => startPlaybackAt(i)}
                               className={`p-3 rounded-xl border text-xs transition-all cursor-pointer ${
                                 isCurrent
-                                  ? "border-teal-500 bg-teal-50 dark:bg-teal-950/40 shadow-sm"
+                                  ? "border-brand-500 bg-brand-50 dark:bg-brand-950/40 shadow-sm"
                                   : "border-slate-100 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-900"
                               }`}
                             >
@@ -1110,14 +1110,14 @@ export default function NotebookPage() {
                                 <span
                                   className={`font-bold text-[11px] ${
                                     turn.speaker === "Alex"
-                                      ? "text-teal-600 dark:text-teal-400"
+                                      ? "text-brand-600 dark:text-brand-400"
                                       : "text-amber-600 dark:text-amber-400"
                                   }`}
                                 >
                                   {turn.speaker} {turn.speaker === "Alex" ? "(Host 1)" : "(Host 2)"}
                                 </span>
                                 {isCurrent && (
-                                  <span className="flex items-center gap-1 text-[10px] text-teal-600 dark:text-teal-400 font-bold">
+                                  <span className="flex items-center gap-1 text-[10px] text-brand-600 dark:text-brand-400 font-bold">
                                     <Volume2 className="h-3 w-3 animate-pulse" /> Speaking
                                   </span>
                                 )}
@@ -1205,7 +1205,7 @@ export default function NotebookPage() {
 
                       <div
                         onClick={() => setIsCardFlipped(!isCardFlipped)}
-                        className="cursor-pointer min-h-[180px] rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex flex-col justify-center items-center text-center shadow-sm hover:border-teal-500 transition-all select-none"
+                        className="cursor-pointer min-h-[180px] rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex flex-col justify-center items-center text-center shadow-sm hover:border-brand-500 transition-all select-none"
                       >
                         <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
                           {isCardFlipped ? "Answer" : "Question"}
@@ -1334,7 +1334,7 @@ export default function NotebookPage() {
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                <BookOpen className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                 <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
                   Add Source Document
                 </h3>
@@ -1352,7 +1352,7 @@ export default function NotebookPage() {
               <button
                 onClick={() => setModalTab("paste")}
                 className={`py-1.5 text-xs font-bold rounded-lg ${
-                  modalTab === "paste" ? "bg-teal-600 text-white" : "text-slate-500 hover:bg-slate-100"
+                  modalTab === "paste" ? "bg-brand-600 text-white" : "text-slate-500 hover:bg-slate-100"
                 }`}
               >
                 Paste Text / Notes
@@ -1360,7 +1360,7 @@ export default function NotebookPage() {
               <button
                 onClick={() => setModalTab("upload")}
                 className={`py-1.5 text-xs font-bold rounded-lg ${
-                  modalTab === "upload" ? "bg-teal-600 text-white" : "text-slate-500 hover:bg-slate-100"
+                  modalTab === "upload" ? "bg-brand-600 text-white" : "text-slate-500 hover:bg-slate-100"
                 }`}
               >
                 Upload File (.pdf, .txt)
@@ -1390,7 +1390,7 @@ export default function NotebookPage() {
                     placeholder="Paste full notes, papers, or course text..."
                     value={pasteContent}
                     onChange={(e) => setPasteContent(e.target.value)}
-                    className="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-teal-500 font-mono"
+                    className="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono"
                   />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
@@ -1405,7 +1405,7 @@ export default function NotebookPage() {
             ) : (
               <div className="space-y-4 py-4 text-center">
                 <div className="border-2 border-dashed rounded-2xl border-slate-200 dark:border-slate-800 p-8 space-y-3">
-                  <Upload className="h-8 w-8 text-teal-600 dark:text-teal-400 mx-auto" />
+                  <Upload className="h-8 w-8 text-brand-600 dark:text-brand-400 mx-auto" />
                   <div>
                     <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
                       Upload a PDF, photo or text file
@@ -1419,11 +1419,11 @@ export default function NotebookPage() {
                     accept=".pdf,.docx,.pptx,.txt,.md,.png,.jpg,.jpeg,.webp,image/*"
                     onChange={handleFileUpload}
                     disabled={uploadingFile}
-                    className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer"
+                    className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer"
                   />
                 </div>
                 {uploadingFile && (
-                  <p className="text-xs text-teal-600 font-semibold animate-pulse">
+                  <p className="text-xs text-brand-600 font-semibold animate-pulse">
                     {readNote || "Reading your document…"}
                   </p>
                 )}
@@ -1438,7 +1438,7 @@ export default function NotebookPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60  animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full p-5 space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 font-bold text-xs text-teal-700 dark:text-teal-300">
+              <div className="flex items-center gap-1.5 font-bold text-xs text-brand-700 dark:text-brand-300">
                 <Info className="h-4 w-4" />
                 <span>Citation Verification: {activeCitationPopover.tag}</span>
               </div>
@@ -1463,7 +1463,7 @@ export default function NotebookPage() {
               <span className="text-[10px] text-slate-400 uppercase font-semibold block">
                 Verifiable Excerpt
               </span>
-              <p className="text-xs text-slate-600 dark:text-slate-400 italic bg-teal-500/5 p-3 rounded-xl border border-teal-500/20 leading-relaxed font-mono">
+              <p className="text-xs text-slate-600 dark:text-slate-400 italic bg-brand-500/5 p-3 rounded-xl border border-brand-500/20 leading-relaxed font-mono">
                 &ldquo;{activeCitationPopover.excerpt}&rdquo;
               </p>
             </div>

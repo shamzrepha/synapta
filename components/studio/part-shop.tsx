@@ -112,7 +112,7 @@ export function PartDetail({ item, qty, onAdd, onClose }: { item: ShopItem; qty:
       <div className="w-full sm:max-w-3xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 sm:p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-mono tracking-widest text-teal-600">{item.category.toUpperCase()}</p>
+            <p className="text-[11px] font-mono tracking-widest text-brand-600">{item.category.toUpperCase()}</p>
             <h2 className="text-xl font-extrabold leading-tight">{item.name}</h2>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
               {item.verified ? (
@@ -157,7 +157,7 @@ export function PartDetail({ item, qty, onAdd, onClose }: { item: ShopItem; qty:
                   {f.facts.map((x, i) => (
                     <li key={i} className="text-xs leading-snug">
                       <span className="font-semibold">{x.label}:</span> {x.value}{" "}
-                      {x.approx ? <span className="text-amber-600">(derived for the simulation)</span> : srcUrl(x.src) ? <a href={srcUrl(x.src)} target="_blank" rel="noreferrer" className="text-teal-600 inline-flex items-center gap-0.5">source<ExternalLink className="h-2.5 w-2.5" /></a> : null}
+                      {x.approx ? <span className="text-amber-600">(derived for the simulation)</span> : srcUrl(x.src) ? <a href={srcUrl(x.src)} target="_blank" rel="noreferrer" className="text-brand-600 inline-flex items-center gap-0.5">source<ExternalLink className="h-2.5 w-2.5" /></a> : null}
                     </li>
                   ))}
                 </ul>
@@ -201,7 +201,7 @@ export function PartDetail({ item, qty, onAdd, onClose }: { item: ShopItem; qty:
             <p className="font-bold">Sources</p>
             <ul className="mt-1 space-y-0.5">
               {f.sources.map((s) => (
-                <li key={s.id}><a href={s.url} target="_blank" rel="noreferrer" className="text-teal-600 inline-flex items-center gap-1">{s.title}<ExternalLink className="h-3 w-3" /></a> <span className="text-slate-500">({s.kind})</span></li>
+                <li key={s.id}><a href={s.url} target="_blank" rel="noreferrer" className="text-brand-600 inline-flex items-center gap-1">{s.title}<ExternalLink className="h-3 w-3" /></a> <span className="text-slate-500">({s.kind})</span></li>
               ))}
             </ul>
             <p className="text-slate-500 mt-1">Read on {f.verifiedOn}.</p>
@@ -251,7 +251,7 @@ export function PartShop({ tray, onTray }: { tray: TrayItem[]; onTray: (t: TrayI
       </div>
       <div className="flex flex-wrap gap-1.5">
         {(["All", ...shop.categories] as const).map((c) => (
-          <button key={c} type="button" onClick={() => setCat(c)} className={cn("rounded-full px-3 py-1 text-xs font-semibold border", cat === c ? "bg-teal-600 text-white border-teal-600" : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300")}>
+          <button key={c} type="button" onClick={() => setCat(c)} className={cn("rounded-full px-3 py-1 text-xs font-semibold border", cat === c ? "bg-brand-600 text-white border-brand-600" : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300")}>
             {c}
           </button>
         ))}
@@ -260,7 +260,7 @@ export function PartShop({ tray, onTray }: { tray: TrayItem[]; onTray: (t: TrayI
         {items.map((i) => {
           const n = qtyOf(i.type);
           return (
-            <div key={i.type} className={cn("rounded-2xl border p-3 flex flex-col gap-2 bg-white dark:bg-slate-900", n > 0 ? "border-teal-500" : "border-slate-200 dark:border-slate-800")}>
+            <div key={i.type} className={cn("rounded-2xl border p-3 flex flex-col gap-2 bg-white dark:bg-slate-900", n > 0 ? "border-brand-500" : "border-slate-200 dark:border-slate-800")}>
               <button type="button" onClick={() => setOpen(i)} className="text-left space-y-1">
                 <div className="flex items-start gap-2">
                   <p className="font-bold text-sm leading-tight flex-1">{i.name}</p>
@@ -276,7 +276,7 @@ export function PartShop({ tray, onTray }: { tray: TrayItem[]; onTray: (t: TrayI
                     <button type="button" aria-label="One fewer" onClick={() => onTray(addToTray(tray, i.type, -1))} className="h-7 w-7 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center"><Minus className="h-3.5 w-3.5" /></button>
                   )}
                   {n > 0 && <span className="w-5 text-center font-bold">{n}</span>}
-                  <button type="button" aria-label={`Add ${i.name}`} onClick={() => onTray(addToTray(tray, i.type, 1))} className="h-7 w-7 rounded-lg bg-teal-600 text-white flex items-center justify-center"><Plus className="h-3.5 w-3.5" /></button>
+                  <button type="button" aria-label={`Add ${i.name}`} onClick={() => onTray(addToTray(tray, i.type, 1))} className="h-7 w-7 rounded-lg bg-brand-600 text-white flex items-center justify-center"><Plus className="h-3.5 w-3.5" /></button>
                 </span>
               </div>
             </div>

@@ -56,7 +56,7 @@ export function SourcesPanel({ spec }: { spec: DesignSpec }) {
                   {f && (
                     <ul className="space-y-0.5">
                       {f.sources.map((s) => (
-                        <li key={s.id}><a href={s.url} target="_blank" rel="noreferrer" className="text-teal-600 inline-flex items-center gap-1">{s.title}<ExternalLink className="h-3 w-3" /></a></li>
+                        <li key={s.id}><a href={s.url} target="_blank" rel="noreferrer" className="text-brand-600 inline-flex items-center gap-1">{s.title}<ExternalLink className="h-3 w-3" /></a></li>
                       ))}
                     </ul>
                   )}
@@ -72,7 +72,7 @@ export function SourcesPanel({ spec }: { spec: DesignSpec }) {
           <pre className="whitespace-pre-wrap text-xs rounded-xl bg-slate-100 dark:bg-slate-900 p-3">{spec.research.notes}</pre>
           <ul className="text-xs space-y-0.5">
             {spec.research.sources.map((s) => (
-              <li key={s.uri}><a href={s.uri} target="_blank" rel="noreferrer" className="text-teal-600 inline-flex items-center gap-1">{s.title || s.uri}<ExternalLink className="h-3 w-3" /></a></li>
+              <li key={s.uri}><a href={s.uri} target="_blank" rel="noreferrer" className="text-brand-600 inline-flex items-center gap-1">{s.title || s.uri}<ExternalLink className="h-3 w-3" /></a></li>
             ))}
           </ul>
         </div>

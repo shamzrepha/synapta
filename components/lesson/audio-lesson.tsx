@@ -352,7 +352,7 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
               type="button"
               onClick={toggle}
               aria-label={playing ? "Pause" : "Play"}
-              className="h-12 w-12 shrink-0 rounded-full bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center shadow-lg"
+              className="h-12 w-12 shrink-0 rounded-full bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center shadow-lg"
             >
               {playing && buffering ? <Loader2 className="h-5 w-5 animate-spin" /> : playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
             </button>
@@ -426,13 +426,13 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
                   className={cn(
                     "h-1.5 flex-1 rounded-full transition-colors",
                     i < index
-                      ? "bg-teal-500"
+                      ? "bg-brand-500"
                       : i === index
                       ? playing
-                        ? "bg-teal-400 animate-pulse"
-                        : "bg-teal-400"
+                        ? "bg-brand-400 animate-pulse"
+                        : "bg-brand-400"
                       : clipStatus[i] === "ready"
-                      ? "bg-teal-200 dark:bg-teal-900"
+                      ? "bg-brand-200 dark:bg-brand-900"
                       : clipStatus[i] === "loading"
                       ? "bg-slate-300 dark:bg-slate-700 animate-pulse"
                       : "bg-slate-300 dark:bg-slate-700"
@@ -468,7 +468,7 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
               onClick={() => jump(i)}
               className={cn(
                 "flex flex-wrap gap-2 rounded-xl p-2 cursor-pointer transition-colors",
-                i === index ? "bg-teal-500/10" : "hover:bg-slate-50 dark:hover:bg-slate-900"
+                i === index ? "bg-brand-500/10" : "hover:bg-slate-50 dark:hover:bg-slate-900"
               )}
             >
               <span

@@ -71,7 +71,7 @@ export function BuildChallengePanel({ detail, onChanged }: { detail: EventDetail
           <p className="font-bold">Your entry</p>
           {detail.me.verdict ? (
             <p className="text-sm">
-              Last score: <b className="text-teal-600">{detail.me.score.toLocaleString()}</b> — {detail.me.verdict}
+              Last score: <b className="text-brand-600">{detail.me.score.toLocaleString()}</b> — {detail.me.verdict}
             </p>
           ) : (
             <p className="text-sm text-slate-500">Not submitted yet. Build and test in Maker Studio, save a version, then submit it here.</p>
@@ -102,14 +102,14 @@ export function BuildChallengePanel({ detail, onChanged }: { detail: EventDetail
         ) : (
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {detail.board.map((r) => (
-              <li key={r.uid} className={cn("flex items-start gap-3 px-4 py-3", r.isMe && "bg-teal-500/10")}>
+              <li key={r.uid} className={cn("flex items-start gap-3 px-4 py-3", r.isMe && "bg-brand-500/10")}>
                 <span className="w-6 text-center text-sm font-bold text-slate-500">{r.rank <= 3 ? ["🥇", "🥈", "🥉"][r.rank - 1] : r.rank}</span>
                 <Avatar name={r.displayName} photoURL={r.photoURL} seed={r.uid} size={30} />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{r.isMe ? "You" : r.displayName}</p>
                   {r.verdict && <p className="text-[11px] text-slate-500">{r.verdict}</p>}
                   {r.designId && (
-                    <Link href={`/studio/${r.designId}`} className="text-[11px] font-semibold text-teal-600 inline-flex items-center gap-1">
+                    <Link href={`/studio/${r.designId}`} className="text-[11px] font-semibold text-brand-600 inline-flex items-center gap-1">
                       View design <ExternalLink className="h-3 w-3" />
                     </Link>
                   )}

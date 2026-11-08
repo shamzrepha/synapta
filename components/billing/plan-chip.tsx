@@ -16,7 +16,7 @@ export function PlanChip() {
     <Link
       href="/plans"
       title={`${me.plan.label} plan${left.length ? `: ${left.join(", ")}` : ""}`}
-      className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${me.paid ? "border-teal-500/30 bg-teal-500/10 text-teal-800 dark:text-teal-300" : "border-[#F28C28]/50 bg-[#F28C28]/15 text-[#9a4f00] dark:text-[#F5A55A]"}`}
+      className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${me.paid ? "border-brand-500/30 bg-brand-500/10 text-brand-800 dark:text-brand-300" : "border-[#F28C28]/50 bg-[#F28C28]/15 text-[#9a4f00] dark:text-[#F5A55A]"}`}
     >
       <Sparkles className="h-3.5 w-3.5" />
       <span>{me.plan.label}</span>

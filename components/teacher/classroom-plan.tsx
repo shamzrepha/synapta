@@ -15,7 +15,7 @@ const TYPE_META: Record<string, { label: string; icon: React.ReactNode; classNam
   simulation: { label: "Simulation", icon: <Gamepad2 className="h-3.5 w-3.5" />, className: "bg-amber-500/10 text-amber-700 dark:text-amber-300" },
   quiz_sprint: { label: "Quiz sprint", icon: <Zap className="h-3.5 w-3.5" />, className: "bg-rose-500/10 text-rose-700 dark:text-rose-300" },
   hackathon: { label: "Hackathon", icon: <Hammer className="h-3.5 w-3.5" />, className: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300" },
-  study_session: { label: "Study session", icon: <CalendarClock className="h-3.5 w-3.5" />, className: "bg-teal-500/10 text-teal-700 dark:text-teal-300" },
+  study_session: { label: "Study session", icon: <CalendarClock className="h-3.5 w-3.5" />, className: "bg-brand-500/10 text-brand-700 dark:text-brand-300" },
   audio: { label: "Audio lesson", icon: <Headphones className="h-3.5 w-3.5" />, className: "bg-purple-500/10 text-purple-700 dark:text-purple-300" },
   discussion: { label: "Discussion", icon: <MessagesSquare className="h-3.5 w-3.5" />, className: "bg-sky-500/10 text-sky-700 dark:text-sky-300" },
 };

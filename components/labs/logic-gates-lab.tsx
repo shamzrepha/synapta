@@ -151,7 +151,7 @@ export function LogicGatesLab({ onComplete }: LabProps) {
             Toggle Input B: [{inputB ? 1 : 0}]
           </Button>
 
-          <Button size="sm" onClick={handleTestState} className="text-xs bg-teal-600 hover:bg-teal-700 text-white">
+          <Button size="sm" onClick={handleTestState} className="text-xs bg-brand-600 hover:bg-brand-700 text-white">
             <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Record Combination
           </Button>
         </div>
@@ -163,7 +163,7 @@ export function LogicGatesLab({ onComplete }: LabProps) {
           <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
             Half Adder Truth Table Verification ({testedCount}/4 Verified)
           </h4>
-          <span className="text-xs font-semibold text-teal-600">
+          <span className="text-xs font-semibold text-brand-600">
             {completed ? "✓ Full Table Proved" : `${4 - testedCount} remaining`}
           </span>
         </div>

@@ -248,7 +248,7 @@ export function MindMapView({
           <button
             type="button"
             onClick={() => onExplain(pathTo(tree, selected.id))}
-            className="h-9 px-3 shrink-0 rounded-lg bg-teal-600 text-white text-xs font-semibold flex items-center gap-1.5"
+            className="h-9 px-3 shrink-0 rounded-lg bg-brand-600 text-white text-xs font-semibold flex items-center gap-1.5"
             style={{ minHeight: NODE_H }}
           >
             <Sparkles className="h-3.5 w-3.5" /> Explain this

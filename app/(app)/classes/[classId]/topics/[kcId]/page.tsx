@@ -460,13 +460,13 @@ export default function TopicPage({
           </div>
 
           {canManage && prefs.language !== "en" && (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-teal-500/30 bg-teal-500/5 px-3 py-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-500/30 bg-brand-500/5 px-3 py-2 text-xs">
               <span className="flex-1">
                 {showOriginal
                   ? "Showing the original you edit and publish."
                   : `Showing this topic in ${languageInfo(prefs.language).name}, as your students see it. Editing works on the original.`}
               </span>
-              <button type="button" onClick={() => setShowOriginal((v) => !v)} className="rounded-lg border border-teal-500/40 px-2.5 py-1 font-semibold hover:bg-teal-500/10">
+              <button type="button" onClick={() => setShowOriginal((v) => !v)} className="rounded-lg border border-brand-500/40 px-2.5 py-1 font-semibold hover:bg-brand-500/10">
                 {showOriginal ? `View in ${languageInfo(prefs.language).name}` : "Show original"}
               </button>
             </div>
@@ -486,7 +486,7 @@ export default function TopicPage({
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 text-xs md:text-sm font-semibold rounded-xl transition-all whitespace-nowrap",
                   shownTab === t.key
-                    ? "bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 shadow-sm"
+                    ? "bg-brand-600 text-white dark:bg-brand-500 dark:text-slate-950 shadow-sm"
                     : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900"
                 )}
               >
@@ -496,7 +496,7 @@ export default function TopicPage({
           </div>
           <div className="flex flex-wrap items-center gap-2 -mt-2">
             <p className="text-xs text-slate-500 flex-1 min-w-0">
-              {stepNow >= 0 && <b className="text-teal-700 dark:text-teal-300">Step {stepNow + 1} of {stepTabs.length}. </b>}
+              {stepNow >= 0 && <b className="text-brand-700 dark:text-brand-300">Step {stepNow + 1} of {stepTabs.length}. </b>}
               {TAB_HINT[shownTab]}
             </p>
             {nextStep && (
@@ -514,7 +514,7 @@ export default function TopicPage({
               <Card className="p-6 md:p-8">
                 {lessonBusy && lessonIsThin ? (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-teal-700 dark:text-teal-300">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-brand-700 dark:text-brand-300">
                       <Sparkles className="h-4 w-4 animate-pulse" /> Writing the full lesson for this topic…
                     </div>
                     <Skeleton className="h-6 w-2/3" />
@@ -572,7 +572,7 @@ export default function TopicPage({
                   <ul className="space-y-1.5 text-sm text-slate-600 dark:text-slate-400">
                     {kc.objectives.map((obj, i) => (
                       <li key={i} className="flex items-start gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0 mt-0.5" />
+                        <CheckCircle2 className="h-4 w-4 text-brand-500 shrink-0 mt-0.5" />
                         <span>{obj}</span>
                       </li>
                     ))}
@@ -591,9 +591,9 @@ export default function TopicPage({
                 </button>}
                 {profile.needs.practice && <button
                   onClick={() => setActiveTab("quiz")}
-                  className="text-left p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-teal-500/60 transition-all"
+                  className="text-left p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-brand-500/60 transition-all"
                 >
-                  <HelpCircle className="h-5 w-5 text-teal-500 mb-2" />
+                  <HelpCircle className="h-5 w-5 text-brand-500 mb-2" />
                   <p className="font-semibold text-sm">Take a quiz</p>
                   <p className="text-xs text-slate-500">5–15 questions, instant feedback</p>
                 </button>}
@@ -671,7 +671,7 @@ export default function TopicPage({
             <Card className="p-6 space-y-6">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
-                  <Layers className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                  <Layers className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                   <h3 className="font-bold text-base">Flashcards</h3>
                 </div>
                 <Button size="sm" variant="outline" onClick={handleLoadFlashcards} isLoading={loadingCards} className="text-xs">
@@ -710,7 +710,7 @@ export default function TopicPage({
                     <span>Tap the card to flip</span>
                   </div>
                   <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-teal-500 transition-all" style={{ width: `${((currentCardIndex + 1) / flashcards.length) * 100}%` }} />
+                    <div className="h-full bg-brand-500 transition-all" style={{ width: `${((currentCardIndex + 1) / flashcards.length) * 100}%` }} />
                   </div>
 
                   <button
@@ -719,8 +719,8 @@ export default function TopicPage({
                     className={cn(
                       "w-full min-h-[220px] rounded-2xl border-2 p-6 flex flex-col justify-center items-center text-center shadow-md transition-all",
                       isFlipped
-                        ? "border-teal-500 bg-teal-500/5"
-                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-teal-500"
+                        ? "border-brand-500 bg-brand-500/5"
+                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-brand-500"
                     )}
                   >
                     <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-3">
@@ -772,7 +772,7 @@ export default function TopicPage({
               <CardHeader className="py-3 px-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold text-xs">AI</div>
+                    <div className="h-8 w-8 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-xs">AI</div>
                     <div>
                       <h3 className="font-bold text-sm">AI Tutor</h3>
                       <p className="text-[10px] text-slate-500">Focused on: {kc.title}</p>
@@ -789,7 +789,7 @@ export default function TopicPage({
               <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length === 0 && (
                   <div className="text-center py-8 space-y-4">
-                    <MessageSquare className="h-10 w-10 text-teal-500/40 mx-auto" />
+                    <MessageSquare className="h-10 w-10 text-brand-500/40 mx-auto" />
                     <p className="text-sm text-slate-500 max-w-sm mx-auto">
                       Ask anything about this topic. I&apos;ll guide you with hints rather than just handing over answers.
                     </p>
@@ -798,7 +798,7 @@ export default function TopicPage({
                         <button
                           key={s}
                           onClick={() => sendTutor(s)}
-                          className="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 text-xs hover:border-teal-500 hover:text-teal-700 dark:hover:text-teal-300 transition-all"
+                          className="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 text-xs hover:border-brand-500 hover:text-brand-700 dark:hover:text-brand-300 transition-all"
                         >
                           {s}
                         </button>
@@ -813,7 +813,7 @@ export default function TopicPage({
                       className={cn(
                         "max-w-[88%] rounded-2xl p-3.5 text-sm leading-relaxed",
                         m.role === "user"
-                          ? "bg-teal-600 text-white rounded-br-sm"
+                          ? "bg-brand-600 text-white rounded-br-sm"
                           : m.isError
                           ? "bg-rose-500/10 text-rose-800 dark:text-rose-200 border border-rose-500/30 rounded-bl-sm"
                           : "bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 rounded-bl-sm border border-slate-200 dark:border-slate-800"
@@ -866,9 +866,9 @@ export default function TopicPage({
 
         {/* Mastery card */}
         <div className="lg:col-span-1 lg:sticky lg:top-20 space-y-4">
-          <Card className="border-teal-500/30 shadow-lg">
+          <Card className="border-brand-500/30 shadow-lg">
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
-              <span className="text-[10px] text-teal-600 dark:text-teal-400 font-bold uppercase tracking-wider block">Your progress</span>
+              <span className="text-[10px] text-brand-600 dark:text-brand-400 font-bold uppercase tracking-wider block">Your progress</span>
               <CardTitle className="text-base font-bold">Topic mastery</CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
@@ -902,7 +902,7 @@ export default function TopicPage({
               <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
                 <div className="flex justify-between">
                   <span className="flex items-center gap-1">
-                    <Zap className="h-3.5 w-3.5 text-teal-500" /> Total XP
+                    <Zap className="h-3.5 w-3.5 text-brand-500" /> Total XP
                   </span>
                   <strong className="text-slate-900 dark:text-slate-100">{user?.xp ?? 0} XP</strong>
                 </div>

@@ -183,17 +183,17 @@ export function AiKeySettings() {
   return (
     <div className="space-y-4">
       {/* 1-CLICK ENGINE FLICK SWITCH */}
-      <Card className="p-5 border-2 border-teal-500/20 bg-card">
+      <Card className="p-5 border-2 border-brand-500/20 bg-card">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
               <ArrowRightLeft className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-base text-foreground">Active AI Engine</h3>
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">
-                  <span className="h-1.5 w-1.5 rounded-full bg-teal-500 mr-1.5 animate-pulse" />
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-500/30">
+                  <span className="h-1.5 w-1.5 rounded-full bg-brand-500 mr-1.5 animate-pulse" />
                   {currentProvider === "groq" ? "Groq (Active)" : "Gemini (Active)"}
                 </span>
               </div>
@@ -213,17 +213,17 @@ export function AiKeySettings() {
             onClick={() => toggleProvider("gemini")}
             className={`text-left p-4 rounded-xl border-2 transition-all relative ${
               currentProvider === "gemini"
-                ? "border-teal-500 bg-teal-500/10 shadow-sm"
+                ? "border-brand-500 bg-brand-500/10 shadow-sm"
                 : "border-border hover:border-slate-300 dark:hover:border-slate-700 bg-card/50"
             }`}
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Cpu className={`h-5 w-5 ${currentProvider === "gemini" ? "text-teal-600 dark:text-teal-400" : "text-muted-foreground"}`} />
+                <Cpu className={`h-5 w-5 ${currentProvider === "gemini" ? "text-brand-600 dark:text-brand-400" : "text-muted-foreground"}`} />
                 <span className="font-bold text-sm text-foreground">Google Gemini</span>
               </div>
               {currentProvider === "gemini" && (
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-teal-600 text-white">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-brand-600 text-white">
                   Active
                 </span>
               )}
@@ -276,7 +276,7 @@ export function AiKeySettings() {
         {providerMessage && (
           <p
             className={`text-xs font-semibold mt-3 flex items-center gap-1.5 ${
-              providerMessage.ok ? "text-teal-700 dark:text-teal-300" : "text-rose-600"
+              providerMessage.ok ? "text-brand-700 dark:text-brand-300" : "text-rose-600"
             }`}
             role="status"
           >
@@ -330,13 +330,13 @@ export function AiKeySettings() {
         </form>
 
         <p className="text-xs text-muted-foreground">
-          Get a free API key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline text-teal-600 dark:text-teal-400 font-medium">console.groq.com/keys</a>. Keys start with <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">gsk_</code>. Tested with an instant live probe before saving.
+          Get a free API key at <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="underline text-brand-600 dark:text-brand-400 font-medium">console.groq.com/keys</a>. Keys start with <code className="text-xs bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">gsk_</code>. Tested with an instant live probe before saving.
         </p>
 
         {groqMessage && (
           <p
             className={`text-xs font-semibold flex items-center gap-1.5 ${
-              groqMessage.ok ? "text-teal-700 dark:text-teal-300" : "text-rose-600"
+              groqMessage.ok ? "text-brand-700 dark:text-brand-300" : "text-rose-600"
             }`}
             role="status"
           >
@@ -360,7 +360,7 @@ export function AiKeySettings() {
       {/* GEMINI KEY CONFIGURATION */}
       <Card className="p-5 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+          <div className="h-9 w-9 rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0">
             <KeyRound className="h-5 w-5" />
           </div>
           <div className="min-w-0">
@@ -401,13 +401,13 @@ export function AiKeySettings() {
         </form>
 
         <p className="text-xs text-muted-foreground">
-          Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="underline text-teal-600 dark:text-teal-400 font-medium">aistudio.google.com/apikey</a>. Tested with a tiny probe before saving, stored securely, and used immediately across the app.
+          Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="underline text-brand-600 dark:text-brand-400 font-medium">aistudio.google.com/apikey</a>. Tested with a tiny probe before saving, stored securely, and used immediately across the app.
         </p>
 
         {geminiMessage && (
           <p
             className={`text-xs font-semibold flex items-center gap-1.5 ${
-              geminiMessage.ok ? "text-teal-700 dark:text-teal-300" : "text-rose-600"
+              geminiMessage.ok ? "text-brand-700 dark:text-brand-300" : "text-rose-600"
             }`}
             role="status"
           >

@@ -246,7 +246,7 @@ export default function QuestMapPage({
       case "due_review":
         return <Badge variant="destructive" className="text-[10px]">Review Due</Badge>;
       case "available":
-        return <Badge variant="outline" className="text-[10px] text-teal-600 border-teal-500/40">Ready to Learn</Badge>;
+        return <Badge variant="outline" className="text-[10px] text-brand-600 border-brand-500/40">Ready to Learn</Badge>;
       case "locked":
       default:
         return <Badge variant="secondary" className="text-[10px]">Locked</Badge>;
@@ -261,13 +261,13 @@ export default function QuestMapPage({
           <div className="flex items-center gap-2">
             <Link
               href={`/classes/${classId}`}
-              className="text-xs text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1"
+              className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
             >
               ← Back to Course Overview
             </Link>
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white mt-1 flex items-center gap-2.5">
-            <Compass className="h-7 w-7 text-teal-600 dark:text-teal-400" />
+            <Compass className="h-7 w-7 text-brand-600 dark:text-brand-400" />
             Curriculum Quest Map
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -308,11 +308,11 @@ export default function QuestMapPage({
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
                   viewMode === "proposals"
-                    ? "bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 shadow-sm font-bold"
+                    ? "bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm font-bold"
                     : "text-slate-500 hover:text-slate-900"
                 )}
               >
-                <Sparkles className="h-3.5 w-3.5 text-teal-600" />
+                <Sparkles className="h-3.5 w-3.5 text-brand-600" />
                 Proposals ({proposals.filter((p) => p.status === "pending").length})
               </button>
             )}
@@ -336,15 +336,15 @@ export default function QuestMapPage({
 
       {/* Pacing & AI Teacher Note Card */}
       {teacherNote && (
-        <Card className="border-teal-500/20 bg-teal-500/[0.03] dark:bg-teal-500/[0.05]">
+        <Card className="border-brand-500/20 bg-brand-500/[0.03] dark:bg-brand-500/[0.05]">
           <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="h-9 w-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0 mt-0.5">
+              <div className="h-9 w-9 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center shrink-0 mt-0.5">
                 <BrainCircuit className="h-5 w-5" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-teal-800 dark:text-teal-300 uppercase tracking-wider">
+                  <span className="text-xs font-bold text-brand-800 dark:text-brand-300 uppercase tracking-wider">
                     Today&apos;s Teacher Dispatch
                   </span>
                   {pacing && (
@@ -446,7 +446,7 @@ export default function QuestMapPage({
                     className={cn(
                       "p-4 rounded-xl border transition-all cursor-pointer relative",
                       isSelected
-                        ? "border-teal-500 shadow-md ring-2 ring-teal-500/20"
+                        ? "border-brand-500 shadow-md ring-2 ring-brand-500/20"
                         : "border-slate-200 dark:border-slate-800 hover:border-slate-300",
                       node.status === "locked"
                         ? "bg-slate-50 dark:bg-slate-900/40 opacity-70"
@@ -456,7 +456,7 @@ export default function QuestMapPage({
                     )}
                   >
                     {isFocus && (
-                      <span className="absolute -top-2.5 left-4 px-2 py-0.5 rounded-full bg-teal-600 text-white text-[10px] font-bold tracking-wide flex items-center gap-1 shadow-sm">
+                      <span className="absolute -top-2.5 left-4 px-2 py-0.5 rounded-full bg-brand-600 text-white text-[10px] font-bold tracking-wide flex items-center gap-1 shadow-sm">
                         <Zap className="h-3 w-3" /> Recommended Today
                       </span>
                     )}
@@ -471,7 +471,7 @@ export default function QuestMapPage({
                               : node.status === "learning"
                               ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
                               : node.status === "available"
-                              ? "bg-teal-500/10 text-teal-600 dark:text-teal-400"
+                              ? "bg-brand-500/10 text-brand-600 dark:text-brand-400"
                               : "bg-slate-200/50 dark:bg-slate-800 text-slate-400"
                           )}
                         >
@@ -506,7 +506,7 @@ export default function QuestMapPage({
                           <div
                             className={cn(
                               "h-full rounded-full",
-                              node.pL >= 95 ? "bg-emerald-500" : node.pL >= 40 ? "bg-amber-500" : "bg-teal-500"
+                              node.pL >= 95 ? "bg-emerald-500" : node.pL >= 40 ? "bg-amber-500" : "bg-brand-500"
                             )}
                             style={{ width: `${Math.min(100, Math.max(5, node.pL))}%` }}
                           />
@@ -548,7 +548,7 @@ export default function QuestMapPage({
                       <span className="font-semibold text-slate-600 dark:text-slate-300">
                         Mastery score
                       </span>
-                      <span className="font-bold text-teal-600 dark:text-teal-400">
+                      <span className="font-bold text-brand-600 dark:text-brand-400">
                         {selectedNode.pL}%
                       </span>
                     </div>
@@ -560,7 +560,7 @@ export default function QuestMapPage({
                             ? "bg-emerald-500"
                             : selectedNode.pL >= 40
                             ? "bg-amber-500"
-                            : "bg-teal-500"
+                            : "bg-brand-500"
                         )}
                         style={{ width: `${selectedNode.pL}%` }}
                       />
@@ -619,7 +619,7 @@ export default function QuestMapPage({
                       className="w-full block"
                     >
                       <Button size="sm" className="w-full text-xs" variant="ghost">
-                        <BrainCircuit className="h-3.5 w-3.5 mr-1.5 text-teal-600" />
+                        <BrainCircuit className="h-3.5 w-3.5 mr-1.5 text-brand-600" />
                         Ask AI Socratic Tutor
                       </Button>
                     </Link>
@@ -640,7 +640,7 @@ export default function QuestMapPage({
           {nodes.map((node) => (
             <Card key={node.id} className="p-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-lg bg-teal-500/10 text-teal-600 flex items-center justify-center font-bold text-xs">
+                <div className="h-8 w-8 rounded-lg bg-brand-500/10 text-brand-600 flex items-center justify-center font-bold text-xs">
                   {node.order + 1}
                 </div>
                 <div>
@@ -655,7 +655,7 @@ export default function QuestMapPage({
               </div>
 
               <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-teal-600">{node.pL}% P(L)</span>
+                <span className="text-xs font-bold text-brand-600">{node.pL}% P(L)</span>
                 <Link href={`/classes/${classId}/topics/${node.id}`}>
                   <Button size="sm" variant="outline" className="text-xs">
                     Open <ExternalLink className="h-3.5 w-3.5 ml-1" />
@@ -678,7 +678,7 @@ export default function QuestMapPage({
             {proposals.some((p) => p.status === "pending") && (
               <Button
                 size="sm"
-                className="text-xs bg-teal-600 hover:bg-teal-700 text-white"
+                className="text-xs bg-brand-600 hover:bg-brand-700 text-white"
                 onClick={() => {
                   const pendingProp = proposals.find((p) => p.status === "pending");
                   if (pendingProp) handleApplyProposal(pendingProp.id as string);
@@ -710,7 +710,7 @@ export default function QuestMapPage({
                         return (
                           <div key={(op.id as string) || oIdx} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 text-xs space-y-1">
                             <div className="flex items-center justify-between font-bold">
-                              <span className="uppercase text-[10px] text-teal-600 dark:text-teal-400 tracking-wider">
+                              <span className="uppercase text-[10px] text-brand-600 dark:text-brand-400 tracking-wider">
                                 {op.type as string}
                               </span>
                               <span className="text-slate-400 font-normal">
@@ -732,7 +732,7 @@ export default function QuestMapPage({
                       <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleDismissProposal(prop.id as string)}>
                         Dismiss
                       </Button>
-                      <Button size="sm" className="text-xs bg-teal-600 hover:bg-teal-700 text-white" onClick={() => handleApplyProposal(prop.id as string)}>
+                      <Button size="sm" className="text-xs bg-brand-600 hover:bg-brand-700 text-white" onClick={() => handleApplyProposal(prop.id as string)}>
                         Apply to Course Map
                       </Button>
                     </div>

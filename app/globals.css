@@ -5,16 +5,16 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Sunroot design system: "Sun on Ink"
- * Premium and editorial, in the spirit of Hiro and Phenomenon: near-black ink (dark) or warm paper (light), hairline borders,
- * one saturated accent, big confident type, restrained motion. Colour carries meaning (60 / 30 / 10):
- *   - Ink and paper neutrals (60%): the surface. Ink has a faint green undertone, paper is warm. (the "slate" scale)
- *   - Text and structure (30%): near-white on ink, near-black on paper, hairlines between everything.
- *   - Sun orange (10%): THE action colour: primary buttons, links, the active item, focus. Used sparingly so it always means "do this".
- *     (the "teal" scale. The class name is historical; its colours are Sun orange.)
- *   - Root green: growth only: mastery, correct, progress. Never used for buttons. (emerald + the --mastery-* tokens)
- *   - Gold/amber: energy and caution: streaks, XP, warnings. (the "amber" scale)
- * Type: Instrument Sans for everything, Instrument Serif italic for one emphasised word in a headline, IBM Plex Mono for labels and numbers.
+ * Sunroot colour system (see docs/design/DESIGN-SYSTEM.md for the reasoning)
+ *   - Neutrals, ~60%: ink-navy and cool paper, tinted toward the brand hue so everything feels related. (slate)
+ *   - Brand blue, ~30%: the action and knowledge colour: buttons, links, selection, focus, mastery. Blue supports calm, sustained attention,
+ *     which is why it leads in learning and productivity tools. (brand)
+ *   - Reward gold, ~10%: motivation only: streaks, XP, badges. Never a button. (amber)
+ *   - Teal-green: success and confirmation: correct answers, saved, done. (teal)
+ *   - Coral/red: needs attention or error, always paired with an icon or label. (rose)
+ *   Data (the mastery heatmap) is encoded by LIGHTNESS of one hue plus a pattern, with a warm colour for "needs work" (blue vs orange is
+ *   the safest pairing for colour-blind readers), and always with a number.
+ * Type: Instrument Sans for everything, Instrument Serif italic for one emphasised word, IBM Plex Mono for labels and numbers.
  */
 @theme {
   --font-sans: var(--font-instrument-sans), "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
@@ -27,96 +27,143 @@
   --default-transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Electric Cyan-Teal (Sunroot Logo & Brand Primary) */
-  --color-teal-50: #FFF5EC;
-  --color-teal-100: #FFE6D0;
-  --color-teal-200: #FFCBA0;
-  --color-teal-300: #FFAA6B;
-  --color-teal-400: #FF8D3D;
-  --color-teal-500: #FF7A1A;
-  --color-teal-600: #CC5208;
-  --color-teal-700: #A84407;
-  --color-teal-800: #85390C;
-  --color-teal-900: #6B3010;
-  --color-teal-950: #3A1805;
+  /* Brand blue: the action and knowledge colour */
+  --color-brand-50: #F0F4FF;
+  --color-brand-100: #E1E9FF;
+  --color-brand-200: #C5D3FF;
+  --color-brand-300: #9DB4FF;
+  --color-brand-400: #6F8DFF;
+  --color-brand-500: #4A6CF7;
+  --color-brand-600: #3552E0;
+  --color-brand-700: #2A41B8;
+  --color-brand-800: #243792;
+  --color-brand-900: #1F2F73;
+  --color-brand-950: #121B45;
+
+  /* Teal-green: success and confirmation only */
+  --color-teal-50: #E6F7F4;
+  --color-teal-100: #C2EDE6;
+  --color-teal-200: #8FDCD0;
+  --color-teal-300: #55C5B5;
+  --color-teal-400: #2AAE9C;
+  --color-teal-500: #12A594;
+  --color-teal-600: #0E8577;
+  --color-teal-700: #0B6B61;
+  --color-teal-800: #0A544D;
+  --color-teal-900: #093F3A;
+  --color-teal-950: #04211F;
 
   /* Crisp Sophisticated Slate (High Contrast, No Murky Tint) */
-  --color-slate-50: #F5F3EE;
-  --color-slate-100: #ECE9E2;
-  --color-slate-200: #DEDBD1;
-  --color-slate-300: #C7C4B8;
-  --color-slate-400: #9A9D93;
-  --color-slate-500: #6D736C;
-  --color-slate-600: #4F5651;
-  --color-slate-700: #363D3A;
-  --color-slate-800: #1E2625;
-  --color-slate-900: #121918;
-  --color-slate-950: #080C0B;
+  --color-slate-50: #F6F7FB;
+  --color-slate-100: #EDEFF6;
+  --color-slate-200: #DFE3EE;
+  --color-slate-300: #C8CEDF;
+  --color-slate-400: #98A1BB;
+  --color-slate-500: #69728E;
+  --color-slate-600: #4B5470;
+  --color-slate-700: #343C55;
+  --color-slate-800: #1F2538;
+  --color-slate-900: #141829;
+  --color-slate-950: #0B0E1A;
 
   /* Solar Gold / Amber (Energy, Streaks & Trophies) */
-  --color-amber-50: #FFFBEB;
-  --color-amber-100: #FEF3C7;
-  --color-amber-200: #FCE49A;
-  --color-amber-300: #F8D064;
-  --color-amber-400: #F2B632;
-  --color-amber-500: #E2A11B;
-  --color-amber-600: #B97F0E;
-  --color-amber-700: #926209;
-  --color-amber-800: #744E0B;
-  --color-amber-900: #5F410D;
+  --color-amber-50: #FFF8E6;
+  --color-amber-100: #FEEDB8;
+  --color-amber-200: #FCDD82;
+  --color-amber-300: #F9C94D;
+  --color-amber-400: #F5B83A;
+  --color-amber-500: #E8A11C;
+  --color-amber-600: #C27F0E;
+  --color-amber-700: #9A6209;
+  --color-amber-800: #794D0B;
+  --color-amber-900: #613F0D;
   --color-amber-950: #362305;
+}
+
+/*
+ * The semantic classes the whole app uses (bg-card, border-border, text-muted-foreground, bg-background ...) read the CSS variables
+ * below. Tailwind v4 only generates a utility when its colour is declared in the theme, so each one is declared here, once.
+ * Without this block those classes produced nothing: cards had no background and every border fell back to full-contrast black/white.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 @layer base {
   :root {
-    --background: #F5F3EE;
-    --foreground: #121918;
-    --card: #FBFAF6;
-    --card-foreground: #121918;
-    --popover: #FBFAF6;
-    --popover-foreground: #121918;
-    --primary: #CC5208;
+    --background: #F6F7FB;
+    --foreground: #141829;
+    --card: #FFFFFF;
+    --card-foreground: #141829;
+    --popover: #FFFFFF;
+    --popover-foreground: #141829;
+    --primary: #3552E0;
     --primary-foreground: #FFFFFF;
-    --secondary: #ECE9E2;
-    --secondary-foreground: #121918;
-    --muted: #ECE9E2;
-    --muted-foreground: #5C635E;
-    --accent: #F2B632;
-    --accent-foreground: #121918;
-    --amber-accent: #B97F0E;
-    --border: #DDD9CE;
-    --input: #C7C4B8;
-    --ring: #CC5208;
+    --secondary: #EDEFF6;
+    --secondary-foreground: #141829;
+    --muted: #EDEFF6;
+    --muted-foreground: #5A6482;
+    --accent: #F5B83A;
+    --accent-foreground: #141829;
+    --amber-accent: #C27F0E;
+    --border: #DFE3EE;
+    --input: #C8CEDF;
+    --ring: #3552E0;
     --radius: 0.375rem;
 
-    --mastery-unmastered: #C2362B;
-    --mastery-learning: #B97F0E;
-    --mastery-mastered: #1F7A52;
+    --mastery-unmastered: #D9482B;
+    --mastery-learning: #C27F0E;
+    --mastery-mastered: #3552E0;
   }
 
   .dark {
-    --background: #080C0B;
-    --foreground: #ECF1EE;
-    --card: #0F1514;
-    --card-foreground: #ECF1EE;
-    --popover: #151C1B;
-    --popover-foreground: #ECF1EE;
-    --primary: #FF7A1A;
-    --primary-foreground: #080C0B;
-    --secondary: #1E2625;
-    --secondary-foreground: #ECF1EE;
-    --muted: #121918;
-    --muted-foreground: #8A9692;
-    --accent: #F2B632;
-    --accent-foreground: #080C0B;
-    --amber-accent: #F2B632;
-    --border: #1F2827;
-    --input: #2A3534;
-    --ring: #FF8D3D;
+    --background: #0B0E1A;
+    --foreground: #E7EAF5;
+    --card: #121629;
+    --card-foreground: #E7EAF5;
+    --popover: #181D33;
+    --popover-foreground: #E7EAF5;
+    --primary: #4A6CF7;
+    --primary-foreground: #FFFFFF;
+    --secondary: #1F2538;
+    --secondary-foreground: #E7EAF5;
+    --muted: #151A2E;
+    --muted-foreground: #98A1BB;
+    --accent: #F5B83A;
+    --accent-foreground: #0B0E1A;
+    --amber-accent: #F5B83A;
+    --border: #1F2538;
+    --input: #2B3350;
+    --ring: #6F8DFF;
 
-    --mastery-unmastered: #F97066;
-    --mastery-learning: #F2B632;
-    --mastery-mastered: #3FB27F;
+    --mastery-unmastered: #F0795E;
+    --mastery-learning: #F5B83A;
+    --mastery-mastered: #6F8DFF;
   }
+}
+
+*,
+::after,
+::before,
+::backdrop,
+::file-selector-button {
+  border-color: var(--border);
 }
 
 body {
@@ -146,7 +193,7 @@ h1, h2, h3 { text-wrap: balance; }
   box-shadow: none;
 }
 
-::selection { background: #FF7A1A; color: #080C0B; }
+::selection { background: #3552E0; color: #FFFFFF; }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
@@ -162,13 +209,6 @@ h1, h2, h3 { text-wrap: balance; }
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
-}
-
-/* White text on Sun orange fails contrast on the dark surface: any orange fill uses ink text there. */
-.dark [class~="bg-teal-500"],
-.dark [class~="dark:bg-teal-500"],
-.dark [class~="bg-teal-400"] {
-  color: #080C0B;
 }
 
 /* Accessible focus ring */
@@ -267,7 +307,7 @@ h1, h2, h3 { text-wrap: balance; }
 }
 .dark .text-gradient-brand,
 .dark .text-gradient-teal {
-  color: #FF8D3D;
+  color: #9DB4FF;
 }
 .text-gradient-amber {
   color: var(--amber-accent);
@@ -298,7 +338,7 @@ h1, h2, h3 { text-wrap: balance; }
   inset: 0;
   border-radius: inherit;
   padding: 1px;
-  background: conic-gradient(from var(--edge-angle), transparent 0 72%, rgb(255 138 54 / 0.9) 86%, transparent 100%);
+  background: conic-gradient(from var(--edge-angle), transparent 0 72%, rgb(111 141 255 / 0.9) 86%, transparent 100%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -372,4 +412,12 @@ h1, h2, h3 { text-wrap: balance; }
   .pipe-step { animation: none; opacity: 1; }
   .pipe-bar { animation: none; transform: none; }
   .pipe-dot { animation: none; opacity: 1; }
+}
+
+/* "Needs work" heatmap cells carry a diagonal hatch, so the meaning survives for colour-blind readers and in greyscale */
+.cell-hatch {
+  background-image: repeating-linear-gradient(135deg, rgb(0 0 0 / 0.10) 0 2px, transparent 2px 6px);
+}
+.dark .cell-hatch {
+  background-image: repeating-linear-gradient(135deg, rgb(255 255 255 / 0.12) 0 2px, transparent 2px 6px);
 }

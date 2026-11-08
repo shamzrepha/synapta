@@ -80,7 +80,7 @@ export function WeeklyBoard() {
           </p>
           <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {winners.map((w) => (
-              <li key={w.uid} className={cn("flex items-center gap-2 rounded-xl px-3 py-2 bg-white/60 dark:bg-slate-900/60", w.isMe && "ring-2 ring-teal-500")}>
+              <li key={w.uid} className={cn("flex items-center gap-2 rounded-xl px-3 py-2 bg-white/60 dark:bg-slate-900/60", w.isMe && "ring-2 ring-brand-500")}>
                 <span className="text-xl">{MEDAL[w.rank - 1] || "🏆"}</span>
                 <Avatar name={w.displayName} photoURL={w.photoURL} seed={w.uid} size={32} />
                 <div className="min-w-0 flex-1">
@@ -99,10 +99,10 @@ export function WeeklyBoard() {
         <Card className="overflow-hidden">
           <ul className="divide-y divide-slate-100 dark:divide-slate-800">
             {rows.map((r) => (
-              <li key={r.uid} className={cn("flex items-center gap-3 px-4 py-2.5", r.isMe && "bg-teal-500/10")}>
+              <li key={r.uid} className={cn("flex items-center gap-3 px-4 py-2.5", r.isMe && "bg-brand-500/10")}>
                 <span className="w-7 text-center text-sm font-bold text-slate-500">{MEDAL[r.rank - 1] || r.rank}</span>
                 <Avatar name={r.displayName} photoURL={r.photoURL} seed={r.uid} size={36} level={r.level} />
-                <p className={cn("min-w-0 flex-1 text-sm font-semibold truncate", r.isMe && "text-teal-700 dark:text-teal-300")}>
+                <p className={cn("min-w-0 flex-1 text-sm font-semibold truncate", r.isMe && "text-brand-700 dark:text-brand-300")}>
                   {r.isMe ? `${r.displayName} (you)` : r.displayName}
                 </p>
                 <span className="text-sm font-bold tabular-nums">{formatNumber(r.xp)} XP</span>
@@ -114,8 +114,8 @@ export function WeeklyBoard() {
 
       {data.me ? (
         data.me.rank > 50 || !rows.some((r) => r.isMe) ? (
-          <Card className="flex items-center gap-3 px-4 py-3 border-teal-500/50">
-            <span className="text-sm font-extrabold text-teal-600">#{data.me.rank}</span>
+          <Card className="flex items-center gap-3 px-4 py-3 border-brand-500/50">
+            <span className="text-sm font-extrabold text-brand-600">#{data.me.rank}</span>
             <p className="flex-1 text-sm font-semibold">Your rank this week</p>
             <span className="text-sm font-bold">{formatNumber(data.me.xp)} XP</span>
           </Card>

@@ -315,7 +315,7 @@ export default function GroupPage() {
                   v{baseVersion}
                   {d.notes.updatedByName ? ` · last by ${d.notes.updatedByName}` : ""}
                 </p>
-                <button className="text-xs text-teal-700 dark:text-teal-400 min-h-9 px-2" onClick={() => setPreview((p) => !p)}>
+                <button className="text-xs text-brand-700 dark:text-brand-400 min-h-9 px-2" onClick={() => setPreview((p) => !p)}>
                   {preview ? "Edit" : "Preview"}
                 </button>
               </div>
@@ -363,7 +363,7 @@ export default function GroupPage() {
                       setD((cur) => (cur ? { ...cur, goals: cur.goals.map((x) => (x.id === g.id ? { ...x, done: !x.done } : x)) } : cur));
                       await act({ action: "goal_toggle", goalId: g.id });
                     }}
-                    className={cn("h-6 w-6 rounded-md border-2 flex items-center justify-center shrink-0", g.done ? "bg-teal-600 border-teal-600 text-white" : "border-slate-300 dark:border-slate-600")}
+                    className={cn("h-6 w-6 rounded-md border-2 flex items-center justify-center shrink-0", g.done ? "bg-brand-600 border-brand-600 text-white" : "border-slate-300 dark:border-slate-600")}
                   >
                     {g.done && <Check className="h-4 w-4" />}
                   </button>

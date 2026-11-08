@@ -31,7 +31,7 @@ export function MasteryRadar({ data = [] }: MasteryRadarProps) {
       <Card className="border-slate-200 dark:border-slate-800">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center">
               <BrainCircuit className="h-4 w-4" />
             </div>
             <div>
@@ -44,7 +44,7 @@ export function MasteryRadar({ data = [] }: MasteryRadarProps) {
         </CardHeader>
         <CardContent className="pt-6 pb-8">
           <div className="flex flex-col items-center justify-center text-center space-y-3 p-6 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-dashed border-slate-200 dark:border-slate-800">
-            <div className="h-12 w-12 rounded-full bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400">
+            <div className="h-12 w-12 rounded-full bg-brand-500/10 flex items-center justify-center text-brand-600 dark:text-brand-400">
               <BrainCircuit className="h-6 w-6" />
             </div>
             <div>
@@ -70,7 +70,7 @@ export function MasteryRadar({ data = [] }: MasteryRadarProps) {
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+            <div className="h-8 w-8 rounded-lg bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center">
               <BrainCircuit className="h-4 w-4" />
             </div>
             <div>
@@ -120,7 +120,7 @@ export function MasteryRadar({ data = [] }: MasteryRadarProps) {
                     return (
                       <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-800 dark:bg-slate-900 text-xs space-y-1">
                         <p className="font-bold text-slate-900 dark:text-slate-100">{item.fullName}</p>
-                        <p className="text-teal-600 dark:text-teal-400 font-semibold">
+                        <p className="text-brand-600 dark:text-brand-400 font-semibold">
                           Mastery P(L): {item.pL.toFixed(1)}%
                         </p>
                         <p className="text-[10px] text-slate-500">

@@ -12,9 +12,9 @@ import { formatCountdown, useNow, type GameState } from "./use-game";
 export function LevelCard({ game }: { game: GameState }) {
   const l = game.level;
   return (
-    <Card className="p-5 overflow-hidden relative border border-border/70 hover:border-teal-500/40 transition-all duration-300">
+    <Card className="p-5 overflow-hidden relative border border-border/70 hover:border-brand-500/40 transition-all duration-300">
       <div className="flex items-center gap-4 relative">
-        <div className="h-16 w-16 shrink-0 rounded-2xl bg-teal-600 text-white flex flex-col items-center justify-center shadow-md">
+        <div className="h-16 w-16 shrink-0 rounded-2xl bg-brand-600 text-white flex flex-col items-center justify-center shadow-md">
           <span className="text-[10px] font-mono font-bold uppercase tracking-wider opacity-90">Level</span>
           <span className="font-display text-2xl font-black leading-none">{l.level}</span>
         </div>
@@ -26,7 +26,7 @@ export function LevelCard({ game }: { game: GameState }) {
           </p>
           <div className="mt-2.5 h-2 rounded-full bg-muted overflow-hidden">
             <div
-              className="h-full rounded-full bg-teal-600 transition-all duration-700 shadow-xs"
+              className="h-full rounded-full bg-brand-600 transition-all duration-700 shadow-xs"
               style={{ width: `${Math.round(l.progress * 100)}%` }}
             />
           </div>
@@ -48,7 +48,7 @@ export function LevelCard({ game }: { game: GameState }) {
 export function QuestsCard({ game }: { game: GameState }) {
   const done = game.quests.filter((q) => q.done).length;
   return (
-    <Card className="p-5 space-y-3 border border-border/70 hover:border-teal-500/40 transition-all duration-300">
+    <Card className="p-5 space-y-3 border border-border/70 hover:border-brand-500/40 transition-all duration-300">
       <div className="flex items-center justify-between">
         <p className="font-display font-bold text-foreground">Daily Quests</p>
         <span className="text-xs font-semibold text-muted-foreground">{done}/{game.quests.length} done</span>
@@ -81,7 +81,7 @@ export function LeagueCard({ game }: { game: GameState }) {
   const s = game.league.standing;
   return (
     <Link href="/leaderboard" className="block group">
-      <Card className="p-5 space-y-2 border border-border/70 group-hover:border-teal-500/50 group-hover:-translate-y-0.5 transition-all duration-300">
+      <Card className="p-5 space-y-2 border border-border/70 group-hover:border-brand-500/50 group-hover:-translate-y-0.5 transition-all duration-300">
         <div className="flex items-center justify-between">
           <p className="font-display font-bold flex items-center gap-2 text-foreground">
             <span className="text-2xl">{game.league.emoji}</span> {game.league.name} League

@@ -50,7 +50,7 @@ function StudentSets() {
         <p className="text-sm text-slate-500">Nothing to answer right now.</p>
       ) : (
         sets.map((s) => (
-          <Link key={s.id} href={`/teach/grading/take/${s.id}`} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 hover:border-teal-400 dark:border-slate-800 dark:bg-slate-900">
+          <Link key={s.id} href={`/teach/grading/take/${s.id}`} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 hover:border-brand-400 dark:border-slate-800 dark:bg-slate-900">
             <span>
               <span className="block font-semibold text-slate-900 dark:text-white">{s.title}</span>
               <span className="text-xs text-slate-500">{s.classTitle}</span>

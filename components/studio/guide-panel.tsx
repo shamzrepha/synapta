@@ -75,7 +75,7 @@ export function GuidePanel({ designId, spec, progress, live, gaps, mode, onMode,
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-xl border border-slate-200 dark:border-slate-800 p-0.5 text-xs font-semibold" role="tablist" aria-label="Learning mode">
           {(["learn", "practice", "challenge"] as GuideMode[]).map((m) => (
-            <button key={m} type="button" disabled={lockedMode} onClick={() => onMode(m)} className={cn("px-3 py-1.5 rounded-lg capitalize", mode === m ? "bg-teal-600 text-white" : "text-slate-500")}>
+            <button key={m} type="button" disabled={lockedMode} onClick={() => onMode(m)} className={cn("px-3 py-1.5 rounded-lg capitalize", mode === m ? "bg-brand-600 text-white" : "text-slate-500")}>
               {m}
             </button>
           ))}
@@ -94,7 +94,7 @@ export function GuidePanel({ designId, spec, progress, live, gaps, mode, onMode,
             </span>
           </div>
           <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 mb-3 overflow-hidden">
-            <div className="h-full bg-teal-500 transition-all" style={{ width: `${(done / Math.max(1, spec.steps.length)) * 100}%` }} />
+            <div className="h-full bg-brand-500 transition-all" style={{ width: `${(done / Math.max(1, spec.steps.length)) * 100}%` }} />
           </div>
           <ol className="space-y-2">
             {spec.steps.map((s, i) => {
@@ -159,12 +159,12 @@ export function GuidePanel({ designId, spec, progress, live, gaps, mode, onMode,
 
       <div className="rounded-xl border border-slate-200 dark:border-slate-800">
         <p className="px-3 pt-2 text-sm font-bold flex items-center gap-1.5">
-          <Sparkles className="h-4 w-4 text-teal-600" /> AI tutor
+          <Sparkles className="h-4 w-4 text-brand-600" /> AI tutor
         </p>
         <div className="max-h-80 overflow-y-auto px-3 py-2 space-y-2">
           {msgs.length === 0 && <p className="text-xs text-slate-500">Ask about your wiring, code, gears or forces. The tutor sees your current design and test results.</p>}
           {msgs.map((m, i) => (
-            <div key={i} className={cn("rounded-xl px-3 py-2 text-sm", m.role === "user" ? "bg-teal-600 text-white ml-8" : "bg-slate-50 dark:bg-slate-900 mr-4")}>
+            <div key={i} className={cn("rounded-xl px-3 py-2 text-sm", m.role === "user" ? "bg-brand-600 text-white ml-8" : "bg-slate-50 dark:bg-slate-900 mr-4")}>
               {m.role === "user" ? m.text : <MarkdownRenderer content={m.text} />}
             </div>
           ))}
@@ -182,7 +182,7 @@ export function GuidePanel({ designId, spec, progress, live, gaps, mode, onMode,
           className="flex gap-2 p-2 border-t border-slate-100 dark:border-slate-800"
         >
           <input value={input} onChange={(e) => setInput(e.target.value)} maxLength={2000} placeholder="Why won't my LED light?" className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm" />
-          <button type="submit" disabled={asking || !input.trim()} aria-label="Ask" className="h-10 w-10 rounded-xl bg-teal-600 text-white flex items-center justify-center disabled:opacity-40">
+          <button type="submit" disabled={asking || !input.trim()} aria-label="Ask" className="h-10 w-10 rounded-xl bg-brand-600 text-white flex items-center justify-center disabled:opacity-40">
             <Send className="h-4 w-4" />
           </button>
         </form>

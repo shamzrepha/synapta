@@ -27,7 +27,7 @@ export function UsageStrip({ features }: { features: Array<{ key: FeatureKey; la
   return (
     <p className="text-xs text-slate-500">
       {me.plan.label} plan this month: {parts.join(" · ")}.{" "}
-      {me.plan.id === "free" && <Link href="/plans" className="font-semibold text-teal-700 dark:text-teal-300 underline">Upgrade</Link>}
+      {me.plan.id === "free" && <Link href="/plans" className="font-semibold text-brand-700 dark:text-brand-300 underline">Upgrade</Link>}
     </p>
   );
 }

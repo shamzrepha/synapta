@@ -36,7 +36,7 @@ function TaggedText({ text, onTag }: { text: string; onTag: (t: string) => void 
     <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">
       {parts.map((p, i) =>
         i % 2 === 1 ? (
-          <button key={i} type="button" onClick={() => onTag(p.slice(1).toLowerCase())} className="font-semibold text-teal-600 dark:text-teal-400">
+          <button key={i} type="button" onClick={() => onTag(p.slice(1).toLowerCase())} className="font-semibold text-brand-600 dark:text-brand-400">
             {p}
           </button>
         ) : (
@@ -182,7 +182,7 @@ export function CommunityPostCard({
               placeholder="Write a comment"
               className="h-10 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
             />
-            <button onClick={addComment} disabled={busy || !draft.trim()} className="h-10 rounded-xl bg-teal-600 px-3 text-sm font-semibold text-white disabled:opacity-50">
+            <button onClick={addComment} disabled={busy || !draft.trim()} className="h-10 rounded-xl bg-brand-600 px-3 text-sm font-semibold text-white disabled:opacity-50">
               Send
             </button>
           </div>

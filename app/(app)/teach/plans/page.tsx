@@ -165,7 +165,7 @@ export default function LessonPlansPage() {
                 <button
                   key={p.id}
                   onClick={() => setOpen(p)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left hover:border-teal-400 dark:border-slate-800 dark:bg-slate-900"
+                  className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400 dark:border-slate-800 dark:bg-slate-900"
                 >
                   <span>
                     <span className="block font-semibold text-slate-900 dark:text-white">{p.title}</span>

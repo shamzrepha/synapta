@@ -130,8 +130,8 @@ function Thread({ q, onChanged }: { q: Question; onChanged: () => void }) {
             </div>
             <p className="mt-0.5 whitespace-pre-wrap break-words text-sm">{r.text}</p>
             <div className="mt-1.5 flex flex-wrap items-center gap-1 text-xs text-slate-500">
-              <button type="button" onClick={() => upvote(r)} disabled={r.mine} className={cn("flex min-h-[36px] items-center gap-1 rounded-lg px-2 hover:bg-slate-200/70 dark:hover:bg-slate-800", r.upvotedByMe && "font-semibold text-teal-600")}>
-                <ArrowBigUp className={cn("h-4 w-4", r.upvotedByMe && "fill-teal-500")} /> {r.upvoteCount}
+              <button type="button" onClick={() => upvote(r)} disabled={r.mine} className={cn("flex min-h-[36px] items-center gap-1 rounded-lg px-2 hover:bg-slate-200/70 dark:hover:bg-slate-800", r.upvotedByMe && "font-semibold text-brand-600")}>
+                <ArrowBigUp className={cn("h-4 w-4", r.upvotedByMe && "fill-brand-500")} /> {r.upvoteCount}
               </button>
               {q.mine && !r.mine && (
                 <button type="button" onClick={() => accept(r)} className="flex min-h-[36px] items-center gap-1 rounded-lg px-2 font-semibold text-emerald-600 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/30">
@@ -151,7 +151,7 @@ function Thread({ q, onChanged }: { q: Question; onChanged: () => void }) {
         <Textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={ASK_LIMITS.replyMax} placeholder="Write an answer…" rows={2} />
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex min-h-[36px] items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-            <input type="checkbox" checked={anon} onChange={(e) => setAnon(e.target.checked)} className="h-4 w-4 accent-teal-600" /> Reply anonymously
+            <input type="checkbox" checked={anon} onChange={(e) => setAnon(e.target.checked)} className="h-4 w-4 accent-brand-600" /> Reply anonymously
           </label>
           <Button size="sm" className="ml-auto" onClick={send} isLoading={busy} disabled={text.trim().length < ASK_LIMITS.replyMin}>Reply</Button>
         </div>
@@ -194,8 +194,8 @@ function QuestionCard({ q, onChanged, isAdmin }: { q: Question; onChanged: () =>
       {isAdmin && q.authorUid && <p className="mt-1 text-[11px] text-amber-600">Admin view: author {q.authorUid}</p>}
       <p className="mt-2 whitespace-pre-wrap break-words text-sm">{q.text}</p>
       <div className="mt-2 flex flex-wrap items-center gap-1 text-xs text-slate-500">
-        <button type="button" onClick={upvote} disabled={q.mine} className={cn("flex min-h-[36px] items-center gap-1 rounded-lg px-2 hover:bg-slate-100 dark:hover:bg-slate-800", q.upvotedByMe && "font-semibold text-teal-600")}>
-          <ArrowBigUp className={cn("h-4 w-4", q.upvotedByMe && "fill-teal-500")} /> {q.upvoteCount}
+        <button type="button" onClick={upvote} disabled={q.mine} className={cn("flex min-h-[36px] items-center gap-1 rounded-lg px-2 hover:bg-slate-100 dark:hover:bg-slate-800", q.upvotedByMe && "font-semibold text-brand-600")}>
+          <ArrowBigUp className={cn("h-4 w-4", q.upvotedByMe && "fill-brand-500")} /> {q.upvoteCount}
         </button>
         <button type="button" onClick={() => setOpen((o) => !o)} className="flex min-h-[36px] items-center gap-1 rounded-lg px-2 hover:bg-slate-100 dark:hover:bg-slate-800">
           <MessageCircle className="h-4 w-4" /> {q.answerCount} {q.answerCount === 1 ? "answer" : "answers"}
@@ -269,7 +269,7 @@ export function AskBoard({ isAdmin }: { isAdmin: boolean }) {
       </Card>
       <div className="flex gap-2">
         {(["new", "top", "open"] as const).map((s) => (
-          <button key={s} type="button" onClick={() => setSort(s)} className={cn("min-h-[36px] rounded-full border px-3.5 text-xs font-semibold", sort === s ? "border-teal-600 bg-teal-600 text-white" : "border-slate-300 dark:border-slate-700")}>
+          <button key={s} type="button" onClick={() => setSort(s)} className={cn("min-h-[36px] rounded-full border px-3.5 text-xs font-semibold", sort === s ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300 dark:border-slate-700")}>
             {s === "new" ? "New" : s === "top" ? "Top" : "Unanswered"}
           </button>
         ))}

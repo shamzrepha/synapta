@@ -54,7 +54,7 @@ function Meter({ label, used, limit }: { label: string; used: number; limit: num
         <span className="font-mono text-slate-500">{limit === null ? `${used} (no cap)` : limit === 0 ? "not included" : `${used} / ${limit}`}</span>
       </div>
       <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
-        <div className={cn("h-full rounded-full", pct >= 90 ? "bg-rose-500" : pct >= 70 ? "bg-amber-500" : "bg-teal-500")} style={{ width: `${pct}%` }} />
+        <div className={cn("h-full rounded-full", pct >= 90 ? "bg-rose-500" : pct >= 70 ? "bg-amber-500" : "bg-brand-500")} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -123,7 +123,7 @@ export default function PlansPage() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-mono tracking-widest text-teal-600">PLANS & USAGE</p>
+        <p className="text-xs font-mono tracking-widest text-brand-600">PLANS & USAGE</p>
         <h1 className="text-2xl font-extrabold">You&apos;re on {me.plan.label} <span className="text-base font-semibold text-slate-400">{me.plan.codename}</span></h1>
         <p className="text-sm text-slate-500">
           {paid ? `Active until ${new Date(me.planExpiresAt!).toLocaleDateString()}${me.grant ? `, ${GRANT_LABEL[me.grant.kind] || ""}` : ""}.` : "Everything your teachers publish is free. Your own AI use has a monthly allowance."}
@@ -131,7 +131,7 @@ export default function PlansPage() {
           {me.isAdmin && (
             <>
               {" "}
-              <Link href="/admin/billing" className="font-semibold text-teal-700 dark:text-teal-300 underline">Admin: payments, people and the limits switch →</Link>
+              <Link href="/admin/billing" className="font-semibold text-brand-700 dark:text-brand-300 underline">Admin: payments, people and the limits switch →</Link>
             </>
           )}
         </p>
@@ -159,7 +159,7 @@ export default function PlansPage() {
         )}
         <div className="inline-flex rounded-full border border-slate-300 dark:border-slate-700 p-1" role="group" aria-label="Billing period">
           {(["month", "term"] as const).map((t) => (
-            <button key={t} type="button" aria-pressed={term === t} onClick={() => setTerm(t)} className={cn("rounded-full px-4 py-1.5 text-xs font-bold", term === t ? "bg-teal-600 text-white" : "text-slate-600 dark:text-slate-300")}>
+            <button key={t} type="button" aria-pressed={term === t} onClick={() => setTerm(t)} className={cn("rounded-full px-4 py-1.5 text-xs font-bold", term === t ? "bg-brand-600 text-white" : "text-slate-600 dark:text-slate-300")}>
               {t === "month" ? "Monthly" : "Semester (4 months)"}
             </button>
           ))}
@@ -172,11 +172,11 @@ export default function PlansPage() {
           const current = p.id === me.plan.id;
           const buyable = p.audience !== "school" && p.priceMonthNgn > 0;
           return (
-            <Card key={p.id} className={cn("relative p-4 space-y-3 flex flex-col", current && "border-teal-500 ring-1 ring-teal-500", p.badge && !current && "border-amber-500/60")}>
+            <Card key={p.id} className={cn("relative p-4 space-y-3 flex flex-col", current && "border-brand-500 ring-1 ring-brand-500", p.badge && !current && "border-amber-500/60")}>
               {p.badge && <span className="absolute -top-2.5 right-3 rounded-full bg-[#F28C28] px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-[#12241C]">{p.badge}</span>}
               <div>
                 <p className="font-extrabold text-lg leading-tight">{p.label}</p>
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-teal-600">{p.codename}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-brand-600">{p.codename}</p>
                 <p className="text-xs text-slate-500 mt-1">{p.blurb}</p>
               </div>
               {p.id === "free" ? (
@@ -197,11 +197,11 @@ export default function PlansPage() {
               )}
               <ul className="space-y-1.5 text-xs flex-1">
                 {p.perks.map((perk) => (
-                  <li key={perk} className="flex gap-1.5"><Check className="h-3.5 w-3.5 mt-0.5 shrink-0 text-teal-600" /> {perk}</li>
+                  <li key={perk} className="flex gap-1.5"><Check className="h-3.5 w-3.5 mt-0.5 shrink-0 text-brand-600" /> {perk}</li>
                 ))}
               </ul>
               {current ? (
-                <p className="text-xs font-bold text-teal-700 dark:text-teal-300">Your current plan</p>
+                <p className="text-xs font-bold text-brand-700 dark:text-brand-300">Your current plan</p>
               ) : me.role === "admin" ? (
                 <p className="text-xs text-slate-500">Admin accounts are never limited. Give someone this plan from <Link href="/admin/billing" className="underline">Payments &amp; plans</Link>.</p>
               ) : buyable ? (
@@ -227,7 +227,7 @@ export default function PlansPage() {
             <tr className="text-left">
               <th className="py-2 pr-3 font-semibold text-slate-500">Per month</th>
               {shown.map((p) => (
-                <th key={p.id} className={cn("py-2 px-2 text-center font-bold", p.id === me.plan.id && "text-teal-700 dark:text-teal-300")}>{p.label}</th>
+                <th key={p.id} className={cn("py-2 px-2 text-center font-bold", p.id === me.plan.id && "text-brand-700 dark:text-brand-300")}>{p.label}</th>
               ))}
             </tr>
           </thead>

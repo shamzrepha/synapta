@@ -53,10 +53,10 @@ export default function AdminBilling() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-mono tracking-widest text-teal-600">ADMIN</p>
+          <p className="text-xs font-mono tracking-widest text-brand-600">ADMIN</p>
           <h1 className="text-2xl font-extrabold">Payments and subscribers</h1>
         </div>
-        <Link href="/admin" className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Back to admin</Link>
+        <Link href="/admin" className="text-xs font-semibold text-brand-700 dark:text-brand-300 underline">Back to admin</Link>
       </div>
 
       <AdminAlerts />

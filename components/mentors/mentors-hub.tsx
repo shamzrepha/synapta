@@ -90,7 +90,7 @@ function ProfileForm({ onSaved }: { onSaved: () => void }) {
     <Card className="space-y-3 p-4">
       <div className="grid grid-cols-2 gap-2">
         {(["mentee", "mentor"] as const).map((r) => (
-          <button key={r} type="button" onClick={() => setRole(r)} className={cn("min-h-[48px] rounded-xl border px-3 text-sm font-semibold", role === r ? "border-teal-600 bg-teal-50 dark:bg-teal-950/40" : "border-slate-300 dark:border-slate-700")}>
+          <button key={r} type="button" onClick={() => setRole(r)} className={cn("min-h-[48px] rounded-xl border px-3 text-sm font-semibold", role === r ? "border-brand-600 bg-brand-50 dark:bg-brand-950/40" : "border-slate-300 dark:border-slate-700")}>
             {r === "mentee" ? "🌱 I want a mentor" : "🧭 I want to mentor"}
           </button>
         ))}
@@ -98,21 +98,21 @@ function ProfileForm({ onSaved }: { onSaved: () => void }) {
       <Input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="Subjects, comma separated (physics, maths)" />
       <label className="block text-sm">
         Year / grade: <b>{level}</b>
-        <input type="range" min={MIN_LEVEL} max={MAX_LEVEL} value={level} onChange={(e) => setLevel(Number(e.target.value))} className="mt-1 block h-8 w-full accent-teal-600" />
+        <input type="range" min={MIN_LEVEL} max={MAX_LEVEL} value={level} onChange={(e) => setLevel(Number(e.target.value))} className="mt-1 block h-8 w-full accent-brand-600" />
       </label>
       <p className="text-xs text-slate-500">Mentors need to be at least one year or grade above their mentee.</p>
       <div className="flex flex-wrap gap-2">
         {AVAILABILITY_SLOTS.map((s) => {
           const on = availability.includes(s.id);
           return (
-            <button key={s.id} type="button" onClick={() => setAvailability((a) => (on ? a.filter((x) => x !== s.id) : [...a, s.id]))} className={cn("min-h-[36px] rounded-full border px-3 text-xs font-semibold", on ? "border-teal-600 bg-teal-600 text-white" : "border-slate-300 dark:border-slate-700")}>
+            <button key={s.id} type="button" onClick={() => setAvailability((a) => (on ? a.filter((x) => x !== s.id) : [...a, s.id]))} className={cn("min-h-[36px] rounded-full border px-3 text-xs font-semibold", on ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300 dark:border-slate-700")}>
               {s.label}
             </button>
           );
         })}
       </div>
       <Textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={300} rows={2} placeholder="A line about you (optional)" />
-      <label className="flex min-h-[36px] items-center gap-2 text-sm"><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 accent-teal-600" /> Show me in matches</label>
+      <label className="flex min-h-[36px] items-center gap-2 text-sm"><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 accent-brand-600" /> Show me in matches</label>
       <Button onClick={save} isLoading={busy} disabled={!subjects.trim()}>Save and find matches</Button>
     </Card>
   );
@@ -227,7 +227,7 @@ export function MentorsHub({ initialTab }: { initialTab?: string | null }) {
       </div>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {([["matches", "Matches"], ["requests", "Requests"], ["pairs", "My pairs"], ["profile", "My profile"]] as const).map(([id, label]) => (
-          <button key={id} type="button" onClick={() => switchTab(id)} className={cn("min-h-[36px] shrink-0 rounded-full border px-3.5 text-xs font-semibold", tab === id ? "border-teal-600 bg-teal-600 text-white" : "border-slate-300 dark:border-slate-700")}>{label}</button>
+          <button key={id} type="button" onClick={() => switchTab(id)} className={cn("min-h-[36px] shrink-0 rounded-full border px-3.5 text-xs font-semibold", tab === id ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300 dark:border-slate-700")}>{label}</button>
         ))}
       </div>
 

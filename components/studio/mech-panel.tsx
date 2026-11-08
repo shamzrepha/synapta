@@ -138,7 +138,7 @@ export function MechPanel({ mechanism: m, onChange, readOnly, onAnimate, onResul
         <div className="flex items-center justify-between">
           <p className="text-xs font-bold">Gear stages <span className="font-normal text-slate-500">(module {m.module} mm)</span></p>
           {!readOnly && m.stages.length < 6 && (
-            <button type="button" onClick={() => set({ stages: [...m.stages, { driverTeeth: 12, drivenTeeth: 36 }] })} className="flex items-center gap-1 text-xs font-semibold text-teal-600">
+            <button type="button" onClick={() => set({ stages: [...m.stages, { driverTeeth: 12, drivenTeeth: 36 }] })} className="flex items-center gap-1 text-xs font-semibold text-brand-600">
               <Plus className="h-3.5 w-3.5" /> Add stage
             </button>
           )}
@@ -195,7 +195,7 @@ export function MechPanel({ mechanism: m, onChange, readOnly, onAnimate, onResul
       {result && (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3 space-y-2">
           <p className="text-sm font-semibold">{result.verdict}</p>
-          {result.reached && <p className="text-xs text-slate-500">Score: <b className="text-teal-600">{result.score}</b> (faster lift = higher score)</p>}
+          {result.reached && <p className="text-xs text-slate-500">Score: <b className="text-brand-600">{result.score}</b> (faster lift = higher score)</p>}
           <Chart r={result} playT={playT} />
         </div>
       )}

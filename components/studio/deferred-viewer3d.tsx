@@ -20,7 +20,7 @@ export function Viewer3D(props: Viewer3DProps) {
           props.className
         )}
       >
-        <Box className="h-8 w-8 text-teal-600" />
+        <Box className="h-8 w-8 text-brand-600" />
         Tap to load 3D
         <span className="text-xs font-normal text-slate-500">Data saver is on</span>
       </button>

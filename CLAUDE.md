@@ -6,6 +6,6 @@ Next.js 16 App Router, React 19, Firebase (Auth + Firestore), Gemini and Groq th
 - **AI:** add work as a task in `lib/ai/tasks.ts` and call `generateWithFallback`; never hardcode a Gemini model name outside `lib/ai` (CI fails it).
 - **API routes:** `requireUser` (or `requireUser(req, ["admin"])`), zod-validate the body, rate-limit what costs money. `app/api/route-guards.test.ts` fails CI if a route lacks a guard.
 - **Secrets:** only in `.env.local` and Vercel. Never in git, logs or chat.
-- **Design:** follow `.claude/skills/anti-slop-playbook/SKILL.md` and `docs/design/DESIGN-SYSTEM.md` ("Sun on Ink": ink/paper surfaces, one orange action colour, hairline borders, Instrument Sans. NOTE: the `teal-*` Tailwind classes are Sun orange; green means growth only).
+- **Design:** follow `.claude/skills/anti-slop-playbook/SKILL.md` and `docs/design/DESIGN-SYSTEM.md` (blue brand, gold only for rewards, mastery by lightness + pattern; use `brand-*`, not `teal-*`, for the action colour).
 - **Do not commit:** `AGENTS.md` changes made by `next dev`, third-party packages under `.agent/` (they are excluded from lint, tests and tsc), APK files in `public/` (use GitHub Releases).
 - **Native Android app:** lives in a separate `sunroot-mobile` project; see `docs/antigravity/APP-AUTO-UPDATE.md`.

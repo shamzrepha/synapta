@@ -62,7 +62,7 @@ export function RsvpButtons({ s, onChange }: { s: RsvpSession; onChange: (patch:
         <a
           href={`/api/sessions/${s.id}/ics`}
           download
-          className="inline-flex items-center gap-1 min-h-9 px-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-teal-600"
+          className="inline-flex items-center gap-1 min-h-9 px-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-brand-600"
         >
           <CalendarDays className="h-4 w-4" /> Add to calendar
         </a>
@@ -98,7 +98,7 @@ export function AttendeeList({ s }: { s: RsvpSession }) {
 
   return (
     <div className="mt-1">
-      <button onClick={toggle} className="inline-flex items-center gap-1 text-xs text-teal-700 dark:text-teal-400 font-medium min-h-8">
+      <button onClick={toggle} className="inline-flex items-center gap-1 text-xs text-brand-700 dark:text-brand-400 font-medium min-h-8">
         {s.rsvpCount} going{s.maybeCount ? ` · ${s.maybeCount} maybe` : ""}
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
       </button>
@@ -113,7 +113,7 @@ export function AttendeeList({ s }: { s: RsvpSession }) {
               <div key={p.uid} className="flex items-center gap-2 text-sm">
                 <Avatar name={p.displayName} photoURL={p.photoURL} seed={p.uid} size={24} />
                 <span className="truncate">{p.displayName}</span>
-                {p.isHost && <span className="text-[10px] px-1.5 rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300">host</span>}
+                {p.isHost && <span className="text-[10px] px-1.5 rounded-full bg-brand-500/15 text-brand-700 dark:text-brand-300">host</span>}
                 {label && <span className="text-[10px] px-1.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300">{label}</span>}
               </div>
             ))

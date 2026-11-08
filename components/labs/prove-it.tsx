@@ -68,7 +68,7 @@ export function ProveIt({ classId, kcId, topicTitle }: { classId: string; kcId: 
     <div className="space-y-3">
       <Card className="p-4 md:p-5 space-y-1">
         <p className="font-bold flex items-center gap-2">
-          <ShoppingCart className="h-5 w-5 text-teal-600" /> Rebuild it yourself
+          <ShoppingCart className="h-5 w-5 text-brand-600" /> Rebuild it yourself
         </p>
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Show you understand {topicTitle} by building it from nothing. You start with an empty bench, add each part from the shop, place it, wire it, and write the program. The Studio checks every step as you go.

@@ -41,9 +41,9 @@ export function StudyProfileCard({ classId, kcId, profile, onChange }: { classId
   };
 
   return (
-    <Card className="p-3 md:p-4 space-y-2 border-teal-500/30 bg-teal-500/5">
+    <Card className="p-3 md:p-4 space-y-2 border-brand-500/30 bg-brand-500/5">
       <div className="flex flex-wrap items-center gap-2">
-        <Wand2 className="h-4 w-4 text-teal-600" />
+        <Wand2 className="h-4 w-4 text-brand-600" />
         <p className="text-xs flex-1 min-w-0">{describeProfile(profile)}</p>
         <Button size="sm" variant="outline" onClick={() => setOpen((v) => !v)}>{open ? "Done" : "Change"}</Button>
       </div>
@@ -74,7 +74,7 @@ export function StudyProfileCard({ classId, kcId, profile, onChange }: { classId
                 disabled={busy}
                 onClick={() => save({ needs: { [k]: !profile.needs[k] } })}
                 aria-pressed={profile.needs[k]}
-                className={cn("rounded-full border px-3 py-1 text-xs font-semibold", profile.needs[k] ? "border-teal-600 bg-teal-600 text-white" : "border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300")}
+                className={cn("rounded-full border px-3 py-1 text-xs font-semibold", profile.needs[k] ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300")}
               >
                 {NEED_LABEL[k]}
               </button>

@@ -106,7 +106,7 @@ export default function PublicProfilePage({ params }: { params: Promise<{ ref: s
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <Card className="overflow-hidden">
-        <div className="h-24 sm:h-32 bg-teal-600" />
+        <div className="h-24 sm:h-32 bg-brand-600" />
         <div className="px-4 sm:px-6 pb-5">
           <div className="flex flex-wrap items-end justify-between gap-3 -mt-10">
             <div className="rounded-full ring-4 ring-white dark:ring-slate-950">

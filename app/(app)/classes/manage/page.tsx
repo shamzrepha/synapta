@@ -149,7 +149,7 @@ export default function TeacherClassesListPage() {
                 {isTeacher && (
                   <Link href={`/classes/${c.id}/heatmap`}>
                     <Button variant="outline" size="sm" className="text-xs">
-                      <Activity className="h-3.5 w-3.5 mr-1 text-teal-500" /> Heatmap
+                      <Activity className="h-3.5 w-3.5 mr-1 text-brand-500" /> Heatmap
                     </Button>
                   </Link>
                 )}

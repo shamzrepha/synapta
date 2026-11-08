@@ -295,9 +295,9 @@ function LoungeHubContent() {
       {/* Quick Action Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card 1: Study partner matchmaker */}
-        <Card className="p-5 border-teal-500/30 bg-teal-50/30 dark:bg-teal-950/20 flex flex-col justify-between space-y-4">
+        <Card className="p-5 border-brand-500/30 bg-brand-50/30 dark:bg-brand-950/20 flex flex-col justify-between space-y-4">
           <div className="space-y-2">
-            <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center">
               <BrainCircuit className="h-5 w-5" />
             </div>
             <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100">
@@ -370,7 +370,7 @@ function LoungeHubContent() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+            <Users className="h-4 w-4 text-brand-600 dark:text-brand-400" />
             <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
               Active Study Rooms ({asArray(rooms).length})
             </h2>
@@ -398,13 +398,13 @@ function LoungeHubContent() {
             {asArray(rooms).map((room) => (
               <Card
                 key={room.roomCode}
-                className="hover:border-teal-500 transition-all group flex flex-col justify-between"
+                className="hover:border-brand-500 transition-all group flex flex-col justify-between"
               >
                 <CardContent className="p-5 space-y-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">
+                        <span className="font-mono text-[11px] font-bold px-2 py-0.5 rounded-md bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-500/30">
                           {room.roomCode}
                         </span>
                         {room.kcTitle && (
@@ -413,7 +413,7 @@ function LoungeHubContent() {
                           </Badge>
                         )}
                       </div>
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                      <h3 className="font-bold text-sm text-slate-900 dark:text-slate-100 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
                         {room.title}
                       </h3>
                       <p className="text-xs text-slate-500">
@@ -422,7 +422,7 @@ function LoungeHubContent() {
                     </div>
 
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-400 shrink-0">
-                      <Users className="h-3.5 w-3.5 text-teal-500" />
+                      <Users className="h-3.5 w-3.5 text-brand-500" />
                       <span>{room.participantCount} Active</span>
                     </div>
                   </div>
@@ -450,7 +450,7 @@ function LoungeHubContent() {
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-2xl w-full p-6 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
-                <BrainCircuit className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                <BrainCircuit className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                 <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
                   Intelligent Peer Matchmaker
                 </h3>
@@ -472,7 +472,7 @@ function LoungeHubContent() {
                 <select
                   value={selectedClassId}
                   onChange={(e) => handleSelectClassForMatch(e.target.value)}
-                  className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-teal-500"
+                  className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-brand-500"
                 >
                   <option value="">Select enrolled class...</option>
                   {asArray(classes).map((c) => (
@@ -491,7 +491,7 @@ function LoungeHubContent() {
                   value={selectedKcId}
                   onChange={(e) => setSelectedKcId(e.target.value)}
                   disabled={asArray(classKcs).length === 0}
-                  className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-teal-500"
+                  className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-brand-500"
                 >
                   {asArray(classKcs).map((k) => (
                     <option key={k.id} value={k.id}>
@@ -523,10 +523,10 @@ function LoungeHubContent() {
                   {asArray(matchedPeers).map((peer) => (
                     <div
                       key={peer.uid}
-                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-teal-500 transition-all bg-slate-50/50 dark:bg-slate-900/50"
+                      className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-between hover:border-brand-500 transition-all bg-slate-50/50 dark:bg-slate-900/50"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold flex items-center justify-center text-xs">
+                        <div className="h-9 w-9 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold flex items-center justify-center text-xs">
                           {peer.displayName[0]?.toUpperCase() || "S"}
                         </div>
                         <div>
@@ -597,7 +597,7 @@ function LoungeHubContent() {
                 <select
                   value={newRoomClassId}
                   onChange={(e) => setNewRoomClassId(e.target.value)}
-                  className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-teal-500"
+                  className="w-full h-9 px-3 text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:ring-1 focus:ring-brand-500"
                 >
                   <option value="">Select course...</option>
                   {asArray(classes).map((c) => (

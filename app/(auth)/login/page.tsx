@@ -87,7 +87,7 @@ function LoginForm() {
       <CardContent className="space-y-4">
         <AutoSignIn />
         {redirectPath !== "/dashboard" && (
-          <div className="rounded-xl border border-teal-500/30 bg-teal-500/10 p-3 text-xs text-teal-800 dark:text-teal-300">
+          <div className="rounded-xl border border-brand-500/30 bg-brand-500/10 p-3 text-xs text-brand-800 dark:text-brand-300">
             {invitedToClass ? "Sign in — or create a free account — to open the class you were invited to." : "Sign in to continue to the page you opened."}{" "}
             <Link href={`/signup?redirect=${encodeURIComponent(redirectPath)}`} className="font-semibold underline">
               New here? Create an account
@@ -136,7 +136,7 @@ function LoginForm() {
           </div>
 
           <label className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none">
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-teal-600" />
+            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-brand-600" />
             <span>
               <span className="font-semibold">Keep me signed in</span>
               <span className="block text-slate-500">For 14 days on this device. Untick it on a shared computer.</span>
@@ -195,7 +195,7 @@ function LoginForm() {
           Don&apos;t have an account?{" "}
           <Link
             href={redirectPath !== "/dashboard" ? `/signup?redirect=${encodeURIComponent(redirectPath)}` : "/signup"}
-            className="font-semibold text-teal-600 dark:text-teal-400 hover:underline"
+            className="font-semibold text-brand-600 dark:text-brand-400 hover:underline"
           >
             Sign up
           </Link>
@@ -212,7 +212,7 @@ export default function LoginPage() {
         {/* Brand Header */}
         <div className="text-center space-y-2">
           <Link href="/" className="inline-flex items-center gap-2 mb-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-600 text-white dark:bg-teal-500 dark:text-slate-950 font-bold shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-white dark:bg-brand-500 dark:text-slate-950 font-bold shadow-sm">
               <BrainCircuit className="h-6 w-6" />
             </div>
             <span translate="no" className="font-bold text-2xl tracking-tight">Sunroot</span>

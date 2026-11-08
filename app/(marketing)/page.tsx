@@ -56,7 +56,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-teal-500 selection:text-slate-950">
+    <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-brand-500 selection:text-slate-950">
       <MobileLandingRedirect />
       <noscript>
         <style>{".reveal{opacity:1;transform:none}"}</style>
@@ -67,7 +67,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between gap-4 px-5 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-[5px] bg-teal-500 text-slate-950">
+            <span className="flex h-7 w-7 items-center justify-center rounded-[5px] bg-brand-600 text-white dark:bg-brand-500">
               <BrandMark className="h-[18px] w-[18px]" />
             </span>
             <span translate="no" className="text-[17px] font-semibold tracking-tight">Sunroot</span>
@@ -94,13 +94,13 @@ export default function LandingPage() {
             <h1 className="mt-6 max-w-[16ch] text-[clamp(2.75rem,7.4vw,6.25rem)] font-medium leading-[0.98] tracking-[-0.035em] sm:max-w-none">
               Study anything.
               <br />
-              Understand it <em className="whitespace-nowrap font-serif font-normal italic tracking-[-0.02em] text-teal-600 dark:text-teal-400">for real.</em>
+              Understand it <em className="whitespace-nowrap font-serif font-normal italic tracking-[-0.02em] text-brand-600 dark:text-brand-400">for real.</em>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
               Drop in your notes, scans or slides. Sunroot turns them into lessons, practice and a tutor that speaks your language, built for exactly what you are learning.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href="/signup" className="group inline-flex h-12 items-center gap-2 rounded-md bg-teal-500 px-6 text-sm font-semibold text-slate-950 transition-colors hover:bg-teal-400">
+              <Link href="/signup" className="group inline-flex h-12 items-center gap-2 rounded-md bg-brand-500 px-6 text-sm font-semibold text-slate-950 transition-colors hover:bg-brand-400">
                 Start free <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <a href="#how" className="inline-flex h-12 items-center gap-2 rounded-md border border-border bg-card px-6 text-sm font-medium transition-colors hover:border-muted-foreground/60">
@@ -131,7 +131,7 @@ export default function LandingPage() {
                   {SUBJECTS.map((s) => (
                     <li key={s + dup} className="flex items-center">
                       <span className="px-6 font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground">{s}</span>
-                      <span aria-hidden="true" className="text-teal-500">/</span>
+                      <span aria-hidden="true" className="text-brand-500">/</span>
                     </li>
                   ))}
                 </ul>
@@ -150,7 +150,7 @@ export default function LandingPage() {
             <ol className="mt-14 grid border-y border-border md:grid-cols-3">
               {STEPS.map((s, i) => (
                 <Reveal as="li" key={s.n} delay={i * 110} className="space-y-4 border-b border-border p-6 last:border-b-0 sm:p-8 md:border-b-0 md:border-r md:last:border-r-0">
-                  <span className="font-mono text-sm text-teal-600 dark:text-teal-400">{s.n}</span>
+                  <span className="font-mono text-sm text-brand-600 dark:text-brand-400">{s.n}</span>
                   <h3 className="text-xl font-medium tracking-tight">{s.title}</h3>
                   <p className="text-[15px] leading-relaxed text-muted-foreground">{s.body}</p>
                 </Reveal>
@@ -169,7 +169,7 @@ export default function LandingPage() {
             <dl className="mt-14 grid border-l border-t border-border sm:grid-cols-2 lg:grid-cols-3">
               {FEATURES.map((f, i) => (
                 <Reveal key={f.title} delay={(i % 3) * 90} className="group border-b border-r border-border p-6 transition-colors duration-300 hover:bg-card sm:p-8">
-                  <f.icon className="h-5 w-5 text-teal-600 transition-transform duration-500 group-hover:-translate-y-0.5 dark:text-teal-400" aria-hidden="true" />
+                  <f.icon className="h-5 w-5 text-brand-600 transition-transform duration-500 group-hover:-translate-y-0.5 dark:text-brand-400" aria-hidden="true" />
                   <dt className="mt-8 text-lg font-medium tracking-tight">{f.title}</dt>
                   <dd className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{f.body}</dd>
                 </Reveal>
@@ -184,7 +184,7 @@ export default function LandingPage() {
             <Reveal className="max-w-3xl space-y-4">
               <p className={label}>Who it&apos;s for</p>
               <h2 className="text-[clamp(2rem,4.6vw,3.5rem)] font-medium leading-[1.04] tracking-[-0.03em]">
-                Built for every kind of <em className="font-serif font-normal italic text-teal-600 dark:text-teal-400">learner</em>
+                Built for every kind of <em className="font-serif font-normal italic text-brand-600 dark:text-brand-400">learner</em>
               </h2>
             </Reveal>
             <ul className="mt-14 grid border-t border-border sm:grid-cols-2 lg:grid-cols-5">
@@ -206,9 +206,9 @@ export default function LandingPage() {
               <p className={label}>For teachers and lecturers</p>
               <h2 className="text-[clamp(2rem,4.2vw,3.25rem)] font-medium leading-[1.05] tracking-[-0.03em]">Publish a class from your syllabus file</h2>
               <ul className="space-y-4 text-[15px] leading-relaxed text-muted-foreground">
-                <li className="flex gap-3"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" /> Upload your syllabus or lecture notes as a PDF, scan, Word file or slides. Sunroot maps it into topics.</li>
-                <li className="flex gap-3"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" /> Review and edit the lessons, practice questions and flashcards before students see them.</li>
-                <li className="flex gap-3"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" /> See which topics each student has mastered and where the class is stuck.</li>
+                <li className="flex gap-3"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" /> Upload your syllabus or lecture notes as a PDF, scan, Word file or slides. Sunroot maps it into topics.</li>
+                <li className="flex gap-3"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" /> Review and edit the lessons, practice questions and flashcards before students see them.</li>
+                <li className="flex gap-3"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" /> See which topics each student has mastered and where the class is stuck.</li>
               </ul>
               <Link href="/signup" className="group inline-flex h-11 items-center gap-2 rounded-md border border-border bg-card px-5 text-sm font-medium transition-colors hover:border-muted-foreground/60">
                 Create a class <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -245,13 +245,13 @@ export default function LandingPage() {
             <Reveal className="max-w-3xl space-y-4">
               <p className={`${label} flex items-center gap-2`}><Languages className="h-3.5 w-3.5" aria-hidden="true" /> Languages</p>
               <h2 className="text-[clamp(2rem,4.6vw,3.5rem)] font-medium leading-[1.04] tracking-[-0.03em]">
-                Learn in the language you <em className="font-serif font-normal italic text-teal-600 dark:text-teal-400">think</em> in
+                Learn in the language you <em className="font-serif font-normal italic text-brand-600 dark:text-brand-400">think</em> in
               </h2>
               <p className="max-w-xl text-[15px] leading-relaxed text-muted-foreground">Notes, lessons, quizzes and the tutor work in eight languages. Yorùbá voice is in beta.</p>
             </Reveal>
             <ul className="mt-12 flex flex-wrap gap-x-10 gap-y-3 border-t border-border pt-8">
               {LANGS.map((l, i) => (
-                <Reveal as="li" key={l} delay={i * 50} className="text-2xl font-medium tracking-tight text-muted-foreground transition-colors hover:text-teal-600 dark:hover:text-teal-400 sm:text-3xl">
+                <Reveal as="li" key={l} delay={i * 50} className="text-2xl font-medium tracking-tight text-muted-foreground transition-colors hover:text-brand-600 dark:hover:text-brand-400 sm:text-3xl">
                   <span translate="no">{l}</span>
                 </Reveal>
               ))}
@@ -265,10 +265,10 @@ export default function LandingPage() {
           <div className={`${rail} relative px-5 py-24 sm:px-8 lg:py-32`}>
             <Reveal className="max-w-3xl space-y-8">
               <h2 className="text-[clamp(2.25rem,5.6vw,4.75rem)] font-medium leading-[1.02] tracking-[-0.035em]">
-                Bring the files you already have. <em className="font-serif font-normal italic text-teal-600 dark:text-teal-400">Start learning</em> in minutes.
+                Bring the files you already have. <em className="font-serif font-normal italic text-brand-600 dark:text-brand-400">Start learning</em> in minutes.
               </h2>
               <div className="flex flex-wrap items-center gap-4">
-                <Link href="/signup" className="group inline-flex h-12 items-center gap-2 rounded-md bg-teal-500 px-6 text-sm font-semibold text-slate-950 transition-colors hover:bg-teal-400">
+                <Link href="/signup" className="group inline-flex h-12 items-center gap-2 rounded-md bg-brand-500 px-6 text-sm font-semibold text-slate-950 transition-colors hover:bg-brand-400">
                   Start free <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
                 <a href="/sunroot-2.5.apk" download className="inline-flex h-12 items-center gap-2 rounded-md border border-border bg-card/80 px-6 text-sm font-medium transition-colors hover:border-muted-foreground/60">
@@ -284,7 +284,7 @@ export default function LandingPage() {
       <footer className="bg-background">
         <div className="mx-auto flex max-w-[1280px] flex-col justify-between gap-4 px-5 py-8 sm:flex-row sm:items-center sm:px-8">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-6 w-6 items-center justify-center rounded-[4px] bg-teal-500 text-slate-950">
+            <span className="flex h-6 w-6 items-center justify-center rounded-[4px] bg-brand-600 text-white dark:bg-brand-500">
               <BrandMark className="h-4 w-4" />
             </span>
             <span translate="no" className="text-sm font-semibold">Sunroot</span>

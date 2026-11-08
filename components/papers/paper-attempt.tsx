@@ -92,7 +92,7 @@ export function PaperAttempt({ paper, onSubmitted }: { paper: PaperData; onSubmi
       {paper.questions.map((q, i) => (
         <Card key={q.id} className="p-4 space-y-3">
           <div className="flex items-start justify-between gap-2">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-teal-600">Q{i + 1} · {q.topic}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-brand-600">Q{i + 1} · {q.topic}</div>
             <div className="text-[11px] font-semibold text-slate-500 shrink-0">[{q.marks} {q.marks === 1 ? "mark" : "marks"}]</div>
           </div>
           <MarkdownRenderer content={q.prompt} />
@@ -107,7 +107,7 @@ export function PaperAttempt({ paper, onSubmitted }: { paper: PaperData; onSubmi
                     role="radio"
                     aria-checked={on}
                     onClick={() => setAnswers((a) => ({ ...a, [q.id]: String(oi) }))}
-                    className={cn("w-full text-left rounded-xl border px-3 py-2.5 text-sm min-h-[44px]", on ? "border-teal-500 bg-teal-500/10 font-semibold" : "border-slate-200 dark:border-slate-800")}
+                    className={cn("w-full text-left rounded-xl border px-3 py-2.5 text-sm min-h-[44px]", on ? "border-brand-500 bg-brand-500/10 font-semibold" : "border-slate-200 dark:border-slate-800")}
                   >
                     <span className="font-bold mr-2">{String.fromCharCode(65 + oi)}.</span>
                     {o}
@@ -122,7 +122,7 @@ export function PaperAttempt({ paper, onSubmitted }: { paper: PaperData; onSubmi
               rows={4}
               maxLength={3000}
               placeholder="Write your answer…"
-              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           )}
         </Card>
@@ -155,7 +155,7 @@ export function PaperReview({ paper, result }: { paper: Pick<PaperData, "title" 
                 <div key={t.topic}>
                   <div className="flex justify-between text-xs"><span className="font-semibold">{t.topic}</span><span className="text-slate-500">{t.awarded}/{t.max}</span></div>
                   <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div className={cn("h-full rounded-full", p < 60 ? "bg-rose-500" : "bg-teal-500")} style={{ width: `${p}%` }} />
+                    <div className={cn("h-full rounded-full", p < 60 ? "bg-rose-500" : "bg-brand-500")} style={{ width: `${p}%` }} />
                   </div>
                 </div>
               );
@@ -169,8 +169,8 @@ export function PaperReview({ paper, result }: { paper: Pick<PaperData, "title" 
         return (
           <Card key={r.id} className="p-4 space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <div className="text-[11px] font-bold uppercase tracking-wide text-teal-600">Q{i + 1} · {r.topic}</div>
-              <div className={cn("flex items-center gap-1 text-xs font-bold", full ? "text-teal-600" : r.awarded > 0 ? "text-amber-600" : "text-rose-600")}>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-brand-600">Q{i + 1} · {r.topic}</div>
+              <div className={cn("flex items-center gap-1 text-xs font-bold", full ? "text-brand-600" : r.awarded > 0 ? "text-amber-600" : "text-rose-600")}>
                 {full ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />} {r.awarded}/{r.max}
               </div>
             </div>
