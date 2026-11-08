@@ -827,9 +827,9 @@ export default function TopicPage({
                           </>
                         ) : (
                           <span className="inline-flex gap-1 py-1">
-                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce" />
-                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:120ms]" />
-                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:240ms]" />
+                            <span className="h-2 w-2 rounded-full bg-slate-400 typing-dot" />
+                            <span className="h-2 w-2 rounded-full bg-slate-400 typing-dot [animation-delay:150ms]" />
+                            <span className="h-2 w-2 rounded-full bg-slate-400 typing-dot [animation-delay:300ms]" />
                           </span>
                         )
                       ) : (
