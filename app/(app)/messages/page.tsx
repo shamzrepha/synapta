@@ -339,9 +339,9 @@ function Conversation({ chatId, onBack, onChanged }: { chatId: string; onBack: (
         {typingShown.length > 0 && (
           <p className="text-xs text-slate-500 flex items-center gap-1.5 px-1">
             <span className="inline-flex gap-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" />
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:120ms]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:240ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 typing-dot" />
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 typing-dot [animation-delay:150ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 typing-dot [animation-delay:300ms]" />
             </span>
             {typingShown.join(", ")} {typingShown.length > 1 ? "are" : "is"} typing…
           </p>
