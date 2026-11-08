@@ -36,6 +36,7 @@ import {
 import { formatPL, getMasteryStatus, cn } from "@/lib/utils";
 import { LAB_REGISTRY } from "@/components/labs";
 import { AiSimulation } from "@/components/labs/ai-simulation";
+import { PiecesLab } from "@/components/labs/pieces-lab";
 import { QuizPlayer } from "@/components/quiz/quiz-player";
 import { ProveIt } from "@/components/labs/prove-it";
 import { AudioLesson } from "@/components/lesson/audio-lesson";
@@ -77,7 +78,7 @@ interface ChatMessage {
   isError?: boolean;
 }
 
-type Tab = "learn" | "teach" | "simulate" | "build" | "flashcards" | "quiz" | "prove" | "tutor";
+type Tab = "learn" | "teach" | "pieces" | "simulate" | "build" | "flashcards" | "quiz" | "prove" | "tutor";
 
 const THIN_LESSON_CHARS = 600;
 const TUTOR_STARTERS = [
@@ -90,6 +91,7 @@ const TUTOR_STARTERS = [
 const TAB_HINT: Record<Tab, string> = {
   learn: "Read the lesson, or press play to listen to it as a short podcast.",
   teach: "Watch and play with an animated lesson: change the numbers and see the idea move. Press Play lesson to have it explained step by step.",
+  pieces: "Work through the topic one idea at a time: each piece has its own experiment and a check question.",
   simulate: "Play with an interactive model: change things on screen and watch what happens.",
   build: "See a finished, working build for this topic: open it, read the code, run it and change it to see what happens. Then try Prove it to rebuild it yourself.",
   flashcards: "Quick flashcards to remember the key points.",
@@ -121,7 +123,7 @@ export default function TopicPage({
   // Deep link: ?tab=build or ?tab=prove (lab notifications, and the Back button inside a lab)
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t === "build" || t === "prove" || t === "teach" || t === "quiz" || t === "flashcards" || t === "simulate" || t === "tutor") {
+    if (t === "build" || t === "prove" || t === "teach" || t === "quiz" || t === "flashcards" || t === "simulate" || t === "pieces" || t === "tutor") {
       const h = setTimeout(() => setActiveTab(t), 0);
       return () => clearTimeout(h);
     }
@@ -403,6 +405,7 @@ export default function TopicPage({
   const tabs: Array<{ key: Tab; label: string; icon: React.ReactNode; step?: number; onOpen?: () => void }> = [
     { key: "learn", label: "Read & listen", step: 1, icon: <BookOpen className="h-4 w-4" /> },
     { key: "teach", label: "Interactive lesson", step: 2, icon: <PlayCircle className="h-4 w-4" /> },
+    { key: "pieces", label: "Piece by piece", icon: <Layers className="h-4 w-4" /> },
     { key: "simulate", label: "Simulation", step: 2, icon: <Gamepad2 className="h-4 w-4" /> },
     {
       key: "flashcards",
@@ -422,6 +425,7 @@ export default function TopicPage({
   const shownKeys: Record<Tab, boolean> = {
     learn: true,
     teach: profile.needs.animation,
+    pieces: profile.needs.simulation && (kc.objectives?.length ?? 0) > 1,
     simulate: profile.needs.simulation,
     flashcards: profile.needs.flashcards,
     quiz: profile.needs.practice,
@@ -612,6 +616,14 @@ export default function TopicPage({
                 <StepVideos query={`${kc.title} explained`} />
               </Card>
             </div>
+          )}
+
+          {/* PIECES */}
+          {shownTab === "pieces" && !canManage && !pub.simulation && notPublished("simulation")}
+          {shownTab === "pieces" && (canManage || pub.simulation) && (
+            <Card className="p-4 md:p-6">
+              <PiecesLab classId={classId} kcId={kcId} topicTitle={kc.title} onEvidence={applyEvidenceUpdate} />
+            </Card>
           )}
 
           {/* SIMULATE */}
