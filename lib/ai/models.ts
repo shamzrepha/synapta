@@ -193,6 +193,7 @@ export const TASK_GROUPS: Record<string, TaskGroup> = {
   paper_analysis: "longdoc",
   discussion_script: "longdoc",
   research_answer: "longdoc",
+  quest_build: "structured",
   class_build: "build",
   sim_build: "build",
   studio_build: "build",

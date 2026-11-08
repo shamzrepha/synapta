@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
-import { CheckCircle2, ChevronLeft, ChevronRight, ListChecks, Loader2, Maximize2, Minimize2, Sparkles, Star, Target, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, ListChecks, Loader2, Maximize2, Minimize2, Play, Sparkles, Star, Target, XCircle } from "lucide-react";
 import { frameHtmlFor } from "@/lib/sim/runtime3d";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { RichInline } from "@/components/markdown/rich-inline";
 import { TutorBubble, parseTutorMessage, type TutorMessage } from "./tutor-bubble";
 import { readableText } from "@/lib/text/readable";
+import { QuestRunner } from "@/components/quest/quest-runner";
 import { cn } from "@/lib/utils";
 
 interface Piece {
@@ -23,6 +24,13 @@ interface Piece {
   concepts?: string[];
   error?: string;
   checkQuestion?: { question: string; options: string[] };
+}
+
+interface QuestInfo {
+  index: number;
+  status: "none" | "ready" | "generating" | "failed";
+  count: number;
+  error?: string;
 }
 
 interface Props {
@@ -46,6 +54,10 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
   const [tutor, setTutor] = useState<TutorMessage | null>(null);
   const [stars, setStars] = useState(0);
   const [full, setFull] = useState(false);
+  const [quests, setQuests] = useState<QuestInfo[]>([]);
+  const [questBusy, setQuestBusy] = useState<number | null>(null);
+  const [runIndex, setRunIndex] = useState<number | null>(null);
+  const [view, setView] = useState<"quest" | "lab">("quest");
   const [sheet, setSheet] = useState(false);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -63,6 +75,11 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
     } catch {
       setPieces([]);
     }
+    try {
+      const r = await fetch(`/api/classes/${classId}/kcs/${kcId}/quests`);
+      const j = await r.json();
+      if (j.ok) setQuests(j.data.quests);
+    } catch {}
   }, [classId, kcId]);
 
   useEffect(() => {
@@ -175,6 +192,25 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
     }
   };
 
+  const buildQuest = async (index: number) => {
+    setQuestBusy(index);
+    try {
+      const res = await fetch(`/api/classes/${classId}/kcs/${kcId}/quests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ index }),
+      });
+      const j = await res.json().catch(() => null);
+      if (!j?.ok) {
+        toast({ title: "Couldn't build the challenges", description: j?.error?.message || "Please try again.", variant: "destructive" });
+        return;
+      }
+      setQuests((qs) => qs.map((q) => (q.index === index ? { ...q, status: "ready", count: j.data.count, error: undefined } : q)));
+    } finally {
+      setQuestBusy(null);
+    }
+  };
+
   const check = async (optionIndex: number) => {
     if (!piece || result) return;
     setPicked(optionIndex);
@@ -272,6 +308,50 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
   );
 
   const labReady = piece?.status === "ready" && !!piece.html;
+  const questOf = (i: number) => quests.find((q) => q.index === i);
+  const quest = piece ? questOf(piece.index) : undefined;
+
+  const questCard = piece && (
+    <Card className="p-5 space-y-4">
+      {quest?.status === "ready" ? (
+        <>
+          <div>
+            <p className="text-sm font-semibold">Quest: {quest.count} short challenges</p>
+            <p className="text-sm text-muted-foreground">One task at a time: tap, drag and slide your way through. Anything you miss comes back until you get it.</p>
+          </div>
+          <Button onClick={() => setRunIndex(piece.index)} className="w-full sm:w-auto">
+            <Play className="h-4 w-4 mr-1.5" /> Start quest
+          </Button>
+        </>
+      ) : quest?.status === "generating" || questBusy === piece.index ? (
+        <p className="flex items-center gap-3 text-sm" role="status"><Loader2 className="h-4 w-4 animate-spin" /> Building the challenges for this piece…</p>
+      ) : (
+        <>
+          <p className="text-sm text-muted-foreground">
+            {canManage ? "No challenges for this piece yet. Build a quest of short game-like tasks that test just this idea." : "The teacher hasn't published the challenges for this piece yet."}
+          </p>
+          {quest?.error && <p className="text-xs text-rose-600">{quest.error}</p>}
+          {canManage && (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => buildQuest(piece.index)} isLoading={questBusy === piece.index}>
+                <Sparkles className="h-4 w-4 mr-1.5" /> Build challenges
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={questBusy !== null}
+                onClick={async () => {
+                  for (const q of quests.filter((x) => x.status !== "ready")) await buildQuest(q.index);
+                }}
+              >
+                Build for all pieces
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </Card>
+  );
 
   return (
     <div className="grid gap-4 md:grid-cols-[230px_minmax(0,1fr)] items-start">
@@ -302,7 +382,7 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
                 <span className="min-w-0">
                   <span className="line-clamp-3 leading-snug">{readableText(p.objective)}</span>
                   <span className="block text-[11px] text-muted-foreground mt-0.5">
-                    {p.status === "ready" ? "Lab ready" : p.status === "generating" ? "Building…" : "No lab yet"}
+                    {questOf(p.index)?.status === "ready" ? `Quest · ${questOf(p.index)?.count} tasks` : p.status === "ready" ? "Lab ready" : p.status === "generating" ? "Building…" : "Not built yet"}
                   </span>
                 </span>
               </button>
@@ -325,7 +405,22 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
           )}
         </div>
 
-        {labReady ? (
+        <div className="inline-flex rounded-lg border border-border p-0.5 text-sm" role="tablist" aria-label="How to practise this piece">
+          {(["quest", "lab"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => setView(v)}
+              className={cn("rounded-md px-3 py-1.5 font-semibold", view === v ? "bg-brand-600 text-white" : "text-muted-foreground")}
+            >
+              {v === "quest" ? "Quest" : "Explore lab"}
+            </button>
+          ))}
+        </div>
+
+        {view === "quest" ? questCard : labReady ? (
           <>
             {piece?.goal && !full && (
               <p className="flex items-start gap-2 text-sm rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
@@ -430,6 +525,30 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
           </Card>
         )}
       </div>
+      {runIndex !== null && (
+        <QuestRunner
+          classId={classId}
+          kcId={kcId}
+          index={runIndex}
+          objective={pieces[runIndex]?.objective || ""}
+          onExit={() => {
+            setRunIndex(null);
+            void load();
+          }}
+          onFinished={(r) => {
+            setSolved((s) => ({ ...s, [runIndex]: true }));
+            onEvidence?.({ pLAfter: r.pLAfter, totalXp: r.totalXp });
+          }}
+          onNextPiece={
+            pieces[runIndex + 1]
+              ? () => {
+                  setActive(runIndex + 1);
+                  setRunIndex(null);
+                }
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 }

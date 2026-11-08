@@ -45,8 +45,19 @@ SIMULATION STRUCTURE: STAGES, ONE PER PIECE
 - Every piece of text on screen is plain, human-readable text. NEVER show LaTeX, Markdown or code syntax in the interface: no backslashes, no $...$, no **bold** markers, no curly-brace or caret notation, no raw HTML entities. Write maths with real symbols and HTML: × ÷ ± ≈ ≤ ≥ ² ³ √ π Δ θ μ Ω, <sup> and <sub> (for example v = d ÷ t, F = m × a, E = mc<sup>2</sup>, x<sub>1</sub>), and fractions as a ÷ b or a / b. The sim-meta text (title, goal, howTo, concepts, check question and options) follows the same rule.
 - Everything is keyboard operable; labels at least 14px. Visual style overrides any earlier colour rule: ink background #0B0E1A, surfaces #121629, text #E7EAF5, blue #4A6CF7 for controls and selection, gold #F5B83A for goals and rewards, orange #F0795E only for "needs attention". Never use blue and orange together to mean the same thing.
 
+## Quest challenges
+
+QUEST CHALLENGES: SHORT, GAME-LIKE TASKS FOR ONE PIECE
+- A quest is 6 to 8 challenges for ONE piece, each doable in 30 to 60 seconds, in this order: a warm-up that checks the idea, then 2 to 3 hands-on tasks, then 2 harder application tasks, ending with one that combines the idea with an earlier piece when there is one.
+- Use a MIX of types so it never feels repetitive: "choose" (a question with one right option), "number" (the learner types a calculated or estimated value), "slider" (the learner moves one control until a live result hits a goal range: you give a formula over x), "order" (put steps, stages or events in order), "match" (pair terms with meanings, causes with effects). Pick the types that suit the subject: slider and number for quantitative subjects, order and match for processes, history, biology, law, language and design.
+- Every challenge teaches: a one-sentence hint that nudges without giving the answer, and an explanation of why the right answer is right (and the common wrong idea). Prompts are specific and concrete, never vague ("Which is true?").
+- Wrong options in "choose" are the real misconceptions learners hold, not silly distractors.
+- Slider formulas use only x, numbers, + - * / ^, parentheses and the functions sqrt, abs, min, max, sin, cos, tan (degrees), with the constants pi and g. The goal range must be reachable but not already met at the start value.
+- Plain text only, with real symbols (× ÷ ² √ π Δ). No LaTeX, no Markdown.
+
 ## Where each part is used
 - Class and topic structure: the class builder (`lib/teacher/classBuilder.ts`).
 - Lesson structure: the lesson page generator (`lib/lesson/generate.ts`).
 - Simulation structure: the simulation builder (`lib/sim/build.ts`).
-- Audience and voice: all three.
+- Quest challenges: the quest builder (`lib/quest/build.ts`).
+- Audience and voice: all of them.
