@@ -124,6 +124,11 @@ export const AI_TASK_DEFINITIONS = {
     label: "HTML5 Simulation Builder",
     description: "Interactive, game-like HTML5 simulations generated per topic (long code output; use your strongest model).",
   },
+  quest_build: {
+    key: "quest_build",
+    label: "Quest Challenge Builder",
+    description: "Short game-like challenges per learning piece (choose, type a number, slider to a target, order, match) as validated JSON.",
+  },
   lesson_notes: {
     key: "lesson_notes",
     label: "Lesson Notes Synthesizer",
