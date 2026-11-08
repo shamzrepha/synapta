@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api/errors";
 import { generateWithFallback, AiGenerationError } from "@/lib/ai/router";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
 import { loadKcGroundingContext } from "@/lib/kc/context";
-import { buildSimulationPrompt, parseGeneratedSimulation, type ParsedSimulation } from "./build";
+import { buildSimulationPrompt, parseGeneratedSimulation, interactionIssues, type ParsedSimulation } from "./build";
 
 /**
  * Piece labs: every learning objective of a topic ("piece") gets its own small interactive lab,
@@ -92,6 +92,8 @@ export async function generatePieceLab(params: { classId: string; kcId: string; 
   try {
     await checkRateLimitAndQuota(userId, 12000);
     let parsed: ParsedSimulation | null = null;
+    let weak: ParsedSimulation | null = null;
+    let weakIssues: string[] = [];
     for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
       const prompt = buildSimulationPrompt({
         kcTitle: `${ctx.kcTitle}: ${objective}`,
@@ -102,7 +104,12 @@ export async function generatePieceLab(params: { classId: string; kcId: string; 
         otherTopics: [...ctx.otherTopics, ...ctx.objectives.filter((_, i) => i !== index)],
         teacherInstructions:
           "This is ONE piece of a larger topic. Build a single focused experiment for exactly this learning objective (one stage only: no stage navigation). Include a prediction question before the controls unlock, 2 to 4 controls, live readouts with units, and the governing formula. Keep it compact.",
-        previousError: attempt > 0 ? "Your last answer was not a complete runnable HTML document with an inline <script> and a <canvas>, <svg> or SimKit3D stage." : undefined,
+        previousError:
+          attempt > 0
+            ? weakIssues.length
+              ? `Your last version was rejected because: ${weakIssues.join("; ")}. Fix every one of these.`
+              : "Your last answer was not a complete runnable HTML document with an inline <script> and a <canvas>, <svg> or SimKit3D stage."
+            : undefined,
       });
       const result = await generateWithFallback({
         learnerLanguage: false,
@@ -113,8 +120,16 @@ export async function generatePieceLab(params: { classId: string; kcId: string; 
         temperature: 0.6,
         isPrivileged: true,
       });
-      parsed = parseGeneratedSimulation(result.text, objective);
+      const candidate = parseGeneratedSimulation(result.text, objective);
+      if (candidate) {
+        const issues = interactionIssues(candidate.html);
+        if (issues.length && attempt === 0) {
+          weak = candidate;
+          weakIssues = issues;
+        } else parsed = candidate;
+      }
     }
+    if (!parsed && weak) parsed = weak;
     if (!parsed) throw new AiGenerationError("The AI couldn't build a working lab for this piece. Try again.");
     const stored: StoredPiece = {
       ...parsed,

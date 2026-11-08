@@ -1,4 +1,4 @@
-import { SIM_HEAD_INJECT } from "./inject";
+import { SIM_HEAD_INJECT, withDisplayPatch } from "./inject";
 
 /**
  * Simulations written with the Maker Studio look (lit solid 3D) use the global `THREE` and `SimKit3D`. The sandbox
@@ -33,7 +33,9 @@ function loadRuntime() {
 
 /** The html to put in the frame: unchanged for 2D simulations, with the 3D runtime added for 3D ones. */
 export async function frameHtmlFor(html: string): Promise<string> {
-  if (!needs3d(html)) return html;
+  // every lab, old or new, gets the fit-to-screen and readable-text patch
+  const patched = withDisplayPatch(html);
+  if (!needs3d(html)) return patched;
   const { three, kit } = await loadRuntime();
-  return injectRuntime(html, three, kit);
+  return injectRuntime(patched, three, kit);
 }
