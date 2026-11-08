@@ -237,6 +237,21 @@ export function looksLikeRunnableSimulation(html: string): boolean {
   return /<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]{200,}?<\/script>/i.test(html) && (/<(canvas|svg)\b/i.test(html) || /\bSimKit3D\b|\bTHREE\./.test(html));
 }
 
+/** Things a lab must have to feel like a game on a phone; used to ask the model to try again once. */
+export function interactionIssues(html: string): string[] {
+  const issues: string[] = [];
+  if (!/pointerdown|mousedown|touchstart|dragstart|setPointerCapture/.test(html)) {
+    issues.push("the scene cannot be dragged or tapped: add pointer-event handling (pointerdown/pointermove/pointerup) so the learner can grab and move things in the scene itself, not only use sliders");
+  }
+  if (!/ResizeObserver|addEventListener\(\s*["']resize["']|onresize/.test(html)) {
+    issues.push("the layout does not adapt to the screen: size the scene from its container with a ResizeObserver and compute every coordinate from the current width and height");
+  }
+  if (!/\b(?:sunroot|synapta)\.say\s*\(/.test(html)) {
+    issues.push("the tutor never speaks: call window.sunroot.say(text, {tone}) to ask the prediction, react to the learner's actions, give hints and praise");
+  }
+  return issues;
+}
+
 /** Full pipeline from raw model text to a stored simulation. Returns null if the output is unusable. */
 export function parseGeneratedSimulation(raw: string, fallbackTitle: string): ParsedSimulation | null {
   const { html: withoutMeta, meta } = extractSimMeta(stripFences(raw));

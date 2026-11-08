@@ -7,6 +7,7 @@ import {
   buildSimulationPrompt,
   buildSimulationEditPrompt,
   parseGeneratedSimulation,
+  interactionIssues,
   stripHostInjection,
   type ParsedSimulation,
 } from "./build";
@@ -191,10 +192,20 @@ export async function generateAndStoreSimulation(params: {
     const ctx = await loadKcGroundingContext(params.classId, params.kcId, { materialBudget: 6000 });
 
     let parsed: ParsedSimulation | null = null;
+    let weak: ParsedSimulation | null = null;
+    let weakIssues: string[] = [];
     let modelUsed = "";
+    // Starting over must give something different, not the same lab again
+    const restartNote = existingBefore?.html && mode === "create"
+      ? `A previous lab exists for this topic ("${existingBefore.title || "untitled"}": ${existingBefore.goal || "no goal"}). The learner found it static, hard to use on a phone and poorly drawn. Do NOT reuse its layout, drawing or idea. Pick a different experiment and visual metaphor, and make it far more hands-on: the learner drags and taps things in the scene itself.`
+      : "";
     for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
       const retryNote =
-        attempt > 0 ? "Your last answer was not a complete runnable HTML document with an inline <script> and a <canvas> or <svg>." : undefined;
+        attempt > 0
+          ? weakIssues.length
+            ? `Your last version was rejected because: ${weakIssues.join("; ")}. Fix every one of these.`
+            : "Your last answer was not a complete runnable HTML document with an inline <script> and a <canvas> or <svg>."
+          : undefined;
 
       const prompt =
         mode === "edit" && existingBefore?.html
@@ -225,7 +236,7 @@ export async function generateAndStoreSimulation(params: {
               contextText: ctx.contextText,
               objectives: ctx.objectives,
               otherTopics: ctx.otherTopics,
-              teacherInstructions: params.instructions,
+              teacherInstructions: [params.instructions, restartNote].filter(Boolean).join("\n\n") || undefined,
               previousError: params.previousError || retryNote,
             });
 
@@ -237,12 +248,21 @@ export async function generateAndStoreSimulation(params: {
         userPrompt: prompt.userPrompt,
         userId: params.userId,
         // Edits should stay close to the original code
-        temperature: mode === "edit" ? 0.2 : 0.6,
+        temperature: mode === "edit" ? 0.2 : restartNote ? 0.9 : 0.6,
         isPrivileged: true,
       });
       modelUsed = result.modelUsed;
-      parsed = parseGeneratedSimulation(result.text, ctx.kcTitle);
+      const candidate = parseGeneratedSimulation(result.text, ctx.kcTitle);
+      if (candidate) {
+        const issues = mode === "edit" ? [] : interactionIssues(candidate.html);
+        if (issues.length && attempt === 0) {
+          weak = candidate;
+          weakIssues = issues;
+        } else parsed = candidate;
+      }
     }
+    // a second attempt that failed outright still leaves the first, usable one
+    if (!parsed && weak) parsed = weak;
 
     if (!parsed) {
       throw new AiGenerationError(

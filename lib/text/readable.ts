@@ -19,7 +19,8 @@ const SUB: Record<string, string> = { "0": "₀", "1": "₁", "2": "₂", "3": "
 
 function script(body: string, map: Record<string, string>, marker: string): string {
   const out = [...body].map((c) => map[c]);
-  return out.every(Boolean) ? out.join("") : `${marker}(${body})`;
+  if (out.every(Boolean)) return out.join("");
+  return /^[A-Za-z0-9]+$/.test(body) ? `${marker}${body}` : `${marker}(${body})`;
 }
 
 /** LaTeX with no math delimiters → readable Unicode. Handles the common commands; unknown ones lose their backslash. */
@@ -27,14 +28,14 @@ export function latexToUnicode(input: string): string {
   let s = input;
   // \text{...}, \mathrm{...}, \mathbf{...} and friends just show their content
   s = s.replace(/\\(?:text|mathrm|mathbf|mathit|textbf|operatorname|mathcal|boldsymbol)\s*\{([^{}]*)\}/g, "$1");
+  s = s.replace(/\^\s*\{([^{}]*)\}/g, (_m, a: string) => script(a, SUP, "^"));
+  s = s.replace(/_\s*\{([^{}]*)\}/g, (_m, a: string) => script(a, SUB, "_"));
   for (let i = 0; i < 3; i++) {
     s = s.replace(/\\[dt]?frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g, (_m, a: string, b: string) => `(${a})/(${b})`);
     s = s.replace(/\\sqrt\s*\[([^\]]*)\]\s*\{([^{}]*)\}/g, (_m, n: string, a: string) => `${n}√(${a})`);
     s = s.replace(/\\sqrt\s*\{([^{}]*)\}/g, (_m, a: string) => `√(${a})`);
     s = s.replace(/\\(?:overline|bar|vec|hat)\s*\{([^{}]*)\}/g, "$1");
   }
-  s = s.replace(/\^\s*\{([^{}]*)\}/g, (_m, a: string) => script(a, SUP, "^"));
-  s = s.replace(/_\s*\{([^{}]*)\}/g, (_m, a: string) => script(a, SUB, "_"));
   s = s.replace(/\^([0-9n+-])/g, (_m, a: string) => SUP[a] ?? `^${a}`);
   s = s.replace(/\\left\s*([([|])/g, "$1").replace(/\\right\s*([)\]|])/g, "$1");
   s = s.replace(/\\([A-Za-z]+|[,;! ])/g, (_m, name: string) => (name in SYMBOLS ? SYMBOLS[name] : name));
