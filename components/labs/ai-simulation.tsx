@@ -22,6 +22,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { RichInline } from "@/components/markdown/rich-inline";
+import { TutorBubble, parseTutorMessage, type TutorMessage } from "@/components/labs/tutor-bubble";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -136,6 +138,8 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
       clearTimeout(t);
     };
   }, [simHtml]);
+  const [tutor, setTutor] = useState<TutorMessage | null>(null);
+  const tutorId = useRef(0);
   const [goalReached, setGoalReached] = useState<{ score?: number; level?: number } | null>(null);
   const [runtimeError, setRuntimeError] = useState<string | null>(null);
   const [showHowTo, setShowHowTo] = useState(true);
@@ -205,7 +209,10 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
       if (!frameRef.current || e.source !== frameRef.current.contentWindow) return;
       const msg = e.data as { source?: string; type?: string; detail?: Record<string, unknown> | null };
       if (!msg || (msg.source !== "sunroot-sim" && msg.source !== "synapta-sim")) return;
-      if (msg.type === "goal_complete") {
+      const say = parseTutorMessage(msg.type, msg.detail, ++tutorId.current);
+      if (say) {
+        setTutor(say);
+      } else if (msg.type === "goal_complete") {
         const detail = (msg.detail || {}) as { score?: number; level?: number };
         setGoalReached(detail);
         confetti({ particleCount: 90, spread: 65, origin: { y: 0.4 } });
@@ -218,6 +225,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
   }, []);
 
   const resetPlayState = () => {
+    setTutor(null);
     setRuntimeError(null);
     setGoalReached(null);
     setCheckResult(null);
@@ -366,10 +374,45 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
     }
   };
 
+  // Full screen: the browser API where it exists, a full-window layout everywhere else (iPhone Safari has no API for it)
+  const [full, setFull] = useState(false);
   const goFullscreen = () => {
-    const el = stageRef.current;
-    if (el?.requestFullscreen) el.requestFullscreen().catch(() => null);
+    setFull((v) => {
+      const next = !v;
+      const el = stageRef.current;
+      if (next) {
+        el?.requestFullscreen?.().catch(() => null);
+        try {
+          const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+          if (window.matchMedia("(pointer: coarse)").matches) o.lock?.("landscape")?.catch(() => null);
+        } catch {}
+      } else {
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => null);
+        try {
+          screen.orientation.unlock();
+        } catch {}
+      }
+      return next;
+    });
   };
+  useEffect(() => {
+    const onChange = () => {
+      if (!document.fullscreenElement) setFull(false);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  useEffect(() => {
+    if (!full) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setFull(false);
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [full]);
 
   // ---------- Loading / building ----------
   if (loading) {
@@ -574,7 +617,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
           <h3 className="font-bold text-lg leading-tight">{sim.title}</h3>
           {sim.goal && (
             <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
-              <span className="font-semibold text-amber-600 dark:text-amber-400">Challenge:</span> {sim.goal}
+              <span className="font-semibold text-amber-600 dark:text-amber-400">Challenge:</span> <RichInline text={sim.goal} />
             </p>
           )}
         </div>
@@ -620,14 +663,28 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
           {showHowTo && (
             <ol className="px-4 pb-3 space-y-1 text-xs text-slate-600 dark:text-slate-400 list-decimal list-inside">
               {sim.howTo.map((h, i) => (
-                <li key={i}>{h}</li>
+                <li key={i}><RichInline text={h} /></li>
               ))}
             </ol>
           )}
         </div>
       )}
 
-      <div ref={stageRef} className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-[#0b0f14] shadow-lg">
+      <div
+        ref={stageRef}
+        className={cn(
+          "relative overflow-hidden bg-[#0b0f14]",
+          full
+            ? "fixed inset-0 z-[100] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
+            : "rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg"
+        )}
+      >
+        {full && (
+          <button type="button" onClick={goFullscreen} className="absolute right-2 top-2 z-20 flex h-9 items-center gap-1.5 rounded-lg bg-black/60 px-3 text-xs font-semibold text-white backdrop-blur" aria-label="Exit full screen">
+            Exit full screen
+          </button>
+        )}
+        <TutorBubble message={tutor} className="absolute left-3 right-14 bottom-3 z-10" />
         {frameHtml ? (
           <iframe
             key={frameKey}
@@ -638,7 +695,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
             // cannot read cookies, storage or anything in the app.
             sandbox="allow-scripts allow-pointer-lock"
             referrerPolicy="no-referrer"
-            className="w-full h-[min(75vh,640px)] min-h-[420px] block bg-[#0b0f14]"
+            className={cn("w-full block bg-[#0b0f14]", full ? "h-full" : "h-[min(75vh,640px)] min-h-[420px]")}
           />
         ) : (
           <div className="w-full h-[min(75vh,640px)] min-h-[420px] flex items-center justify-center text-xs text-slate-400" role="status">

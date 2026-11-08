@@ -1,6 +1,7 @@
 import { scopeRule } from "@/lib/kc/context";
 import { z } from "zod";
 import { designSpec } from "@/lib/ai/design-spec";
+import { readableText } from "@/lib/text/readable";
 import { normalizeQuizQuestions, type NormalizedQuizQuestion } from "@/lib/quiz/normalize";
 
 /**
@@ -246,15 +247,17 @@ export function parseGeneratedSimulation(raw: string, fallbackTitle: string): Pa
   let checkQuestion: NormalizedQuizQuestion | null = null;
   if (meta?.checkQuestion) {
     const [q] = normalizeQuizQuestions([{ ...meta.checkQuestion, difficulty: "medium" }]);
-    checkQuestion = q ?? null;
+    checkQuestion = q
+      ? { ...q, question: readableText(q.question), options: q.options.map((o) => readableText(o)), explanation: readableText(q.explanation) }
+      : null;
   }
 
   return {
     html,
-    title: meta?.title || `${fallbackTitle} — Interactive Simulation`,
-    goal: meta?.goal || "Explore the simulation and discover how each variable changes the outcome.",
-    howTo: meta?.howTo || [],
-    concepts: meta?.concepts || [],
+    title: readableText(meta?.title) || `${fallbackTitle} — Interactive Simulation`,
+    goal: readableText(meta?.goal) || "Explore the simulation and discover how each variable changes the outcome.",
+    howTo: (meta?.howTo || []).map((h) => readableText(h)),
+    concepts: (meta?.concepts || []).map((c) => readableText(c)),
     checkQuestion,
   };
 }
