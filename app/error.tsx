@@ -23,10 +23,6 @@ export default function ErrorBoundary({
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background text-foreground relative overflow-hidden">
       {/* Background danger glow */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 bg-destructive/10 rounded-full blur-3xl opacity-70"
-      />
 
       <div className="relative z-10 max-w-md w-full text-center space-y-6">
         <div className="mx-auto w-16 h-16 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-center justify-center shadow-lg shadow-destructive/5">

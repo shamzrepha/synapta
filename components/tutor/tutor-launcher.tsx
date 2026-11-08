@@ -36,7 +36,7 @@ export function TutorLauncher() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed z-40 right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-6 md:right-6 flex items-center justify-center gap-2 h-11 w-11 sm:h-12 sm:w-auto sm:pl-3.5 sm:pr-4 rounded-full bg-teal-600 text-white font-semibold text-sm shadow-xl shadow-teal-900/20 hover:bg-teal-700"
+          className="fixed z-40 right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-6 md:right-6 flex items-center justify-center gap-2 h-11 w-11 sm:h-12 sm:w-auto sm:pl-3.5 sm:pr-4 rounded-full bg-teal-600 text-white font-semibold text-sm shadow-xl  hover:bg-teal-700"
           aria-label="Ask the AI tutor"
         >
           <Sparkles className="h-5 w-5" />

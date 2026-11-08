@@ -379,7 +379,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
   const steps = buildMode === "edit" ? EDIT_STEPS : BUILD_STEPS;
   if (building) {
     return (
-      <div className="h-[420px] rounded-2xl border border-teal-500/30 bg-gradient-to-br from-slate-950 to-slate-900 text-slate-100 flex flex-col items-center justify-center gap-5 p-6 text-center">
+      <div className="h-[420px] rounded-2xl border border-teal-500/30 bg-slate-900 text-slate-100 flex flex-col items-center justify-center gap-5 p-6 text-center">
         <div className="relative h-16 w-16">
           <div className="absolute inset-0 rounded-full border-4 border-teal-500/20" />
           <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-teal-400 animate-spin" />
@@ -534,7 +534,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center space-y-4">
-          <div className="h-14 w-14 mx-auto rounded-2xl bg-gradient-to-br from-teal-500 to-amber-500 text-white flex items-center justify-center shadow-lg">
+          <div className="h-14 w-14 mx-auto rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-lg">
             <Gamepad2 className="h-7 w-7" />
           </div>
           <div>

@@ -5,28 +5,23 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center whitespace-nowrap rounded-xl text-sm font-medium transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97] select-none",
+  // flat, precise controls: no gradient, no glow, no press-scale; a clear focus ring
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 select-none",
   {
     variants: {
       variant: {
-        default:
-          "bg-gradient-to-r from-teal-600 via-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white font-semibold shadow-xs hover:shadow-md hover:shadow-teal-500/20 active:shadow-xs",
-        secondary:
-          "bg-muted/70 text-foreground hover:bg-muted border border-border/40 font-medium",
-        outline:
-          "border border-border/80 bg-card/60 backdrop-blur-sm text-foreground hover:bg-muted hover:border-teal-500/40 font-medium",
-        ghost:
-          "text-muted-foreground hover:text-foreground hover:bg-muted/60",
-        destructive:
-          "bg-rose-600 text-white hover:bg-rose-700 font-semibold shadow-xs hover:shadow-rose-500/20",
-        amber:
-          "bg-gradient-to-r from-amber-500 via-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold shadow-xs hover:shadow-md hover:shadow-amber-500/25",
+        default: "bg-teal-600 text-white hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 font-semibold",
+        secondary: "border border-slate-200 bg-slate-100 text-slate-900 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700",
+        outline: "border border-slate-300 bg-transparent text-slate-900 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800",
+        ghost: "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100",
+        destructive: "bg-rose-600 text-white hover:bg-rose-700 font-semibold",
+        amber: "bg-amber-500 text-slate-950 hover:bg-amber-400 font-semibold",
       },
       size: {
-        default: "h-10 px-4 py-2 min-h-[44px]",
-        sm: "h-9 rounded-lg px-3 text-xs min-h-[36px]",
-        lg: "h-12 rounded-xl px-6 text-base min-h-[48px]",
-        icon: "h-10 w-10 min-h-[44px] min-w-[44px] rounded-xl",
+        default: "h-10 px-4 py-2 min-h-[44px] md:min-h-[40px]",
+        sm: "h-9 rounded-md px-3 text-xs min-h-[36px]",
+        lg: "h-11 px-5 text-sm min-h-[44px]",
+        icon: "h-10 w-10 min-h-[44px] min-w-[44px] md:min-h-[40px] md:min-w-[40px]",
       },
     },
     defaultVariants: {

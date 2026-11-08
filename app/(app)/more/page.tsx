@@ -1,5 +1,6 @@
 "use client";
 
+import { FeatureIcon } from "@/components/shell/feature-icon";
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
@@ -40,7 +41,7 @@ export default function MorePage() {
           const body = (
             <div className={cn("h-full rounded-2xl border p-4 space-y-1 bg-white dark:bg-slate-900", f.status === "live" ? "border-slate-200 dark:border-slate-800 hover:border-teal-500" : "border-dashed border-slate-300 dark:border-slate-700 opacity-70")}>
               <div className="flex items-center gap-2">
-                <span className="text-2xl" aria-hidden>{f.emoji}</span>
+                <FeatureIcon emoji={f.emoji} />
                 <p className="font-bold leading-tight flex-1">{f.title}</p>
                 {f.status === "soon" && <Badge variant="outline" className="text-[10px]">soon</Badge>}
               </div>

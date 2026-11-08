@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { PageTranslator } from "@/components/i18n/page-translator";
-import { DM_Sans, Space_Grotesk } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -9,17 +9,18 @@ import { ToastProvider } from "@/components/ui/toast";
 import { ClientErrorListener } from "@/components/providers/client-error-listener";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, getSiteUrl } from "@/lib/site";
 
-// Sunroot's two faces: DM Sans for reading, Space Grotesk for headings (see app/globals.css)
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
+// Sunroot's type: IBM Plex Sans for everything you read (an engineering face), IBM Plex Mono for numbers and codes (see app/globals.css)
+const plexSans = IBM_Plex_Sans({
+  variable: "--font-plex-sans",
   subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
   subsets: ["latin", "latin-ext"],
-  weight: ["500", "700"],
+  weight: ["400", "500"],
   display: "swap",
 });
 
@@ -31,8 +32,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F8FAFC" },
-    { media: "(prefers-color-scheme: dark)", color: "#0B0F17" },
+    { media: "(prefers-color-scheme: light)", color: "#F7F8FA" },
+    { media: "(prefers-color-scheme: dark)", color: "#0E1116" },
   ],
 };
 
@@ -75,9 +76,18 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${dmSans.variable} ${spaceGrotesk.variable} h-full antialiased dark`}
+      className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans">
+      <head>
+        {/* Apply the saved (or the device's) light/dark choice before the first paint, so there is no flash and both modes really work */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('sunroot-theme')||localStorage.getItem('synapta-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}})()",
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
         <QueryProvider>
           <AuthProvider>
             <RealtimeProvider>

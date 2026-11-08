@@ -114,7 +114,7 @@ export function CreateEventForm({
   const presetLabel = (m: number) => (m < 60 ? `${m} min` : m < 1440 ? `${m / 60} h` : `${m / 1440} day${m > 1440 ? "s" : ""}`);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-50 bg-slate-950/60  flex items-end sm:items-center justify-center p-0 sm:p-4">
       <form onSubmit={submit} className="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-950 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold">New challenge</h2>

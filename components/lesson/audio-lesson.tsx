@@ -328,7 +328,7 @@ export function AudioLesson({ classId, kcId, viewLang }: { classId: string; kcId
 
   return (
     <Card className="overflow-hidden border-indigo-500/30">
-      <div className="p-4 sm:p-5 bg-gradient-to-r from-indigo-500/10 via-teal-500/10 to-transparent">
+      <div className="p-4 sm:p-5 bg-slate-500/10">
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 shrink-0 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
             <Headphones className="h-6 w-6" />

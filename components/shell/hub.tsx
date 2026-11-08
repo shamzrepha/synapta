@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { FEATURES, type FeatureGroup } from "@/lib/features/registry";
+import { FeatureIcon } from "./feature-icon";
 
 export interface HubLink {
   title: string;
@@ -18,28 +19,28 @@ export function Hub({ eyebrow, title, intro, start, groups, extraLinks = [] }: {
   ].filter((m, i, a) => !taken.has(m.href) && a.findIndex((x) => x.href === m.href) === i);
 
   const card = (l: HubLink, big = false) => (
-    <Link key={l.href + l.title} href={l.href} className={`block rounded-2xl border bg-white dark:bg-slate-900 hover:border-teal-500 ${big ? "p-5 border-teal-500/40" : "p-4 border-slate-200 dark:border-slate-800"}`}>
-      <div className="flex items-center gap-2">
-        <span className={big ? "text-3xl" : "text-2xl"} aria-hidden>{l.emoji}</span>
-        <p className="font-bold leading-tight">{l.title}</p>
+    <Link key={l.href + l.title} href={l.href} className={`block rounded-lg border bg-card transition-colors hover:border-teal-600 dark:hover:border-teal-400 ${big ? "p-5" : "p-4"} border-border`}>
+      <div className="flex items-center gap-3">
+        <FeatureIcon emoji={l.emoji} tile={big ? "h-10 w-10" : "h-9 w-9"} />
+        <p className="font-semibold leading-tight">{l.title}</p>
       </div>
-      <p className="text-xs text-slate-500 mt-1">{l.blurb}</p>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{l.blurb}</p>
     </Link>
   );
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-mono tracking-widest text-teal-600">{eyebrow}</p>
-        <h1 className="text-2xl font-extrabold">{title}</h1>
+        <p className="font-mono text-xs uppercase tracking-[0.14em] text-teal-700 dark:text-teal-300">{eyebrow}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         <p className="text-sm text-slate-500 max-w-2xl">{intro}</p>
       </div>
       <section className="space-y-2">
-        <h2 className="font-bold text-sm uppercase tracking-wide text-slate-400">Start with these</h2>
+        <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Start with these</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{start.map((l) => card(l, true))}</div>
       </section>
       <section className="space-y-2">
-        <h2 className="font-bold text-sm uppercase tracking-wide text-slate-400">More</h2>
+        <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">More</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{more.map((l) => card(l))}</div>
       </section>
     </div>

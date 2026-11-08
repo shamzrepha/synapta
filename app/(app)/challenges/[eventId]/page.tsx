@@ -128,7 +128,7 @@ export default function ChallengePage({ params }: { params: Promise<{ eventId: s
         <ArrowLeft className="h-4 w-4 mr-1" /> All challenges
       </Link>
 
-      <Card className={cn("p-5 sm:p-6 overflow-hidden relative", isQuiz ? "bg-gradient-to-br from-amber-500/10 to-rose-500/10" : "bg-gradient-to-br from-indigo-500/10 to-teal-500/10")}>
+      <Card className={cn("p-5 sm:p-6 overflow-hidden relative", isQuiz ? "bg-amber-500/10" : "bg-slate-500/10")}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2 mb-2">

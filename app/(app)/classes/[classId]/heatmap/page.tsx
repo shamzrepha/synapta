@@ -617,10 +617,10 @@ export default function ClassHeatmapPage({
 
       {/* STUDENT SKILL MAP DRILL-DOWN MODAL */}
       {selectedStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60  animate-in fade-in duration-150">
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="sticky top-0 z-10 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div className="sticky top-0 z-10 bg-white/95 dark:bg-slate-900/95  p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 font-extrabold flex items-center justify-center text-lg">
                   {selectedStudent.displayName[0]?.toUpperCase() || "S"}
@@ -789,7 +789,7 @@ export default function ClassHeatmapPage({
             </div>
 
             {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+            <div className="sticky bottom-0 bg-white/95 dark:bg-slate-900/95  p-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
               <Button size="sm" onClick={() => setSelectedStudent(null)}>
                 Close Drill-Down
               </Button>

@@ -48,7 +48,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             role="alert"
             className={cn(
-              "pointer-events-auto flex items-start gap-3 rounded-xl border p-4 shadow-lg backdrop-blur-md transition-all duration-300",
+              "pointer-events-auto flex items-start gap-3 rounded-xl border p-4 shadow-lg transition-all duration-300",
               t.variant === "success" &&
                 "border-emerald-500/30 bg-emerald-50/90 text-emerald-950 dark:bg-emerald-950/80 dark:text-emerald-100",
               t.variant === "destructive" &&

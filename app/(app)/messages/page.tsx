@@ -92,7 +92,7 @@ function NewChatModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
 
   const shown = friends.filter((f) => f.displayName.toLowerCase().includes(q.toLowerCase()));
   return (
-    <div className="fixed inset-0 z-[60] bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] bg-slate-950/60  flex items-end sm:items-center justify-center" onClick={onClose}>
       <div className="w-full sm:max-w-md max-h-[85vh] flex flex-col bg-white dark:bg-slate-950 rounded-t-3xl sm:rounded-3xl p-4 gap-3 shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <p className="font-bold">New message</p>
@@ -308,7 +308,7 @@ function Conversation({ chatId, onBack, onChanged }: { chatId: string; onBack: (
                   {pickerFor === m.id && (
                     <div className={cn("absolute -top-11 z-10 flex gap-1 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-lg px-2 py-1", mine ? "right-0" : "left-0")}>
                       {EMOJIS.map((e) => (
-                        <button key={e} onClick={() => react(m.id, e)} className="text-xl hover:scale-125 transition-transform">
+                        <button key={e} onClick={() => react(m.id, e)} className="text-xl  transition-transform">
                           {e}
                         </button>
                       ))}
@@ -339,9 +339,9 @@ function Conversation({ chatId, onBack, onChanged }: { chatId: string; onBack: (
         {typingShown.length > 0 && (
           <p className="text-xs text-slate-500 flex items-center gap-1.5 px-1">
             <span className="inline-flex gap-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce" />
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:120ms]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:240ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 typing-dot" />
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 typing-dot [animation-delay:150ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 typing-dot [animation-delay:300ms]" />
             </span>
             {typingShown.join(", ")} {typingShown.length > 1 ? "are" : "is"} typing…
           </p>

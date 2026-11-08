@@ -183,7 +183,7 @@ export function AiKeySettings() {
   return (
     <div className="space-y-4">
       {/* 1-CLICK ENGINE FLICK SWITCH */}
-      <Card className="p-5 border-2 border-teal-500/20 bg-gradient-to-br from-card via-card to-teal-500/5">
+      <Card className="p-5 border-2 border-teal-500/20 bg-card">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">

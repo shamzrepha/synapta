@@ -225,9 +225,9 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto pt-2 text-left">
             <Link
               href="/explore"
-              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50   transition-all group"
             >
-              <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3  transition-transform">
                 <Compass className="h-5 w-5" />
               </div>
               <h3 className="text-sm font-bold text-foreground">1. Find your class</h3>
@@ -236,9 +236,9 @@ export default function DashboardPage() {
 
             <Link
               href="/community"
-              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50   transition-all group"
             >
-              <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3  transition-transform">
                 <Users className="h-5 w-5" />
               </div>
               <h3 className="text-sm font-bold text-foreground">2. Meet people</h3>
@@ -247,9 +247,9 @@ export default function DashboardPage() {
 
             <Link
               href="/study"
-              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50 hover:shadow-md hover:-translate-y-0.5 transition-all group"
+              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50   transition-all group"
             >
-              <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+              <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3  transition-transform">
                 <BookOpen className="h-5 w-5" />
               </div>
               <h3 className="text-sm font-bold text-foreground">3. Study with AI</h3>
@@ -274,7 +274,7 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {asArray(classes).map((cls) => (
-              <Card key={cls.id} className="flex flex-col justify-between hover:shadow-md hover:border-teal-500/40 hover:-translate-y-0.5 transition-all duration-300">
+              <Card key={cls.id} className="flex flex-col justify-between  hover:border-teal-500/40  transition-all duration-300">
                 <CardHeader>
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <Badge variant="outline" className="text-[10px]">{cls.subject}</Badge>
