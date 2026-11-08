@@ -21,9 +21,10 @@ OUTPUT: only JSON, no Markdown fences, exactly this shape:
   {"type":"number","prompt":"...","unit":"m/s","answer":12.5,"tolerance":0.2,"hint":"...","explanation":"..."},
   {"type":"slider","prompt":"...","label":"Mass","unit":"kg","min":0,"max":10,"step":0.5,"start":1,"expr":"x * 9.81","outLabel":"Weight","outUnit":"N","goalMin":48,"goalMax":50,"hint":"...","explanation":"..."},
   {"type":"order","prompt":"...","items":["first step","second step","third step"],"hint":"...","explanation":"..."},
-  {"type":"match","prompt":"...","pairs":[{"left":"term","right":"meaning"},{"left":"...","right":"..."},{"left":"...","right":"..."}],"hint":"...","explanation":"..."}
+  {"type":"match","prompt":"...","pairs":[{"left":"term","right":"meaning"},{"left":"...","right":"..."},{"left":"...","right":"..."}],"hint":"...","explanation":"..."},
+  {"type":"sort","prompt":"...","groups":[{"name":"Group A","items":["item","item"]},{"name":"Group B","items":["item","item"]}],"hint":"...","explanation":"..."}
 ]}
-Rules: "answer" in choose is the zero-based index of the correct option. For "order", list the items in the CORRECT order (the app shuffles them). "tolerance" is an absolute allowed error. Every number is a plain JSON number. Never put the answer inside the prompt or hint.`;
+Rules: "answer" in choose is the zero-based index of the correct option. For "sort", give 2 or 3 groups with 2 to 4 items each (4 to 8 items in total, every item unique and clearly belonging to one group; the app shuffles them). For "order", list the items in the CORRECT order (the app shuffles them). "tolerance" is an absolute allowed error. Every number is a plain JSON number. Never put the answer inside the prompt or hint.`;
 
   const userPrompt = `Build the quest for this piece.
 

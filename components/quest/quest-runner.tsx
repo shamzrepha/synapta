@@ -13,7 +13,8 @@ type Answer =
   | { type: "number"; value: number }
   | { type: "slider"; x: number }
   | { type: "order"; order: string[] }
-  | { type: "match"; pairs: Array<{ left: string; right: string }> };
+  | { type: "match"; pairs: Array<{ left: string; right: string }> }
+  | { type: "sort"; placed: Array<{ item: string; group: string }> };
 
 interface Feedback {
   correct: boolean;
@@ -88,6 +89,7 @@ export function QuestRunner({ classId, kcId, index, objective, onExit, onFinishe
       if (!current) return setShown(undefined);
       if (current.type === "order") setShown({ ...current, items: shuffle(current.items) });
       else if (current.type === "match") setShown({ ...current, rights: shuffle(current.rights) });
+      else if (current.type === "sort") setShown({ ...current, items: shuffle(current.items) });
       else setShown(current);
     }, 0);
     return () => clearTimeout(t);
@@ -115,6 +117,7 @@ export function QuestRunner({ classId, kcId, index, objective, onExit, onFinishe
     if (!shown || !answer) return false;
     if (shown.type === "order") return answer.type === "order" && answer.order.length === shown.items.length;
     if (shown.type === "match") return answer.type === "match" && answer.pairs.length === shown.lefts.length;
+    if (shown.type === "sort") return answer.type === "sort" && answer.placed.length === shown.items.length;
     if (shown.type === "number") return answer.type === "number" && Number.isFinite(answer.value);
     return true;
   }, [shown, answer]);
@@ -314,6 +317,7 @@ function Widget({ c, answer, setAnswer, locked }: { c: ClientChallenge; answer: 
   }
   if (c.type === "slider") return <SliderWidget c={c} setAnswer={setAnswer} locked={locked} />;
   if (c.type === "order") return <OrderWidget c={c} answer={answer} setAnswer={setAnswer} locked={locked} />;
+  if (c.type === "sort") return <SortWidget c={c} answer={answer} setAnswer={setAnswer} locked={locked} />;
   return <MatchWidget c={c} answer={answer} setAnswer={setAnswer} locked={locked} />;
 }
 
@@ -478,6 +482,77 @@ function MatchWidget({ c, answer, setAnswer, locked }: { c: Extract<ClientChalle
         })}
       </div>
       <p className="col-span-2 text-xs text-muted-foreground">Tap an item on the left, then its match on the right. Tap a pair to undo it.</p>
+    </div>
+  );
+}
+
+function SortWidget({ c, answer, setAnswer, locked }: { c: Extract<ClientChallenge, { type: "sort" }>; answer: Answer | null; setAnswer: (a: Answer | null) => void; locked: boolean }) {
+  const placed = answer?.type === "sort" ? answer.placed : [];
+  const [picked, setPicked] = useState<string | null>(null);
+  const bank = c.items.filter((it) => !placed.some((p) => p.item === it));
+  const put = (group: string) => {
+    if (!picked || locked) return;
+    setAnswer({ type: "sort", placed: [...placed, { item: picked, group }] });
+    setPicked(null);
+  };
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3">
+        {c.groups.map((g) => (
+          <div key={g}>
+            <button
+              type="button"
+              disabled={locked || !picked}
+              onClick={() => put(g)}
+              className={cn(
+                "w-full rounded-xl border-2 p-3 text-left min-h-24 transition-colors",
+                picked ? "border-dashed border-brand-600 bg-brand-500/10" : "border-border bg-card"
+              )}
+              aria-label={`Group ${g}`}
+            >
+              <span className="block text-sm font-bold mb-2"><RichInline text={g} /></span>
+              <span className="flex flex-wrap gap-2">
+                {placed.filter((p) => p.group === g).map((p) => (
+                  <span
+                    key={p.item}
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!locked) setAnswer({ type: "sort", placed: placed.filter((q) => q.item !== p.item) });
+                    }}
+                    onKeyDown={(e) => {
+                      if ((e.key === " " || e.key === "Enter") && !locked) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setAnswer({ type: "sort", placed: placed.filter((q) => q.item !== p.item) });
+                      }
+                    }}
+                    className="rounded-lg border-2 border-brand-600/60 bg-brand-500/10 px-2.5 py-1.5 text-sm"
+                  >
+                    <RichInline text={p.item} />
+                  </span>
+                ))}
+                {!placed.some((p) => p.group === g) && <span className="text-xs text-muted-foreground">{picked ? "Tap here to drop it in" : "Empty"}</span>}
+              </span>
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2" aria-label="Items to sort">
+        {bank.map((it) => (
+          <button
+            key={it}
+            type="button"
+            disabled={locked}
+            onClick={() => setPicked(picked === it ? null : it)}
+            className={cn("rounded-lg border-2 px-3 py-2.5 text-sm min-h-11", picked === it ? "border-brand-600 bg-brand-500/15 scale-105" : "border-border bg-card hover:border-brand-500/60")}
+          >
+            <RichInline text={it} />
+          </button>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">Tap an item, then tap the group it belongs to. Tap a placed item to take it back.</p>
     </div>
   );
 }

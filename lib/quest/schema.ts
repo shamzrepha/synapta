@@ -7,7 +7,7 @@ import { readableText } from "@/lib/text/readable";
  * The AI fills in structured data; our own screens draw and run them, so they always look the same,
  * fit any phone, and are always draggable. Answers stay on the server and are graded there.
  */
-export const CHALLENGE_TYPES = ["choose", "number", "slider", "order", "match"] as const;
+export const CHALLENGE_TYPES = ["choose", "number", "slider", "order", "match", "sort"] as const;
 export type ChallengeType = (typeof CHALLENGE_TYPES)[number];
 
 const text = (max: number) => z.string().trim().min(1).max(max).transform(readableText);
@@ -35,7 +35,13 @@ const slider = z.object({
 const order = z.object({ type: z.literal("order"), ...base, items: z.array(text(140)).min(3).max(6) });
 const match = z.object({ type: z.literal("match"), ...base, pairs: z.array(z.object({ left: text(80), right: text(120) })).min(3).max(5) });
 
-export const challengeSchema = z.discriminatedUnion("type", [choose, number, slider, order, match]);
+const sort = z.object({
+  type: z.literal("sort"),
+  ...base,
+  groups: z.array(z.object({ name: text(60), items: z.array(text(100)).min(1).max(4) })).min(2).max(3),
+});
+
+export const challengeSchema = z.discriminatedUnion("type", [choose, number, slider, order, match, sort]);
 export type Challenge = z.infer<typeof challengeSchema> & { id: string };
 
 const unique = (xs: string[]) => new Set(xs.map((x) => x.toLowerCase())).size === xs.length;
@@ -68,6 +74,8 @@ export function isSolvable(c: z.infer<typeof challengeSchema>): boolean {
       return unique(c.items);
     case "match":
       return unique(c.pairs.map((p) => p.left)) && unique(c.pairs.map((p) => p.right));
+    case "sort":
+      return unique(c.groups.map((g) => g.name)) && unique(c.groups.flatMap((g) => g.items)) && c.groups.flatMap((g) => g.items).length >= 4;
   }
 }
 
@@ -76,7 +84,8 @@ export type Answer =
   | { type: "number"; value: number }
   | { type: "slider"; x: number }
   | { type: "order"; order: string[] }
-  | { type: "match"; pairs: Array<{ left: string; right: string }> };
+  | { type: "match"; pairs: Array<{ left: string; right: string }> }
+  | { type: "sort"; placed: Array<{ item: string; group: string }> };
 
 export const answerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("choose"), index: z.number().int().min(0).max(10) }),
@@ -84,6 +93,7 @@ export const answerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("slider"), x: z.number().finite() }),
   z.object({ type: z.literal("order"), order: z.array(z.string().max(200)).max(8) }),
   z.object({ type: z.literal("match"), pairs: z.array(z.object({ left: z.string().max(200), right: z.string().max(200) })).max(8) }),
+  z.object({ type: z.literal("sort"), placed: z.array(z.object({ item: z.string().max(200), group: z.string().max(200) })).max(12) }),
 ]);
 
 export function gradeChallenge(c: Challenge, a: Answer): boolean {
@@ -106,6 +116,11 @@ export function gradeChallenge(c: Challenge, a: Answer): boolean {
       return a.type === "order" && a.order.length === c.items.length && a.order.every((it, i) => it === c.items[i]);
     case "match":
       return a.type === "match" && a.pairs.length === c.pairs.length && c.pairs.every((p) => a.pairs.some((q) => q.left === p.left && q.right === p.right));
+    case "sort": {
+      if (a.type !== "sort") return false;
+      const all = c.groups.flatMap((g) => g.items.map((item) => ({ item, group: g.name })));
+      return a.placed.length === all.length && all.every((x) => a.placed.some((q) => q.item === x.item && q.group === x.group));
+    }
   }
 }
 
@@ -122,6 +137,8 @@ export function solutionText(c: Challenge): string {
       return c.items.map((it, i) => `${i + 1}. ${it}`).join("  ");
     case "match":
       return c.pairs.map((p) => `${p.left} → ${p.right}`).join("  ");
+    case "sort":
+      return c.groups.map((g) => `${g.name}: ${g.items.join(", ")}`).join("  ·  ");
   }
 }
 
@@ -130,7 +147,8 @@ export type ClientChallenge =
   | { id: string; type: "number"; prompt: string; unit: string }
   | { id: string; type: "slider"; prompt: string; label: string; unit: string; min: number; max: number; step: number; start: number; expr: string; outLabel: string; outUnit: string; goalMin: number; goalMax: number }
   | { id: string; type: "order"; prompt: string; items: string[] }
-  | { id: string; type: "match"; prompt: string; lefts: string[]; rights: string[] };
+  | { id: string; type: "match"; prompt: string; lefts: string[]; rights: string[] }
+  | { id: string; type: "sort"; prompt: string; groups: string[]; items: string[] };
 
 function shuffled<T>(xs: T[], rand: () => number, notEqualTo?: T[]): T[] {
   const a = [...xs];
@@ -157,6 +175,10 @@ export function toClientChallenge(c: Challenge, rand: () => number = Math.random
       return { id: c.id, type: "order", prompt: c.prompt, items: shuffled(c.items, rand, c.items) };
     case "match":
       return { id: c.id, type: "match", prompt: c.prompt, lefts: c.pairs.map((p) => p.left), rights: shuffled(c.pairs.map((p) => p.right), rand, c.pairs.map((p) => p.right)) };
+    case "sort": {
+      const flat = c.groups.flatMap((g) => g.items);
+      return { id: c.id, type: "sort", prompt: c.prompt, groups: c.groups.map((g) => g.name), items: shuffled(flat, rand, flat) };
+    }
   }
 }
 
