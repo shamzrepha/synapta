@@ -10,6 +10,7 @@ import { VerifyEmailBanner } from "@/components/shell/verify-email-banner";
 import { UpgradeDialog } from "@/components/billing/upgrade-dialog";
 import { SiteNotice } from "@/components/shell/site-notice";
 import { AddMaterialSheet } from "@/components/shell/add-material";
+import { CommandPalette } from "@/components/shell/command-palette";
 import { AppUpdateBanner } from "@/components/shell/app-update-banner";
 import { DeviceReporter } from "@/components/shell/device-reporter";
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -42,6 +43,7 @@ export default function AppLayout({
       </div>
       <MobileNav />
       <AddMaterialSheet />
+      <CommandPalette />
       <TutorLauncher />
       <OfflineManager />
       <ThemeApplier />
