@@ -1,6 +1,6 @@
 "use client";
 
-import { BrandMark } from "@/components/landing/brand-mark";
+import Image from "next/image";
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -38,9 +38,7 @@ export function Sidebar() {
     >
       <div className="flex h-16 items-center justify-between px-3 border-b border-border/70">
         <Link href="/dashboard" className="flex items-center gap-2.5 overflow-hidden rounded-xl p-1 group">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-600 text-white dark:bg-brand-500">
-            <BrandMark className="h-6 w-6" />
-          </div>
+          <Image src="/logo-mark.svg" alt="" width={36} height={36} className="h-9 w-9 shrink-0" priority />
           <span translate="no" className={cn("font-display font-black text-lg tracking-tight text-foreground", label)}>
             Sunroot<span className="text-amber-500">.</span>
           </span>

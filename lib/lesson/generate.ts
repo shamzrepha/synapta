@@ -1,3 +1,4 @@
+import { designSpec } from "@/lib/ai/design-spec";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { generateWithFallback, AiGenerationError } from "@/lib/ai/router";
@@ -54,6 +55,8 @@ Write a complete, engaging lesson in GitHub-flavoured Markdown (600-1200 words) 
 ## Common mistakes — 2-4 misconceptions and how to avoid them
 ## Key terms — a short glossary as a bullet list
 ## Quick check — 3 short self-test questions, followed by a final line starting with **Answers:** that answers them briefly
+
+${designSpec("common", "lesson")}
 
 Rules: ground the lesson in the provided material (it comes from the teacher's uploads) and stay accurate; write all maths in LaTeX ($...$ inline, $$...$$ display); use short paragraphs, bullet lists and **bold** key terms; do not start with a top-level "#" title; no raw HTML; output Markdown only.`;
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { LearningMap } from "@/components/classes/learning-map";
 import React, { useState, useEffect, use, useCallback } from "react";
 import Link from "next/link";
 import { useUserStore } from "@/lib/store/use-user-store";
@@ -113,6 +114,24 @@ export default function ClassOverviewPage({
   const [isJoining, setIsJoining] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isBuilding, setIsBuilding] = useState(false);
+  // students see the map by default; the owner (who manages topics) sees the list. Either can switch, and the choice is remembered.
+  const [viewChoice, setViewChoice] = useState<"map" | "list" | null>(null);
+  const view: "map" | "list" = viewChoice ?? (isOwner ? "list" : "map");
+  const chooseView = (v: "map" | "list") => {
+    setViewChoice(v);
+    try {
+      window.localStorage.setItem("sunroot:classView", v);
+    } catch {}
+  };
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const saved = window.localStorage.getItem("sunroot:classView");
+        if (saved === "map" || saved === "list") setViewChoice(saved);
+      } catch {}
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
   const [showMaterialModal, setShowMaterialModal] = useState(false);
 
   const applyClassPayload = useCallback((payload: ClassPayload | null, opts: { silent?: boolean } = {}) => {
@@ -244,11 +263,10 @@ export default function ClassOverviewPage({
     }
   };
 
-  // Helper to determine whether a KC is unlocked
+  // Nothing is locked: every topic is open, and the map recommends where to go next.
   const isKcUnlocked = (kc: KCItem): boolean => {
-    if (!kc.prerequisiteIds || kc.prerequisiteIds.length === 0) return true;
-    // Every prerequisite KC must have pL >= 0.70
-    return kc.prerequisiteIds.every((prereqId) => (masteryMap[prereqId] ?? 0.2) >= 0.7);
+    void kc;
+    return true;
   };
 
   if (loading) {
@@ -544,9 +562,9 @@ export default function ClassOverviewPage({
 
         <Card className="p-4 flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 block">Your mastery tracking is on</span>
+            <span className="text-xs text-slate-500 block">Every topic is open to you</span>
             <span className="text-xl font-bold text-amber-500">
-              {kcs.filter((kc) => isKcUnlocked(kc)).length} Unlocked
+              {kcs.length} topics open
             </span>
           </div>
           <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
@@ -601,11 +619,42 @@ export default function ClassOverviewPage({
           <div>
             <h2 className="text-lg font-bold tracking-tight">Syllabus & Topics</h2>
             <p className="text-xs text-slate-500">
-              Atomic concepts organized by dependency. Topics unlock when the topics before them reach a 70% mastery score.
+              Everything is open. The map recommends where to go next and shows how far you are in each topic.
             </p>
+          </div>
+          <div className="inline-flex shrink-0 rounded-md border border-border p-0.5" role="group" aria-label="View">
+            {(["map", "list"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => chooseView(v)}
+                aria-pressed={view === v}
+                className={`rounded px-3 py-1 text-xs font-medium capitalize transition-colors ${view === v ? "bg-brand-600 text-white dark:bg-brand-500" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {v}
+              </button>
+            ))}
           </div>
         </div>
 
+        {view === "map" && (
+          <LearningMap
+            classId={classId}
+            items={kcs.map((kc) => ({
+              id: kc.id,
+              title: kc.title,
+              description: kc.description,
+              order: kc.order,
+              pL: masteryMap[kc.id] ?? kc.bkt?.pL0 ?? 0.2,
+              attempts: attemptsMap[kc.id] ?? 0,
+              prerequisiteIds: kc.prerequisiteIds,
+              labType: kc.lab?.type,
+              objectives: kc.objectives,
+            }))}
+          />
+        )}
+
+        {view === "list" && (
         <div className="space-y-3">
           {kcs.map((kc, idx) => {
             const unlocked = isKcUnlocked(kc);
@@ -704,6 +753,7 @@ export default function ClassOverviewPage({
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );
