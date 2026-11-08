@@ -1,3 +1,4 @@
+import { designSpec } from "@/lib/ai/design-spec";
 import { executeStructuredAiTask, AiQuotaExhaustedError } from "@/lib/ai/router";
 import { sanitizeUntrustedPromptText } from "@/lib/ai/scrub";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
@@ -246,6 +247,8 @@ export async function buildClassWithAi(input: ClassBuildInput, jobId?: string): 
 
   const systemInstruction = `You are Sunroot's Senior AI Co-Teacher and Curriculum Architect.
 Your task is to structure a master Knowledge Component (KC) graph for a course.
+
+${designSpec("common", "class")}
 
 Rules:
 1. Target Level: ${input.level}. Duration: ${input.durationWeeks} weeks.

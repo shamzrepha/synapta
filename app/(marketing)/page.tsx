@@ -5,7 +5,7 @@ import { PixelField } from "@/components/landing/pixel-field";
 import { Reveal } from "@/components/landing/reveal";
 import React from "react";
 import Link from "next/link";
-import { BrandMark } from "@/components/landing/brand-mark";
+import Image from "next/image";
 import { ArrowRight, ArrowUpRight, BookOpenText, Briefcase, Download, GraduationCap, Languages, ListChecks, MessagesSquare, Presentation, Route, School, Sprout, Users, Wrench } from "lucide-react";
 import { SITE_ALT_NAME, SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/site";
 
@@ -67,9 +67,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-[1280px] items-center justify-between gap-4 px-5 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-7 w-7 items-center justify-center rounded-[5px] bg-brand-600 text-white dark:bg-brand-500">
-              <BrandMark className="h-[18px] w-[18px]" />
-            </span>
+            <Image src="/logo-mark.svg" alt="" width={28} height={28} className="h-7 w-7" priority />
             <span translate="no" className="text-[17px] font-semibold tracking-tight">Sunroot</span>
           </Link>
           <nav className="hidden items-center gap-8 md:flex" aria-label="Page sections">
@@ -284,9 +282,7 @@ export default function LandingPage() {
       <footer className="bg-background">
         <div className="mx-auto flex max-w-[1280px] flex-col justify-between gap-4 px-5 py-8 sm:flex-row sm:items-center sm:px-8">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-6 w-6 items-center justify-center rounded-[4px] bg-brand-600 text-white dark:bg-brand-500">
-              <BrandMark className="h-4 w-4" />
-            </span>
+            <Image src="/logo-mark.svg" alt="" width={24} height={24} className="h-6 w-6" />
             <span translate="no" className="text-sm font-semibold">Sunroot</span>
             <span className={label}>&copy; 2026</span>
           </div>

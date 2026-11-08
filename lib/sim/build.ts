@@ -1,5 +1,6 @@
 import { scopeRule } from "@/lib/kc/context";
 import { z } from "zod";
+import { designSpec } from "@/lib/ai/design-spec";
 import { normalizeQuizQuestions, type NormalizedQuizQuestion } from "@/lib/quiz/normalize";
 
 /**
@@ -66,6 +67,8 @@ You build ONE polished, playable, self-contained HTML5 simulation that teaches a
 
 ${scopeRule({ kcTitle: params.kcTitle, objectives: params.objectives || [], otherTopics: params.otherTopics || [] })}
 
+${designSpec("common", "simulation")}
+
 OUTPUT FORMAT (strict):
 - Output ONLY a complete HTML document starting with <!DOCTYPE html>. No Markdown fences, no commentary.
 - Inside <head>, include this metadata block (valid JSON, no comments):
@@ -93,7 +96,7 @@ LEARNING & GAME DESIGN RULES:
 9. A game layer: a clear challenge/goal shown on screen (e.g. "Hit the target", "Balance the circuit to 0.2 A", "Reach 3 stars"), live feedback, a score or stars, and 2-3 levels of increasing difficulty when it fits the topic.
 10. When the learner achieves the main goal, call window.sunroot.complete({ score: <number>, level: <number> }) or window.synapta.complete({ score: <number>, level: <number> }) once per level (the function is provided by the host page; guard with "if (window.sunroot || window.synapta)").
 11. Include a short "What to notice" hint panel that explains the cause→effect relationship the learner should discover.
-12. Visual style: modern, clean, high-contrast, dark-friendly (background #0b0f14 or similar with teal #14b8a6 and amber #f59e0b accents), large readable text (>=14px), rounded controls.
+12. Visual style: modern, clean, high-contrast, dark-friendly (background #0b0f14 or similar with blue #4A6CF7 and gold #F5B83A accents), large readable text (>=14px), rounded controls.
 13. If the topic is not naturally physical (e.g. history, biology processes, algorithms, economics), build an interactive model, sorting/matching game, timeline, step-through visualiser or "what-if" explorer instead — still with a goal and feedback.`;
 
   const userPrompt = `Build the simulation for this topic.

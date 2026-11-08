@@ -1,6 +1,6 @@
 "use client";
 
-import { BrandMark } from "@/components/landing/brand-mark";
+import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
@@ -55,9 +55,7 @@ export function Topbar() {
             <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">{t("Back")}</span>
           </button>
         )}
-        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white dark:bg-brand-500 shadow-sm`} aria-label="Home">
-          <BrandMark className="h-5 w-5" />
-        </Link>
+        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center`} aria-label="Home"><Image src="/logo-mark.svg" alt="" width={36} height={36} className="h-9 w-9" priority /></Link>
         <Link href="/search" className="sm:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800" aria-label="Search">
           <Search className="h-4 w-4" />
         </Link>
