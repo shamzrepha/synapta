@@ -62,14 +62,14 @@ export default function PathsPage() {
     <div className="max-w-3xl mx-auto space-y-5">
       <Link href="/studio" className="inline-flex items-center gap-1 text-xs text-slate-500"><ArrowLeft className="h-3.5 w-3.5" /> Maker Studio</Link>
       <div>
-        <h1 className="text-2xl font-extrabold flex items-center gap-2"><Route className="h-6 w-6 text-teal-600" /> Goal → learning path</h1>
+        <h1 className="text-2xl font-extrabold flex items-center gap-2"><Route className="h-6 w-6 text-brand-600" /> Goal → learning path</h1>
         <p className="text-sm text-slate-500">Type what you want to build. You&apos;ll get an ordered path: what to learn first, videos for each step, a build checklist after every lesson, and a simulator project to practise it — before you buy a single part.</p>
       </div>
       <Card className="p-4 space-y-4">
         <textarea value={goal} onChange={(e) => setGoal(e.target.value)} rows={2} maxLength={500} placeholder="e.g. build a line-following robot" className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm" />
         <div className="flex flex-wrap gap-1.5">
           {EXAMPLES.map((e) => (
-            <button key={e} type="button" onClick={() => setGoal(e)} className="rounded-full border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs hover:border-teal-500">{e}</button>
+            <button key={e} type="button" onClick={() => setGoal(e)} className="rounded-full border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs hover:border-brand-500">{e}</button>
           ))}
         </div>
         <div className="space-y-1">
@@ -77,7 +77,7 @@ export default function PathsPage() {
           <div className="flex items-center gap-2 text-xs">
             <span className="text-slate-500">Beginner</span>
             {[1, 2, 3, 4, 5].map((n) => (
-              <button key={n} type="button" onClick={() => setLevel(n)} className={cn("h-8 w-8 rounded-full border font-bold", level === n ? "bg-teal-600 text-white border-teal-600" : "border-slate-300 dark:border-slate-700")}>{n}</button>
+              <button key={n} type="button" onClick={() => setLevel(n)} className={cn("h-8 w-8 rounded-full border font-bold", level === n ? "bg-brand-600 text-white border-brand-600" : "border-slate-300 dark:border-slate-700")}>{n}</button>
             ))}
             <span className="text-slate-500">Advanced</span>
           </div>
@@ -88,7 +88,7 @@ export default function PathsPage() {
             {AREAS.map((a) => {
               const on = areas.includes(a);
               return (
-                <button key={a} type="button" onClick={() => setAreas((x) => (on ? x.filter((y) => y !== a) : x.length < 2 ? [...x, a] : x))} className={cn("rounded-full border px-2.5 py-1 text-xs", on ? "bg-teal-600 text-white border-teal-600" : "border-slate-200 dark:border-slate-700")}>{a}</button>
+                <button key={a} type="button" onClick={() => setAreas((x) => (on ? x.filter((y) => y !== a) : x.length < 2 ? [...x, a] : x))} className={cn("rounded-full border px-2.5 py-1 text-xs", on ? "bg-brand-600 text-white border-brand-600" : "border-slate-200 dark:border-slate-700")}>{a}</button>
               );
             })}
           </div>
@@ -116,11 +116,11 @@ export default function PathsPage() {
         ) : (
           paths.map((p) => (
             <Link key={p.id} href={`/studio/path/${p.id}`}>
-              <Card className="p-3 hover:border-teal-500/60 mb-2">
+              <Card className="p-3 hover:border-brand-500/60 mb-2">
                 <p className="font-semibold">{p.title}</p>
                 <p className="text-xs text-slate-500">{p.goal}</p>
                 <div className="mt-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                  <div className="h-full bg-teal-500" style={{ width: `${(p.done / Math.max(1, p.total)) * 100}%` }} />
+                  <div className="h-full bg-brand-500" style={{ width: `${(p.done / Math.max(1, p.total)) * 100}%` }} />
                 </div>
               </Card>
             </Link>

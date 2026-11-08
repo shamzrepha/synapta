@@ -26,7 +26,7 @@ function ParamControl({ p, value, onChange }: { p: Param; value: number; onChang
         <p className="text-xs font-semibold mb-1">{p.label}</p>
         <div className="flex flex-wrap gap-1.5">
           {p.options.map((o) => (
-            <button key={o.value} type="button" onClick={() => onChange(o.value)} className={cn("rounded-full border px-3 py-1.5 text-xs font-semibold min-h-9", Math.abs(o.value - value) < 1e-9 ? "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-300" : "border-slate-200 dark:border-slate-700")}>
+            <button key={o.value} type="button" onClick={() => onChange(o.value)} className={cn("rounded-full border px-3 py-1.5 text-xs font-semibold min-h-9", Math.abs(o.value - value) < 1e-9 ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:text-brand-300" : "border-slate-200 dark:border-slate-700")}>
               {o.label}
             </button>
           ))}
@@ -38,9 +38,9 @@ function ParamControl({ p, value, onChange }: { p: Param; value: number; onChang
     <label className="block">
       <span className="flex items-center justify-between text-xs font-semibold">
         <span>{p.label}</span>
-        <span className="font-mono text-teal-600">{+value.toFixed(4)} {p.unit}</span>
+        <span className="font-mono text-brand-600">{+value.toFixed(4)} {p.unit}</span>
       </span>
-      <input type="range" min={p.min} max={p.max} step={p.step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-teal-600 h-8" />
+      <input type="range" min={p.min} max={p.max} step={p.step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-brand-600 h-8" />
     </label>
   );
 }
@@ -182,7 +182,7 @@ export function Lab({ exp }: { exp: Experiment }) {
       <Card className="p-4 space-y-3">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-bold flex-1">Guided questions</h2>
-          <span className="text-xs font-semibold text-teal-600">{solved.length}/{exp.questions.length} solved</span>
+          <span className="text-xs font-semibold text-brand-600">{solved.length}/{exp.questions.length} solved</span>
         </div>
         <p className="text-xs text-slate-500">Answers are checked against what the simulator shows right now, so change the controls first if a question asks you to.</p>
         {exp.questions.map((q, i) => {
@@ -196,7 +196,7 @@ export function Lab({ exp }: { exp: Experiment }) {
               {q.kind === "choice" ? (
                 <div className="flex flex-wrap gap-1.5">
                   {q.options.map((o) => (
-                    <button key={o} type="button" onClick={() => setAnswers((cur) => ({ ...cur, [q.id]: { text: o, ok: null, msg: "" } }))} className={cn("rounded-full border px-3 py-1.5 text-xs font-semibold min-h-9", a?.text === o ? "border-teal-500 bg-teal-500/10" : "border-slate-200 dark:border-slate-700")}>{o}</button>
+                    <button key={o} type="button" onClick={() => setAnswers((cur) => ({ ...cur, [q.id]: { text: o, ok: null, msg: "" } }))} className={cn("rounded-full border px-3 py-1.5 text-xs font-semibold min-h-9", a?.text === o ? "border-brand-500 bg-brand-500/10" : "border-slate-200 dark:border-slate-700")}>{o}</button>
                   ))}
                 </div>
               ) : (

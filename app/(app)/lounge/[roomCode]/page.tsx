@@ -349,7 +349,7 @@ export default function LoungeRoomPage({
           <span className="text-slate-300 dark:text-slate-700">|</span>
 
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-black px-2.5 py-1 rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/30">
+            <span className="font-mono text-xs font-black px-2.5 py-1 rounded-lg bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-500/30">
               {room.roomCode}
             </span>
             <button
@@ -370,7 +370,7 @@ export default function LoungeRoomPage({
               <div
                 key={i}
                 title={`${p.displayName} (${p.role})`}
-                className="inline-block h-7 w-7 rounded-full ring-2 ring-white dark:ring-slate-900 bg-teal-600 text-white text-[11px] font-bold flex items-center justify-center"
+                className="inline-block h-7 w-7 rounded-full ring-2 ring-white dark:ring-slate-900 bg-brand-600 text-white text-[11px] font-bold flex items-center justify-center"
               >
                 {p.displayName[0]?.toUpperCase() || "S"}
               </div>
@@ -476,7 +476,7 @@ export default function LoungeRoomPage({
           <Card className="h-[520px] flex flex-col border-slate-200 dark:border-slate-800">
             <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-1.5 font-bold text-xs">
-                <Users className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                <Users className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                 <span>Room Discussion</span>
               </div>
               <button
@@ -515,7 +515,7 @@ export default function LoungeRoomPage({
                     <div
                       className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed ${
                         isSelf
-                          ? "bg-teal-600 text-white shadow-sm"
+                          ? "bg-brand-600 text-white shadow-sm"
                           : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
                       }`}
                     >
@@ -549,7 +549,7 @@ export default function LoungeRoomPage({
             {/* Scratchpad Header with Status & Mode Toggle */}
             <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-2">
-                <FileEdit className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                <FileEdit className="h-4 w-4 text-brand-600 dark:text-brand-400" />
                 <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
                   Shared Collaborative Scratchpad
                 </span>
@@ -564,7 +564,7 @@ export default function LoungeRoomPage({
                     onClick={() => setScratchpadMode("edit")}
                     className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
                       scratchpadMode === "edit"
-                        ? "bg-teal-600 text-white"
+                        ? "bg-brand-600 text-white"
                         : "text-slate-500 hover:text-slate-900"
                     }`}
                   >
@@ -574,7 +574,7 @@ export default function LoungeRoomPage({
                     onClick={() => setScratchpadMode("preview")}
                     className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
                       scratchpadMode === "preview"
-                        ? "bg-teal-600 text-white"
+                        ? "bg-brand-600 text-white"
                         : "text-slate-500 hover:text-slate-900"
                     }`}
                   >

@@ -69,7 +69,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               <Info className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             )}
             {(!t.variant || t.variant === "default") && (
-              <Info className="h-5 w-5 text-teal-600 dark:text-teal-400 mt-0.5 shrink-0" />
+              <Info className="h-5 w-5 text-brand-600 dark:text-brand-400 mt-0.5 shrink-0" />
             )}
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm leading-tight">{t.title}</p>

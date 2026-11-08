@@ -89,11 +89,11 @@ export default function ClassHeatmapIndexPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {asArray(classes).map((c) => (
-            <Card key={c.id} className="hover:border-teal-500 transition-all group">
+            <Card key={c.id} className="hover:border-brand-500 transition-all group">
               <CardContent className="p-6 flex flex-col justify-between h-full space-y-4">
                 <div className="space-y-1.5">
                   <Badge variant="secondary" className="text-xs">{c.subject}</Badge>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
                     {c.title}
                   </h3>
                   <p className="text-xs text-slate-500">

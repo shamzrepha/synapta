@@ -110,7 +110,7 @@ export function ExplainerCard({ item, onLike, onDelete }: { item: ExplainerItem;
         {item.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {item.tags.map((t) => (
-              <Link key={t} href={`/explainers?tag=${t}`} className="rounded-full bg-teal-500/10 px-2 py-0.5 text-xs font-semibold text-teal-700 dark:text-teal-300">
+              <Link key={t} href={`/explainers?tag=${t}`} className="rounded-full bg-brand-500/10 px-2 py-0.5 text-xs font-semibold text-brand-700 dark:text-brand-300">
                 #{t}
               </Link>
             ))}

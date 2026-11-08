@@ -120,7 +120,7 @@ export default function GoalsPage() {
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <Input type="date" value={date} min={today || undefined} onChange={(e) => setDate(e.target.value)} required className="sm:max-w-[200px]" />
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={reminders} onChange={(e) => setReminders(e.target.checked)} className="h-4 w-4 accent-teal-600" />
+              <input type="checkbox" checked={reminders} onChange={(e) => setReminders(e.target.checked)} className="h-4 w-4 accent-brand-600" />
               Remind me daily
             </label>
             <Button type="submit" isLoading={creating} disabled={creating || title.trim().length < 3 || !date} className="sm:ml-auto">
@@ -149,7 +149,7 @@ export default function GoalsPage() {
 
             <div className="space-y-1">
               <div className="h-2.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                <div className="h-full rounded-full bg-teal-500 transition-all" style={{ width: `${p.pct}%` }} />
+                <div className="h-full rounded-full bg-brand-500 transition-all" style={{ width: `${p.pct}%` }} />
               </div>
               <p className="text-[11px] text-slate-500">{p.pct}% complete</p>
             </div>
@@ -178,7 +178,7 @@ export default function GoalsPage() {
                             checked={t.done}
                             disabled={busy === `${g.id}:${t.id}`}
                             onChange={(e) => patch(g.id, { action: "toggle", taskId: t.id, done: e.target.checked }, `${g.id}:${t.id}`)}
-                            className="mt-0.5 h-5 w-5 shrink-0 accent-teal-600"
+                            className="mt-0.5 h-5 w-5 shrink-0 accent-brand-600"
                           />
                           <span className={cn("min-w-0 flex-1 text-sm", t.done && "line-through text-slate-400")}>{t.title}</span>
                           <span className={cn("shrink-0 text-[11px]", overdue ? "text-rose-500 font-semibold" : "text-slate-400")}>{fmt(t.dueDate)}</span>
@@ -191,7 +191,7 @@ export default function GoalsPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
               <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-                <input type="checkbox" checked={g.reminders} onChange={(e) => patch(g.id, { action: "reminders", enabled: e.target.checked }, `${g.id}:rem`)} className="h-4 w-4 accent-teal-600" />
+                <input type="checkbox" checked={g.reminders} onChange={(e) => patch(g.id, { action: "reminders", enabled: e.target.checked }, `${g.id}:rem`)} className="h-4 w-4 accent-brand-600" />
                 Daily reminders
               </label>
               {!p.behind && p.total > p.done && (

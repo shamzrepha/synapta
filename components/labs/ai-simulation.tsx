@@ -379,20 +379,20 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
   const steps = buildMode === "edit" ? EDIT_STEPS : BUILD_STEPS;
   if (building) {
     return (
-      <div className="h-[420px] rounded-2xl border border-teal-500/30 bg-slate-900 text-slate-100 flex flex-col items-center justify-center gap-5 p-6 text-center">
+      <div className="h-[420px] rounded-2xl border border-brand-500/30 bg-slate-900 text-slate-100 flex flex-col items-center justify-center gap-5 p-6 text-center">
         <div className="relative h-16 w-16">
-          <div className="absolute inset-0 rounded-full border-4 border-teal-500/20" />
-          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-teal-400 animate-spin" />
+          <div className="absolute inset-0 rounded-full border-4 border-brand-500/20" />
+          <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-brand-400 animate-spin" />
           <Gamepad2 className="absolute inset-0 m-auto h-7 w-7 text-amber-400" />
         </div>
         <div className="space-y-1.5">
           <p className="font-bold text-lg">{buildMode === "edit" ? "Updating your simulation" : "Building your simulation"}</p>
-          <p className="text-sm text-teal-300">{steps[Math.min(buildStep, steps.length - 1)]}</p>
+          <p className="text-sm text-brand-300">{steps[Math.min(buildStep, steps.length - 1)]}</p>
           <p className="text-xs text-slate-400">This usually takes 30–90 seconds. You can keep studying in another tab.</p>
         </div>
         <div className="flex gap-1.5">
           {steps.map((_, i) => (
-            <span key={i} className={cn("h-1.5 w-8 rounded-full", i <= buildStep ? "bg-teal-400" : "bg-slate-700")} />
+            <span key={i} className={cn("h-1.5 w-8 rounded-full", i <= buildStep ? "bg-brand-400" : "bg-slate-700")} />
           ))}
         </div>
       </div>
@@ -534,7 +534,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center space-y-4">
-          <div className="h-14 w-14 mx-auto rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-lg">
+          <div className="h-14 w-14 mx-auto rounded-2xl bg-brand-600 text-white flex items-center justify-center shadow-lg">
             <Gamepad2 className="h-7 w-7" />
           </div>
           <div>
@@ -674,7 +674,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
       {sim.checkQuestion && (
         <div className="rounded-2xl border border-slate-200 dark:border-slate-800 p-5 space-y-4">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-teal-500" />
+            <CheckCircle2 className="h-4 w-4 text-brand-500" />
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Check your understanding · earns lab credit</p>
           </div>
           <MarkdownRenderer content={sim.checkQuestion.question} className="font-semibold prose-p:my-0" />
@@ -698,11 +698,11 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
                         ? "border-rose-500 bg-rose-500/10"
                         : "border-slate-200 dark:border-slate-800 opacity-60"
                       : picked
-                      ? "border-teal-500 bg-teal-500/10"
-                      : "border-slate-200 dark:border-slate-800 hover:border-teal-400/60"
+                      ? "border-brand-500 bg-brand-500/10"
+                      : "border-slate-200 dark:border-slate-800 hover:border-brand-400/60"
                   )}
                 >
-                  <span className={cn("h-6 w-6 shrink-0 rounded-md flex items-center justify-center text-[11px] font-bold", picked || isRight ? "bg-teal-600 text-white" : "bg-slate-100 dark:bg-slate-800")}>
+                  <span className={cn("h-6 w-6 shrink-0 rounded-md flex items-center justify-center text-[11px] font-bold", picked || isRight ? "bg-brand-600 text-white" : "bg-slate-100 dark:bg-slate-800")}>
                     {LETTERS[idx]}
                   </span>
                   <div className="flex-1 min-w-0">

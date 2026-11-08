@@ -31,12 +31,12 @@ export function MarkdownRenderer({ content, className, localized }: MarkdownRend
         "prose-ul:my-2 prose-ul:pl-5 prose-li:my-0.5",
         "prose-ol:my-2 prose-ol:pl-5 prose-li:my-0.5",
         // Inline Code & Blocks
-        "prose-code:font-mono prose-code:text-xs prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-teal-700 dark:prose-code:text-teal-300",
+        "prose-code:font-mono prose-code:text-xs prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:text-brand-700 dark:prose-code:text-brand-300",
         "prose-pre:bg-slate-900 prose-pre:text-slate-100 prose-pre:rounded-xl prose-pre:p-4 prose-pre:my-3",
         // Blockquotes
-        "prose-blockquote:border-l-4 prose-blockquote:border-teal-500 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-slate-600 dark:prose-blockquote:text-slate-400",
+        "prose-blockquote:border-l-4 prose-blockquote:border-brand-500 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-slate-600 dark:prose-blockquote:text-slate-400",
         // Links
-        "prose-a:text-teal-600 dark:prose-a:text-teal-400 prose-a:underline hover:prose-a:text-teal-700",
+        "prose-a:text-brand-600 dark:prose-a:text-brand-400 prose-a:underline hover:prose-a:text-brand-700",
         className
       )}
     >

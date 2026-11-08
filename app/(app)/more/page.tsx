@@ -23,7 +23,7 @@ export default function MorePage() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-xs font-mono tracking-widest text-teal-600">SUNROOT</p>
+        <p className="text-xs font-mono tracking-widest text-brand-600">SUNROOT</p>
         <h1 className="text-2xl font-extrabold">All features</h1>
         <p className="text-sm text-slate-500">{live} of {FEATURES.length} are live.</p>
       </div>
@@ -33,13 +33,13 @@ export default function MorePage() {
       </div>
       <div className="flex flex-wrap gap-1.5">
         {GROUPS.map((g) => (
-          <button key={g} type="button" onClick={() => setGroup(g)} className={cn("rounded-full px-3 py-1 text-xs font-semibold border", group === g ? "bg-teal-600 text-white border-teal-600" : "border-slate-200 dark:border-slate-700")}>{g}</button>
+          <button key={g} type="button" onClick={() => setGroup(g)} className={cn("rounded-full px-3 py-1 text-xs font-semibold border", group === g ? "bg-brand-600 text-white border-brand-600" : "border-slate-200 dark:border-slate-700")}>{g}</button>
         ))}
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((f) => {
           const body = (
-            <div className={cn("h-full rounded-2xl border p-4 space-y-1 bg-white dark:bg-slate-900", f.status === "live" ? "border-slate-200 dark:border-slate-800 hover:border-teal-500" : "border-dashed border-slate-300 dark:border-slate-700 opacity-70")}>
+            <div className={cn("h-full rounded-2xl border p-4 space-y-1 bg-white dark:bg-slate-900", f.status === "live" ? "border-slate-200 dark:border-slate-800 hover:border-brand-500" : "border-dashed border-slate-300 dark:border-slate-700 opacity-70")}>
               <div className="flex items-center gap-2">
                 <FeatureIcon emoji={f.emoji} />
                 <p className="font-bold leading-tight flex-1">{f.title}</p>

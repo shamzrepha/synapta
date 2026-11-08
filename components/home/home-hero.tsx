@@ -80,7 +80,7 @@ export function HomeHero({
   };
 
   const state = homeState({ loading, failed, teacher, classCount: asArray(classes).length, questsAllDone });
-  const btn = "bg-amber-500 text-slate-950 font-black shadow-md  transition-all  ";
+  const btn = "bg-brand-600 text-white hover:bg-brand-700 dark:bg-brand-500 font-semibold transition-colors";
 
   let eyebrow = "YOUR NEXT STEP";
   let headline = "Pick up right where you left off.";
@@ -144,7 +144,7 @@ export function HomeHero({
   return (
     <div className="space-y-4">
       <div
-        className="relative overflow-hidden rounded-3xl border border-teal-500/25 bg-card p-6 md:p-8 space-y-4 shadow-sm"
+        className="relative overflow-hidden rounded-3xl border border-brand-500/25 bg-card p-6 md:p-8 space-y-4 shadow-sm"
         aria-busy={state === "loading"}
       >
         <div className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export function HomeHero({
           >
             <X className="h-4 w-4" />
           </button>
-          <p className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 mb-3">
+          <p className="text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 mb-3">
             How Sunroot Works
           </p>
           <ol className="grid gap-4 sm:grid-cols-3 text-sm">
@@ -189,7 +189,7 @@ export function HomeHero({
               { n: 3, t: "Prove it and grow", d: "Pass the quiz to raise your mastery score, and your skill map adapts to you." },
             ].map((s) => (
               <li key={s.n} className="flex gap-3">
-                <span className="h-7 w-7 shrink-0 rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300 text-xs font-black flex items-center justify-center border border-teal-500/20">
+                <span className="h-7 w-7 shrink-0 rounded-xl bg-brand-500/10 text-brand-700 dark:text-brand-300 text-xs font-black flex items-center justify-center border border-brand-500/20">
                   {s.n}
                 </span>
                 <div>

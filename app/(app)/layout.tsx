@@ -9,6 +9,7 @@ import { ThemeApplier } from "@/components/shop/theme-applier";
 import { VerifyEmailBanner } from "@/components/shell/verify-email-banner";
 import { UpgradeDialog } from "@/components/billing/upgrade-dialog";
 import { SiteNotice } from "@/components/shell/site-notice";
+import { AddMaterialSheet } from "@/components/shell/add-material";
 import { AppUpdateBanner } from "@/components/shell/app-update-banner";
 import { DeviceReporter } from "@/components/shell/device-reporter";
 import { AuthGuard } from "@/components/auth/auth-guard";
@@ -23,7 +24,7 @@ export default function AppLayout({
       <AuthGuard />
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-teal-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-[100] focus:rounded-lg focus:bg-brand-600 focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
       >
         Skip to content
       </a>
@@ -40,6 +41,7 @@ export default function AppLayout({
         </main>
       </div>
       <MobileNav />
+      <AddMaterialSheet />
       <TutorLauncher />
       <OfflineManager />
       <ThemeApplier />

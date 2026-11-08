@@ -21,7 +21,7 @@ export function LessonView({ lesson, index }: { lesson: Lesson; index: number })
         <ol className="space-y-1.5">
           {lesson.activities.map((a, i) => (
             <li key={i} className="flex gap-3">
-              <span className="w-14 shrink-0 font-mono text-xs text-teal-700 dark:text-teal-400">{a.minutes} min</span>
+              <span className="w-14 shrink-0 font-mono text-xs text-brand-700 dark:text-brand-400">{a.minutes} min</span>
               <span>
                 <strong>{a.title}.</strong> {a.description}
               </span>

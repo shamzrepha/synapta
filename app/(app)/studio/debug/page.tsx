@@ -96,7 +96,7 @@ export default function DebugPage() {
       <div className="flex items-center gap-2">
         <Link href="/studio" className="h-9 w-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Back to Maker Studio"><ArrowLeft className="h-4 w-4" /></Link>
         <div>
-          <p className="text-xs font-mono tracking-widest text-teal-600">MAKER STUDIO</p>
+          <p className="text-xs font-mono tracking-widest text-brand-600">MAKER STUDIO</p>
           <h1 className="text-xl font-extrabold">Debug my circuit</h1>
         </div>
       </div>
@@ -111,7 +111,7 @@ export default function DebugPage() {
             <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}><Camera className="h-4 w-4 mr-1" /> Retake / choose another</Button>
           </div>
         ) : (
-          <button type="button" onClick={() => fileRef.current?.click()} className="w-full rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 py-8 flex flex-col items-center gap-1 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:border-teal-500">
+          <button type="button" onClick={() => fileRef.current?.click()} className="w-full rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 py-8 flex flex-col items-center gap-1 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:border-brand-500">
             <Camera className="h-6 w-6" /> Take or choose a photo
             <span className="text-xs font-normal text-slate-500">Bright light, from above, close enough to see each wire end</span>
           </button>
@@ -127,7 +127,7 @@ export default function DebugPage() {
           {!shop ? <Skeleton className="h-8 w-full" /> : (
             <div className="flex flex-wrap gap-1.5">
               {verified.map((i) => (
-                <button key={i.type} type="button" onClick={() => toggle(i.type)} className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold min-h-8", parts.includes(i.type) ? "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-300" : "border-slate-200 dark:border-slate-700")}>
+                <button key={i.type} type="button" onClick={() => toggle(i.type)} className={cn("rounded-full border px-2.5 py-1 text-[11px] font-semibold min-h-8", parts.includes(i.type) ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:text-brand-300" : "border-slate-200 dark:border-slate-700")}>
                   {i.name.replace(/ \(.*\)/, "")}
                 </button>
               ))}
@@ -154,7 +154,7 @@ function HistoryRow({ item }: { item: Item }) {
   return (
     <Card className="p-3">
       <button type="button" className="w-full text-left flex items-center gap-2" onClick={() => setOpen((o) => !o)}>
-        <Wrench className="h-4 w-4 text-teal-600 shrink-0" />
+        <Wrench className="h-4 w-4 text-brand-600 shrink-0" />
         <span className="text-sm font-semibold flex-1 min-w-0 truncate">{item.symptom}</span>
         <span className="text-[11px] text-slate-500 shrink-0">{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ""}</span>
       </button>
@@ -182,7 +182,7 @@ function DiagnosisView({ item, bare }: { item: Item; bare?: boolean }) {
       )}
       {d.causes.map((c, i) => (
         <div key={i} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-1.5">
-          <p className="text-sm font-bold"><span className="text-teal-600 mr-1">#{i + 1}</span>{c.title} <span className="text-[11px] font-normal text-slate-500">· {c.likelihood} likelihood · {EVIDENCE[c.evidence]}</span></p>
+          <p className="text-sm font-bold"><span className="text-brand-600 mr-1">#{i + 1}</span>{c.title} <span className="text-[11px] font-normal text-slate-500">· {c.likelihood} likelihood · {EVIDENCE[c.evidence]}</span></p>
           <p className="text-xs text-slate-600 dark:text-slate-400">{c.why}</p>
           <div className="text-xs rounded-lg bg-slate-50 dark:bg-slate-900 p-2">
             <p className="font-semibold">Test with: {c.test.tool}</p>

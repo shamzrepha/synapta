@@ -36,7 +36,7 @@ export function TutorLauncher() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed z-40 right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-6 md:right-6 flex items-center justify-center gap-2 h-11 w-11 sm:h-12 sm:w-auto sm:pl-3.5 sm:pr-4 rounded-full bg-teal-600 text-white font-semibold text-sm shadow-xl  hover:bg-teal-700"
+          className="fixed z-40 right-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-6 md:right-6 flex items-center justify-center gap-2 h-11 w-11 sm:h-12 sm:w-auto sm:pl-3.5 sm:pr-4 rounded-full bg-brand-600 text-white font-semibold text-sm shadow-xl  hover:bg-brand-700"
           aria-label="Ask the AI tutor"
         >
           <Sparkles className="h-5 w-5" />
@@ -46,7 +46,7 @@ export function TutorLauncher() {
       {open && (
         <div className="fixed z-50 inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[420px] md:h-[min(640px,calc(100dvh-6rem))] flex flex-col bg-white dark:bg-slate-950 md:rounded-2xl md:border border-slate-200 dark:border-slate-800 shadow-2xl">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 pt-[max(0.75rem,env(safe-area-inset-top))]">
-            <Sparkles className="h-4 w-4 text-teal-600" />
+            <Sparkles className="h-4 w-4 text-brand-600" />
             <p className="font-bold flex-1">AI Tutor</p>
             <Link
               href={`/tutor${ctx.classId ? `?class=${ctx.classId}${ctx.kcId ? `&topic=${ctx.kcId}` : ""}` : ""}`}

@@ -21,7 +21,7 @@ const ICONS: Record<string, Icon> = {
 export function FeatureIcon({ emoji, className, tile = "h-9 w-9" }: { emoji: string; className?: string; tile?: string }) {
   const Icon = ICONS[emoji] ?? Shapes;
   return (
-    <span className={cn("flex shrink-0 items-center justify-center rounded-md bg-teal-600/10 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300", tile, className)} aria-hidden="true">
+    <span className={cn("flex shrink-0 items-center justify-center rounded-md bg-brand-600/10 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300", tile, className)} aria-hidden="true">
       <Icon className="h-[18px] w-[18px]" />
     </span>
   );

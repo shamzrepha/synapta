@@ -47,7 +47,7 @@ export function NotificationList({
     <ul className="divide-y divide-slate-100 dark:divide-slate-800">
       {items.map((n) => {
         const content = (
-          <div className={cn("flex gap-3 px-4 py-3 transition-colors", !n.read && "bg-teal-500/5")}>
+          <div className={cn("flex gap-3 px-4 py-3 transition-colors", !n.read && "bg-brand-500/5")}>
             <span className="h-9 w-9 shrink-0 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg">
               {n.icon || "🔔"}
             </span>
@@ -56,7 +56,7 @@ export function NotificationList({
               {n.body && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.body}</p>}
               <p className="text-[11px] text-slate-400 mt-1">{timeAgo(n.createdAt)}</p>
             </div>
-            {!n.read && <span className="h-2 w-2 rounded-full bg-teal-500 mt-2 shrink-0" aria-label="unread" />}
+            {!n.read && <span className="h-2 w-2 rounded-full bg-brand-500 mt-2 shrink-0" aria-label="unread" />}
           </div>
         );
         return (

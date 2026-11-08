@@ -68,7 +68,7 @@ export default function AnnouncementsPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-4 px-4 py-4 sm:px-6">
       <header className="flex items-center gap-2">
-        <Megaphone className="h-6 w-6 text-teal-600" />
+        <Megaphone className="h-6 w-6 text-brand-600" />
         <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Announcements</h1>
         {feed && feed.unread > 0 && <Badge variant="destructive">{feed.unread} unread</Badge>}
       </header>
@@ -193,7 +193,7 @@ function AnnouncementCard({ item, onRead, onChanged }: { item: Item; onRead: (id
   }
 
   return (
-    <Card className={!item.read ? "border-teal-400 dark:border-teal-500/60" : ""}>
+    <Card className={!item.read ? "border-brand-400 dark:border-brand-500/60" : ""}>
       <CardContent className="space-y-2 p-4">
         {editing ? (
           <div className="space-y-2">
@@ -210,7 +210,7 @@ function AnnouncementCard({ item, onRead, onChanged }: { item: Item; onRead: (id
               <span className="min-w-0">
                 <span className="flex flex-wrap items-center gap-1.5">
                   {item.pinned && <Pin className="h-3.5 w-3.5 text-amber-500" />}
-                  {!item.read && <span className="h-2 w-2 rounded-full bg-teal-500" aria-label="Unread" />}
+                  {!item.read && <span className="h-2 w-2 rounded-full bg-brand-500" aria-label="Unread" />}
                   <span className="font-semibold text-slate-900 dark:text-white">{item.title}</span>
                 </span>
                 <span className="block text-xs text-slate-500">{item.classTitle} · {item.authorName} · {new Date(item.createdAt).toLocaleDateString()}{item.updatedAt !== item.createdAt ? " (edited)" : ""}</span>
@@ -242,7 +242,7 @@ function AnnouncementCard({ item, onRead, onChanged }: { item: Item; onRead: (id
             ) : (
               <>
                 <p className="mb-2 font-semibold">{receipts.read} of {receipts.total} read ({receipts.percent}%)</p>
-                <div className="mb-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full bg-teal-500" style={{ width: `${receipts.percent}%` }} /></div>
+                <div className="mb-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700"><div className="h-full bg-brand-500" style={{ width: `${receipts.percent}%` }} /></div>
                 <ul className="max-h-48 space-y-1 overflow-y-auto">
                   {receipts.people.map((p) => (
                     <li key={p.uid} className="flex justify-between gap-2">

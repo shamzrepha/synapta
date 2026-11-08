@@ -31,7 +31,7 @@ export default async function SharedReportPage({ params }: { params: Promise<{ t
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 px-4 py-8">
       <div className="mx-auto max-w-2xl space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-teal-600">Sunroot weekly report</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-brand-600">Sunroot weekly report</p>
         {report ? (
           <ReportView name={report.name} numbers={report.numbers} summary={report.summary} suggestion={report.suggestion} />
         ) : (

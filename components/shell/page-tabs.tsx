@@ -23,7 +23,7 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
           key={t.href}
           href={t.href}
           aria-current={active(t) ? "page" : undefined}
-          className={cn("shrink-0 rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap", active(t) ? "bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100")}
+          className={cn("shrink-0 rounded-xl px-4 py-2 text-sm font-semibold whitespace-nowrap", active(t) ? "bg-white dark:bg-slate-800 text-brand-700 dark:text-brand-300 shadow-sm" : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100")}
         >
           {t.label}
         </Link>

@@ -82,7 +82,7 @@ export function ExplainerFeed({ mine = false, version = 0 }: { mine?: boolean; v
   }
   return (
     <div className="space-y-4">
-      {tag && !mine && <p className="text-sm text-slate-500">Showing #{tag}. <a href="/explainers" className="font-semibold text-teal-600">Clear</a></p>}
+      {tag && !mine && <p className="text-sm text-slate-500">Showing #{tag}. <a href="/explainers" className="font-semibold text-brand-600">Clear</a></p>}
       {items.map((i) => (
         <ExplainerCard key={i.id} item={i} onLike={like} onDelete={i.isMine ? remove : undefined} />
       ))}

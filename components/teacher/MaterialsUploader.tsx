@@ -279,7 +279,7 @@ export function MaterialsUploader({
             onClick={() => setActiveTab("file")}
             className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === "file"
-                ? "bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-300 shadow-sm"
+                ? "bg-white dark:bg-slate-900 text-brand-700 dark:text-brand-300 shadow-sm"
                 : "text-slate-600 dark:text-slate-400"
             }`}
           >
@@ -290,7 +290,7 @@ export function MaterialsUploader({
             onClick={() => setActiveTab("outline")}
             className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === "outline"
-                ? "bg-white dark:bg-slate-900 text-teal-700 dark:text-teal-300 shadow-sm"
+                ? "bg-white dark:bg-slate-900 text-brand-700 dark:text-brand-300 shadow-sm"
                 : "text-slate-600 dark:text-slate-400"
             }`}
           >
@@ -323,10 +323,10 @@ export function MaterialsUploader({
                 onClick={() => fileInputRef.current?.click()}
                 className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
                   isDragOver
-                    ? "border-teal-500 bg-teal-500/10 scale-[0.99]"
+                    ? "border-brand-500 bg-brand-500/10 scale-[0.99]"
                     : selectedFile
                     ? "border-emerald-500/50 bg-emerald-500/5"
-                    : "border-slate-300 dark:border-slate-700 hover:border-teal-400 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                    : "border-slate-300 dark:border-slate-700 hover:border-brand-400 hover:bg-slate-50 dark:hover:bg-slate-800/40"
                 }`}
               >
                 <input
@@ -354,13 +354,13 @@ export function MaterialsUploader({
                         {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for ingestion
                       </p>
                     </div>
-                    <span className="text-[10px] text-teal-600 dark:text-teal-400 underline font-semibold">
+                    <span className="text-[10px] text-brand-600 dark:text-brand-400 underline font-semibold">
                       Click or drag to choose another file
                     </span>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mx-auto">
+                    <div className="h-10 w-10 rounded-xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto">
                       <UploadCloud className="h-5 w-5" />
                     </div>
                     <div>
@@ -389,7 +389,7 @@ export function MaterialsUploader({
                 value={outlineText}
                 onChange={(e) => setOutlineText(e.target.value)}
                 disabled={isProcessing}
-                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 font-mono"
+                className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 font-mono"
               />
               <p className="text-[11px] text-slate-500">
                 Headings in your outline will be mapped 1:1 to course modules and Knowledge Components.
@@ -401,14 +401,14 @@ export function MaterialsUploader({
           {isProcessing && (
             <div className="space-y-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-teal-700 dark:text-teal-300 flex items-center gap-1.5">
+                <span className="font-semibold text-brand-700 dark:text-brand-300 flex items-center gap-1.5">
                   <RefreshCw className="h-3 w-3 animate-spin" /> {statusText}
                 </span>
                 <span className="font-mono text-slate-500">{uploadProgress}%</span>
               </div>
               <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="bg-teal-500 h-full rounded-full transition-all duration-300"
+                  className="bg-brand-500 h-full rounded-full transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>

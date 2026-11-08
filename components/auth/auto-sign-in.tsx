@@ -21,7 +21,7 @@ export function AutoSignIn() {
   // while the saved sign-in is being checked, or just after it is found, say so instead of showing a form to fill in
   if (!ready && !(isLoading && typeof window !== "undefined" && firebaseUser)) return null;
   return (
-    <p role="status" className="mb-3 rounded-xl bg-teal-500/10 px-3 py-2 text-center text-xs font-semibold text-teal-800 dark:text-teal-200 animate-pulse">
+    <p role="status" className="mb-3 rounded-xl bg-brand-500/10 px-3 py-2 text-center text-xs font-semibold text-brand-800 dark:text-brand-200 animate-pulse">
       Welcome back. Signing you in…
     </p>
   );

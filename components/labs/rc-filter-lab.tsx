@@ -114,7 +114,7 @@ export function RcFilterLab({ config = {}, onComplete }: LabProps) {
         <div className="grid grid-cols-4 gap-2 w-full max-w-lg pt-4 border-t border-slate-100 dark:border-slate-800">
           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-900 text-center">
             <span className="text-[9px] text-slate-500 uppercase font-semibold block">Cutoff fc</span>
-            <span className={`text-sm font-bold ${isGoalMet ? "text-emerald-500" : "text-teal-600 dark:text-teal-400"}`}>
+            <span className={`text-sm font-bold ${isGoalMet ? "text-emerald-500" : "text-brand-600 dark:text-brand-400"}`}>
               {cutoffFrequency.toFixed(0)} Hz
             </span>
           </div>
@@ -147,7 +147,7 @@ export function RcFilterLab({ config = {}, onComplete }: LabProps) {
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs">
             <span className="font-semibold">Resistor R</span>
-            <span className="font-mono text-teal-600 font-bold">{resistance} Ω</span>
+            <span className="font-mono text-brand-600 font-bold">{resistance} Ω</span>
           </div>
           <input
             type="range"
@@ -156,14 +156,14 @@ export function RcFilterLab({ config = {}, onComplete }: LabProps) {
             step="50"
             value={resistance}
             onChange={(e) => setResistance(parseInt(e.target.value))}
-            className="w-full accent-teal-600 cursor-pointer"
+            className="w-full accent-brand-600 cursor-pointer"
           />
         </div>
 
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs">
             <span className="font-semibold">Capacitor C</span>
-            <span className="font-mono text-teal-600 font-bold">{capacitanceMicro.toFixed(2)} μF</span>
+            <span className="font-mono text-brand-600 font-bold">{capacitanceMicro.toFixed(2)} μF</span>
           </div>
           <input
             type="range"
@@ -172,7 +172,7 @@ export function RcFilterLab({ config = {}, onComplete }: LabProps) {
             step="0.01"
             value={capacitanceMicro}
             onChange={(e) => setCapacitanceMicro(parseFloat(e.target.value))}
-            className="w-full accent-teal-600 cursor-pointer"
+            className="w-full accent-brand-600 cursor-pointer"
           />
         </div>
 
@@ -201,7 +201,7 @@ export function RcFilterLab({ config = {}, onComplete }: LabProps) {
               <CheckCircle2 className="h-4 w-4" /> Lab Completed! Cutoff matched within 5%.
             </span>
           ) : isGoalMet ? (
-            <span className="flex items-center gap-1.5 font-bold text-teal-600 dark:text-teal-400">
+            <span className="flex items-center gap-1.5 font-bold text-brand-600 dark:text-brand-400">
               <Sparkles className="h-4 w-4" /> Cutoff {cutoffFrequency.toFixed(0)} Hz is within 5% of target!
             </span>
           ) : (

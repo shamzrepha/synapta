@@ -43,7 +43,7 @@ export function GestureToggle({ active, onChange, className }: { active: boolean
       aria-pressed={active}
       className={cn(
         "flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold shadow-lg min-h-[40px]",
-        active ? "bg-teal-500 text-slate-950" : "bg-slate-900/85 text-white border border-white/30",
+        active ? "bg-brand-600 text-white dark:bg-brand-500" : "bg-slate-900/85 text-white border border-white/30",
         className
       )}
     >

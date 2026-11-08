@@ -60,7 +60,7 @@ export default function AdminControlsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div>
-        <Link href="/admin" className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:underline dark:text-teal-300">
+        <Link href="/admin" className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline dark:text-brand-300">
           <ArrowLeft className="h-3.5 w-3.5" /> Admin
         </Link>
         <h1 className="text-xl font-extrabold">Site controls</h1>
@@ -104,7 +104,7 @@ export default function AdminControlsPage() {
 
           <Card className="space-y-3 p-4">
             <div className="flex items-start gap-3">
-              <Megaphone className="mt-0.5 h-5 w-5 shrink-0 text-teal-600" />
+              <Megaphone className="mt-0.5 h-5 w-5 shrink-0 text-brand-600" />
               <div className="min-w-0 flex-1">
                 <p className="font-bold">Notice for everyone</p>
                 <p className="text-xs text-slate-500">A short banner at the top of the app: planned maintenance, an outage, good news. Leave it empty to hide it.</p>

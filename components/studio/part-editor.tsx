@@ -90,7 +90,7 @@ export function PartEditor({
           <p className="text-sm font-bold mb-1.5">Add a shape</p>
           <div className="flex flex-wrap gap-1.5">
             {(Object.keys(SHAPE_LABELS) as Shape[]).map((s) => (
-              <button key={s} type="button" onClick={() => add(s)} className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px] font-semibold hover:border-teal-500">
+              <button key={s} type="button" onClick={() => add(s)} className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 px-2 py-1 text-[11px] font-semibold hover:border-brand-500">
                 <Plus className="h-3 w-3" /> {SHAPE_LABELS[s]}
               </button>
             ))}
@@ -197,7 +197,7 @@ export function PartEditor({
             </label>
             <label className="flex flex-1 items-center gap-2 text-[11px] font-semibold text-slate-500">
               Solidity
-              <input type="range" min={5} max={100} value={Math.round((sel.opacity ?? 0.15) * 100)} disabled={readOnly} onChange={(e) => update(sel.id, { opacity: Number(e.target.value) / 100 })} className="flex-1 accent-teal-600" />
+              <input type="range" min={5} max={100} value={Math.round((sel.opacity ?? 0.15) * 100)} disabled={readOnly} onChange={(e) => update(sel.id, { opacity: Number(e.target.value) / 100 })} className="flex-1 accent-brand-600" />
             </label>
           </div>
 
@@ -224,7 +224,7 @@ export function PartEditor({
         <ul className="divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-100 dark:border-slate-800">
           {parts.map((p) => (
             <li key={p.id}>
-              <button type="button" onClick={() => onSelect(p.id === selectedId ? null : p.id)} className={cn("w-full flex items-center justify-between gap-2 px-3 py-1.5 text-left text-sm", p.id === selectedId && "bg-teal-500/10 text-teal-700 dark:text-teal-300")}>
+              <button type="button" onClick={() => onSelect(p.id === selectedId ? null : p.id)} className={cn("w-full flex items-center justify-between gap-2 px-3 py-1.5 text-left text-sm", p.id === selectedId && "bg-brand-500/10 text-brand-700 dark:text-brand-300")}>
                 <span className="flex items-center gap-2 min-w-0">
                   <span className="h-3 w-3 rounded-full shrink-0" style={{ background: p.color || "#8fd3ff" }} />
                   <span className="truncate">{p.name}</span>

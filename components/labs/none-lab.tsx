@@ -4,7 +4,7 @@ import { BookOpen } from "lucide-react";
 export function NoneLab() {
   return (
     <div className="text-center py-16 border rounded-2xl border-dashed border-slate-200 dark:border-slate-800 space-y-4 px-4">
-      <div className="h-12 w-12 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 flex items-center justify-center mx-auto">
+      <div className="h-12 w-12 rounded-2xl bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto">
         <BookOpen className="h-6 w-6" />
       </div>
       <div className="space-y-1">

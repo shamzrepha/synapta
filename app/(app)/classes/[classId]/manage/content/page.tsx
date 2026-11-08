@@ -261,7 +261,7 @@ export default function TeacherContentStudioPage({
         <div>
           <Link
             href={`/classes/${classId}/manage`}
-            className="text-xs text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1 mb-1"
+            className="text-xs text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1 mb-1"
           >
             <ArrowLeft className="h-3 w-3" /> Back to Class Management
           </Link>
@@ -281,11 +281,11 @@ export default function TeacherContentStudioPage({
 
       {/* Cost Saved & Cache Performance Banner */}
       {metrics && (
-        <Card className="border-teal-500/20 bg-teal-500/[0.04]">
+        <Card className="border-brand-500/20 bg-brand-500/[0.04]">
           <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400">Total Cache Hits</span>
-              <p className="text-xl font-bold text-teal-600 dark:text-teal-400 mt-0.5">
+              <p className="text-xl font-bold text-brand-600 dark:text-brand-400 mt-0.5">
                 {metrics.totalCacheHits}
               </p>
               <p className="text-[10px] text-slate-500">Student requests served free</p>

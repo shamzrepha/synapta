@@ -6,7 +6,7 @@ import { ArrowRight, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 
-const cta = "inline-flex h-9 items-center gap-2 rounded-md bg-teal-500 px-4 text-sm font-semibold text-slate-950 transition-colors hover:bg-teal-400";
+const cta = "inline-flex h-9 items-center gap-2 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white dark:bg-brand-500 transition-colors hover:bg-brand-400";
 
 /** The landing page's top-right controls: light/dark switch, then "Open Sunroot" for signed-in people or "Log in" and "Start free" for guests. */
 export function LandingButtons() {

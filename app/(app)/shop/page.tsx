@@ -119,7 +119,7 @@ export default function ShopPage() {
         <p className="text-xs text-slate-500">
           {state ? `${formatNumber(state.xp)} total · ${formatNumber(state.xpSpent)} spent` : ""}
         </p>
-        <Link href="/streak" className="text-xs font-semibold text-teal-600 dark:text-teal-400 underline">
+        <Link href="/streak" className="text-xs font-semibold text-brand-600 dark:text-brand-400 underline">
           Streak page
         </Link>
       </Card>

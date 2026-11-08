@@ -29,7 +29,7 @@ export default function SessionsPage() {
     <div className="max-w-3xl mx-auto space-y-4">
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-          <CalendarClock className="h-7 w-7 text-teal-600" /> Study sessions
+          <CalendarClock className="h-7 w-7 text-brand-600" /> Study sessions
         </h1>
         <p className="text-sm text-slate-500">Live sessions across your classes. You&apos;ll get a reminder 15 minutes before they start.</p>
       </div>

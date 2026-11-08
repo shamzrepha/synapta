@@ -145,7 +145,7 @@ export function ClassJoinGate({ classId, children }: { classId: string; children
         </div>
         {c.description && <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{c.description}</p>}
 
-        <div className="rounded-2xl border border-teal-500/30 bg-teal-500/5 p-4 space-y-3">
+        <div className="rounded-2xl border border-brand-500/30 bg-brand-500/5 p-4 space-y-3">
           {!c.published ? (
             <p className="text-sm font-semibold flex items-center gap-2"><Clock className="h-4 w-4 text-amber-500" /> This class isn&apos;t open for enrollment yet. Check back soon.</p>
           ) : status === "pending" ? (
@@ -202,7 +202,7 @@ export function ClassJoinGate({ classId, children }: { classId: string; children
 
       {outline.length > 0 && (
         <Card className="p-5 space-y-3">
-          <p className="font-bold flex items-center gap-2"><BookOpen className="h-4 w-4 text-teal-600" /> What you&apos;ll learn</p>
+          <p className="font-bold flex items-center gap-2"><BookOpen className="h-4 w-4 text-brand-600" /> What you&apos;ll learn</p>
           <ol className="space-y-1.5">
             {outline.map((t, i) => (
               <li key={t.id} className="flex items-center gap-3 rounded-xl px-3 py-2 bg-slate-50 dark:bg-slate-900/60 text-sm">

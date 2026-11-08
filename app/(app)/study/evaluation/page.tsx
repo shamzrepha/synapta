@@ -67,7 +67,7 @@ export default function EvaluationPage() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs font-mono tracking-widest text-teal-600">EVALUATION</p>
+        <p className="text-xs font-mono tracking-widest text-brand-600">EVALUATION</p>
         <h1 className="text-2xl font-extrabold">How am I doing?</h1>
         <p className="text-sm text-slate-500 max-w-2xl">Sunroot looks at the questions you got wrong and your score on each topic, finds what you may be misunderstanding, and gives you a short plan.</p>
       </div>
@@ -76,7 +76,7 @@ export default function EvaluationPage() {
         <Card className="p-6 space-y-2 text-sm">
           <p className="font-bold">Not enough to go on yet</p>
           <p className="text-slate-500">Answer some quiz questions in a class first. Your wrong answers and topic scores are what the evaluation is based on.</p>
-          <Link href="/classes/manage" className="inline-block font-semibold text-teal-700 dark:text-teal-300 underline">Go to my classes</Link>
+          <Link href="/classes/manage" className="inline-block font-semibold text-brand-700 dark:text-brand-300 underline">Go to my classes</Link>
         </Card>
       )}
 
@@ -137,11 +137,11 @@ export default function EvaluationPage() {
             <ol className="space-y-3">
               {asArray<Plan>(ev.plan).map((p, i) => (
                 <li key={`${p.title}-${i}`} className="flex gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white">{i + 1}</span>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">{i + 1}</span>
                   <div className="min-w-0 flex-1 space-y-1">
                     <p className="text-sm font-semibold">{p.title} <span className="font-normal text-slate-500">· about {p.minutes} min</span></p>
                     <p className="text-sm text-slate-600 dark:text-slate-300">{p.action}</p>
-                    <Link href={p.href} className="inline-block rounded-full border border-teal-600 px-3 py-1 text-xs font-bold text-teal-700 dark:text-teal-300 hover:bg-teal-500/10">{TOOL_LABEL[p.tool] || "Open"} →</Link>
+                    <Link href={p.href} className="inline-block rounded-full border border-brand-600 px-3 py-1 text-xs font-bold text-brand-700 dark:text-brand-300 hover:bg-brand-500/10">{TOOL_LABEL[p.tool] || "Open"} →</Link>
                   </div>
                 </li>
               ))}
@@ -150,7 +150,7 @@ export default function EvaluationPage() {
 
           <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
             {s.generatedAt && <span>Made {new Date(s.generatedAt).toLocaleString()}.</span>}
-            <button type="button" disabled={busy} onClick={() => run(true)} className="inline-flex items-center gap-1 font-semibold text-teal-700 dark:text-teal-300 underline disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={() => run(true)} className="inline-flex items-center gap-1 font-semibold text-brand-700 dark:text-brand-300 underline disabled:opacity-50">
               <RefreshCw className="h-3 w-3" /> Make it again
             </button>
           </div>

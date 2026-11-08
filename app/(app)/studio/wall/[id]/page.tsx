@@ -59,7 +59,7 @@ export default function WallProjectPage({ params }: { params: Promise<{ id: stri
     return (
       <Card className="p-8 text-center text-sm space-y-3">
         <p>{error}</p>
-        <Link href="/studio/wall" className="text-teal-600 font-semibold">Back to the Maker Wall</Link>
+        <Link href="/studio/wall" className="text-brand-600 font-semibold">Back to the Maker Wall</Link>
       </Card>
     );
   }
@@ -116,7 +116,7 @@ export default function WallProjectPage({ params }: { params: Promise<{ id: stri
       <Card className="p-4 space-y-3">
         <div className="flex items-center gap-2">
           <h2 className="font-extrabold">Parts list</h2>
-          <Link href={`/studio/${id}/guide`} className="ml-auto text-xs font-semibold text-teal-600 flex items-center gap-1">
+          <Link href={`/studio/${id}/guide`} className="ml-auto text-xs font-semibold text-brand-600 flex items-center gap-1">
             <Printer className="h-3.5 w-3.5" /> Build guide
           </Link>
         </div>

@@ -14,7 +14,7 @@ export default function ExperimentsPage() {
       <div className="flex items-center gap-2">
         <Link href="/more" className="h-9 w-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Back"><ArrowLeft className="h-4 w-4" /></Link>
         <div>
-          <p className="text-xs font-mono tracking-widest text-teal-600">SCIENCE LAB</p>
+          <p className="text-xs font-mono tracking-widest text-brand-600">SCIENCE LAB</p>
           <h1 className="text-xl font-extrabold">Experiments</h1>
         </div>
       </div>
@@ -22,7 +22,7 @@ export default function ExperimentsPage() {
       <div className="grid gap-3 sm:grid-cols-2">
         {EXPERIMENTS.map((e) => (
           <Link key={e.id} href={`/experiments/${e.id}`}>
-            <Card className="p-4 h-full hover:border-teal-500 transition-colors">
+            <Card className="p-4 h-full hover:border-brand-500 transition-colors">
               <div className="flex items-start gap-3">
                 <span className="text-3xl" aria-hidden>{e.emoji}</span>
                 <div className="min-w-0">

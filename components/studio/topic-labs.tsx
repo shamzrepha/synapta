@@ -133,7 +133,7 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex-1 min-w-0">
-          <p className="font-bold flex items-center gap-2"><Wrench className="h-5 w-5 text-teal-600" /> Build labs</p>
+          <p className="font-bold flex items-center gap-2"><Wrench className="h-5 w-5 text-brand-600" /> Build labs</p>
           <p className="text-xs text-slate-500">See how {topicTitle} works: open the finished build, read its code, run it and change it. When you&apos;re ready to do it yourself, use Prove it.</p>
         </div>
         {data.canManage && (
@@ -209,7 +209,7 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
                       {lab.goal && <p className="text-xs text-slate-500">{lab.goal}</p>}
                       <div className="mt-1.5 flex items-center gap-2">
                         <div className="h-1.5 w-32 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                          <div className="h-full bg-teal-500" style={{ width: `${(lab.myDone / Math.max(1, lab.stepCount)) * 100}%` }} />
+                          <div className="h-full bg-brand-500" style={{ width: `${(lab.myDone / Math.max(1, lab.stepCount)) * 100}%` }} />
                         </div>
                         <span className="text-[11px] text-slate-500">{lab.myDone}/{lab.stepCount} steps</span>
                         {lab.dueAt && (
@@ -260,10 +260,10 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
                               <li key={r.designId} className="flex items-center gap-2 text-xs">
                                 <span className="w-32 truncate font-semibold">{r.name}</span>
                                 <div className="flex-1 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                                  <div className="h-full bg-teal-500" style={{ width: `${(r.done / Math.max(1, lab.stepCount)) * 100}%` }} />
+                                  <div className="h-full bg-brand-500" style={{ width: `${(r.done / Math.max(1, lab.stepCount)) * 100}%` }} />
                                 </div>
                                 <span className="w-12 text-right">{r.done}/{lab.stepCount}</span>
-                                <a href={`/studio/${r.designId}`} className="text-teal-600 font-semibold">View</a>
+                                <a href={`/studio/${r.designId}`} className="text-brand-600 font-semibold">View</a>
                               </li>
                             ))}
                         </ul>

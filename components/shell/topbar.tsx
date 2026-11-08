@@ -4,7 +4,7 @@ import { BrandMark } from "@/components/landing/brand-mark";
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { ArrowLeft, Search, Flame, Sun, Moon, LogOut, MessageSquare, User, Bell, BrainCircuit, Bookmark, Globe } from "lucide-react";
+import { ArrowLeft, Search, Flame, Sun, Moon, LogOut, MessageSquare, User, Bell, Bookmark, Globe, LayoutGrid, Sparkles, ShieldCheck } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useTheme } from "@/components/providers/theme-provider";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -55,7 +55,7 @@ export function Topbar() {
             <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">{t("Back")}</span>
           </button>
         )}
-        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500 text-slate-950 shadow-sm`} aria-label="Home">
+        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white dark:bg-brand-500 shadow-sm`} aria-label="Home">
           <BrandMark className="h-5 w-5" />
         </Link>
         <Link href="/search" className="sm:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800" aria-label="Search">
@@ -74,7 +74,7 @@ export function Topbar() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("Search people, classes, topics, #tags…")}
-            className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-teal-400"
+            className="w-full h-9 rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-brand-400"
           />
         </form>
       </div>
@@ -86,7 +86,7 @@ export function Topbar() {
         {user && (
           <Link
             href="/profile"
-            className="hidden sm:flex items-center gap-2 rounded-full bg-teal-500/10 pl-1 pr-2.5 py-1 text-xs font-semibold text-teal-800 dark:text-teal-300 border border-teal-500/20 hover:bg-teal-500/15"
+            className="hidden sm:flex items-center gap-2 rounded-full bg-brand-500/10 pl-1 pr-2.5 py-1 text-xs font-semibold text-brand-800 dark:text-brand-300 border border-brand-500/20 hover:bg-brand-500/15"
             title={`Level ${level.level} ${level.title} · ${formatNumber(level.xp)} XP · ${formatNumber(level.nextLevelXp - level.xp)} XP to next level`}
           >
             <span className="relative h-7 w-7">
@@ -124,11 +124,11 @@ export function Topbar() {
           href="/messages"
           title="Messages"
           aria-label={`Messages${dmUnread ? `, ${dmUnread} unread` : ""}`}
-          className="relative hidden sm:flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-teal-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-teal-400"
+          className="relative hidden sm:flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-brand-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-brand-400"
         >
           <MessageSquare className="h-4 w-4" />
           {dmUnread > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-teal-600 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
               {dmUnread > 99 ? "99+" : dmUnread}
             </span>
           )}
@@ -147,12 +147,12 @@ export function Topbar() {
           onClick={toggleTheme}
           aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-card/70 text-foreground hover:border-teal-500/40 hover:bg-muted transition-all  shadow-xs"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-card/70 text-foreground hover:border-brand-500/40 hover:bg-muted transition-all  shadow-xs"
         >
           {theme === "dark" ? (
             <Sun className="h-4 w-4 text-amber-400 transition-transform duration-300 " />
           ) : (
-            <Moon className="h-4 w-4 text-teal-600 transition-transform duration-300 " />
+            <Moon className="h-4 w-4 text-brand-600 transition-transform duration-300 " />
           )}
         </button>
 
@@ -163,7 +163,7 @@ export function Topbar() {
               onClick={() => setMenuOpen((v) => !v)}
               aria-label="Account menu"
               aria-expanded={menuOpen}
-              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-teal-700 text-white font-semibold text-xs border border-teal-500/30 shadow-sm"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full bg-brand-700 text-white font-semibold text-xs border border-brand-500/30 shadow-sm"
             >
               {user.photoURL ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -171,7 +171,7 @@ export function Topbar() {
               ) : (
                 (user.displayName || user.email || "U").charAt(0).toUpperCase()
               )}
-              {dmUnread > 0 && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-teal-500 ring-2 ring-white dark:ring-slate-950 sm:hidden" />}
+              {dmUnread > 0 && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-brand-500 ring-2 ring-white dark:ring-slate-950 sm:hidden" />}
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-11 w-[min(14rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl py-2 z-50">
@@ -181,10 +181,10 @@ export function Topbar() {
                     Level {level.level} · {level.title}
                   </p>
                 </div>
-                <p className="sm:hidden px-4 pb-1 text-xs font-semibold text-teal-700 dark:text-teal-300">{formatNumber(level.xp)} XP</p>
+                <p className="sm:hidden px-4 pb-1 text-xs font-semibold text-brand-700 dark:text-brand-300">{formatNumber(level.xp)} XP</p>
                 <Link href="/messages" onClick={() => setMenuOpen(false)} className="sm:hidden flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                   <MessageSquare className="h-4 w-4" /> Messages
-                  {dmUnread > 0 && <span className="ml-auto rounded-full bg-teal-600 px-1.5 text-[10px] font-bold text-white">{dmUnread > 99 ? "99+" : dmUnread}</span>}
+                  {dmUnread > 0 && <span className="ml-auto rounded-full bg-brand-600 px-1.5 text-[10px] font-bold text-white">{dmUnread > 99 ? "99+" : dmUnread}</span>}
                 </Link>
                 <Link href="/profile" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                   <User className="h-4 w-4" /> Profile & badges
@@ -198,6 +198,17 @@ export function Topbar() {
                 <Link href="/saved" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                   <Bookmark className="h-4 w-4" /> Saved
                 </Link>
+                <Link href="/more" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
+                  <LayoutGrid className="h-4 w-4" /> Everything
+                </Link>
+                <Link href="/plans" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
+                  <Sparkles className="h-4 w-4" /> Plans
+                </Link>
+                {user.role === "admin" && (
+                  <Link href="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
+                    <ShieldCheck className="h-4 w-4" /> Admin console
+                  </Link>
+                )}
                 <button type="button" onClick={() => setLangOpen((v) => !v)} aria-expanded={langOpen} className="sm:hidden w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                   <Globe className="h-4 w-4" /> Language
                 </button>

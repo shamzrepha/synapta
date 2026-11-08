@@ -167,7 +167,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
   if (!loading && questions.length === 0) {
     return (
       <div className="py-6 space-y-5 max-w-lg mx-auto text-center">
-        <div className="h-12 w-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mx-auto">
+        <div className="h-12 w-12 rounded-2xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto">
           <HelpCircle className="h-6 w-6" />
         </div>
         <div>
@@ -187,7 +187,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
                 className={cn(
                   "px-4 py-2 rounded-xl border text-sm font-semibold transition-all",
                   count === c
-                    ? "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-300"
+                    ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:text-brand-300"
                     : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900"
                 )}
               >
@@ -207,7 +207,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
                 className={cn(
                   "px-3 py-1.5 rounded-full border text-xs font-semibold transition-all",
                   focus === f.key
-                    ? "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-300"
+                    ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:text-brand-300"
                     : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900"
                 )}
               >
@@ -253,7 +253,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
             {correct} / {total} correct
           </h3>
           <div className="flex items-center justify-center gap-2 pt-1">
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-500/20">
               Score: {pct}%
             </span>
             {streakDays > 0 && (
@@ -349,7 +349,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
           </div>
         </div>
         <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-          <div className="h-full bg-teal-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+          <div className="h-full bg-brand-500 transition-all duration-500" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
@@ -379,8 +379,8 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
                     ? "border-rose-500 bg-rose-500/10"
                     : "border-slate-200 dark:border-slate-800 opacity-60"
                   : isSelected
-                  ? "border-teal-500 bg-teal-500/10 shadow-sm"
-                  : "border-slate-200 dark:border-slate-800 hover:border-teal-400/60 hover:bg-slate-50 dark:hover:bg-slate-900"
+                  ? "border-brand-500 bg-brand-500/10 shadow-sm"
+                  : "border-slate-200 dark:border-slate-800 hover:border-brand-400/60 hover:bg-slate-50 dark:hover:bg-slate-900"
               )}
             >
               <span
@@ -391,7 +391,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
                     : isWrongPick
                     ? "bg-rose-500 text-white"
                     : isSelected
-                    ? "bg-teal-600 text-white"
+                    ? "bg-brand-600 text-white"
                     : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
                 )}
               >

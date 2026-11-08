@@ -201,7 +201,7 @@ export default function SyllabusEditorPage({
           <Card key={kc.id} className="border-slate-200 dark:border-slate-800 p-5">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-start gap-4 flex-1">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 font-bold text-teal-600 dark:text-teal-400 text-xs">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 font-bold text-brand-600 dark:text-brand-400 text-xs">
                   {idx + 1}
                 </div>
                 <div className="space-y-1 flex-1">
@@ -253,7 +253,7 @@ export default function SyllabusEditorPage({
           <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                <Sparkles className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                 <h3 className="font-bold text-lg">AI Syllabus Synthesis</h3>
               </div>
               <button onClick={() => setIsAiModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1">
@@ -285,7 +285,7 @@ export default function SyllabusEditorPage({
                   placeholder="e.g. Focus heavily on practical simulation labs, include intuitive analogies before equations, cover DC circuits then transient RC filters..."
                   value={teacherNotes}
                   onChange={(e) => setTeacherNotes(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-teal-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                 />
               </div>
 
@@ -308,7 +308,7 @@ export default function SyllabusEditorPage({
           <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <Edit3 className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                <Edit3 className="h-5 w-5 text-brand-600 dark:text-brand-400" />
                 <h3 className="font-bold text-lg">Edit Topic</h3>
               </div>
               <button onClick={() => setEditingKc(null)} className="text-slate-400 hover:text-slate-600 p-1">

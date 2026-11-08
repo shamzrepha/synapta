@@ -132,14 +132,14 @@ export function SimStage({
               key={v.key}
               type="button"
               onClick={() => onView(v.key)}
-              className={cn("h-9 shrink-0 rounded-lg px-3 text-xs font-bold", v.key === view ? "bg-teal-600 text-white" : "bg-white/10 text-slate-300 hover:bg-white/20")}
+              className={cn("h-9 shrink-0 rounded-lg px-3 text-xs font-bold", v.key === view ? "bg-brand-600 text-white" : "bg-white/10 text-slate-300 hover:bg-white/20")}
             >
               {v.label}
             </button>
           ))}
         </div>
         {wide && views.length > 1 && (
-          <button type="button" onClick={() => onSplit(!split)} aria-label="Split view" title="3D + another view side by side" className={cn("flex h-9 w-9 items-center justify-center rounded-lg", split ? "bg-teal-600" : "bg-white/10 hover:bg-white/20")}>
+          <button type="button" onClick={() => onSplit(!split)} aria-label="Split view" title="3D + another view side by side" className={cn("flex h-9 w-9 items-center justify-center rounded-lg", split ? "bg-brand-600" : "bg-white/10 hover:bg-white/20")}>
             <Columns2 className="h-4 w-4" />
           </button>
         )}

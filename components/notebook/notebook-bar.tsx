@@ -119,7 +119,7 @@ export function NotebookBar({
           className="flex items-center gap-2 rounded-xl px-3 h-9 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 max-w-[260px]"
           aria-expanded={open}
         >
-          <BookMarked className="h-4 w-4 text-teal-600 shrink-0" />
+          <BookMarked className="h-4 w-4 text-brand-600 shrink-0" />
           <span className="truncate">{meta ? meta.title : "Scratch pad (not saved)"}</span>
           <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
         </button>
@@ -131,7 +131,7 @@ export function NotebookBar({
                 setOpen(false);
                 onSelect(null);
               }}
-              className={cn("w-full text-left rounded-xl px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900", !meta && "bg-teal-500/10")}
+              className={cn("w-full text-left rounded-xl px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900", !meta && "bg-brand-500/10")}
             >
               Scratch pad <span className="text-xs text-slate-400">· not saved</span>
             </button>
@@ -150,7 +150,7 @@ export function NotebookBar({
                       setOpen(false);
                       onSelect(n.id);
                     }}
-                    className={cn("w-full text-left rounded-xl px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-900", meta?.id === n.id && "bg-teal-500/10")}
+                    className={cn("w-full text-left rounded-xl px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-900", meta?.id === n.id && "bg-brand-500/10")}
                   >
                     <p className="text-sm font-semibold truncate flex items-center gap-1.5">
                       {n.title}
@@ -171,7 +171,7 @@ export function NotebookBar({
                   setOpen(false);
                   setCreating("new");
                 }}
-                className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-500/10"
+                className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-brand-700 dark:text-brand-300 hover:bg-brand-500/10"
               >
                 <Plus className="h-4 w-4" /> New notebook
               </button>
@@ -205,7 +205,7 @@ export function NotebookBar({
           </Button>
         )}
         {meta?.chatId && (
-          <Link href={`/messages?chat=${meta.chatId}`} className="inline-flex items-center gap-1 h-8 px-3 rounded-lg text-xs font-semibold bg-teal-600 text-white hover:bg-teal-700">
+          <Link href={`/messages?chat=${meta.chatId}`} className="inline-flex items-center gap-1 h-8 px-3 rounded-lg text-xs font-semibold bg-brand-600 text-white hover:bg-brand-700">
             <MessagesSquare className="h-3.5 w-3.5" /> Group room
           </Link>
         )}
@@ -358,7 +358,7 @@ function ShareModal({ meta, maxMembers, onClose, onChanged }: { meta: NotebookMe
       {friends === null && <p className="text-xs text-slate-500">Loading friends…</p>}
       {friends?.length === 0 && (
         <p className="text-xs text-slate-500">
-          Add friends first on the <Link href="/friends" className="text-teal-600 font-semibold">Friends</Link> page.
+          Add friends first on the <Link href="/friends" className="text-brand-600 font-semibold">Friends</Link> page.
         </p>
       )}
       <ul className="space-y-1">

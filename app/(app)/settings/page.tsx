@@ -22,7 +22,7 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boolean) =
       aria-checked={on}
       aria-label={label}
       onClick={() => onChange(!on)}
-      className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", on ? "bg-teal-600" : "bg-slate-300 dark:bg-slate-700")}
+      className={cn("relative h-7 w-12 shrink-0 rounded-full transition-colors", on ? "bg-brand-600" : "bg-slate-300 dark:bg-slate-700")}
     >
       <span className={cn("absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all", on ? "left-[22px]" : "left-0.5")} />
     </button>
@@ -53,7 +53,7 @@ export default function SettingsPage() {
     <div className="space-y-5 max-w-2xl mx-auto">
       <div>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-          <SettingsIcon className="h-7 w-7 text-teal-600" /> Settings
+          <SettingsIcon className="h-7 w-7 text-brand-600" /> Settings
         </h1>
         <p className="text-sm text-slate-500">Your language, data saving and autoplay. Kept on this device and in your account.</p>
       </div>
@@ -63,7 +63,7 @@ export default function SettingsPage() {
       <Card className="divide-y divide-slate-100 dark:divide-slate-800">
         {OPTIONS.map((o) => (
           <div key={o.key} className="flex items-center gap-3 p-4">
-            <span className="text-teal-600">{o.icon}</span>
+            <span className="text-brand-600">{o.icon}</span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm">{o.title}</p>
               <p className="text-xs text-slate-500">{o.desc}</p>

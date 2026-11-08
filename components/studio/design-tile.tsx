@@ -32,7 +32,7 @@ export function DesignTile({ d }: { d: DesignCard }) {
   const k = KIND[d.kind] || KIND.assembly;
   return (
     <Link href={`/studio/${d.id}`}>
-      <Card className="p-4 h-full hover:border-teal-500/60 transition-colors space-y-2">
+      <Card className="p-4 h-full hover:border-brand-500/60 transition-colors space-y-2">
         <div className={cn("flex items-center gap-1.5 text-xs font-semibold", k.color)}>
           {k.icon} {k.label}
           {d.visibility === "public" && <Globe2 className="h-3 w-3 ml-auto text-slate-400" />}

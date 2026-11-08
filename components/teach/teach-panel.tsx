@@ -36,7 +36,7 @@ export function TeachPanel({ source, canRegenerate = false, finish }: { source: 
   if (busy && !script)
     return (
       <Card className="p-8 text-center space-y-2">
-        <Loader2 className="h-6 w-6 animate-spin text-teal-600 mx-auto" />
+        <Loader2 className="h-6 w-6 animate-spin text-brand-600 mx-auto" />
         <p className="font-semibold text-sm">Building your interactive lesson…</p>
         <p className="text-xs text-slate-500">The first time takes up to a minute. After that it opens straight away.</p>
       </Card>

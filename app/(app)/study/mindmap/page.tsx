@@ -140,7 +140,7 @@ export default function MindMapPage() {
               <button type="button" aria-label="Close" onClick={() => setExplain(null)} className="absolute right-2 top-2 h-8 w-8 flex items-center justify-center text-slate-400">
                 <X className="h-4 w-4" />
               </button>
-              <div className="text-[11px] font-bold uppercase tracking-wide text-teal-600 pr-8">{explain.title}</div>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-brand-600 pr-8">{explain.title}</div>
               {explain.loading ? (
                 <div className="flex items-center gap-2 text-sm text-slate-500 py-3"><Loader2 className="h-4 w-4 animate-spin" /> Thinking…</div>
               ) : (

@@ -25,7 +25,7 @@ interface Community {
 function Row({ c }: { c: Community }) {
   return (
     <Link href={`/communities/${c.id}`} className="flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-900">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-600">
         <Building2 className="h-5 w-5" />
       </span>
       <div className="min-w-0 flex-1">
@@ -93,7 +93,7 @@ export default function CommunitiesPage() {
       <div className="flex items-end justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight md:text-3xl">
-            <Building2 className="h-7 w-7 text-teal-600" /> Communities
+            <Building2 className="h-7 w-7 text-brand-600" /> Communities
           </h1>
           <p className="text-sm text-slate-500">A feed for your school, campus or club.</p>
         </div>
@@ -108,14 +108,14 @@ export default function CommunitiesPage() {
           <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="What is it about? (optional)" maxLength={300} />
           <div className="flex flex-wrap gap-2">
             {KINDS.map((k) => (
-              <button key={k} type="button" onClick={() => setForm({ ...form, kind: k })} className={cn("h-9 rounded-xl px-3 text-sm font-semibold capitalize", form.kind === k ? "bg-teal-600 text-white" : "border border-slate-200 dark:border-slate-700")}>
+              <button key={k} type="button" onClick={() => setForm({ ...form, kind: k })} className={cn("h-9 rounded-xl px-3 text-sm font-semibold capitalize", form.kind === k ? "bg-brand-600 text-white" : "border border-slate-200 dark:border-slate-700")}>
                 {k}
               </button>
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
             {(["open", "code"] as const).map((m) => (
-              <button key={m} type="button" onClick={() => setForm({ ...form, joinMode: m })} className={cn("h-9 rounded-xl px-3 text-sm font-semibold", form.joinMode === m ? "bg-teal-600 text-white" : "border border-slate-200 dark:border-slate-700")}>
+              <button key={m} type="button" onClick={() => setForm({ ...form, joinMode: m })} className={cn("h-9 rounded-xl px-3 text-sm font-semibold", form.joinMode === m ? "bg-brand-600 text-white" : "border border-slate-200 dark:border-slate-700")}>
                 {m === "open" ? "Anyone can join" : "Join code only"}
               </button>
             ))}

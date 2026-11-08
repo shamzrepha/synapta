@@ -93,7 +93,7 @@ function ScheduleForm({
   };
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-teal-500/30 bg-teal-500/5 p-4 space-y-3">
+    <form onSubmit={submit} className="rounded-2xl border border-brand-500/30 bg-brand-500/5 p-4 space-y-3">
       <div className="flex items-center justify-between">
         <p className="font-semibold text-sm">Schedule a study session</p>
         <button type="button" onClick={onClose} aria-label="Close" className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900">
@@ -192,10 +192,10 @@ export function SessionsPanel({
   const visible = (sessions || []).filter((s) => (compact ? s.status !== "ended" : true)).slice(0, compact ? 4 : 50);
 
   return (
-    <Card className="p-4 sm:p-5 space-y-3 border border-border/70 hover:border-teal-500/30 transition-all duration-300">
+    <Card className="p-4 sm:p-5 space-y-3 border border-border/70 hover:border-brand-500/30 transition-all duration-300">
       <div className="flex items-center justify-between gap-2">
         <p className="font-display font-bold flex items-center gap-2 text-foreground">
-          <CalendarClock className="h-4 w-4 text-teal-600 dark:text-teal-400" /> {title}
+          <CalendarClock className="h-4 w-4 text-brand-600 dark:text-brand-400" /> {title}
         </p>
         {classes.length > 0 && !showForm && (
           <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
@@ -233,7 +233,7 @@ export function SessionsPanel({
                   "rounded-2xl border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 transition-colors",
                   live ? "border-rose-500/50 bg-rose-500/5" : soon ? "border-amber-500/50 bg-amber-500/5" : "border-border/70 bg-card/60 hover:border-border",
                   ended && "opacity-60",
-                  focusId === s.id && "ring-2 ring-teal-500"
+                  focusId === s.id && "ring-2 ring-brand-500"
                 )}
               >
                 <div className="min-w-0 flex-1">

@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 // Light and dark ramps (level 0..4)
 const RAMP = [
   "bg-slate-200/70 dark:bg-slate-800",
-  "bg-teal-200 dark:bg-teal-900",
-  "bg-teal-400 dark:bg-teal-700",
-  "bg-teal-500 dark:bg-teal-500",
-  "bg-teal-700 dark:bg-teal-300",
+  "bg-brand-200 dark:bg-brand-900",
+  "bg-brand-400 dark:bg-brand-700",
+  "bg-brand-500 dark:bg-brand-500",
+  "bg-brand-700 dark:bg-brand-300",
 ];
 
 interface ApiData {

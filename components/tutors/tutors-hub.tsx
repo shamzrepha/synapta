@@ -144,8 +144,8 @@ function RequestCard({ r, mode, onChanged }: { r: Req; mode: "mine" | "incoming"
       </div>
       <p className="whitespace-pre-wrap break-words text-sm font-medium">{r.question}</p>
       {r.answer && (
-        <div className="rounded-xl bg-teal-50 p-3 text-sm dark:bg-teal-950/30">
-          <p className="mb-1 text-xs font-semibold text-teal-700 dark:text-teal-300">Answer</p>
+        <div className="rounded-xl bg-brand-50 p-3 text-sm dark:bg-brand-950/30">
+          <p className="mb-1 text-xs font-semibold text-brand-700 dark:text-brand-300">Answer</p>
           <p className="whitespace-pre-wrap break-words">{r.answer}</p>
         </div>
       )}
@@ -219,7 +219,7 @@ function ProfileForm({ onSaved }: { onSaved: () => void }) {
       <Input value={subjects} onChange={(e) => setSubjects(e.target.value)} placeholder="Subjects, comma separated (physics, maths)" />
       <Textarea value={bio} onChange={(e) => setBio(e.target.value)} maxLength={TUTOR_LIMITS.bio} rows={3} placeholder="A short bio: what are you good at?" />
       <Input value={availability} onChange={(e) => setAvailability(e.target.value)} maxLength={TUTOR_LIMITS.availability} placeholder="Availability (e.g. weekdays after 4pm)" />
-      <label className="flex min-h-[36px] items-center gap-2 text-sm"><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 accent-teal-600" /> Accepting questions</label>
+      <label className="flex min-h-[36px] items-center gap-2 text-sm"><input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 accent-brand-600" /> Accepting questions</label>
       <Button onClick={save} isLoading={busy} disabled={!subjects.trim()}>Save profile</Button>
     </Card>
   );
@@ -268,7 +268,7 @@ export function TutorsHub({ initialTab }: { initialTab?: string | null }) {
       </div>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {TABS.map((t) => (
-          <button key={t.id} type="button" onClick={() => switchTab(t.id)} className={cn("flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold", tab === t.id ? "border-teal-600 bg-teal-600 text-white" : "border-slate-300 dark:border-slate-700")}>
+          <button key={t.id} type="button" onClick={() => switchTab(t.id)} className={cn("flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-xs font-semibold", tab === t.id ? "border-brand-600 bg-brand-600 text-white" : "border-slate-300 dark:border-slate-700")}>
             <t.icon className="h-3.5 w-3.5" /> {t.label}
           </button>
         ))}
@@ -288,7 +288,7 @@ export function TutorsHub({ initialTab }: { initialTab?: string | null }) {
           </Card>
           <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Filter tutors by subject" />
           {askTutor && (
-            <Card className="space-y-2 border-teal-500 p-4">
+            <Card className="space-y-2 border-brand-500 p-4">
               <p className="text-sm font-semibold">Ask {askTutor.displayName}</p>
               <RequestForm tutor={askTutor} onDone={() => { setAskTutor(null); switchTab("mine"); }} onCancel={() => setAskTutor(null)} />
             </Card>

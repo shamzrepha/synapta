@@ -13,7 +13,7 @@ export default function ExperimentPage({ params }: { params: Promise<{ id: strin
     return (
       <div className="space-y-3">
         <p className="text-sm">That experiment doesn&apos;t exist.</p>
-        <Link href="/experiments" className="text-teal-600 font-semibold text-sm">Back to experiments</Link>
+        <Link href="/experiments" className="text-brand-600 font-semibold text-sm">Back to experiments</Link>
       </div>
     );
   }
@@ -22,7 +22,7 @@ export default function ExperimentPage({ params }: { params: Promise<{ id: strin
       <div className="flex items-center gap-2">
         <Link href="/experiments" className="h-9 w-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Back to experiments"><ArrowLeft className="h-4 w-4" /></Link>
         <div>
-          <p className="text-xs font-mono tracking-widest text-teal-600">{exp.subject.toUpperCase()}</p>
+          <p className="text-xs font-mono tracking-widest text-brand-600">{exp.subject.toUpperCase()}</p>
           <h1 className="text-xl font-extrabold">{exp.emoji} {exp.title}</h1>
         </div>
       </div>

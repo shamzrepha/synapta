@@ -68,7 +68,7 @@ export default function SearchPage() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search people, classes, topics, posts, #hashtags…"
-          className="w-full h-12 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-12 pr-4 text-base focus:outline-none focus:border-teal-500"
+          className="w-full h-12 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pl-12 pr-4 text-base focus:outline-none focus:border-brand-500"
         />
       </div>
       {loading && <Skeleton className="h-40 w-full rounded-2xl" />}

@@ -65,7 +65,7 @@ export function ClassBuildAssignments({ classId }: { classId: string }) {
   return (
     <section className="space-y-3">
       <h2 className="font-extrabold text-lg flex items-center gap-2">
-        <Wrench className="h-5 w-5 text-teal-600" /> Build assignments
+        <Wrench className="h-5 w-5 text-brand-600" /> Build assignments
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sorted.map((lab) => {
@@ -88,7 +88,7 @@ export function ClassBuildAssignments({ classId }: { classId: string }) {
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="h-1.5 flex-1 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-teal-500" style={{ width: `${(lab.myDone / Math.max(1, lab.stepCount)) * 100}%` }} />
+                    <div className="h-full bg-brand-500" style={{ width: `${(lab.myDone / Math.max(1, lab.stepCount)) * 100}%` }} />
                   </div>
                   <span className="text-[11px] text-slate-500">{lab.myDone}/{lab.stepCount}</span>
                   {complete && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}

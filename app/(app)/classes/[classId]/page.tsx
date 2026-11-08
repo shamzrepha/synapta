@@ -315,7 +315,7 @@ export default function ClassOverviewPage({
 
               <Link href={`/classes/${classId}/assignments`}>
                 <Button variant="outline" size="sm" className="text-xs">
-                  <FileText className="h-3.5 w-3.5 mr-1 text-teal-600 dark:text-teal-400" /> Assignments
+                  <FileText className="h-3.5 w-3.5 mr-1 text-brand-600 dark:text-brand-400" /> Assignments
                 </Button>
               </Link>
 
@@ -357,7 +357,7 @@ export default function ClassOverviewPage({
 
                   <Link href={`/classes/${classId}/heatmap`}>
                     <Button variant="outline" size="sm" className="text-xs">
-                      <Activity className="h-3.5 w-3.5 mr-1 text-teal-500" /> Heatmap
+                      <Activity className="h-3.5 w-3.5 mr-1 text-brand-500" /> Heatmap
                     </Button>
                   </Link>
                   <Link href={`/classes/${classId}/manage`}>
@@ -371,14 +371,14 @@ export default function ClassOverviewPage({
           </div>
 
           {classData.buildState === "drafting" && (isOwner || user?.role === "admin") && (
-            <div className="p-4 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-900 dark:text-teal-100 space-y-2">
+            <div className="p-4 rounded-xl bg-brand-500/10 border border-brand-500/30 text-brand-900 dark:text-brand-100 space-y-2">
               <div className="flex items-center gap-2 text-sm font-semibold">
-                <Zap className="h-4 w-4 text-teal-600 animate-pulse" />
+                <Zap className="h-4 w-4 text-brand-600 animate-pulse" />
                 <span>{BUILD_STEP_LABELS[classData.buildStep || "scoping"] || "Building your class…"}</span>
               </div>
-              <div className="h-2 rounded-full bg-teal-500/20 overflow-hidden">
+              <div className="h-2 rounded-full bg-brand-500/20 overflow-hidden">
                 <div
-                  className="h-full bg-teal-500 transition-all duration-700"
+                  className="h-full bg-brand-500 transition-all duration-700"
                   style={{ width: `${Math.max(5, classData.buildPct ?? 10)}%` }}
                 />
               </div>
@@ -469,7 +469,7 @@ export default function ClassOverviewPage({
                         () => toast({ title: "Invite link", description: link })
                       );
                     }}
-                    className="font-semibold text-teal-700 dark:text-teal-300 hover:underline"
+                    className="font-semibold text-brand-700 dark:text-brand-300 hover:underline"
                   >
                     Copy invite link
                   </button>
@@ -521,11 +521,11 @@ export default function ClassOverviewPage({
         <Card className="p-4 flex items-center justify-between">
           <div>
             <span className="text-xs text-slate-500 block">Class Overall Mastery</span>
-            <span className="text-xl font-bold text-teal-600 dark:text-teal-400">
+            <span className="text-xl font-bold text-brand-600 dark:text-brand-400">
               {formatPL(averageMastery)}
             </span>
           </div>
-          <div className="h-10 w-10 rounded-xl bg-teal-500/10 flex items-center justify-center text-teal-600 dark:text-teal-400 font-bold text-xs">
+          <div className="h-10 w-10 rounded-xl bg-brand-500/10 flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold text-xs">
             {formatPL(averageMastery)}
           </div>
         </Card>
@@ -571,8 +571,8 @@ export default function ClassOverviewPage({
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
             <Link href={`/feed?class=${classId}`}>
-              <Card className="p-4 hover:border-teal-500/50 transition-colors h-full">
-                <MessagesSquare className="h-5 w-5 text-teal-600 mb-1.5" />
+              <Card className="p-4 hover:border-brand-500/50 transition-colors h-full">
+                <MessagesSquare className="h-5 w-5 text-brand-600 mb-1.5" />
                 <p className="font-semibold text-sm">Class feed</p>
                 <p className="text-xs text-slate-500">Ask questions, share wins</p>
               </Card>
@@ -617,7 +617,7 @@ export default function ClassOverviewPage({
               <Card
                 key={kc.id}
                 className={`transition-all border-slate-200 dark:border-slate-800 ${
-                  !unlocked ? "opacity-60 bg-slate-50/50 dark:bg-slate-950/40" : "hover:border-teal-500/40"
+                  !unlocked ? "opacity-60 bg-slate-50/50 dark:bg-slate-950/40" : "hover:border-brand-500/40"
                 }`}
               >
                 <CardContent className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -628,7 +628,7 @@ export default function ClassOverviewPage({
                           ? "bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                           : currentPL >= 0.95
                           ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-                          : "bg-teal-500/10 text-teal-600 dark:text-teal-400"
+                          : "bg-brand-500/10 text-brand-600 dark:text-brand-400"
                       }`}
                     >
                       {!unlocked ? <Lock className="h-4 w-4" /> : idx + 1}

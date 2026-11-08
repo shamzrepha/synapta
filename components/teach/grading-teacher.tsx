@@ -72,7 +72,7 @@ export function TeacherGrading() {
           <div className="space-y-2">
             {sets.length === 0 && <p className="text-sm text-slate-500">No question sets yet.</p>}
             {sets.map((s) => (
-              <button key={s.id} onClick={() => setOpenId(s.id)} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left hover:border-teal-400 dark:border-slate-800 dark:bg-slate-900">
+              <button key={s.id} onClick={() => setOpenId(s.id)} className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left hover:border-brand-400 dark:border-slate-800 dark:bg-slate-900">
                 <span>
                   <span className="block font-semibold text-slate-900 dark:text-white">{s.title}</span>
                   <span className="text-xs text-slate-500">{s.questionCount} questions</span>

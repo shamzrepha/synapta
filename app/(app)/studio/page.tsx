@@ -185,10 +185,10 @@ export default function StudioHome() {
       <section className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl border border-slate-200 dark:border-slate-800 p-0.5 text-sm font-semibold">
-            <button type="button" onClick={() => setTab("mine")} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-1", tab === "mine" ? "bg-teal-600 text-white" : "text-slate-500")}>
+            <button type="button" onClick={() => setTab("mine")} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-1", tab === "mine" ? "bg-brand-600 text-white" : "text-slate-500")}>
               <FolderOpen className="h-4 w-4" /> My designs
             </button>
-            <button type="button" onClick={() => setTab("world")} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-1", tab === "world" ? "bg-teal-600 text-white" : "text-slate-500")}>
+            <button type="button" onClick={() => setTab("world")} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-1", tab === "world" ? "bg-brand-600 text-white" : "text-slate-500")}>
               <Globe2 className="h-4 w-4" /> Maker World
             </button>
           </div>

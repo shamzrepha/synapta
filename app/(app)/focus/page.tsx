@@ -67,7 +67,7 @@ export default function FocusHomePage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-            <Timer className="h-7 w-7 text-teal-600" /> Focus rooms
+            <Timer className="h-7 w-7 text-brand-600" /> Focus rooms
           </h1>
           <p className="text-sm text-slate-500">Study silently together on a shared Pomodoro clock. Finish a block to earn XP and keep your streak.</p>
         </div>

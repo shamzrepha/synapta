@@ -16,7 +16,7 @@ interface Opt {
 }
 
 const selectCls =
-  "h-11 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500";
+  "h-11 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500";
 
 /** Pick one of your class topics, or paste/type a topic or notes. */
 export function TopicPicker({

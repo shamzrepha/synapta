@@ -248,12 +248,12 @@ export default function ClassAssignmentsPage({
         <div>
           <Link
             href={`/classes/${classId}`}
-            className="inline-flex items-center text-xs text-slate-500 hover:text-teal-600 mb-1 transition-colors"
+            className="inline-flex items-center text-xs text-slate-500 hover:text-brand-600 mb-1 transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back to {classTitle}
           </Link>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-            <FileText className="h-7 w-7 text-teal-600 dark:text-teal-400" />
+            <FileText className="h-7 w-7 text-brand-600 dark:text-brand-400" />
             Course Assignments
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -278,7 +278,7 @@ export default function ClassAssignmentsPage({
           className={cn(
             "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
             filterKind === "all"
-              ? "bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-sm"
+              ? "bg-white dark:bg-slate-800 text-brand-700 dark:text-brand-300 shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
           )}
         >
@@ -289,7 +289,7 @@ export default function ClassAssignmentsPage({
           className={cn(
             "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5",
             filterKind === "theory"
-              ? "bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-sm"
+              ? "bg-white dark:bg-slate-800 text-brand-700 dark:text-brand-300 shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
           )}
         >
@@ -301,7 +301,7 @@ export default function ClassAssignmentsPage({
           className={cn(
             "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5",
             filterKind === "practical"
-              ? "bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-sm"
+              ? "bg-white dark:bg-slate-800 text-brand-700 dark:text-brand-300 shadow-sm"
               : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
           )}
         >
@@ -343,7 +343,7 @@ export default function ClassAssignmentsPage({
           {filtered.map((item) => (
             <Card
               key={item.id}
-              className="flex flex-col justify-between border-slate-200 dark:border-slate-800 hover:border-teal-500/40 transition-all shadow-sm"
+              className="flex flex-col justify-between border-slate-200 dark:border-slate-800 hover:border-brand-500/40 transition-all shadow-sm"
             >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -447,7 +447,7 @@ export default function ClassAssignmentsPage({
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/80">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-teal-600" />
+                  <Sparkles className="h-5 w-5 text-brand-600" />
                   Multi-Agent Assignment Generator
                 </CardTitle>
                 <button
@@ -476,11 +476,11 @@ export default function ClassAssignmentsPage({
                     className={cn(
                       "p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all",
                       genKind === "theory"
-                        ? "border-teal-500 bg-teal-500/10 text-teal-900 dark:text-teal-200 ring-2 ring-teal-500/30"
+                        ? "border-brand-500 bg-brand-500/10 text-brand-900 dark:text-brand-200 ring-2 ring-brand-500/30"
                         : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900"
                     )}
                   >
-                    <BookOpen className="h-5 w-5 text-teal-600" />
+                    <BookOpen className="h-5 w-5 text-brand-600" />
                     <div>
                       <p className="text-xs font-bold">Theory</p>
                       <p className="text-[10px] text-slate-500">Conceptual & derivations</p>
@@ -529,7 +529,7 @@ export default function ClassAssignmentsPage({
                               setSelectedKcIds((prev) => prev.filter((id) => id !== kc.id));
                             }
                           }}
-                          className="rounded text-teal-600 focus:ring-teal-500"
+                          className="rounded text-brand-600 focus:ring-brand-500"
                         />
                         <span className="truncate">{kc.title}</span>
                       </label>
@@ -587,12 +587,12 @@ export default function ClassAssignmentsPage({
 
               {/* Multi-Agent Live Step Display */}
               {generating && (
-                <div className="p-3 rounded-xl bg-teal-50 dark:bg-teal-950/30 border border-teal-500/30 space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-teal-800 dark:text-teal-200">
-                    <Cpu className="h-4 w-4 animate-spin text-teal-600" />
+                <div className="p-3 rounded-xl bg-brand-50 dark:bg-brand-950/30 border border-brand-500/30 space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-brand-800 dark:text-brand-200">
+                    <Cpu className="h-4 w-4 animate-spin text-brand-600" />
                     <span>Multi-Agent Engine Running...</span>
                   </div>
-                  <p className="text-[11px] text-teal-700 dark:text-teal-300">{agentStep}</p>
+                  <p className="text-[11px] text-brand-700 dark:text-brand-300">{agentStep}</p>
                 </div>
               )}
 
@@ -663,7 +663,7 @@ export default function ClassAssignmentsPage({
                   {previewItem.theoryQuestions.map((q) => (
                     <div key={q.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-teal-700 dark:text-teal-300">
+                        <span className="font-bold text-sm text-brand-700 dark:text-brand-300">
                           Question {q.number} ({q.marks} Marks)
                         </span>
                         <Badge variant="outline" className="text-[10px] capitalize">
@@ -688,15 +688,15 @@ export default function ClassAssignmentsPage({
                           {q.rubric.map((r, i) => (
                             <li key={i} className="flex items-start justify-between gap-4 text-[11px]">
                               <span>• {r.criterion}: <span className="opacity-80">{r.description}</span></span>
-                              <span className="font-bold text-teal-600 shrink-0">+{r.points} pts</span>
+                              <span className="font-bold text-brand-600 shrink-0">+{r.points} pts</span>
                             </li>
                           ))}
                         </ul>
                       </div>
 
                       {/* Exemplar Solution */}
-                      <div className="pt-2 p-3 rounded-xl bg-teal-500/10 text-teal-900 dark:text-teal-200 space-y-1">
-                        <h5 className="font-bold text-[11px] uppercase tracking-wider text-teal-700 dark:text-teal-300">
+                      <div className="pt-2 p-3 rounded-xl bg-brand-500/10 text-brand-900 dark:text-brand-200 space-y-1">
+                        <h5 className="font-bold text-[11px] uppercase tracking-wider text-brand-700 dark:text-brand-300">
                           Model Exemplar Answer:
                         </h5>
                         <p className="font-mono text-[11px] whitespace-pre-wrap">{q.exemplarAnswer}</p>
@@ -736,7 +736,7 @@ export default function ClassAssignmentsPage({
                     <ul className="grid grid-cols-2 gap-2 text-[11px]">
                       {previewItem.practicalExperiment.apparatus.map((app, i) => (
                         <li key={i} className="flex items-center gap-1.5">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-teal-500 shrink-0" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-brand-500 shrink-0" />
                           <span><strong>{app.item}</strong> ({app.specification})</span>
                         </li>
                       ))}

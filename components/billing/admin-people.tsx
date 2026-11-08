@@ -112,7 +112,7 @@ export function AdminPeople() {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Type a name or email…" className="w-full h-9 rounded-xl border border-slate-300 dark:border-slate-700 bg-transparent pl-9 pr-3 text-sm" />
       </div>
       <div className="space-y-2">
-        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="text-xs font-semibold text-teal-700 dark:text-teal-300 hover:underline">
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="text-xs font-semibold text-brand-700 dark:text-brand-300 hover:underline">
           {open ? "Hide the list" : "Or browse everyone with filters"}
         </button>
         {open && (
@@ -160,10 +160,10 @@ export function AdminPeople() {
                   <ul className="max-h-72 overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800">
                     {browse.people.map((p) => (
                       <li key={p.uid}>
-                        <button type="button" onClick={() => setPerson(p)} className={cn("w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-900", person?.uid === p.uid && "bg-teal-500/10")}>
+                        <button type="button" onClick={() => setPerson(p)} className={cn("w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-900", person?.uid === p.uid && "bg-brand-500/10")}>
                           <span className="flex-1 min-w-0 truncate"><b>{p.name || "Unnamed"}</b> <span className="text-slate-500">{p.email}</span></span>
                           <span className="capitalize rounded-full bg-slate-200 dark:bg-slate-800 px-2 py-0.5">{p.role}</span>
-                          <span className="rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300 px-2 py-0.5">{p.planLabel}</span>
+                          <span className="rounded-full bg-brand-500/15 text-brand-700 dark:text-brand-300 px-2 py-0.5">{p.planLabel}</span>
                           {p.isTester && <span className="rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5">test</span>}
                         </button>
                       </li>
@@ -180,10 +180,10 @@ export function AdminPeople() {
         <ul className="divide-y divide-slate-200 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800">
           {results.map((p) => (
             <li key={p.uid}>
-              <button type="button" onClick={() => setPerson(p)} className={cn("w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-900", person?.uid === p.uid && "bg-teal-500/10")}>
+              <button type="button" onClick={() => setPerson(p)} className={cn("w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-900", person?.uid === p.uid && "bg-brand-500/10")}>
                 <span className="flex-1 min-w-0 truncate"><b>{p.name || "Unnamed"}</b> <span className="text-slate-500">{p.email}</span></span>
                 <span className="capitalize rounded-full bg-slate-200 dark:bg-slate-800 px-2 py-0.5">{p.role}</span>
-                <span className="rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300 px-2 py-0.5">{p.planLabel}</span>
+                <span className="rounded-full bg-brand-500/15 text-brand-700 dark:text-brand-300 px-2 py-0.5">{p.planLabel}</span>
                 {p.isTester && <span className="rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 px-2 py-0.5">test</span>}
               </button>
             </li>
@@ -192,7 +192,7 @@ export function AdminPeople() {
       )}
 
       {person && (
-        <div className="rounded-2xl border border-teal-500/40 p-3 space-y-4">
+        <div className="rounded-2xl border border-brand-500/40 p-3 space-y-4">
           <div className="text-xs space-y-0.5">
             <p className="text-sm font-bold">{person.name || "Unnamed"} <span className="font-normal text-slate-500">{person.email}</span></p>
             <p>

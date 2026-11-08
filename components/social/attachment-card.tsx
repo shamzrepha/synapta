@@ -33,16 +33,16 @@ export function AttachmentCard({ a, compact = false, className }: { a: SharedAtt
     <Link
       href={a.href}
       className={cn(
-        "flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 hover:border-teal-500/60 transition-colors",
+        "flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 hover:border-brand-500/60 transition-colors",
         compact ? "p-2.5" : "p-3.5",
         className
       )}
     >
-      <span className={cn("shrink-0 rounded-xl bg-teal-500/15 flex items-center justify-center", compact ? "h-10 w-10 text-xl" : "h-12 w-12 text-2xl")}>
+      <span className={cn("shrink-0 rounded-xl bg-brand-500/15 flex items-center justify-center", compact ? "h-10 w-10 text-xl" : "h-12 w-12 text-2xl")}>
         {a.emoji || meta.emoji}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[10px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">{meta.label}</span>
+        <span className="block text-[10px] font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">{meta.label}</span>
         <span className="block text-sm font-semibold truncate">{a.title}</span>
         {a.subtitle && <span className="block text-xs text-slate-500 truncate">{a.subtitle}</span>}
       </span>

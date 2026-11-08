@@ -73,9 +73,9 @@ export function MakerSpace({ roomCode, designId }: { roomCode: string; designId:
   };
 
   return (
-    <Card className="p-4 space-y-3 border-teal-500/30 bg-teal-50/30 dark:bg-teal-950/20">
+    <Card className="p-4 space-y-3 border-brand-500/30 bg-brand-50/30 dark:bg-brand-950/20">
       <p className="font-bold text-sm flex items-center gap-2">
-        <Wrench className="h-4 w-4 text-teal-600" /> Maker space
+        <Wrench className="h-4 w-4 text-brand-600" /> Maker space
       </p>
       {designId ? (
         <>

@@ -11,7 +11,7 @@ const ICON = { danger: CircleAlert, warning: TriangleAlert, info: Info } as cons
 const TONE = {
   danger: "border-rose-400/50 bg-rose-500/10 text-rose-900 dark:text-rose-200",
   warning: "border-amber-400/50 bg-amber-500/10 text-amber-900 dark:text-amber-200",
-  info: "border-teal-500/30 bg-teal-500/10 text-teal-900 dark:text-teal-200",
+  info: "border-brand-500/30 bg-brand-500/10 text-brand-900 dark:text-brand-200",
 } as const;
 
 /** What needs the admin's attention right now (teacher requests, problem reports, plans ending, payments, AI paused). */
@@ -37,7 +37,7 @@ export function AdminAlerts() {
   return (
     <Card className="p-4 space-y-2">
       <div className="flex items-center gap-2">
-        <BellRing className="h-4 w-4 text-teal-600" />
+        <BellRing className="h-4 w-4 text-brand-600" />
         <p className="font-bold text-sm">Needs your attention</p>
         <span className="ml-auto text-[11px] text-slate-500">{alerts.length === 0 ? "All clear" : `${alerts.length} item${alerts.length === 1 ? "" : "s"}`}</span>
       </div>

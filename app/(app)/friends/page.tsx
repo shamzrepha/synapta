@@ -331,7 +331,7 @@ export default function FriendsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-            <Users className="h-7 w-7 text-teal-600 dark:text-teal-400" />
+            <Users className="h-7 w-7 text-brand-600 dark:text-brand-400" />
             Friends & Direct Messaging
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -346,7 +346,7 @@ export default function FriendsPage() {
             className={cn(
               "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5",
               activeTab === "chat"
-                ? "bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-sm"
+                ? "bg-white dark:bg-slate-800 text-brand-700 dark:text-brand-300 shadow-sm"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
             )}
           >
@@ -358,7 +358,7 @@ export default function FriendsPage() {
             className={cn(
               "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 relative",
               activeTab === "add"
-                ? "bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-300 shadow-sm"
+                ? "bg-white dark:bg-slate-800 text-brand-700 dark:text-brand-300 shadow-sm"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
             )}
           >
@@ -379,14 +379,14 @@ export default function FriendsPage() {
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/80">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <Users className="h-4 w-4 text-teal-600" />
+                  <Users className="h-4 w-4 text-brand-600" />
                   Your Friends ({friends.length})
                 </CardTitle>
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => setActiveTab("add")}
-                  className="text-xs h-7 px-2 text-teal-600"
+                  className="text-xs h-7 px-2 text-brand-600"
                 >
                   <UserPlus className="h-3.5 w-3.5 mr-1" /> Add
                 </Button>
@@ -422,12 +422,12 @@ export default function FriendsPage() {
                       className={cn(
                         "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
                         isSelected
-                          ? "bg-teal-500/10 dark:bg-teal-500/20 text-teal-900 dark:text-teal-200 font-medium"
+                          ? "bg-brand-500/10 dark:bg-brand-500/20 text-brand-900 dark:text-brand-200 font-medium"
                           : "hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300"
                       )}
                     >
                       <div className="relative">
-                        <div className="h-10 w-10 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                        <div className="h-10 w-10 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
                           {f.displayName.charAt(0).toUpperCase()}
                         </div>
                         <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-slate-900" />
@@ -454,7 +454,7 @@ export default function FriendsPage() {
                 {/* Chat Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                    <div className="h-9 w-9 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
                       {selectedFriend.displayName.charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -504,7 +504,7 @@ export default function FriendsPage() {
                             className={cn(
                               "max-w-md px-3.5 py-2.5 rounded-2xl text-xs break-words shadow-sm",
                               isMe
-                                ? "bg-teal-600 text-white rounded-br-xs"
+                                ? "bg-brand-600 text-white rounded-br-xs"
                                 : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-bl-xs"
                             )}
                           >
@@ -583,7 +583,7 @@ export default function FriendsPage() {
                     className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-xs">
+                      <div className="h-9 w-9 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-xs">
                         {req.fromName?.charAt(0).toUpperCase() || "U"}
                       </div>
                       <div>
@@ -658,7 +658,7 @@ export default function FriendsPage() {
           <Card className="border-slate-200 dark:border-slate-800">
             <CardHeader>
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Search className="h-5 w-5 text-teal-600" />
+                <Search className="h-5 w-5 text-brand-600" />
                 Find Peers by Username or Email
               </CardTitle>
               <CardDescription className="text-xs">
@@ -696,7 +696,7 @@ export default function FriendsPage() {
                       className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                        <div className="h-10 w-10 rounded-full bg-brand-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
                           {u.displayName.charAt(0).toUpperCase()}
                         </div>
                         <div>

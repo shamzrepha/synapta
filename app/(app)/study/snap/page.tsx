@@ -117,7 +117,7 @@ export default function SnapPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            <button type="button" onClick={() => cameraRef.current?.click()} className="h-28 rounded-2xl border-2 border-dashed border-teal-500/50 bg-teal-500/5 flex flex-col items-center justify-center gap-1.5 text-teal-700 dark:text-teal-300 font-semibold text-sm">
+            <button type="button" onClick={() => cameraRef.current?.click()} className="h-28 rounded-2xl border-2 border-dashed border-brand-500/50 bg-brand-500/5 flex flex-col items-center justify-center gap-1.5 text-brand-700 dark:text-brand-300 font-semibold text-sm">
               <Camera className="h-6 w-6" /> Take a photo
             </button>
             <button type="button" onClick={() => galleryRef.current?.click()} className="h-28 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center gap-1.5 text-slate-600 dark:text-slate-300 font-semibold text-sm">
@@ -127,7 +127,7 @@ export default function SnapPage() {
         )}
 
         <label className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-800 p-3 cursor-pointer">
-          <input type="checkbox" checked={guided} onChange={(e) => setGuided(e.target.checked)} className="h-5 w-5 accent-teal-600" />
+          <input type="checkbox" checked={guided} onChange={(e) => setGuided(e.target.checked)} className="h-5 w-5 accent-brand-600" />
           <span className="text-sm">
             <span className="font-semibold flex items-center gap-1"><Lightbulb className="h-4 w-4 text-amber-500" /> Guide me, don&apos;t tell me</span>
             <span className="text-xs text-slate-500">Hints and questions instead of the answer.</span>
@@ -144,7 +144,7 @@ export default function SnapPage() {
           onChange={(e) => setNote(e.target.value)}
           maxLength={500}
           placeholder="Optional: what are you stuck on?"
-          className="h-11 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+          className="h-11 w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
 
         <Button onClick={submit} disabled={!preview || busy} className="w-full" size="lg">
@@ -154,7 +154,7 @@ export default function SnapPage() {
 
       {result && (
         <Card className="p-4">
-          <div className="text-[11px] font-bold uppercase tracking-wide text-teal-600 mb-1">{result.guided ? "Hints" : "Explanation"}</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide text-brand-600 mb-1">{result.guided ? "Hints" : "Explanation"}</div>
           <MarkdownRenderer localized content={result.text} />
         </Card>
       )}

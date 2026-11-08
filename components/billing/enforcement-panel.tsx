@@ -59,7 +59,7 @@ export function EnforcementPanel() {
       </div>
       <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Who is limited">
         {MODES.map((m) => (
-          <button key={m.id} type="button" role="radio" aria-checked={s.mode === m.id} disabled={busy} onClick={() => save({ mode: m.id })} className={cn("rounded-xl border p-3 text-left", s.mode === m.id ? "border-teal-600 bg-teal-500/10" : "border-slate-300 dark:border-slate-700 hover:border-teal-500")}>
+          <button key={m.id} type="button" role="radio" aria-checked={s.mode === m.id} disabled={busy} onClick={() => save({ mode: m.id })} className={cn("rounded-xl border p-3 text-left", s.mode === m.id ? "border-brand-600 bg-brand-500/10" : "border-slate-300 dark:border-slate-700 hover:border-brand-500")}>
             <p className="text-sm font-bold">{m.label}</p>
             <p className="text-[11px] text-slate-500">{m.hint}</p>
           </button>

@@ -27,7 +27,7 @@ function Range({ label, min, max, step = 1, value, onChange }: { label: string; 
   return (
     <label className="flex items-center gap-2 text-xs font-semibold">
       <span className="w-24 shrink-0 text-slate-600 dark:text-slate-300">{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="flex-1 accent-teal-600" />
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="flex-1 accent-brand-600" />
       <span className="w-12 text-right font-mono tabular-nums">{round(value, 2)}</span>
     </label>
   );
@@ -41,7 +41,7 @@ export function TextBlock({ b, ms }: { b: Of<"text">; ms: number }) {
       <ul className="space-y-2">
         {b.bullets.map((t, i) => (
           <li key={i} className={`flex gap-2 text-sm md:text-base transition-all duration-500 ${i < shown ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
-            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />
+            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
             <MarkdownRenderer content={t} className="prose-p:my-0 text-sm md:text-base" localized />
           </li>
         ))}
@@ -55,13 +55,13 @@ export function EquationSteps({ b, ms }: { b: Of<"equation_steps">; ms: number }
   return (
     <div className="space-y-2">
       {b.steps.slice(0, shown).map((s, i) => (
-        <div key={i} className={`rounded-xl border px-3 py-2 transition-all duration-500 ${i === shown - 1 ? "border-teal-500 bg-teal-500/5" : "border-slate-200 dark:border-slate-800"}`}>
+        <div key={i} className={`rounded-xl border px-3 py-2 transition-all duration-500 ${i === shown - 1 ? "border-brand-500 bg-brand-500/5" : "border-slate-200 dark:border-slate-800"}`}>
           <MarkdownRenderer content={`$$${s.expr}$$`} className="prose-p:my-0" localized />
           {s.note && <p className="text-xs text-slate-500">{s.note}</p>}
         </div>
       ))}
       {shown < b.steps.length && (
-        <button type="button" onClick={() => setShown((n) => n + 1)} className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">
+        <button type="button" onClick={() => setShown((n) => n + 1)} className="text-xs font-semibold text-brand-700 dark:text-brand-300 underline">
           Show the next step
         </button>
       )}
@@ -88,12 +88,12 @@ export function TriangleBlock({ b }: { b: Of<"triangle"> }) {
   return (
     <div className="space-y-3">
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Right triangle with legs ${a} and ${bb}; squares on each side have areas ${a2}, ${b2} and ${c2}`} className="w-full max-w-md mx-auto">
-        <rect x={ox} y={oy} width={a * k} height={a * k} className="fill-teal-500/25 stroke-teal-600" />
+        <rect x={ox} y={oy} width={a * k} height={a * k} className="fill-brand-500/25 stroke-brand-600" />
         <rect x={ox - bb * k} y={oy - bb * k} width={bb * k} height={bb * k} className="fill-amber-500/25 stroke-amber-600" />
         <polygon points={hyp.map((p) => p.join(",")).join(" ")} className="fill-violet-500/25 stroke-violet-600" />
         <polygon points={`${ox},${oy} ${A[0]},${A[1]} ${B[0]},${B[1]}`} className="fill-white/60 dark:fill-slate-900/60 stroke-slate-700 dark:stroke-slate-200" strokeWidth={1.5} />
         <path d={`M ${ox + 10} ${oy} v -10 h -10`} fill="none" className="stroke-slate-700 dark:stroke-slate-200" />
-        <text x={ox + (a * k) / 2} y={oy + (a * k) / 2 + 4} textAnchor="middle" className="fill-teal-700 dark:fill-teal-300 text-[11px] font-bold">a² = {a2}</text>
+        <text x={ox + (a * k) / 2} y={oy + (a * k) / 2 + 4} textAnchor="middle" className="fill-brand-700 dark:fill-brand-300 text-[11px] font-bold">a² = {a2}</text>
         <text x={ox - (bb * k) / 2} y={oy - (bb * k) / 2 + 4} textAnchor="middle" className="fill-amber-700 dark:fill-amber-300 text-[11px] font-bold">b² = {b2}</text>
         <text x={(hyp[0][0] + hyp[2][0]) / 2} y={(hyp[0][1] + hyp[2][1]) / 2} textAnchor="middle" className="fill-violet-700 dark:fill-violet-300 text-[11px] font-bold">c² = {c2}</text>
       </svg>
@@ -140,7 +140,7 @@ export function GrapherBlock({ b }: { b: Of<"grapher"> }) {
         {b.xMin <= 0 && b.xMax >= 0 && <line x1={sx(0)} x2={sx(0)} y1={0} y2={H} className="stroke-slate-400" />}
         {yMin <= 0 && yMax >= 0 && <line x1={0} x2={W} y1={sy(0)} y2={sy(0)} className="stroke-slate-400" />}
         {segments.map((s, i) => (
-          <polyline key={i} points={s} fill="none" className="stroke-teal-600" strokeWidth={2.5} strokeLinejoin="round" />
+          <polyline key={i} points={s} fill="none" className="stroke-brand-600" strokeWidth={2.5} strokeLinejoin="round" />
         ))}
       </svg>
       <p className="text-center font-mono text-sm">y = {b.expr}</p>
@@ -202,8 +202,8 @@ export function MotionBlock({ b }: { b: Of<"motion"> }) {
       </svg>
       <p className="text-center text-xs font-mono">flight {round(flight, 2)} s · range {round(range, 1)} m · peak {round(peak, 1)} m</p>
       <div className="flex items-center gap-2">
-        <button type="button" onClick={() => { if (t >= flight) setT(0); setPlaying((p) => !p); }} className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold text-white">{playing ? "Pause" : t >= flight ? "Replay" : "Launch"}</button>
-        <input type="range" min={0} max={flight} step={flight / 200 || 0.01} value={t} onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }} aria-label="Time" className="flex-1 accent-teal-600" />
+        <button type="button" onClick={() => { if (t >= flight) setT(0); setPlaying((p) => !p); }} className="rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-bold text-white">{playing ? "Pause" : t >= flight ? "Replay" : "Launch"}</button>
+        <input type="range" min={0} max={flight} step={flight / 200 || 0.01} value={t} onChange={(e) => { setPlaying(false); setT(Number(e.target.value)); }} aria-label="Time" className="flex-1 accent-brand-600" />
       </div>
       <div className="space-y-1">
         <Range label="speed (m/s)" min={5} max={60} value={v0} onChange={(v) => { setV0(v); setT(0); }} />
@@ -222,7 +222,7 @@ export function FractionBlock({ b }: { b: Of<"fraction"> }) {
     <div className="space-y-3">
       <div className="flex h-14 overflow-hidden rounded-xl border-2 border-slate-700 dark:border-slate-300" role="img" aria-label={`${n} out of ${den} equal parts shaded`}>
         {Array.from({ length: den }, (_, i) => (
-          <div key={i} className={`flex-1 border-r last:border-r-0 border-slate-500/50 transition-colors duration-300 ${i < n ? "bg-teal-500" : "bg-transparent"}`} />
+          <div key={i} className={`flex-1 border-r last:border-r-0 border-slate-500/50 transition-colors duration-300 ${i < n ? "bg-brand-500" : "bg-transparent"}`} />
         ))}
       </div>
       <p className="text-center text-2xl font-extrabold">{n}/{den}</p>
@@ -239,17 +239,17 @@ export function TimelineBlock({ b, ms }: { b: Of<"timeline">; ms: number }) {
   const [shown, setShown] = useReveal(b.items.length, ms * 1.6, b);
   return (
     <div className="space-y-3">
-      <ol className="relative border-l-2 border-teal-500/40 ml-2 space-y-3">
+      <ol className="relative border-l-2 border-brand-500/40 ml-2 space-y-3">
         {b.items.map((it, i) => (
           <li key={i} className={`pl-4 transition-all duration-500 ${i < shown ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-2"}`}>
-            <span className="absolute -left-[7px] mt-1 h-3 w-3 rounded-full bg-teal-500" />
+            <span className="absolute -left-[7px] mt-1 h-3 w-3 rounded-full bg-brand-500" />
             <p className="font-bold text-sm">{it.label}</p>
             {it.detail && <p className="text-xs md:text-sm text-slate-600 dark:text-slate-300">{it.detail}</p>}
           </li>
         ))}
       </ol>
       {shown < b.items.length && (
-        <button type="button" onClick={() => setShown((n) => n + 1)} className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">
+        <button type="button" onClick={() => setShown((n) => n + 1)} className="text-xs font-semibold text-brand-700 dark:text-brand-300 underline">
           Show the next one
         </button>
       )}
@@ -270,7 +270,7 @@ export function CompareBlock({ b }: { b: Of<"compare"> }) {
   );
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      {col(b.left, "border-teal-500/50 bg-teal-500/5")}
+      {col(b.left, "border-brand-500/50 bg-brand-500/5")}
       {col(b.right, "border-amber-500/50 bg-amber-500/5")}
     </div>
   );
@@ -298,7 +298,7 @@ export function FigureBlock({ b, ms }: { b: Of<"figure">; ms: number }) {
         <ol className="grid gap-1.5 sm:grid-cols-2">
           {b.parts.map((p, i) => (
             <li key={i} className={`flex gap-2 rounded-lg border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 text-xs transition-all duration-500 ${i < shown ? "opacity-100" : "opacity-0"}`}>
-              <span className="font-mono font-bold text-teal-600">{i + 1}</span>
+              <span className="font-mono font-bold text-brand-600">{i + 1}</span>
               <span><b>{p.name}</b>{p.detail ? `: ${p.detail}` : ""}</span>
             </li>
           ))}
@@ -323,7 +323,7 @@ export function CheckBlock({ b }: { b: Of<"check"> }) {
               type="button"
               disabled={done}
               onClick={() => setPicked(i)}
-              className={`w-full text-left rounded-xl border px-3 py-2 text-sm transition-colors ${done ? (right ? "border-emerald-500 bg-emerald-500/10" : i === picked ? "border-rose-500 bg-rose-500/10" : "border-slate-200 dark:border-slate-800 opacity-60") : "border-slate-300 dark:border-slate-700 hover:border-teal-500"}`}
+              className={`w-full text-left rounded-xl border px-3 py-2 text-sm transition-colors ${done ? (right ? "border-emerald-500 bg-emerald-500/10" : i === picked ? "border-rose-500 bg-rose-500/10" : "border-slate-200 dark:border-slate-800 opacity-60") : "border-slate-300 dark:border-slate-700 hover:border-brand-500"}`}
             >
               {o}
             </button>
@@ -337,7 +337,7 @@ export function CheckBlock({ b }: { b: Of<"check"> }) {
         </p>
       )}
       {done && (
-        <button type="button" onClick={() => setPicked(null)} className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Try again</button>
+        <button type="button" onClick={() => setPicked(null)} className="text-xs font-semibold text-brand-700 dark:text-brand-300 underline">Try again</button>
       )}
     </div>
   );
@@ -350,19 +350,19 @@ export function FlowBlock({ b, ms }: { b: Of<"flow">; ms: number }) {
       <ol className="space-y-1">
         {b.steps.map((st, i) => (
           <li key={i} className={`transition-all duration-500 ${i < shown ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
-            <div className="flex items-start gap-3 rounded-xl border border-teal-500/40 bg-teal-500/5 px-3 py-2">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-teal-600 text-xs font-bold text-white">{i + 1}</span>
+            <div className="flex items-start gap-3 rounded-xl border border-brand-500/40 bg-brand-500/5 px-3 py-2">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white">{i + 1}</span>
               <div>
                 <p className="font-bold text-sm">{st.label}</p>
                 {st.detail && <p className="text-xs text-slate-600 dark:text-slate-300">{st.detail}</p>}
               </div>
             </div>
-            {i < b.steps.length - 1 && <p className="text-center text-teal-500 leading-none" aria-hidden>↓</p>}
+            {i < b.steps.length - 1 && <p className="text-center text-brand-500 leading-none" aria-hidden>↓</p>}
           </li>
         ))}
       </ol>
       {shown < b.steps.length && (
-        <button type="button" onClick={() => setShown((n) => n + 1)} className="text-xs font-semibold text-teal-700 dark:text-teal-300 underline">Show the next step</button>
+        <button type="button" onClick={() => setShown((n) => n + 1)} className="text-xs font-semibold text-brand-700 dark:text-brand-300 underline">Show the next step</button>
       )}
     </div>
   );

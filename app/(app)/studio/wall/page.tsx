@@ -108,7 +108,7 @@ export default function MakerWallPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {KINDS.map((k) => (
-            <button key={k.v} type="button" onClick={() => setKind(k.v)} className={cn("rounded-full px-3 py-1.5 text-xs font-semibold border min-h-[36px]", kind === k.v ? "bg-teal-600 text-white border-teal-600" : "border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300")}>
+            <button key={k.v} type="button" onClick={() => setKind(k.v)} className={cn("rounded-full px-3 py-1.5 text-xs font-semibold border min-h-[36px]", kind === k.v ? "bg-brand-600 text-white border-brand-600" : "border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300")}>
               {k.label}
             </button>
           ))}

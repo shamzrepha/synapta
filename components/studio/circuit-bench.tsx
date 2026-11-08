@@ -382,13 +382,13 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
       {editable && (
         <div className={cn("flex items-center gap-1.5 flex-nowrap overflow-x-auto shrink-0 pb-1 sm:pb-0", !fit && "sm:flex-wrap sm:overflow-visible")}>
           {CATALOG.filter((c) => c.type !== "board" || !circuit.parts.some((p) => p.type === "board")).map((c) => (
-            <button key={c.type} type="button" onClick={() => addPart(c.type)} title={c.description} className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-2 sm:py-1 text-xs sm:text-[11px] font-semibold hover:border-teal-500 active:bg-teal-500/10 whitespace-nowrap">
+            <button key={c.type} type="button" onClick={() => addPart(c.type)} title={c.description} className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 dark:border-slate-700 px-2.5 py-2 sm:py-1 text-xs sm:text-[11px] font-semibold hover:border-brand-500 active:bg-brand-500/10 whitespace-nowrap">
               <Plus className="h-3 w-3" /> {c.name.replace(/ \(.*\)/, "")}
             </button>
           ))}
           <span className="ml-auto flex items-center gap-1" aria-label="Wire colour">
             {WIRE_COLORS.map((c) => (
-              <button key={c} type="button" onClick={() => setWireColor(c)} className={cn("h-5 w-5 rounded-full border-2", wireColor === c ? "border-teal-500" : "border-transparent")} style={{ background: c }} aria-label={`Wire colour ${c}`} />
+              <button key={c} type="button" onClick={() => setWireColor(c)} className={cn("h-5 w-5 rounded-full border-2", wireColor === c ? "border-brand-500" : "border-transparent")} style={{ background: c }} aria-label={`Wire colour ${c}`} />
             ))}
           </span>
         </div>
@@ -574,7 +574,7 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
         </div>
         {gesture.canToggle && <GestureToggle active={gesture.active} onChange={gesture.setActive} className="absolute top-2 right-2 z-10" />}
         {gesture.canToggle && !gesture.active && !pendingPin && <p className="pointer-events-none absolute bottom-2 left-2 z-10 max-w-[60%] rounded-lg bg-slate-900/70 px-2 py-1 text-[10px] text-white">Swipe scrolls the page · tap pins to wire · tap Move &amp; zoom to drag parts</p>}
-        {pendingPin && <div className="absolute top-2 left-2 rounded-lg bg-teal-600 text-white text-xs font-semibold px-2 py-1">Wiring from {pendingPin} — tap another pin</div>}
+        {pendingPin && <div className="absolute top-2 left-2 rounded-lg bg-brand-600 text-white text-xs font-semibold px-2 py-1">Wiring from {pendingPin} — tap another pin</div>}
       </div>
 
       {/* selection panel */}
@@ -616,14 +616,14 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
               return (
                 <label key={p.id} className="flex items-center gap-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2">
                   <span className="font-semibold w-28 truncate">{p.label || p.id} (object distance)</span>
-                  <input type="range" min={0} max={450} value={v} onChange={(e) => onSensor(p.id, Number(e.target.value))} className="flex-1 accent-teal-600" />
+                  <input type="range" min={0} max={450} value={v} onChange={(e) => onSensor(p.id, Number(e.target.value))} className="flex-1 accent-brand-600" />
                   <span className="font-mono w-14 text-right">{v} cm</span>
                 </label>
               );
             return (
               <label key={p.id} className="flex items-center gap-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2">
                 <span className="font-semibold w-28 truncate">{p.label || p.id}</span>
-                <input type="range" min={0} max={1023} value={v} onChange={(e) => onSensor(p.id, Number(e.target.value))} className="flex-1 accent-teal-600" />
+                <input type="range" min={0} max={1023} value={v} onChange={(e) => onSensor(p.id, Number(e.target.value))} className="flex-1 accent-brand-600" />
                 <span className="font-mono w-10 text-right">{v}</span>
               </label>
             );
@@ -648,7 +648,7 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
               return (
                 <label key={r.key} className="flex items-center gap-2 text-xs rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2">
                   <span className="font-semibold w-28 truncate">{p.label || p.id} {r.label}</span>
-                  <input type="range" min={r.min} max={r.max} value={v} onChange={(e) => onSensor(r.key, Number(e.target.value))} className="flex-1 accent-teal-600" />
+                  <input type="range" min={r.min} max={r.max} value={v} onChange={(e) => onSensor(r.key, Number(e.target.value))} className="flex-1 accent-brand-600" />
                   <span className="font-mono w-16 text-right">{v} {r.unit}</span>
                 </label>
               );

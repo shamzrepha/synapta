@@ -257,7 +257,7 @@ export default function ChallengePage({ params }: { params: Promise<{ eventId: s
             ) : (
               <ul className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[60vh] overflow-y-auto">
                 {detail.board.map((r) => (
-                  <li key={r.uid} className={cn("flex items-center gap-3 px-4 py-2.5 transition-colors", r.isMe && "bg-teal-500/10")}>
+                  <li key={r.uid} className={cn("flex items-center gap-3 px-4 py-2.5 transition-colors", r.isMe && "bg-brand-500/10")}>
                     <span className="w-6 text-center text-sm font-bold text-slate-500">{r.rank <= 3 ? ["🥇", "🥈", "🥉"][r.rank - 1] : r.rank}</span>
                     <Avatar name={r.displayName} photoURL={r.photoURL} seed={r.uid} size={30} />
                     <div className="min-w-0 flex-1">

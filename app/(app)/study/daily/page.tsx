@@ -104,14 +104,14 @@ export default function DailyPage() {
       {error && (
         <Card className="p-5 space-y-3 text-center">
           <p className="text-sm">{error}</p>
-          <Link href="/classes" className="inline-block text-sm font-semibold text-teal-600">Browse classes</Link>
+          <Link href="/classes" className="inline-block text-sm font-semibold text-brand-600">Browse classes</Link>
         </Card>
       )}
 
       {data && (
         <div className="flex gap-1.5" aria-label="Progress">
           {data.questions.map((x, i) => (
-            <div key={i} className={cn("h-2 flex-1 rounded-full", x.answered ? (x.correct ? "bg-emerald-500" : "bg-rose-500") : i === shownIdx ? "bg-teal-400" : "bg-slate-200 dark:bg-slate-800")} />
+            <div key={i} className={cn("h-2 flex-1 rounded-full", x.answered ? (x.correct ? "bg-emerald-500" : "bg-rose-500") : i === shownIdx ? "bg-brand-400" : "bg-slate-200 dark:bg-slate-800")} />
           ))}
         </div>
       )}
@@ -122,7 +122,7 @@ export default function DailyPage() {
           <p className="text-xl font-extrabold">{data.completed ? "Today's challenge is done" : "All answered"}</p>
           <p className="text-sm text-slate-500">{data.correctCount} of {data.questions.length} correct · +{finished?.xp ?? data.xp} XP</p>
           <p className="text-sm font-semibold text-orange-600">{data.streak}-day streak · best {data.bestStreak}</p>
-          {data.correctCount < data.questions.length && <Link href="/study/mistakes" className="inline-block text-sm font-semibold text-teal-600">Review your mistakes</Link>}
+          {data.correctCount < data.questions.length && <Link href="/study/mistakes" className="inline-block text-sm font-semibold text-brand-600">Review your mistakes</Link>}
           <p className="text-xs text-slate-400">Come back tomorrow for a fresh set.</p>
         </Card>
       )}
@@ -144,7 +144,7 @@ export default function DailyPage() {
                   onClick={() => void answer(i)}
                   className={cn(
                     "w-full min-h-[48px] text-left rounded-xl border px-3 py-2.5 text-sm flex items-center gap-2 transition-colors",
-                    !done && "border-slate-300 dark:border-slate-700 hover:border-teal-500 active:bg-teal-50 dark:active:bg-teal-950/30",
+                    !done && "border-slate-300 dark:border-slate-700 hover:border-brand-500 active:bg-brand-50 dark:active:bg-brand-950/30",
                     isRight && "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30",
                     isWrong && "border-rose-500 bg-rose-50 dark:bg-rose-950/30",
                     done && !isRight && !isWrong && "opacity-60"

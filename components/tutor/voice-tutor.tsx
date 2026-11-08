@@ -235,7 +235,7 @@ export function VoiceTutor() {
           onClick={() => setHandsFree((v) => !v)}
           aria-pressed={handsFree}
           disabled={!canTalk}
-          className={cn("ml-auto h-9 px-3 rounded-lg border text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40", handsFree ? "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-300" : "border-slate-200 dark:border-slate-800 text-slate-500")}
+          className={cn("ml-auto h-9 px-3 rounded-lg border text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40", handsFree ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:text-brand-300" : "border-slate-200 dark:border-slate-800 text-slate-500")}
         >
           <Repeat className="h-3.5 w-3.5" /> Hands-free {handsFree ? "on" : "off"}
         </button>
@@ -244,7 +244,7 @@ export function VoiceTutor() {
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-3 text-sm">
         {messages.length === 0 && (
           <div className="text-center py-8 space-y-2 text-slate-500">
-            <div className="mx-auto h-14 w-14 rounded-2xl bg-teal-500/10 flex items-center justify-center"><Mic className="h-7 w-7 text-teal-600" /></div>
+            <div className="mx-auto h-14 w-14 rounded-2xl bg-brand-500/10 flex items-center justify-center"><Mic className="h-7 w-7 text-brand-600" /></div>
             <p className="font-bold text-slate-800 dark:text-slate-100">Talk to your tutor</p>
             <p className="text-xs">{canTalk ? "Hold the mic while you speak, or tap it once and just talk." : supported === false ? "Voice input isn't supported in this browser — type your question below and the tutor will still read answers aloud." : ""}</p>
           </div>
@@ -254,7 +254,7 @@ export function VoiceTutor() {
             <div
               className={cn(
                 "max-w-[92%] rounded-2xl px-3.5 py-2.5",
-                m.role === "user" ? "bg-teal-600 text-white" : m.isError ? "bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300" : "bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+                m.role === "user" ? "bg-brand-600 text-white" : m.isError ? "bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300" : "bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
               )}
             >
               {m.role === "model" && !m.text && !m.isError ? (
@@ -268,7 +268,7 @@ export function VoiceTutor() {
           </div>
         ))}
         {interim && (
-          <div className="flex justify-end"><div className="max-w-[92%] rounded-2xl px-3.5 py-2.5 bg-teal-600/50 text-white italic">{interim}</div></div>
+          <div className="flex justify-end"><div className="max-w-[92%] rounded-2xl px-3.5 py-2.5 bg-brand-600/50 text-white italic">{interim}</div></div>
         )}
         <div ref={bottomRef} />
       </div>
@@ -319,7 +319,7 @@ export function VoiceTutor() {
             }}
             className={cn(
               "h-16 w-16 rounded-full flex items-center justify-center text-white shadow-lg select-none disabled:opacity-40",
-              listening ? "bg-rose-500 animate-pulse" : "bg-teal-600"
+              listening ? "bg-rose-500 animate-pulse" : "bg-brand-600"
             )}
             style={{ touchAction: "none" }}
           >
@@ -341,9 +341,9 @@ export function VoiceTutor() {
             onChange={(e) => setTyped(e.target.value)}
             maxLength={1000}
             placeholder="…or type your question"
-            className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:border-teal-500"
+            className="flex-1 h-11 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:border-brand-500"
           />
-          <button type="submit" disabled={busy || !typed.trim()} aria-label="Send" className="h-11 w-11 shrink-0 rounded-xl bg-teal-600 text-white flex items-center justify-center disabled:opacity-40">
+          <button type="submit" disabled={busy || !typed.trim()} aria-label="Send" className="h-11 w-11 shrink-0 rounded-xl bg-brand-600 text-white flex items-center justify-center disabled:opacity-40">
             <Send className="h-4 w-4" />
           </button>
         </form>

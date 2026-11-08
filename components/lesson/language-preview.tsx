@@ -36,7 +36,7 @@ export function LanguagePreview({ classId, kcId }: { classId: string; kcId: stri
   return (
     <div className="space-y-3">
       <label className="flex flex-wrap items-center gap-2 text-sm">
-        <Languages className="h-4 w-4 text-teal-600" />
+        <Languages className="h-4 w-4 text-brand-600" />
         <span className="font-semibold">Preview as students in</span>
         <select
           value={lang}

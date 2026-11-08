@@ -31,7 +31,7 @@ function EventCard({ ev, now }: { ev: EventSummary; now: number }) {
   const label = ev.status === "upcoming" ? "Starts in" : ev.status === "live" ? (ev.kind === "hackathon" ? "Submissions close in" : "Ends in") : "Voting ends in";
   return (
     <Link href={`/challenges/${ev.id}`}>
-      <Card className={cn("p-4 sm:p-5 h-full hover:border-teal-500/50 transition-all ", ev.status === "live" && "border-rose-500/40  shadow-lg")}>
+      <Card className={cn("p-4 sm:p-5 h-full hover:border-brand-500/50 transition-all ", ev.status === "live" && "border-rose-500/40  shadow-lg")}>
         <div className="flex items-start justify-between gap-2">
           <div className={cn("h-11 w-11 rounded-2xl flex items-center justify-center", ev.kind === "hackathon" ? "bg-indigo-500/10" : "bg-amber-500/10")}>
             {ev.kind === "hackathon" ? <Hammer className="h-5 w-5 text-indigo-500" /> : <Zap className="h-5 w-5 text-amber-500" />}

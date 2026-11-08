@@ -168,8 +168,8 @@ export default function DiagnosticPage({
   if (finishedSummary) {
     return (
       <div className="max-w-2xl mx-auto py-8 space-y-6">
-        <Card className="border-teal-500/20 bg-white dark:bg-slate-900 p-8 text-center space-y-6 shadow-sm">
-          <div className="h-16 w-16 rounded-3xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mx-auto">
+        <Card className="border-brand-500/20 bg-white dark:bg-slate-900 p-8 text-center space-y-6 shadow-sm">
+          <div className="h-16 w-16 rounded-3xl bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center mx-auto">
             <Sparkles className="h-8 w-8" />
           </div>
 
@@ -188,7 +188,7 @@ export default function DiagnosticPage({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
             <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800">
               <span className="text-[10px] uppercase font-bold text-slate-400">Baseline Mastery</span>
-              <p className="text-xl font-bold text-teal-600 dark:text-teal-400 mt-1">
+              <p className="text-xl font-bold text-brand-600 dark:text-brand-400 mt-1">
                 {(finishedSummary.averageStartingPL * 100).toFixed(0)}%
               </p>
               <p className="text-[11px] text-slate-500 mt-0.5">Estimated class prior</p>
@@ -212,12 +212,12 @@ export default function DiagnosticPage({
           </div>
 
           {finishedSummary.suggestedFirstKc && (
-            <div className="p-4 rounded-xl bg-teal-500/[0.04] border border-teal-500/20 text-left flex items-start gap-3">
-              <div className="h-8 w-8 rounded-lg bg-teal-500/10 text-teal-600 flex items-center justify-center shrink-0 mt-0.5">
+            <div className="p-4 rounded-xl bg-brand-500/[0.04] border border-brand-500/20 text-left flex items-start gap-3">
+              <div className="h-8 w-8 rounded-lg bg-brand-500/10 text-brand-600 flex items-center justify-center shrink-0 mt-0.5">
                 <Compass className="h-4 w-4" />
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-teal-700 dark:text-teal-300">
+                <span className="text-[10px] uppercase font-bold text-brand-700 dark:text-brand-300">
                   Recommended First Quest
                 </span>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
@@ -273,7 +273,7 @@ export default function DiagnosticPage({
       <Card className="border-slate-200 dark:border-slate-800">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="text-xs font-semibold text-teal-600 dark:text-teal-400">
+            <span className="text-xs font-semibold text-brand-600 dark:text-brand-400">
               Topic: {question.kcTitle}
             </span>
             <Badge variant="secondary" className="text-[10px] uppercase">
@@ -301,7 +301,7 @@ export default function DiagnosticPage({
                 className={cn(
                   "w-full text-left p-3.5 rounded-xl border text-xs md:text-sm transition-all flex items-center justify-between gap-3",
                   isSelected && !isAnswered
-                    ? "border-teal-500 bg-teal-500/10 text-teal-900 dark:text-teal-200 font-medium"
+                    ? "border-brand-500 bg-brand-500/10 text-brand-900 dark:text-brand-200 font-medium"
                     : "border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-900",
                   isAnswered && isCorrectOption
                     ? "border-emerald-500 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200 font-semibold"

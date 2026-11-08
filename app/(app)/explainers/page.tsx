@@ -16,7 +16,7 @@ export default function ExplainersPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight flex items-center gap-2">
-            <Clapperboard className="h-7 w-7 text-teal-600" /> 60-second explainers
+            <Clapperboard className="h-7 w-7 text-brand-600" /> 60-second explainers
           </h1>
           <p className="text-sm text-slate-500">Short videos made by students to explain one idea.</p>
         </div>

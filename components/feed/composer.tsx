@@ -126,7 +126,7 @@ export function Composer({
           rows={expanded ? 3 : 1}
           maxLength={3000}
           placeholder={pollOn ? "Ask your poll question…" : current.placeholder}
-          className="resize-none rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm focus:outline-none focus:border-teal-500 focus:bg-white dark:focus:bg-slate-900"
+          className="resize-none rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-2.5 text-sm focus:outline-none focus:border-brand-500 focus:bg-white dark:focus:bg-slate-900"
         />
       </div>
 
@@ -174,7 +174,7 @@ export function Composer({
           ))}
           <div className="flex items-center gap-2 text-xs">
             {pollOptions.length < 4 && (
-              <button type="button" onClick={() => setPollOptions((p) => [...p, ""])} className="font-semibold text-teal-600">
+              <button type="button" onClick={() => setPollOptions((p) => [...p, ""])} className="font-semibold text-brand-600">
                 + Add option
               </button>
             )}
@@ -196,7 +196,7 @@ export function Composer({
               value={link}
               onChange={(e) => setLink(e.target.value)}
               placeholder="https://… (project, repo, notes)"
-              className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:border-teal-500"
+              className="w-full h-10 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 text-sm focus:outline-none focus:border-brand-500"
             />
           )}
           <div className="flex flex-wrap items-center gap-2">
@@ -207,7 +207,7 @@ export function Composer({
                 onClick={() => setKind(k.key)}
                 className={cn(
                   "flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-semibold border",
-                  kind === k.key ? "border-teal-500 bg-teal-500/10 text-teal-700 dark:text-teal-300" : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
+                  kind === k.key ? "border-brand-500 bg-brand-500/10 text-brand-700 dark:text-brand-300" : "border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400"
                 )}
               >
                 {k.icon} {k.label}
@@ -217,10 +217,10 @@ export function Composer({
             <button type="button" onClick={() => fileRef.current?.click()} disabled={images.length >= 4} className="p-1.5 rounded-full border border-slate-200 dark:border-slate-800 text-slate-500 disabled:opacity-40" aria-label="Add photos">
               <ImagePlus className="h-3.5 w-3.5" />
             </button>
-            <button type="button" onClick={() => setPollOn((v) => !v)} className={cn("p-1.5 rounded-full border", pollOn ? "border-teal-500 text-teal-600" : "border-slate-200 dark:border-slate-800 text-slate-500")} aria-label="Add poll">
+            <button type="button" onClick={() => setPollOn((v) => !v)} className={cn("p-1.5 rounded-full border", pollOn ? "border-brand-500 text-brand-600" : "border-slate-200 dark:border-slate-800 text-slate-500")} aria-label="Add poll">
               <BarChart3 className="h-3.5 w-3.5" />
             </button>
-            <button type="button" onClick={() => setShowLink((v) => !v)} className={cn("p-1.5 rounded-full border", showLink ? "border-teal-500 text-teal-600" : "border-slate-200 dark:border-slate-800 text-slate-500")} aria-label="Add link">
+            <button type="button" onClick={() => setShowLink((v) => !v)} className={cn("p-1.5 rounded-full border", showLink ? "border-brand-500 text-brand-600" : "border-slate-200 dark:border-slate-800 text-slate-500")} aria-label="Add link">
               <Link2 className="h-3.5 w-3.5" />
             </button>
             <select value={audience} onChange={(e) => setAudience(e.target.value)} className="h-8 rounded-full border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-2 text-xs max-w-[170px]" aria-label="Who can see this">

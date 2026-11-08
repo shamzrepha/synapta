@@ -144,7 +144,7 @@ export default function ClassManagePage({
         <div className="flex items-center gap-2">
           <Link href={`/classes/${classId}/heatmap`}>
             <Button variant="outline" size="sm" className="text-xs">
-              <Activity className="h-3.5 w-3.5 mr-1.5 text-teal-500" />
+              <Activity className="h-3.5 w-3.5 mr-1.5 text-brand-500" />
               Class Mastery Heatmap
             </Button>
           </Link>
@@ -178,7 +178,7 @@ export default function ClassManagePage({
           <div className="flex items-center gap-2 border border-slate-200 dark:border-slate-800 rounded-xl p-2 bg-slate-50 dark:bg-slate-950/60">
             <div className="text-left px-2">
               <span className="text-[10px] text-slate-400 uppercase font-bold block">Class Join Code</span>
-              <span className="font-mono text-xs font-bold text-teal-600 dark:text-teal-400">SYN-4821</span>
+              <span className="font-mono text-xs font-bold text-brand-600 dark:text-brand-400">SYN-4821</span>
             </div>
             <Button size="icon" variant="ghost" onClick={copyJoinCode} aria-label="Copy class join code">
               {copiedCode ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
@@ -270,7 +270,7 @@ export default function ClassManagePage({
                   {activeStudents.map((s) => (
                     <tr key={s.uid} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
                       <td className="px-4 py-3 font-semibold flex items-center gap-2">
-                        <div className="h-7 w-7 rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center font-bold text-xs">
+                        <div className="h-7 w-7 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 flex items-center justify-center font-bold text-xs">
                           {s.displayName.charAt(0).toUpperCase()}
                         </div>
                         <span>{s.displayName}</span>

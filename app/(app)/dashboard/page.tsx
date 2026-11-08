@@ -1,26 +1,17 @@
 "use client";
 
-import { LearnAnything } from "@/components/home/learn-anything";
+import { AddMaterialStrip } from "@/components/home/add-material-strip";
 import React, { useState, useEffect } from "react";
 import { useUserStore } from "@/lib/store/use-user-store";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { MasteryRadar, RadarDataPoint } from "@/components/dashboard/mastery-radar";
-import {
-  BrainCircuit,
-  Swords,
-  BookOpen,
-  ArrowRight,
-  Compass,
-  Users,
-  GraduationCap,
-} from "lucide-react";
+import { Swords, ArrowRight, Compass, Flame, GraduationCap } from "lucide-react";
 import Link from "next/link";
 import { asArray } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGameState } from "@/components/game/use-game";
-import { LevelCard, LeagueCard, QuestsCard } from "@/components/game/widgets";
+import { LevelCard, QuestsCard } from "@/components/game/widgets";
 import { AchievementPrompts } from "@/components/feed/achievement-prompts";
 import { HomeHero } from "@/components/home/home-hero";
 import { summarizeProgress } from "@/lib/home/next-action";
@@ -93,38 +84,41 @@ export default function DashboardPage() {
   const progress = summarizeProgress(asArray(radarData));
   const sessionClasses = asArray(classes).map((c) => ({ id: c.id, title: c.title }));
 
+  const questsLeft = game ? game.quests.filter((q) => !q.done).length : 0;
+  const greeting = (() => {
+    const h = new Date().getHours();
+    return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  })();
+
   return (
-    <div className="space-y-6">
-      {/* Welcome & Overview Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-8">
+      {/* 1. Who and where you are: one calm line */}
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-            Welcome back, {user?.displayName || "Learner"}
+          <p className="font-mono text-xs uppercase tracking-[0.14em] text-muted-foreground">Today</p>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+            {greeting}, {user?.displayName?.split(" ")[0] || "Learner"}
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="mt-1 text-sm text-muted-foreground">
             {game
-              ? game.quests.every((q) => q.done)
-                ? "All daily quests done — legendary! Come back tomorrow for new ones."
-                : `${game.quests.filter((q) => !q.done).length} daily quest${game.quests.filter((q) => !q.done).length === 1 ? "" : "s"} left today. Keep your 🔥 ${game.streakDays}-day streak alive!`
+              ? questsLeft === 0
+                ? "All of today's goals are done. Come back tomorrow for new ones."
+                : `${questsLeft} goal${questsLeft === 1 ? "" : "s"} left today.`
               : "Pick up where you left off."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/explore">
-            <Button size="sm">
-              <Compass className="h-4 w-4 mr-1.5" />
-              Find a class
-            </Button>
-          </Link>
-          <Link href="/community">
-            <Button size="sm" variant="outline">
-              <Users className="h-4 w-4 mr-1.5" />
-              Community
-            </Button>
-          </Link>
-        </div>
-      </div>
+        {game && (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm" title="Days in a row you have studied">
+              <Flame className="h-4 w-4 text-amber-500" aria-hidden="true" />
+              <span className="font-mono font-medium">{game.streakDays}</span>
+              <span className="text-xs text-muted-foreground">day streak</span>
+            </span>
+          </div>
+        )}
+      </header>
 
+      {/* 2. What to do next */}
       <HomeHero
         role={user?.role}
         classes={asArray(classes).map((c) => ({ id: c.id, title: c.title }))}
@@ -139,170 +133,114 @@ export default function DashboardPage() {
         }}
       />
 
-      <LearnAnything />
+      {/* 3. Put something in */}
+      <AddMaterialStrip />
 
-      <AchievementPrompts max={2} />
-
-      {/* Game loop: level, league, daily quests */}
-      {game ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-start">
-          <LevelCard game={game} />
-          <LeagueCard game={game} />
-          <div className="md:col-span-2 xl:col-span-1">
+      {/* 4. Today's goals */}
+      <section aria-label="Today's goals" className="space-y-3">
+        <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Today&apos;s goals</h2>
+        {game ? (
+          <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2">
             <QuestsCard game={game} />
+            <LevelCard game={game} />
           </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-        </div>
-      )}
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Skeleton className="h-32 rounded-lg" />
+            <Skeleton className="h-32 rounded-lg" />
+          </div>
+        )}
+      </section>
 
-      {/* What's happening: sessions + challenges */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <SessionsPanel classes={sessionClasses} title="Study sessions" compact />
-        <Card className="p-4 sm:p-5 space-y-3">
+      {/* 5. Your classes, as a list you can scan */}
+      {loading ? (
+        <Skeleton className="h-40 w-full rounded-lg" />
+      ) : classes.length === 0 && failed ? null : (
+        <section aria-label="Your classes" className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="font-bold flex items-center gap-2">
-              <Swords className="h-4 w-4 text-rose-500" /> Challenges
-            </p>
-            <Link href="/challenges" className="text-xs font-semibold text-teal-600 dark:text-teal-400">
-              See all
+            <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+              Your classes{classes.length > 0 ? ` (${asArray(classes).length})` : ""}
+            </h2>
+            <Link href="/explore" className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
+              Find a class <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
-          {activeEvents.length === 0 ? (
-            <p className="text-sm text-slate-500 py-2">No live or upcoming challenges right now.</p>
+          {classes.length === 0 ? (
+            <div className="flex flex-col items-start justify-between gap-3 rounded-lg border border-dashed border-border p-5 sm:flex-row sm:items-center">
+              <div>
+                <p className="text-sm font-medium">You haven&apos;t joined a class yet</p>
+                <p className="text-sm text-muted-foreground">Search for your class, or use the code your teacher gave you. You can also study on your own with anything you upload.</p>
+              </div>
+              <Link href="/explore">
+                <Button size="sm" className="shrink-0">
+                  <Compass className="mr-1.5 h-4 w-4" /> Find a class
+                </Button>
+              </Link>
+            </div>
           ) : (
-            <ul className="space-y-2">
-              {activeEvents.slice(0, 4).map((ev) => (
-                <li key={ev.id}>
-                  <Link
-                    href={`/challenges/${ev.id}`}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 p-3 hover:border-teal-500/50"
-                  >
-                    <span className="text-xl">{ev.kind === "hackathon" ? "🛠️" : "⚡"}</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold truncate">{ev.title}</p>
-                      <p className="text-[11px] text-slate-500">{ev.participantCount} joined</p>
-                    </div>
-                    <span
-                      className={
-                        ev.status === "live"
-                          ? "text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-rose-500 text-white animate-pulse"
-                          : "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                      }
-                    >
-                      {ev.status === "live" ? "LIVE" : ev.status === "voting" ? "VOTING" : "SOON"}
+            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+              {asArray(classes).map((cls) => (
+                <li key={cls.id}>
+                  <Link href={`/classes/${cls.id}`} className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/60">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-600/10 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
+                      <GraduationCap className="h-[18px] w-[18px]" aria-hidden="true" />
                     </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{cls.title}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {cls.subject}
+                        {cls.studentCount ? ` · ${cls.studentCount} students` : ""}
+                      </span>
+                    </span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   </Link>
                 </li>
               ))}
             </ul>
           )}
-        </Card>
-      </div>
-
-      {/* Main Content Area */}
-      {loading ? (
-        <Skeleton className="h-48 w-full rounded-2xl" />
-      ) : classes.length === 0 && failed ? null : classes.length === 0 ? (
-        /* Clean Zero-Data Onboarding State */
-        <Card className="p-8 border-border/70 text-center space-y-6">
-          <div className="max-w-md mx-auto space-y-3">
-            <div className="h-16 w-16 rounded-3xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mx-auto shadow-sm">
-              <BrainCircuit className="h-8 w-8" />
-            </div>
-            <h2 className="font-display text-xl font-bold tracking-tight text-foreground">
-              Welcome! Here is where to start
-            </h2>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              You haven&apos;t joined a class yet. Do these three things, in any order — each one opens by tapping its card.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-2xl mx-auto pt-2 text-left">
-            <Link
-              href="/explore"
-              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50   transition-all group"
-            >
-              <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3  transition-transform">
-                <Compass className="h-5 w-5" />
-              </div>
-              <h3 className="text-sm font-bold text-foreground">1. Find your class</h3>
-              <p className="text-xs text-muted-foreground mt-1">Search for your class or ask your teacher for its code, then tap Join.</p>
-            </Link>
-
-            <Link
-              href="/community"
-              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50   transition-all group"
-            >
-              <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3  transition-transform">
-                <Users className="h-5 w-5" />
-              </div>
-              <h3 className="text-sm font-bold text-foreground">2. Meet people</h3>
-              <p className="text-xs text-muted-foreground mt-1">Add classmates, chat, and join study sessions.</p>
-            </Link>
-
-            <Link
-              href="/study"
-              className="p-5 rounded-2xl border border-border/70 bg-card hover:border-teal-500/50   transition-all group"
-            >
-              <div className="h-10 w-10 rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-3  transition-transform">
-                <BookOpen className="h-5 w-5" />
-              </div>
-              <h3 className="text-sm font-bold text-foreground">3. Study with AI</h3>
-              <p className="text-xs text-muted-foreground mt-1">Ask the AI tutor, make notes, flashcards and practice quizzes.</p>
-            </Link>
-          </div>
-        </Card>
-      ) : (
-        /* Real Enrolled Classes Section */
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-teal-600 dark:text-teal-400" />
-              Your Active Courses ({asArray(classes).length})
-            </h2>
-            <Link href="/explore">
-              <Button size="sm" variant="ghost" className="text-xs">
-                Browse More <ArrowRight className="h-3.5 w-3.5 ml-1" />
-              </Button>
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {asArray(classes).map((cls) => (
-              <Card key={cls.id} className="flex flex-col justify-between  hover:border-teal-500/40  transition-all duration-300">
-                <CardHeader>
-                  <div className="flex items-center justify-between gap-2 mb-1">
-                    <Badge variant="outline" className="text-[10px]">{cls.subject}</Badge>
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <Users className="h-3 w-3" /> {cls.studentCount || 0} students
-                    </span>
-                  </div>
-                  <CardTitle className="text-base line-clamp-1">{cls.title}</CardTitle>
-                  <CardDescription className="text-xs line-clamp-2 mt-1">
-                    {cls.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <Link href={`/classes/${cls.id}`}>
-                    <Button size="sm" className="w-full text-xs">
-                      Enter Course <ArrowRight className="h-3.5 w-3.5 ml-1" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="pt-4">
-            <MasteryRadar data={radarData} />
-          </div>
-        </div>
+        </section>
       )}
+
+      {classes.length > 0 && <MasteryRadar data={radarData} />}
+
+      {/* 6. What is happening around you */}
+      <section aria-label="Happening now" className="space-y-3">
+        <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Happening now</h2>
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+          <SessionsPanel classes={sessionClasses} title="Study sessions" compact />
+          <Card className="space-y-3 p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <Swords className="h-4 w-4 text-muted-foreground" aria-hidden="true" /> Challenges
+              </p>
+              <Link href="/challenges" className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
+                See all
+              </Link>
+            </div>
+            {activeEvents.length === 0 ? (
+              <p className="py-2 text-sm text-muted-foreground">No live or upcoming challenges right now.</p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {activeEvents.slice(0, 4).map((ev) => (
+                  <li key={ev.id}>
+                    <Link href={`/challenges/${ev.id}`} className="flex items-center gap-3 py-2.5 hover:bg-muted/60">
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{ev.title}</span>
+                        <span className="block text-xs text-muted-foreground">{ev.participantCount} joined</span>
+                      </span>
+                      <span className={ev.status === "live" ? "rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider bg-rose-600 text-white" : "rounded border border-border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"}>
+                        {ev.status === "live" ? "Live" : ev.status === "voting" ? "Voting" : "Soon"}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+      </section>
+
+      <AchievementPrompts max={2} />
     </div>
   );
 }

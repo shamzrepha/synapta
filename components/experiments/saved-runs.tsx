@@ -55,7 +55,7 @@ export function SavedRuns({ experiment, refreshKey = 0 }: { experiment?: string;
                 <p className="text-sm font-semibold truncate">{e?.emoji} {r.title}</p>
                 <p className="text-[11px] text-slate-500">{r.rows.length} row{r.rows.length === 1 ? "" : "s"} · {r.solved.length} question{r.solved.length === 1 ? "" : "s"} solved · {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}</p>
               </button>
-              {!experiment && e && <Link href={`/experiments/${e.id}`} className="text-xs font-semibold text-teal-600">Open</Link>}
+              {!experiment && e && <Link href={`/experiments/${e.id}`} className="text-xs font-semibold text-brand-600">Open</Link>}
               <button type="button" onClick={() => remove(r.id)} aria-label="Delete run" className="h-9 w-9 rounded-lg flex items-center justify-center text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"><Trash2 className="h-4 w-4" /></button>
             </div>
             {open === r.id && e && (

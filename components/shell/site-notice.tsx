@@ -40,7 +40,7 @@ export function SiteNotice() {
   return (
     <div className="mb-3 space-y-2" role="status">
       {lines.map((l) => (
-        <div key={l.text} className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm ${l.warn ? "border-amber-400/50 bg-amber-500/10 text-amber-900 dark:text-amber-200" : "border-teal-500/30 bg-teal-500/10 text-teal-900 dark:text-teal-200"}`}>
+        <div key={l.text} className={`flex items-start gap-2 rounded-xl border px-3 py-2 text-sm ${l.warn ? "border-amber-400/50 bg-amber-500/10 text-amber-900 dark:text-amber-200" : "border-brand-500/30 bg-brand-500/10 text-brand-900 dark:text-brand-200"}`}>
           {l.warn ? <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" /> : <Info className="mt-0.5 h-4 w-4 shrink-0" />}
           <span className="min-w-0 break-words">{l.text}</span>
         </div>
