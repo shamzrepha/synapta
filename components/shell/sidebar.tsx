@@ -1,8 +1,8 @@
 "use client";
 
+import { BrandMark } from "@/components/landing/brand-mark";
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
@@ -37,8 +37,8 @@ export function Sidebar() {
     >
       <div className="flex h-16 items-center justify-between px-3 border-b border-border/70">
         <Link href="/dashboard" className="flex items-center gap-2.5 overflow-hidden rounded-xl p-1 group">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-600 shadow-md transition-transform ">
-            <Image src="/logo-mark.svg" alt="" width={24} height={24} className="h-6 w-6" priority />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-teal-500 text-slate-950">
+            <BrandMark className="h-6 w-6" />
           </div>
           <span translate="no" className={cn("font-display font-black text-lg tracking-tight text-foreground", label)}>
             Sunroot<span className="text-amber-500">.</span>

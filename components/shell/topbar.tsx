@@ -1,8 +1,8 @@
 "use client";
 
+import { BrandMark } from "@/components/landing/brand-mark";
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import { ArrowLeft, Search, Flame, Sun, Moon, LogOut, MessageSquare, User, Bell, BrainCircuit, Bookmark, Globe } from "lucide-react";
 import { useUserStore } from "@/lib/store/use-user-store";
@@ -55,8 +55,8 @@ export function Topbar() {
             <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">{t("Back")}</span>
           </button>
         )}
-        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 shadow-sm`} aria-label="Home">
-          <Image src="/logo-mark.svg" alt="" width={22} height={22} className="h-5 w-5" priority />
+        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-500 text-slate-950 shadow-sm`} aria-label="Home">
+          <BrandMark className="h-5 w-5" />
         </Link>
         <Link href="/search" className="sm:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800" aria-label="Search">
           <Search className="h-4 w-4" />

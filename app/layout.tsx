@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { PageTranslator } from "@/components/i18n/page-translator";
-import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Instrument_Sans, Instrument_Serif, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -9,11 +9,19 @@ import { ToastProvider } from "@/components/ui/toast";
 import { ClientErrorListener } from "@/components/providers/client-error-listener";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, getSiteUrl } from "@/lib/site";
 
-// Sunroot's type: IBM Plex Sans for everything you read (an engineering face), IBM Plex Mono for numbers and codes (see app/globals.css)
-const plexSans = IBM_Plex_Sans({
-  variable: "--font-plex-sans",
+// Sunroot's type: Instrument Sans for everything you read, Instrument Serif italic for one emphasised word in a headline, IBM Plex Mono for labels and numbers (see app/globals.css)
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument-sans",
   subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
+
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  subsets: ["latin", "latin-ext"],
+  weight: "400",
+  style: ["normal", "italic"],
   display: "swap",
 });
 
@@ -32,8 +40,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#F7F8FA" },
-    { media: "(prefers-color-scheme: dark)", color: "#0E1116" },
+    { media: "(prefers-color-scheme: light)", color: "#F5F3EE" },
+    { media: "(prefers-color-scheme: dark)", color: "#080C0B" },
   ],
 };
 
@@ -76,7 +84,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}
+      className={`${instrumentSans.variable} ${instrumentSerif.variable} ${plexMono.variable} h-full antialiased`}
     >
       <head>
         {/* Apply the saved (or the device's) light/dark choice before the first paint, so there is no flash and both modes really work */}
