@@ -1,5 +1,6 @@
 "use client";
 
+import { readableText } from "@/lib/text/readable";
 import { LearningMap } from "@/components/classes/learning-map";
 import React, { useState, useEffect, use, useCallback } from "react";
 import Link from "next/link";
@@ -708,7 +709,7 @@ export default function ClassOverviewPage({
                               key={i}
                               className="text-[10px] bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md text-slate-600 dark:text-slate-300"
                             >
-                              ✓ {obj}
+                              ✓ {readableText(obj)}
                             </span>
                           ))}
                         </div>

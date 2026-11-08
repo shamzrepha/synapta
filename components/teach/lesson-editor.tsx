@@ -1,5 +1,6 @@
 "use client";
 
+import { readableText } from "@/lib/text/readable";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ export function LessonView({ lesson, index }: { lesson: Lesson; index: number })
         Lesson {index + 1}: {lesson.title}
       </h3>
       <Section title="Objectives">
-        <ul className="list-disc pl-5 space-y-0.5">{lesson.objectives.map((o, i) => <li key={i}>{o}</li>)}</ul>
+        <ul className="list-disc pl-5 space-y-0.5">{lesson.objectives.map((o, i) => <li key={i}>{readableText(o)}</li>)}</ul>
       </Section>
       <Section title="Activities">
         <ol className="space-y-1.5">

@@ -1,5 +1,6 @@
 "use client";
 
+import { readableText } from "@/lib/text/readable";
 import React, { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/ui/toast";
@@ -220,7 +221,7 @@ export default function SyllabusEditorPage({
                     <div className="flex flex-wrap gap-1 pt-1">
                       {kc.objectives.map((o, i) => (
                         <span key={i} className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500">
-                          ✓ {o}
+                          ✓ {readableText(o)}
                         </span>
                       ))}
                     </div>

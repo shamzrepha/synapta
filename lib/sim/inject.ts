@@ -12,7 +12,11 @@ export const SIM_BRIDGE_SCRIPT = `<script>
   }
   var bridge = {
     complete: function (detail) { send("goal_complete", detail); },
-    progress: function (detail) { send("progress", detail); }
+    progress: function (detail) { send("progress", detail); },
+    /** the tutor speaks: say("Nice! Now double the mass.", { tone: "praise" | "hint" | "ask" | "warn" }) */
+    say: function (text, opts) { send("tutor_say", { text: String(text || "").slice(0, 400), tone: (opts && opts.tone) || "hint" }); },
+    /** a reward the learner just earned: award({ stars: 1, xp: 10, label: "Perfect launch" }) */
+    award: function (detail) { send("award", detail); }
   };
   window.sunroot = bridge;
   window.synapta = bridge;

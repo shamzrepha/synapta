@@ -37,6 +37,7 @@ import { formatPL, getMasteryStatus, cn } from "@/lib/utils";
 import { LAB_REGISTRY } from "@/components/labs";
 import { AiSimulation } from "@/components/labs/ai-simulation";
 import { PiecesLab } from "@/components/labs/pieces-lab";
+import { RichInline } from "@/components/markdown/rich-inline";
 import { QuizPlayer } from "@/components/quiz/quiz-player";
 import { ProveIt } from "@/components/labs/prove-it";
 import { AudioLesson } from "@/components/lesson/audio-lesson";
@@ -577,7 +578,7 @@ export default function TopicPage({
                     {kc.objectives.map((obj, i) => (
                       <li key={i} className="flex items-start gap-2">
                         <CheckCircle2 className="h-4 w-4 text-brand-500 shrink-0 mt-0.5" />
-                        <span>{obj}</span>
+                        <RichInline text={obj} />
                       </li>
                     ))}
                   </ul>

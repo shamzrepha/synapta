@@ -1,5 +1,6 @@
 "use client";
 
+import { readableText } from "@/lib/text/readable";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, FlaskConical, Flag } from "lucide-react";
@@ -163,12 +164,12 @@ export function LearningMap({ classId, items }: { classId: string; items: MapIte
                 </span>
               )}
             </div>
-            {open.description && <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{open.description}</p>}
+            {open.description && <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{readableText(open.description)}</p>}
             {open.objectives && open.objectives.length > 0 && (
               <ul className="mt-2 flex flex-wrap gap-1.5">
                 {open.objectives.slice(0, 3).map((o) => (
                   <li key={o} className="flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                    <Flag className="h-3 w-3 shrink-0" aria-hidden="true" /> <span className="line-clamp-1">{o}</span>
+                    <Flag className="h-3 w-3 shrink-0" aria-hidden="true" /> <span className="line-clamp-1">{readableText(o)}</span>
                   </li>
                 ))}
               </ul>
