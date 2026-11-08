@@ -13,9 +13,8 @@ export function LevelCard({ game }: { game: GameState }) {
   const l = game.level;
   return (
     <Card className="p-5 overflow-hidden relative border border-border/70 hover:border-teal-500/40 transition-all duration-300">
-      <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-teal-500/10 blur-xl pointer-events-none" />
       <div className="flex items-center gap-4 relative">
-        <div className="h-16 w-16 shrink-0 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-white flex flex-col items-center justify-center shadow-md">
+        <div className="h-16 w-16 shrink-0 rounded-2xl bg-teal-600 text-white flex flex-col items-center justify-center shadow-md">
           <span className="text-[10px] font-mono font-bold uppercase tracking-wider opacity-90">Level</span>
           <span className="font-display text-2xl font-black leading-none">{l.level}</span>
         </div>
@@ -27,7 +26,7 @@ export function LevelCard({ game }: { game: GameState }) {
           </p>
           <div className="mt-2.5 h-2 rounded-full bg-muted overflow-hidden">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-teal-500 to-emerald-400 transition-all duration-700 shadow-xs"
+              className="h-full rounded-full bg-teal-600 transition-all duration-700 shadow-xs"
               style={{ width: `${Math.round(l.progress * 100)}%` }}
             />
           </div>
@@ -66,7 +65,7 @@ export function QuestsCard({ game }: { game: GameState }) {
                 <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 shrink-0">+{q.rewardXp} XP</span>
               </div>
               <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className={cn("h-full rounded-full transition-all duration-700", q.done ? "bg-emerald-500" : "bg-gradient-to-r from-amber-500 to-amber-600")} style={{ width: `${Math.min(100, (q.value / q.target) * 100)}%` }} />
+                <div className={cn("h-full rounded-full transition-all duration-700", q.done ? "bg-emerald-500" : "bg-amber-500")} style={{ width: `${Math.min(100, (q.value / q.target) * 100)}%` }} />
               </div>
               <p className="text-[11px] text-muted-foreground mt-0.5">{q.value}/{q.target}</p>
             </div>
@@ -139,7 +138,7 @@ export function BadgeGrid({ game, compact = false }: { game: GameState; compact?
             title={`${b.name} — ${b.description}${b.earnedAt ? " (tap to share)" : " (locked)"}`}
             className={cn(
               "aspect-square rounded-2xl border-2 flex flex-col items-center justify-center p-1 text-center",
-              b.earnedAt ? `${RARITY_STYLE[b.rarity]} hover:scale-105 transition-transform` : "border-dashed border-slate-200 dark:border-slate-800 opacity-40 grayscale"
+              b.earnedAt ? `${RARITY_STYLE[b.rarity]}  transition-transform` : "border-dashed border-slate-200 dark:border-slate-800 opacity-40 grayscale"
             )}
           >
             <span className="text-2xl">{b.emoji}</span>

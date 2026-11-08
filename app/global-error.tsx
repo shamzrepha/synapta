@@ -52,7 +52,7 @@ export default function GlobalError({
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => reset()}
-              className="px-4 py-2 rounded-lg bg-teal-500 text-black font-semibold text-sm hover:bg-teal-400 transition-colors shadow-lg shadow-teal-500/20"
+              className="px-4 py-2 rounded-lg bg-teal-500 text-black font-semibold text-sm hover:bg-teal-400 transition-colors shadow-lg "
             >
               Reload Application
             </button>

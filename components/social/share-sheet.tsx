@@ -136,7 +136,7 @@ export function ShareSheet({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] bg-slate-950/60  flex items-end sm:items-center justify-center" onClick={onClose}>
       <div
         className="w-full sm:max-w-md max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-950 rounded-t-3xl sm:rounded-3xl p-4 space-y-4 shadow-2xl pb-[calc(1rem+env(safe-area-inset-bottom))]"
         onClick={(e) => e.stopPropagation()}

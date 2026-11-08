@@ -85,7 +85,7 @@ export default function StudioHome() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl bg-gradient-to-br from-[#0b2a5b] via-[#0c3a73] to-teal-800 text-white p-5 md:p-8 space-y-4">
+      <div className="rounded-3xl bg-slate-900 text-white p-5 md:p-8 space-y-4">
         <div>
           <p className="text-xs font-mono tracking-widest text-amber-300">MAKER STUDIO</p>
           <h1 className="text-2xl md:text-3xl font-extrabold mt-1">Build it, simulate it, code it, test it — no parts needed.</h1>

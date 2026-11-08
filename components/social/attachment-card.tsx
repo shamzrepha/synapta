@@ -38,7 +38,7 @@ export function AttachmentCard({ a, compact = false, className }: { a: SharedAtt
         className
       )}
     >
-      <span className={cn("shrink-0 rounded-xl bg-gradient-to-br from-teal-500/15 to-indigo-500/15 flex items-center justify-center", compact ? "h-10 w-10 text-xl" : "h-12 w-12 text-2xl")}>
+      <span className={cn("shrink-0 rounded-xl bg-teal-500/15 flex items-center justify-center", compact ? "h-10 w-10 text-xl" : "h-12 w-12 text-2xl")}>
         {a.emoji || meta.emoji}
       </span>
       <span className="min-w-0 flex-1">

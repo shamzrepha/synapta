@@ -442,7 +442,7 @@ export default function ClassAssignmentsPage({
 
       {/* GENERATE MODAL */}
       {isGenerateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60  animate-in fade-in duration-150">
           <Card className="w-full max-w-lg border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col">
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/80">
               <div className="flex items-center justify-between">
@@ -617,7 +617,7 @@ export default function ClassAssignmentsPage({
 
       {/* PREVIEW & RUBRIC MODAL */}
       {previewItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60  animate-in fade-in duration-150">
           <Card className="w-full max-w-3xl border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col">
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800/80">
               <div className="flex items-center justify-between">

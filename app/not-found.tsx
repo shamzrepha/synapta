@@ -7,18 +7,10 @@ export default function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background text-foreground relative overflow-hidden">
       {/* Background glow effects */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-96 h-96 bg-primary/10 rounded-full blur-3xl opacity-70"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -bottom-40 right-1/4 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl opacity-50"
-      />
 
       <div className="relative z-10 max-w-md w-full text-center space-y-6">
         {/* Animated Icon */}
-        <div className="mx-auto w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-lg shadow-primary/5 transition-transform hover:scale-105">
+        <div className="mx-auto w-20 h-20 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-lg shadow-primary/5 transition-transform ">
           <Brain className="w-10 h-10 text-primary animate-pulse" />
         </div>
 

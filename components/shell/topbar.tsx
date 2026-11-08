@@ -47,7 +47,7 @@ export function Topbar() {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-[45] flex h-14 md:h-16 w-full items-center justify-between gap-2 border-b border-slate-200/80 bg-white/85 px-3 md:px-4 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/85">
+    <header className="sticky top-0 z-[45] flex h-14 md:h-16 w-full items-center justify-between gap-2 border-b border-slate-200/80 bg-white px-3 md:px-4  dark:border-slate-800/80 dark:bg-slate-950">
       {/* Left: brand on phones (sidebar is hidden there), search from sm up */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
         {canGoBack && (
@@ -55,7 +55,7 @@ export function Topbar() {
             <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">{t("Back")}</span>
           </button>
         )}
-        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-sm`} aria-label="Home">
+        <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-600 shadow-sm`} aria-label="Home">
           <Image src="/logo-mark.svg" alt="" width={22} height={22} className="h-5 w-5" priority />
         </Link>
         <Link href="/search" className="sm:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800" aria-label="Search">
@@ -147,12 +147,12 @@ export function Topbar() {
           onClick={toggleTheme}
           aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
           title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-card/70 text-foreground hover:border-teal-500/40 hover:bg-muted transition-all active:scale-95 shadow-xs"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-card/70 text-foreground hover:border-teal-500/40 hover:bg-muted transition-all  shadow-xs"
         >
           {theme === "dark" ? (
-            <Sun className="h-4 w-4 text-amber-400 transition-transform duration-300 hover:rotate-45" />
+            <Sun className="h-4 w-4 text-amber-400 transition-transform duration-300 " />
           ) : (
-            <Moon className="h-4 w-4 text-teal-600 transition-transform duration-300 hover:-rotate-12" />
+            <Moon className="h-4 w-4 text-teal-600 transition-transform duration-300 " />
           )}
         </button>
 

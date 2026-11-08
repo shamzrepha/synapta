@@ -37,7 +37,7 @@ export function Sidebar() {
     >
       <div className="flex h-16 items-center justify-between px-3 border-b border-border/70">
         <Link href="/dashboard" className="flex items-center gap-2.5 overflow-hidden rounded-xl p-1 group">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-md transition-transform group-hover:scale-105">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-600 shadow-md transition-transform ">
             <Image src="/logo-mark.svg" alt="" width={24} height={24} className="h-6 w-6" priority />
           </div>
           <span translate="no" className={cn("font-display font-black text-lg tracking-tight text-foreground", label)}>

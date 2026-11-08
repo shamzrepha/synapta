@@ -12,7 +12,7 @@ const STUDIOS = [
     desc: "Wire breadboards, connect sensors & motor drivers, write Arduino C++ logic, and run robotic simulations in 3D.",
     icon: Box,
     iconColor: "text-amber-500 bg-amber-500/10",
-    borderHover: "hover:border-amber-500/50 hover:shadow-amber-500/10",
+    borderHover: "hover:border-amber-500/50 ",
     href: "/studio",
     cta: "Launch Studio",
   },
@@ -23,7 +23,7 @@ const STUDIOS = [
     desc: "Manipulate Ohm's law, kinematics, and molecular models with live interactive sliders and dynamic graph telemetry.",
     icon: SlidersHorizontal,
     iconColor: "text-teal-600 dark:text-teal-400 bg-teal-500/10",
-    borderHover: "hover:border-teal-500/50 hover:shadow-teal-500/10",
+    borderHover: "hover:border-teal-500/50 ",
     href: "/study",
     cta: "Open Labs",
   },
@@ -34,7 +34,7 @@ const STUDIOS = [
     desc: "Upload any syllabus, lecture PDF, or snap handwritten notes to generate audio podcasts and interactive step solvers.",
     icon: Sparkles,
     iconColor: "text-amber-500 bg-amber-500/10",
-    borderHover: "hover:border-amber-500/50 hover:shadow-amber-500/10",
+    borderHover: "hover:border-amber-500/50 ",
     href: "/study/notes",
     cta: "Upload Notes",
   },
@@ -45,7 +45,7 @@ const STUDIOS = [
     desc: "Follow your teacher's syllabus, complete assignments, and track your verified topic mastery score across every concept.",
     icon: GraduationCap,
     iconColor: "text-teal-600 dark:text-teal-400 bg-teal-500/10",
-    borderHover: "hover:border-teal-500/50 hover:shadow-teal-500/10",
+    borderHover: "hover:border-teal-500/50 ",
     href: "/classes/manage",
     cta: "View Classes",
   },
@@ -77,11 +77,11 @@ export function LearnAnything() {
             <Link
               key={item.href}
               href={item.href}
-              className={`group flex flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-2xs transition-all duration-300 hover:-translate-y-1 hover:shadow-md ${item.borderHover}`}
+              className={`group flex flex-col justify-between rounded-2xl border border-border bg-card p-5 shadow-2xs transition-all duration-300   ${item.borderHover}`}
             >
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl transition-transform group-hover:scale-105 ${item.iconColor}`}>
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-xl transition-transform  ${item.iconColor}`}>
                     <Icon className="h-5 w-5" />
                   </div>
                   <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wide uppercase border ${item.tagColor}`}>

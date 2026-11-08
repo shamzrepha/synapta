@@ -326,7 +326,7 @@ function Review({ deck, onExit }: { deck: Deck; onExit: () => void }) {
       ) : (
         <div className="grid grid-cols-4 gap-2">
           {RATE.map((r) => (
-            <button key={r.key} type="button" disabled={saving} onClick={() => void rate(r.key)} className={cn("h-14 rounded-xl text-sm font-bold active:scale-95 disabled:opacity-50", r.cls)}>
+            <button key={r.key} type="button" disabled={saving} onClick={() => void rate(r.key)} className={cn("h-14 rounded-xl text-sm font-bold  disabled:opacity-50", r.cls)}>
               {r.label}
             </button>
           ))}

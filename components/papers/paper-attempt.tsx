@@ -79,7 +79,7 @@ export function PaperAttempt({ paper, onSubmitted }: { paper: PaperData; onSubmi
 
   return (
     <div className="space-y-3 pb-24">
-      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-white/95 dark:bg-slate-950/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
+      <div className="sticky top-0 z-10 -mx-4 px-4 py-2 bg-white/95 dark:bg-slate-950/95  border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <div className="text-sm font-bold truncate">{paper.title}</div>
           <div className="text-[11px] text-slate-500">{answered}/{paper.questions.length} answered · {paper.total} marks</div>

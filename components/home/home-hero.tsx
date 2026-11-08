@@ -80,7 +80,7 @@ export function HomeHero({
   };
 
   const state = homeState({ loading, failed, teacher, classCount: asArray(classes).length, questsAllDone });
-  const btn = "bg-gradient-to-r from-amber-500 via-amber-500 to-amber-600 text-slate-950 font-black shadow-md hover:shadow-amber-500/25 transition-all hover:scale-[1.02] active:scale-95";
+  const btn = "bg-amber-500 text-slate-950 font-black shadow-md  transition-all  ";
 
   let eyebrow = "YOUR NEXT STEP";
   let headline = "Pick up right where you left off.";
@@ -144,7 +144,7 @@ export function HomeHero({
   return (
     <div className="space-y-4">
       <div
-        className="relative overflow-hidden rounded-3xl border border-teal-500/25 bg-gradient-to-br from-card via-card to-teal-500/10 p-6 md:p-8 space-y-4 shadow-sm"
+        className="relative overflow-hidden rounded-3xl border border-teal-500/25 bg-card p-6 md:p-8 space-y-4 shadow-sm"
         aria-busy={state === "loading"}
       >
         <div className="flex items-center gap-2">

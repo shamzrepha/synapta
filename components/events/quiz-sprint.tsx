@@ -181,7 +181,7 @@ export function QuizSprintPlayer({ eventId, onProgress }: { eventId: string; onP
               disabled={!!feedback || busy}
               onClick={() => answer(i)}
               className={cn(
-                "relative min-h-[64px] rounded-2xl px-4 py-3 text-left text-white font-semibold shadow-md transition-all flex items-center gap-3 active:scale-[0.98]",
+                "relative min-h-[64px] rounded-2xl px-4 py-3 text-left text-white font-semibold shadow-md transition-all flex items-center gap-3 ",
                 TILE[i % TILE.length],
                 feedback && !isCorrect && "opacity-40",
                 isCorrect && "ring-4 ring-white dark:ring-slate-950 scale-[1.02]"

@@ -220,7 +220,7 @@ export default function LeaderboardPage() {
                     className={cn(
                       "w-full rounded-t-2xl flex flex-col items-center justify-start pt-2 text-white font-extrabold",
                       h,
-                      place === 1 ? "bg-gradient-to-b from-amber-400 to-amber-600" : place === 2 ? "bg-gradient-to-b from-slate-300 to-slate-500" : "bg-gradient-to-b from-orange-400 to-orange-700"
+                      place === 1 ? "bg-amber-500" : place === 2 ? "bg-slate-300 dark:bg-slate-600" : "bg-amber-500"
                     )}
                   >
                     <span className="text-xl sm:text-2xl">{place}</span>

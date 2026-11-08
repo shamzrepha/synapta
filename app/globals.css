@@ -5,109 +5,110 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Sunroot Brand System:
- * Rooted in modern African & global STEM engineering.
- * Colors:
- *   - Solar Amber (Sun): Energy, intellectual spark, streaks, achievement (#F59E0B / #D97706)
- *   - Electric Cyan-Teal (Root & Growth): High-tech precision, mastery, primary interactive (#0D9488 / #14B8A6)
- *   - Pristine Slate (Grounded Neutrals): Ultra-crisp, high-contrast, zero-mud canvas in both Light and Dark modes.
- * Typography: Space Grotesk for bold display/metrics; DM Sans for effortless reading.
+ * Sunroot design system: "workbench"
+ * A calm, precise tool (think Tinkercad, AutoCAD, Linear), not a shop window. Flat surfaces, hairline borders, small radii,
+ * no gradients, glow or blur. Colour carries meaning, used on a 60 / 30 / 10 balance:
+ *   - Graphite neutrals (60%): the working surface. Cool, slightly blue-grey, so content and colour stand out. (the "slate" scale)
+ *   - Root green (30%): action, selection and growth: primary buttons, links, the active tab, progress and mastery. (the "teal" scale)
+ *   - Sun orange (10%): energy and attention: streaks, XP, highlights, warnings. Never used for large areas. (the "amber" scale)
+ *   - Status: green = mastered / correct, amber = learning / caution, red = needs work / error, blue = information.
+ * Type: IBM Plex Sans for everything you read (an engineering face), IBM Plex Mono for numbers and codes.
  */
 @theme {
-  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-space-grotesk), "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: var(--font-plex-sans), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-plex-sans), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* Electric Cyan-Teal (Sunroot Logo & Brand Primary) */
-  --color-teal-50: #F0FDFA;
-  --color-teal-100: #CCFBF1;
-  --color-teal-200: #99F6E4;
-  --color-teal-300: #5EEAD4;
-  --color-teal-400: #2DD4BF;
-  --color-teal-500: #14B8A6;
-  --color-teal-600: #0D9488;
-  --color-teal-700: #0F766E;
-  --color-teal-800: #115E59;
-  --color-teal-900: #134E4A;
-  --color-teal-950: #042F2E;
+  --color-teal-50: #EEF7F1;
+  --color-teal-100: #D5EBDD;
+  --color-teal-200: #AAD6BB;
+  --color-teal-300: #78BC93;
+  --color-teal-400: #47A06E;
+  --color-teal-500: #2A8755;
+  --color-teal-600: #1F6E45;
+  --color-teal-700: #195A39;
+  --color-teal-800: #144A2F;
+  --color-teal-900: #103C27;
+  --color-teal-950: #08221A;
 
   /* Crisp Sophisticated Slate (High Contrast, No Murky Tint) */
-  --color-slate-50: #F8FAFC;
-  --color-slate-100: #F1F5F9;
-  --color-slate-200: #E2E8F0;
-  --color-slate-300: #CBD5E1;
-  --color-slate-400: #94A3B8;
-  --color-slate-500: #64748B;
-  --color-slate-600: #475569;
-  --color-slate-700: #334155;
-  --color-slate-800: #1E293B;
-  --color-slate-900: #0F172A;
-  --color-slate-950: #0B0F17;
+  --color-slate-50: #F7F8FA;
+  --color-slate-100: #EEF0F3;
+  --color-slate-200: #E1E5EA;
+  --color-slate-300: #CDD3DB;
+  --color-slate-400: #9AA3AF;
+  --color-slate-500: #6B7482;
+  --color-slate-600: #4B5361;
+  --color-slate-700: #353C48;
+  --color-slate-800: #222831;
+  --color-slate-900: #161A21;
+  --color-slate-950: #0E1116;
 
   /* Solar Gold / Amber (Energy, Streaks & Trophies) */
-  --color-amber-50: #FFFBEB;
-  --color-amber-100: #FEF3C7;
-  --color-amber-200: #FDE68A;
-  --color-amber-300: #FCD34D;
-  --color-amber-400: #FBBF24;
-  --color-amber-500: #F59E0B;
-  --color-amber-600: #D97706;
-  --color-amber-700: #B45309;
-  --color-amber-800: #92400E;
-  --color-amber-900: #78350F;
-  --color-amber-950: #451A03;
+  --color-amber-50: #FFF6EA;
+  --color-amber-100: #FDE8C8;
+  --color-amber-200: #FBD08F;
+  --color-amber-300: #F7B255;
+  --color-amber-400: #F29B2E;
+  --color-amber-500: #E8841A;
+  --color-amber-600: #C96A0F;
+  --color-amber-700: #A15210;
+  --color-amber-800: #7F4213;
+  --color-amber-900: #683814;
+  --color-amber-950: #3A1D08;
 }
 
 @layer base {
   :root {
-    --background: #F8FAFC;
-    --foreground: #0F172A;
+    --background: #F7F8FA;
+    --foreground: #161A21;
     --card: #FFFFFF;
-    --card-foreground: #0F172A;
+    --card-foreground: #161A21;
     --popover: #FFFFFF;
-    --popover-foreground: #0F172A;
-    --primary: #0D9488;
+    --popover-foreground: #161A21;
+    --primary: #1F6E45;
     --primary-foreground: #FFFFFF;
-    --secondary: #F1F5F9;
-    --secondary-foreground: #0F172A;
-    --muted: #F1F5F9;
-    --muted-foreground: #64748B;
-    --accent: #F59E0B;
-    --accent-foreground: #0F172A;
-    --amber-accent: #D97706;
-    --border: #E2E8F0;
-    --input: #E2E8F0;
-    --ring: #0D9488;
-    --radius: 1rem;
+    --secondary: #EEF0F3;
+    --secondary-foreground: #161A21;
+    --muted: #EEF0F3;
+    --muted-foreground: #5B6472;
+    --accent: #E8841A;
+    --accent-foreground: #161A21;
+    --amber-accent: #C96A0F;
+    --border: #E1E5EA;
+    --input: #CDD3DB;
+    --ring: #1F6E45;
+    --radius: 0.5rem;
 
-    --mastery-unmastered: #EF4444;
-    --mastery-learning: #F59E0B;
-    --mastery-mastered: #10B981;
+    --mastery-unmastered: #D92D20;
+    --mastery-learning: #E8841A;
+    --mastery-mastered: #1F8F4E;
   }
 
   .dark {
-    --background: #0B0F17;
-    --foreground: #F8FAFC;
-    --card: #111827;
-    --card-foreground: #F8FAFC;
-    --popover: #111827;
-    --popover-foreground: #F8FAFC;
-    --primary: #14B8A6;
-    --primary-foreground: #042F2E;
-    --secondary: #1E293B;
-    --secondary-foreground: #F8FAFC;
-    --muted: #1E293B;
-    --muted-foreground: #94A3B8;
-    --accent: #F59E0B;
-    --accent-foreground: #0B0F17;
-    --amber-accent: #FBBF24;
-    --border: #1E293B;
-    --input: #1E293B;
-    --ring: #14B8A6;
+    --background: #0E1116;
+    --foreground: #E8ECF1;
+    --card: #161A21;
+    --card-foreground: #E8ECF1;
+    --popover: #1B2028;
+    --popover-foreground: #E8ECF1;
+    --primary: #2A8755;
+    --primary-foreground: #FFFFFF;
+    --secondary: #222831;
+    --secondary-foreground: #E8ECF1;
+    --muted: #1B2028;
+    --muted-foreground: #98A2AF;
+    --accent: #F29B2E;
+    --accent-foreground: #0E1116;
+    --amber-accent: #F29B2E;
+    --border: #262C36;
+    --input: #2F3641;
+    --ring: #47A06E;
 
-    --mastery-unmastered: #F87171;
-    --mastery-learning: #FBBF24;
-    --mastery-mastered: #34D399;
+    --mastery-unmastered: #F97066;
+    --mastery-learning: #F29B2E;
+    --mastery-mastered: #47C17F;
   }
 }
 
@@ -128,21 +129,17 @@ h1, h2, h3, h4, .font-display {
 }
 h1, h2, h3 { text-wrap: balance; }
 
-/* Layered ambient shadows */
-.shadow-soft {
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
-}
-.dark .shadow-soft {
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35), 0 0 1px 1px rgba(255, 255, 255, 0.05);
-}
+/* Elevation: flat surfaces use a hairline, never a glow. Only floating layers (menus, dialogs) carry a real shadow, set in the theme. */
+.shadow-soft,
 .shadow-elevated {
-  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 2px rgb(14 17 22 / 0.05);
 }
+.dark .shadow-soft,
 .dark .shadow-elevated {
-  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.5), 0 0 1px 1px rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
-::selection { background: #14B8A6; color: #FFFFFF; }
+::selection { background: #1F6E45; color: #FFFFFF; }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
@@ -224,59 +221,36 @@ h1, h2, h3 { text-wrap: balance; }
   }
 }
 
-.animate-float {
-  animation: float 5s ease-in-out infinite;
-}
-
-.animate-float-delayed {
-  animation: float-delayed 6s ease-in-out infinite 1.5s;
-}
-
+/* Decorative effects from the earlier look are kept as flat no-ops, so any leftover use stays clean. */
+.animate-float,
+.animate-float-delayed,
 .animate-pulse-glow {
-  animation: pulse-glow 3s ease-in-out infinite;
+  animation: none;
 }
 
 .glass-surface {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: var(--card);
+  border: 1px solid var(--border);
 }
 
-.dark .glass-surface {
-  background: rgba(17, 24, 39, 0.72);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.glow-teal {
-  box-shadow: 0 0 45px -8px rgba(20, 184, 166, 0.28);
-}
-
+.glow-teal,
 .glow-amber {
-  box-shadow: 0 0 45px -8px rgba(245, 158, 11, 0.28);
+  box-shadow: none;
 }
 
-.text-gradient-brand {
-  background: linear-gradient(135deg, #F59E0B 0%, #14B8A6 60%, #0D9488 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.text-gradient-amber {
-  background: linear-gradient(135deg, #FBBF24 0%, #F59E0B 60%, #D97706 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
+.text-gradient-brand,
 .text-gradient-teal {
-  background: linear-gradient(135deg, #2DD4BF 0%, #14B8A6 60%, #0D9488 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--primary);
+}
+.dark .text-gradient-brand,
+.dark .text-gradient-teal {
+  color: #78BC93;
+}
+.text-gradient-amber {
+  color: var(--amber-accent);
 }
 
 .bg-radial-hero {
-  background-image: radial-gradient(circle at 50% -10%, rgba(20, 184, 166, 0.16) 0%, rgba(245, 158, 11, 0.08) 35%, transparent 70%);
+  background-image: none;
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useSyncExternalStore, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useSyncExternalStore, useCallback } from "react";
 
 type Theme = "light" | "dark";
 
@@ -37,6 +37,11 @@ function getServerSnapshot(): Theme {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
+  // keep the page in step with the choice (also when the device's light/dark setting changes and no choice was saved)
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+  }, [theme]);
 
   const setTheme = useCallback((newTheme: Theme) => {
     localStorage.setItem("sunroot-theme", newTheme);

@@ -344,7 +344,7 @@ export function PostCard({
   const mine = REACTIONS.find((r) => r.key === myReaction);
 
   return (
-    <Card className={cn("p-4 sm:p-5 space-y-3", isAchievement && "bg-gradient-to-br from-emerald-500/5 to-amber-500/5")}>
+    <Card className={cn("p-4 sm:p-5 space-y-3", isAchievement && "bg-teal-500/5")}>
       {isRepost && !post.text && (
         <p className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 -mb-1">
           <Repeat2 className="h-3.5 w-3.5" /> {post.mine ? "You" : post.authorName} reposted
@@ -477,7 +477,7 @@ export function PostCard({
                 type="button"
                 title={r.label}
                 onClick={() => react(myReaction === r.key ? null : r.key)}
-                className={cn("text-2xl transition-transform hover:scale-125 px-0.5", myReaction === r.key && "scale-110")}
+                className={cn("text-2xl transition-transform  px-0.5", myReaction === r.key && "scale-110")}
               >
                 {r.emoji}
               </button>

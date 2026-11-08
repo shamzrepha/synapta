@@ -279,7 +279,7 @@ export default function ClassOverviewPage({
   return (
     <div className="space-y-6">
       {/* Class Header Banner */}
-      <Card className="border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md">
+      <Card className="border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 ">
         <CardContent className="p-6 md:p-8 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">

@@ -68,7 +68,7 @@ export function MobileNav() {
   return (
     <>
       {open && (
-        <div className="md:hidden fixed inset-0 z-40 bg-slate-950/50 backdrop-blur-sm" onClick={close}>
+        <div className="md:hidden fixed inset-0 z-40 bg-slate-950/50 " onClick={close}>
           <div
             ref={sheetRef}
             role="dialog"
@@ -108,7 +108,7 @@ export function MobileNav() {
       )}
 
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-slate-200/80 bg-white/95 backdrop-blur-lg dark:border-slate-800/80 dark:bg-slate-950/95 pb-[env(safe-area-inset-bottom)]"
+        className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-slate-200/80 bg-white/95  dark:border-slate-800/80 dark:bg-slate-950/95 pb-[env(safe-area-inset-bottom)]"
         aria-label="Mobile navigation"
       >
         <div className="grid grid-cols-5 h-16">
