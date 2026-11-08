@@ -5,18 +5,21 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Sunroot design system: "workbench"
- * A calm, precise tool (think Tinkercad, AutoCAD, Linear), not a shop window. Flat surfaces, hairline borders, small radii,
- * no gradients, glow or blur. Colour carries meaning, used on a 60 / 30 / 10 balance:
- *   - Graphite neutrals (60%): the working surface. Cool, slightly blue-grey, so content and colour stand out. (the "slate" scale)
- *   - Root green (30%): action, selection and growth: primary buttons, links, the active tab, progress and mastery. (the "teal" scale)
- *   - Sun orange (10%): energy and attention: streaks, XP, highlights, warnings. Never used for large areas. (the "amber" scale)
- *   - Status: green = mastered / correct, amber = learning / caution, red = needs work / error, blue = information.
- * Type: IBM Plex Sans for everything you read (an engineering face), IBM Plex Mono for numbers and codes.
+ * Sunroot design system: "Sun on Ink"
+ * Premium and editorial, in the spirit of Hiro and Phenomenon: near-black ink (dark) or warm paper (light), hairline borders,
+ * one saturated accent, big confident type, restrained motion. Colour carries meaning (60 / 30 / 10):
+ *   - Ink and paper neutrals (60%): the surface. Ink has a faint green undertone, paper is warm. (the "slate" scale)
+ *   - Text and structure (30%): near-white on ink, near-black on paper, hairlines between everything.
+ *   - Sun orange (10%): THE action colour: primary buttons, links, the active item, focus. Used sparingly so it always means "do this".
+ *     (the "teal" scale. The class name is historical; its colours are Sun orange.)
+ *   - Root green: growth only: mastery, correct, progress. Never used for buttons. (emerald + the --mastery-* tokens)
+ *   - Gold/amber: energy and caution: streaks, XP, warnings. (the "amber" scale)
+ * Type: Instrument Sans for everything, Instrument Serif italic for one emphasised word in a headline, IBM Plex Mono for labels and numbers.
  */
 @theme {
-  --font-sans: var(--font-plex-sans), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-plex-sans), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-instrument-sans), "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-instrument-sans), "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-instrument-serif), "Instrument Serif", Georgia, serif;
   --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* One easing for every hover, focus and state change: a quick start that settles softly (no bounce, no linear snap) */
@@ -24,95 +27,95 @@
   --default-transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Electric Cyan-Teal (Sunroot Logo & Brand Primary) */
-  --color-teal-50: #EEF7F1;
-  --color-teal-100: #D5EBDD;
-  --color-teal-200: #AAD6BB;
-  --color-teal-300: #78BC93;
-  --color-teal-400: #47A06E;
-  --color-teal-500: #2A8755;
-  --color-teal-600: #1F6E45;
-  --color-teal-700: #195A39;
-  --color-teal-800: #144A2F;
-  --color-teal-900: #103C27;
-  --color-teal-950: #08221A;
+  --color-teal-50: #FFF5EC;
+  --color-teal-100: #FFE6D0;
+  --color-teal-200: #FFCBA0;
+  --color-teal-300: #FFAA6B;
+  --color-teal-400: #FF8D3D;
+  --color-teal-500: #FF7A1A;
+  --color-teal-600: #CC5208;
+  --color-teal-700: #A84407;
+  --color-teal-800: #85390C;
+  --color-teal-900: #6B3010;
+  --color-teal-950: #3A1805;
 
   /* Crisp Sophisticated Slate (High Contrast, No Murky Tint) */
-  --color-slate-50: #F7F8FA;
-  --color-slate-100: #EEF0F3;
-  --color-slate-200: #E1E5EA;
-  --color-slate-300: #CDD3DB;
-  --color-slate-400: #9AA3AF;
-  --color-slate-500: #6B7482;
-  --color-slate-600: #4B5361;
-  --color-slate-700: #353C48;
-  --color-slate-800: #222831;
-  --color-slate-900: #161A21;
-  --color-slate-950: #0E1116;
+  --color-slate-50: #F5F3EE;
+  --color-slate-100: #ECE9E2;
+  --color-slate-200: #DEDBD1;
+  --color-slate-300: #C7C4B8;
+  --color-slate-400: #9A9D93;
+  --color-slate-500: #6D736C;
+  --color-slate-600: #4F5651;
+  --color-slate-700: #363D3A;
+  --color-slate-800: #1E2625;
+  --color-slate-900: #121918;
+  --color-slate-950: #080C0B;
 
   /* Solar Gold / Amber (Energy, Streaks & Trophies) */
-  --color-amber-50: #FFF6EA;
-  --color-amber-100: #FDE8C8;
-  --color-amber-200: #FBD08F;
-  --color-amber-300: #F7B255;
-  --color-amber-400: #F29B2E;
-  --color-amber-500: #E8841A;
-  --color-amber-600: #C96A0F;
-  --color-amber-700: #A15210;
-  --color-amber-800: #7F4213;
-  --color-amber-900: #683814;
-  --color-amber-950: #3A1D08;
+  --color-amber-50: #FFFBEB;
+  --color-amber-100: #FEF3C7;
+  --color-amber-200: #FCE49A;
+  --color-amber-300: #F8D064;
+  --color-amber-400: #F2B632;
+  --color-amber-500: #E2A11B;
+  --color-amber-600: #B97F0E;
+  --color-amber-700: #926209;
+  --color-amber-800: #744E0B;
+  --color-amber-900: #5F410D;
+  --color-amber-950: #362305;
 }
 
 @layer base {
   :root {
-    --background: #F7F8FA;
-    --foreground: #161A21;
-    --card: #FFFFFF;
-    --card-foreground: #161A21;
-    --popover: #FFFFFF;
-    --popover-foreground: #161A21;
-    --primary: #1F6E45;
+    --background: #F5F3EE;
+    --foreground: #121918;
+    --card: #FBFAF6;
+    --card-foreground: #121918;
+    --popover: #FBFAF6;
+    --popover-foreground: #121918;
+    --primary: #CC5208;
     --primary-foreground: #FFFFFF;
-    --secondary: #EEF0F3;
-    --secondary-foreground: #161A21;
-    --muted: #EEF0F3;
-    --muted-foreground: #5B6472;
-    --accent: #E8841A;
-    --accent-foreground: #161A21;
-    --amber-accent: #C96A0F;
-    --border: #E1E5EA;
-    --input: #CDD3DB;
-    --ring: #1F6E45;
-    --radius: 0.5rem;
+    --secondary: #ECE9E2;
+    --secondary-foreground: #121918;
+    --muted: #ECE9E2;
+    --muted-foreground: #5C635E;
+    --accent: #F2B632;
+    --accent-foreground: #121918;
+    --amber-accent: #B97F0E;
+    --border: #DDD9CE;
+    --input: #C7C4B8;
+    --ring: #CC5208;
+    --radius: 0.375rem;
 
-    --mastery-unmastered: #D92D20;
-    --mastery-learning: #E8841A;
-    --mastery-mastered: #1F8F4E;
+    --mastery-unmastered: #C2362B;
+    --mastery-learning: #B97F0E;
+    --mastery-mastered: #1F7A52;
   }
 
   .dark {
-    --background: #0E1116;
-    --foreground: #E8ECF1;
-    --card: #161A21;
-    --card-foreground: #E8ECF1;
-    --popover: #1B2028;
-    --popover-foreground: #E8ECF1;
-    --primary: #2A8755;
-    --primary-foreground: #FFFFFF;
-    --secondary: #222831;
-    --secondary-foreground: #E8ECF1;
-    --muted: #1B2028;
-    --muted-foreground: #98A2AF;
-    --accent: #F29B2E;
-    --accent-foreground: #0E1116;
-    --amber-accent: #F29B2E;
-    --border: #262C36;
-    --input: #2F3641;
-    --ring: #47A06E;
+    --background: #080C0B;
+    --foreground: #ECF1EE;
+    --card: #0F1514;
+    --card-foreground: #ECF1EE;
+    --popover: #151C1B;
+    --popover-foreground: #ECF1EE;
+    --primary: #FF7A1A;
+    --primary-foreground: #080C0B;
+    --secondary: #1E2625;
+    --secondary-foreground: #ECF1EE;
+    --muted: #121918;
+    --muted-foreground: #8A9692;
+    --accent: #F2B632;
+    --accent-foreground: #080C0B;
+    --amber-accent: #F2B632;
+    --border: #1F2827;
+    --input: #2A3534;
+    --ring: #FF8D3D;
 
     --mastery-unmastered: #F97066;
-    --mastery-learning: #F29B2E;
-    --mastery-mastered: #47C17F;
+    --mastery-learning: #F2B632;
+    --mastery-mastered: #3FB27F;
   }
 }
 
@@ -143,7 +146,7 @@ h1, h2, h3 { text-wrap: balance; }
   box-shadow: none;
 }
 
-::selection { background: #1F6E45; color: #FFFFFF; }
+::selection { background: #FF7A1A; color: #080C0B; }
 
 /* Custom scrollbars */
 ::-webkit-scrollbar {
@@ -159,6 +162,13 @@ h1, h2, h3 { text-wrap: balance; }
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
+}
+
+/* White text on Sun orange fails contrast on the dark surface: any orange fill uses ink text there. */
+.dark [class~="bg-teal-500"],
+.dark [class~="dark:bg-teal-500"],
+.dark [class~="bg-teal-400"] {
+  color: #080C0B;
 }
 
 /* Accessible focus ring */
@@ -257,7 +267,7 @@ h1, h2, h3 { text-wrap: balance; }
 }
 .dark .text-gradient-brand,
 .dark .text-gradient-teal {
-  color: #78BC93;
+  color: #FF8D3D;
 }
 .text-gradient-amber {
   color: var(--amber-accent);
@@ -267,3 +277,99 @@ h1, h2, h3 { text-wrap: balance; }
   background-image: none;
 }
 
+
+
+/* ---------------------------------------------------------------------------------------------------------------------
+ * Premium details (landing page and hero surfaces). All motion is off under prefers-reduced-motion.
+ * ------------------------------------------------------------------------------------------------------------------- */
+@property --edge-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* A thin light that travels once around a frame's 1px border */
+.edge-sweep {
+  position: relative;
+}
+.edge-sweep::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(from var(--edge-angle), transparent 0 72%, rgb(255 138 54 / 0.9) 86%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: edge-turn 7s linear infinite;
+  pointer-events: none;
+}
+@keyframes edge-turn {
+  to { --edge-angle: 360deg; }
+}
+
+/* Slow, even scroll for the subject strip */
+@keyframes marquee {
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 48s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* Scroll reveal: starts a little low and transparent, settles with the site's easing */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.8s var(--ease-out-expo), transform 0.8s var(--ease-out-expo);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* The hero pipeline: sources are read, then outputs appear one after another, then it loops */
+@keyframes step-in {
+  0%, 6% { opacity: 0; transform: translateY(10px); }
+  14%, 88% { opacity: 1; transform: none; }
+  96%, 100% { opacity: 0; transform: translateY(-4px); }
+}
+@keyframes fill-bar {
+  0%, 10% { transform: scaleX(0); }
+  40%, 88% { transform: scaleX(1); }
+  96%, 100% { transform: scaleX(1); opacity: 0; }
+}
+@keyframes read-dot {
+  0%, 8% { opacity: 0.25; }
+  16%, 30% { opacity: 1; }
+  40%, 100% { opacity: 0.25; }
+}
+.pipe-step {
+  opacity: 0;
+  animation: step-in 11s var(--ease-out-expo) infinite;
+  animation-delay: var(--pipe-delay, 0s);
+}
+.pipe-bar {
+  transform-origin: left center;
+  animation: fill-bar 11s var(--ease-out-expo) infinite;
+  animation-delay: var(--pipe-delay, 0s);
+}
+.pipe-dot {
+  animation: read-dot 11s ease-in-out infinite;
+  animation-delay: var(--pipe-delay, 0s);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-sweep::before { animation: none; background: none; }
+  .marquee-track { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .pipe-step { animation: none; opacity: 1; }
+  .pipe-bar { animation: none; transform: none; }
+  .pipe-dot { animation: none; opacity: 1; }
+}

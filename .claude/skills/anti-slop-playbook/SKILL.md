@@ -5,12 +5,13 @@ description: Design rules for Sunroot's frontend. Use whenever you write or chan
 
 # Anti-slop playbook for Sunroot
 
-Design language: "workbench", a calm precise tool (Tinkercad, AutoCAD, Linear), not a shop window. Defined in `app/globals.css`; use the scale classes, never raw hex.
-- `slate` = graphite neutrals (the working surface, about 60%). `teal` = Root green: action, selection, links, progress (about 30%). `amber` = Sun orange: streaks, XP, highlights, warnings (about 10%, never large areas).
-- Status: green = mastered/correct, amber = learning/caution, red = needs work/error, blue = information.
-- Font: IBM Plex Sans for everything, IBM Plex Mono for numbers/codes (`app/layout.tsx`).
-- Flat: hairline borders, 8px radii (theme tokens), no gradients, glow, blur, hover-scale, or coloured shadows. Shadows only for what floats (menus, dialogs, toasts).
-- Light and dark are both first-class; the choice is applied before first paint (`app/layout.tsx`) and via `ThemeProvider`.
+Design language: "Sun on Ink" (premium, editorial; see `docs/design/DESIGN-SYSTEM.md`). Defined in `app/globals.css`; use the scale classes, never raw hex.
+- `slate` = ink (dark) and paper (light). **`teal` = Sun orange**, the single action colour (the class name is historical). `amber` = gold for energy/caution. Green (`emerald`, `--mastery-*`) means growth only, never a button.
+- Text on an orange fill is ink (`text-slate-950`), never white.
+- Type: Instrument Sans; one emphasised word per headline in Instrument Serif italic (`font-serif italic`); IBM Plex Mono uppercase, widely tracked, for labels.
+- Hairline borders, small crisp radii, shadows only for floating layers; no gradients as decoration.
+- Motion with purpose (reveals, the hero pipeline, `.edge-sweep`, `PixelField`); everything off under `prefers-reduced-motion`.
+- Light and dark are both first-class; the choice is applied before first paint (`app/layout.tsx`).
 - Feature icons are line icons (`components/shell/feature-icon.tsx`), never emoji.
 
 ## Never
