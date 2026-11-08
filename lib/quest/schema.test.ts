@@ -8,6 +8,7 @@ const raw = [
   { type: "slider", ...base, label: "Mass", unit: "kg", min: 0, max: 10, step: 0.5, start: 1, expr: "x * 2", outLabel: "Force", outUnit: "N", goalMin: 9, goalMax: 11 },
   { type: "order", ...base, items: ["one", "two", "three"] },
   { type: "match", ...base, pairs: [{ left: "A", right: "1" }, { left: "B", right: "2" }, { left: "C", right: "3" }] },
+  { type: "sort", ...base, groups: [{ name: "Metals", items: ["iron", "copper"] }, { name: "Gases", items: ["neon", "oxygen"] }] },
 ];
 
 describe("quest challenges", () => {
@@ -15,7 +16,7 @@ describe("quest challenges", () => {
   const by = (t: string) => cs.find((c) => c.type === t) as Challenge;
 
   it("keeps all valid challenges and numbers them", () => {
-    expect(cs.map((c) => c.id)).toEqual(["c1", "c2", "c3", "c4", "c5"]);
+    expect(cs.map((c) => c.id)).toEqual(["c1", "c2", "c3", "c4", "c5", "c6"]);
   });
   it("drops unsolvable or malformed ones", () => {
     const bad = [
@@ -24,6 +25,7 @@ describe("quest challenges", () => {
       { type: "slider", ...base, label: "m", min: 0, max: 10, step: 1, start: 5, expr: "x * 2", outLabel: "f", goalMin: 9, goalMax: 11 },
       { type: "slider", ...base, label: "m", min: 0, max: 10, step: 1, start: 1, expr: "x.constructor", outLabel: "f", goalMin: 1, goalMax: 2 },
       { type: "order", ...base, items: ["same", "same", "x"] },
+      { type: "sort", ...base, groups: [{ name: "A", items: ["x", "y"] }, { name: "B", items: ["x", "z"] }] },
       { type: "nonsense" },
     ];
     expect(normalizeChallenges(bad)).toEqual([]);
@@ -40,6 +42,10 @@ describe("quest challenges", () => {
     const pairs = [{ left: "C", right: "3" }, { left: "A", right: "1" }, { left: "B", right: "2" }];
     expect(gradeChallenge(by("match"), { type: "match", pairs })).toBe(true);
     expect(gradeChallenge(by("match"), { type: "match", pairs: pairs.map((p, i) => (i === 0 ? { ...p, right: "1" } : p)) })).toBe(false);
+    const sorted = [{ item: "iron", group: "Metals" }, { item: "copper", group: "Metals" }, { item: "neon", group: "Gases" }, { item: "oxygen", group: "Gases" }];
+    expect(gradeChallenge(by("sort"), { type: "sort", placed: sorted })).toBe(true);
+    expect(gradeChallenge(by("sort"), { type: "sort", placed: sorted.map((p, i) => (i === 0 ? { ...p, group: "Gases" } : p)) })).toBe(false);
+    expect(gradeChallenge(by("sort"), { type: "sort", placed: sorted.slice(0, 3) })).toBe(false);
     expect(gradeChallenge(by("choose"), { type: "number", value: 1 })).toBe(false);
   });
   it("never sends the answer to the browser and shuffles order/match", () => {
@@ -53,6 +59,7 @@ describe("quest challenges", () => {
   it("explains the right answer in words", () => {
     expect(solutionText(by("choose"))).toBe("b");
     expect(solutionText(by("number"))).toBe("12 m/s");
+    expect(solutionText(by("sort"))).toContain("Metals: iron, copper");
   });
   it("turns raw maths in the text into readable symbols", () => {
     const [c] = normalizeChallenges([{ type: "number", prompt: "Find $v = \\frac{d}{t}$", hint: "h", explanation: "e", answer: 1, tolerance: 0 }]);
