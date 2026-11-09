@@ -1,0 +1,71 @@
+{
+  "id": "history_social",
+  "name": "History and social studies",
+  "keywords": [
+    "empire",
+    "war",
+    "revolution",
+    "treaty",
+    "century",
+    "dynasty",
+    "king",
+    "colonial",
+    "independence",
+    "economy",
+    "society",
+    "politics",
+    "causes",
+    "consequences",
+    "movement",
+    "reform",
+    "period",
+    "source",
+    "primary",
+    "secondary"
+  ],
+  "concepts": [
+    {
+      "kind": "event",
+      "template": [
+        "When",
+        "Who",
+        "Causes",
+        "Course",
+        "Consequences",
+        "Significance"
+      ]
+    }
+  ],
+  "ontology": [
+    {
+      "type": "date_event",
+      "hint": "dates and events (set order for timelines)"
+    },
+    {
+      "type": "cause",
+      "hint": "short-term and long-term causes"
+    },
+    {
+      "type": "example",
+      "hint": "people and their roles"
+    },
+    {
+      "type": "rule",
+      "hint": "consequences and significance"
+    },
+    {
+      "type": "definition",
+      "hint": "terms and concepts"
+    }
+  ],
+  "themes": [
+    "archive"
+  ],
+  "distractorHints": [
+    "a related term from the same notes"
+  ],
+  "pitfalls": [
+    "Never change a date or a name.",
+    "Keep events in the order the notes give."
+  ]
+}

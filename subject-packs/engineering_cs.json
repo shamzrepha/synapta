@@ -1,0 +1,67 @@
+{
+  "id": "engineering_cs",
+  "name": "Engineering and computing",
+  "keywords": [
+    "circuit",
+    "voltage",
+    "current",
+    "resistor",
+    "algorithm",
+    "software",
+    "system",
+    "sensor",
+    "signal",
+    "transistor",
+    "protocol",
+    "memory",
+    "code",
+    "design",
+    "specification",
+    "standard",
+    "load"
+  ],
+  "concepts": [
+    {
+      "kind": "topic",
+      "template": [
+        "Principle",
+        "Circuit or system",
+        "Algorithm (static trace only)",
+        "Standard or spec"
+      ]
+    }
+  ],
+  "ontology": [
+    {
+      "type": "definition",
+      "hint": "principles and terms"
+    },
+    {
+      "type": "formula",
+      "hint": "formulas with units"
+    },
+    {
+      "type": "procedure_step",
+      "hint": "algorithm or build steps (set order)"
+    },
+    {
+      "type": "rule",
+      "hint": "standards and constraints"
+    },
+    {
+      "type": "example",
+      "hint": "worked examples"
+    }
+  ],
+  "themes": [
+    "workshop",
+    "lab"
+  ],
+  "distractorHints": [
+    "a related term from the same notes"
+  ],
+  "pitfalls": [
+    "Never run or execute code: algorithms are traced by hand only.",
+    "Never change a value or unit."
+  ]
+}

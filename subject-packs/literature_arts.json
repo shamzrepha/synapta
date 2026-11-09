@@ -1,0 +1,70 @@
+{
+  "id": "literature_arts",
+  "name": "Literature and the arts",
+  "keywords": [
+    "author",
+    "novel",
+    "poem",
+    "poetry",
+    "character",
+    "theme",
+    "plot",
+    "narrator",
+    "symbolism",
+    "metaphor",
+    "imagery",
+    "stanza",
+    "protagonist",
+    "setting",
+    "genre",
+    "motif",
+    "quotation",
+    "tone"
+  ],
+  "concepts": [
+    {
+      "kind": "topic",
+      "template": [
+        "Author and context",
+        "Plot",
+        "Characters",
+        "Themes",
+        "Motifs and devices",
+        "Key quotes"
+      ]
+    }
+  ],
+  "ontology": [
+    {
+      "type": "definition",
+      "hint": "literary terms and devices"
+    },
+    {
+      "type": "example",
+      "hint": "characters and their traits"
+    },
+    {
+      "type": "misc",
+      "hint": "themes and motifs"
+    },
+    {
+      "type": "vocab",
+      "hint": "quotations (only from the notes)"
+    },
+    {
+      "type": "date_event",
+      "hint": "context and dates"
+    }
+  ],
+  "themes": [
+    "archive",
+    "studio"
+  ],
+  "distractorHints": [
+    "a related term from the same notes"
+  ],
+  "pitfalls": [
+    "Quote only text that is in the notes.",
+    "Do not invent plot details."
+  ]
+}

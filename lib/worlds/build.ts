@@ -1,4 +1,4 @@
-import { buildValidatedActivities } from "./activities";
+import { buildValidatedActivities, type ApprovedImage } from "./activities";
 import { designWorld } from "./design";
 import { getPack } from "./packs";
 import { col, commitInChunks, loadDocPages, loadLibrary, now } from "./store";
@@ -24,7 +24,12 @@ export async function rebuildWorld(worldId: string, libIn?: Library): Promise<{ 
   const lineText = (docId: string, pageNo: number, from: number, to: number) =>
     (pages.get(docId)?.get(pageNo) ?? []).filter((l) => l.lineNo >= from && l.lineNo <= to).map((l) => l.text).join(" ");
 
-  const report = buildValidatedActivities(lib, lineText);
+  const imgSnap = await col.knowledge(worldId).collection("images").get();
+  const approved: ApprovedImage[] = imgSnap.docs
+    .map((d) => d.data() as { kuId: string; status: string; candidate?: { thumbUrl: string; author: string; license: string; pageUrl: string } })
+    .filter((x) => x.status === "approved" && x.candidate)
+    .map((x) => ({ kuId: x.kuId, url: x.candidate!.thumbUrl, credit: x.candidate!.author, license: x.candidate!.license, pageUrl: x.candidate!.pageUrl }));
+  const report = buildValidatedActivities(lib, lineText, approved);
   const design = designWorld(lib, report.activities);
 
   // replace what is stored: write the new set, delete what is no longer in it

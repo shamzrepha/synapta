@@ -17,7 +17,12 @@ export const maxDuration = 60;
 export async function GET(req: NextRequest) {
   try {
     const user = await requireUser(req);
-    const snap = await col.worlds().where("ownerUid", "==", user.uid).orderBy("updatedAt", "desc").limit(50).get();
+    // a class's worlds: members of the class (the teacher and enrolled students) can list them
+    const classId = req.nextUrl.searchParams.get("classId");
+    if (classId) await assertClassAccess(user, classId, "view");
+    const snap = classId
+      ? await col.worlds().where("classId", "==", classId).orderBy("updatedAt", "desc").limit(50).get()
+      : await col.worlds().where("ownerUid", "==", user.uid).orderBy("updatedAt", "desc").limit(50).get();
     const worlds = snap.docs.map((d) => {
       const w = d.data();
       return { id: d.id, title: w.title, status: w.status, subjectPackId: w.subjectPackId, themeId: w.themeId, stats: w.stats, classId: w.classId ?? null, updatedAt: w.updatedAt?.toDate?.().toISOString?.() ?? null };

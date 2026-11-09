@@ -1,6 +1,7 @@
 "use client";
 
 import { readableText } from "@/lib/text/readable";
+import { ClassWorlds } from "@/components/worlds/class-worlds";
 import { LearningMap } from "@/components/classes/learning-map";
 import React, { useState, useEffect, use, useCallback } from "react";
 import Link from "next/link";
@@ -637,6 +638,8 @@ export default function ClassOverviewPage({
             ))}
           </div>
         </div>
+
+        <ClassWorlds classId={classId} canManage={isOwner || user?.role === "admin"} />
 
         {view === "map" && (
           <LearningMap

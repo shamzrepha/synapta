@@ -40,7 +40,7 @@ describe("subject packs", () => {
   it("ships the nursing and general packs as data and detects nursing from the fixture", () => {
     expect(loadPacks().map((p) => p.id)).toEqual(expect.arrayContaining(["nursing_medical", "general"]));
     expect(detectSubject(read("gastrostomy_sample.txt")).packId).toBe("nursing_medical");
-    expect(detectSubject("The treaty was signed in 1648 after a long war.").packId).toBe("general");
+    expect(detectSubject("The meeting is on Tuesday at noon and lunch is provided for everyone.").packId).toBe("general");
     expect(getPack("nursing_medical").disclaimer).toMatch(/Not clinical or legal advice/);
   });
 });
@@ -115,5 +115,27 @@ describe("hive-mind merge (S4) and conflict audit (S5)", () => {
   });
   it("sends the doc's template hint through", () => {
     expect(["condition", "procedure", "none"]).toContain(templateHint(buildOutline(gastro)));
+  });
+});
+
+describe("every subject pack is data, and the right pack is found with no code change", () => {
+  const read2 = (f: string) => fs.readFileSync(`fixtures/worlds/${f}`, "utf8");
+  it("ships packs for all the subjects the spec lists", () => {
+    const ids = loadPacks().map((p) => p.id);
+    for (const id of ["nursing_medical", "law", "history_social", "literature_arts", "language_learning", "math_physics", "life_sciences", "business_economics", "engineering_cs", "general"]) expect(ids).toContain(id);
+  });
+  it("detects law, history, maths and language notes from their text", () => {
+    expect(detectSubject(read2("law_case_sample.txt")).packId).toBe("law");
+    expect(detectSubject(read2("history_sample.txt")).packId).toBe("history_social");
+    expect(detectSubject(read2("math_sample.txt")).packId).toBe("math_physics");
+    expect(detectSubject(read2("language_sample.txt")).packId).toBe("language_learning");
+  });
+  it("keeps the safety notice only where it belongs", () => {
+    expect(getPack("nursing_medical").disclaimer).toBeTruthy();
+    expect(getPack("law").disclaimer).toBeTruthy();
+    expect(getPack("math_physics").disclaimer).toBeUndefined();
+  });
+  it("tells the model never to execute code in the engineering pack (R4)", () => {
+    expect(getPack("engineering_cs").pitfalls.join(" ")).toMatch(/never run or execute code/i);
   });
 });

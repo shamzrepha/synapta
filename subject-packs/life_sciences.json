@@ -1,0 +1,67 @@
+{
+  "id": "life_sciences",
+  "name": "Biology, chemistry and agriculture",
+  "keywords": [
+    "cell",
+    "enzyme",
+    "protein",
+    "gene",
+    "dna",
+    "reaction",
+    "organism",
+    "photosynthesis",
+    "membrane",
+    "molecule",
+    "atom",
+    "bond",
+    "species",
+    "ecosystem",
+    "metabolism",
+    "tissue",
+    "crop",
+    "soil"
+  ],
+  "concepts": [
+    {
+      "kind": "process",
+      "template": [
+        "Stages (ordered)",
+        "Structure and function",
+        "Reaction or cycle"
+      ]
+    }
+  ],
+  "ontology": [
+    {
+      "type": "mechanism_step",
+      "hint": "ordered stages of a process (set order)"
+    },
+    {
+      "type": "definition",
+      "hint": "structures and terms"
+    },
+    {
+      "type": "classification",
+      "hint": "groups and types"
+    },
+    {
+      "type": "rule",
+      "hint": "functions and reactions"
+    },
+    {
+      "type": "example",
+      "hint": "examples"
+    }
+  ],
+  "themes": [
+    "garden",
+    "lab"
+  ],
+  "distractorHints": [
+    "a related term from the same notes"
+  ],
+  "pitfalls": [
+    "Keep stages in the order the notes give.",
+    "Never change a chemical name or formula."
+  ]
+}

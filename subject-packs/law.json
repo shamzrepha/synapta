@@ -1,0 +1,85 @@
+{
+  "id": "law",
+  "name": "Law",
+  "keywords": [
+    "court",
+    "statute",
+    "section",
+    "case",
+    "judgment",
+    "plaintiff",
+    "defendant",
+    "appeal",
+    "liability",
+    "contract",
+    "tort",
+    "negligence",
+    "precedent",
+    "holding",
+    "ratio",
+    "judge",
+    "claimant",
+    "offence",
+    "evidence",
+    "jurisdiction",
+    "remedy",
+    "damages"
+  ],
+  "concepts": [
+    {
+      "kind": "case",
+      "template": [
+        "Facts",
+        "Issue",
+        "Rule",
+        "Holding",
+        "Reasoning",
+        "Significance"
+      ]
+    },
+    {
+      "kind": "topic",
+      "template": [
+        "Provision",
+        "Elements",
+        "Exceptions",
+        "Remedies"
+      ]
+    }
+  ],
+  "ontology": [
+    {
+      "type": "definition",
+      "hint": "legal terms and tests"
+    },
+    {
+      "type": "rule",
+      "hint": "rules, elements and tests"
+    },
+    {
+      "type": "case_holding",
+      "hint": "what a case decided"
+    },
+    {
+      "type": "example",
+      "hint": "applications"
+    },
+    {
+      "type": "misc",
+      "hint": "exceptions and remedies"
+    }
+  ],
+  "themes": [
+    "courtroom",
+    "archive"
+  ],
+  "distractorHints": [
+    "a related term from the same notes"
+  ],
+  "pitfalls": [
+    "Never invent citations.",
+    "Quote only the student's own text.",
+    "Keep names of cases and statutes exactly as written."
+  ],
+  "disclaimer": "Study aid built from your notes. Not clinical or legal advice. Follow your lecturer and local protocols."
+}

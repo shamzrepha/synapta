@@ -1,0 +1,67 @@
+{
+  "id": "business_economics",
+  "name": "Business and economics",
+  "keywords": [
+    "market",
+    "demand",
+    "supply",
+    "profit",
+    "cost",
+    "revenue",
+    "price",
+    "inflation",
+    "asset",
+    "liability",
+    "debit",
+    "credit",
+    "budget",
+    "investment",
+    "accounting",
+    "firm",
+    "competition",
+    "elasticity"
+  ],
+  "concepts": [
+    {
+      "kind": "topic",
+      "template": [
+        "Concept",
+        "Model or formula",
+        "Scenario",
+        "Journal entry"
+      ]
+    }
+  ],
+  "ontology": [
+    {
+      "type": "definition",
+      "hint": "concepts and terms"
+    },
+    {
+      "type": "formula",
+      "hint": "formulas"
+    },
+    {
+      "type": "rule",
+      "hint": "rules (for example debit and credit)"
+    },
+    {
+      "type": "example",
+      "hint": "scenarios"
+    },
+    {
+      "type": "classification",
+      "hint": "fixed or variable, current or non-current"
+    }
+  ],
+  "themes": [
+    "market"
+  ],
+  "distractorHints": [
+    "a related term from the same notes"
+  ],
+  "pitfalls": [
+    "Never change a figure.",
+    "Keep account names exactly as written."
+  ]
+}

@@ -3,7 +3,7 @@
 import React, { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, FileText, Loader2, Play, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileText, ImageIcon, Loader2, Play, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -107,6 +107,8 @@ export default function WorldLibraryPage({ params }: { params: Promise<{ worldId
         </section>
       )}
 
+      <PicturesSection worldId={worldId} onChanged={load} />
+
       <section className="space-y-2">
         <h2 className="font-bold">Your notes</h2>
         <Card className="divide-y divide-border">
@@ -129,5 +131,70 @@ export default function WorldLibraryPage({ params }: { params: Promise<{ worldId
 
       <div className="pt-2"><button type="button" onClick={remove} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-rose-600"><Trash2 className="h-3.5 w-3.5" /> Delete this world</button></div>
     </div>
+  );
+}
+
+interface Pic {
+  kuId: string;
+  status: "suggested" | "approved" | "skipped";
+  term: string;
+  statement?: string;
+  candidate: { title: string; thumbUrl: string; pageUrl: string; license: string; author: string };
+}
+
+/** Pictures from Wikimedia Commons for things you can see (a sign, a structure). She approves each one; nothing is used until she does. */
+function PicturesSection({ worldId, onChanged }: { worldId: string; onChanged: () => void }) {
+  const { toast } = useToast();
+  const [pics, setPics] = useState<Pic[]>([]);
+  const [busy, setBusy] = useState(false);
+  const refresh = useCallback(async () => {
+    try {
+      const j = await (await fetch(`/api/worlds/${worldId}/images`)).json();
+      if (j.ok) setPics(asArray<Pic>(j.data.images));
+    } catch {
+      /* keep what we have */
+    }
+  }, [worldId]);
+  useEffect(() => {
+    const t = setTimeout(refresh, 0);
+    return () => clearTimeout(t);
+  }, [refresh]);
+
+  const find = async () => {
+    setBusy(true);
+    const j = await (await fetch(`/api/worlds/${worldId}/images`, { method: "POST" })).json().catch(() => null);
+    setBusy(false);
+    if (!j?.ok) return toast({ title: "Couldn't look for pictures", description: j?.error?.message, variant: "destructive" });
+    toast({ title: j.data.found ? `Found ${j.data.found} picture${j.data.found === 1 ? "" : "s"}` : "No suitable pictures found", description: j.data.found ? "Check each one and tap Use or Skip." : "Only openly licensed, non-graphic pictures are used.", variant: j.data.found ? "success" : "amber" });
+    await refresh();
+  };
+  const decide = async (kuId: string, decision: "approve" | "skip") => {
+    await fetch(`/api/worlds/${worldId}/images`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kuId, decision }) });
+    await refresh();
+    if (decision === "approve") onChanged();
+  };
+  const suggested = pics.filter((p) => p.status === "suggested");
+  const used = pics.filter((p) => p.status === "approved").length;
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center gap-2">
+        <h2 className="font-bold flex-1">Pictures{used ? ` (${used} in use)` : ""}</h2>
+        <Button size="sm" variant="outline" onClick={find} isLoading={busy}><ImageIcon className="h-4 w-4 mr-1.5" /> Find pictures</Button>
+      </div>
+      <p className="text-xs text-muted-foreground">For signs and things you can see. Pictures come from Wikimedia Commons (openly licensed, credited, anything graphic is skipped), stay blurred until tapped, and are only used if you say so.</p>
+      {suggested.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {suggested.map((p) => (
+            <Card key={p.kuId} className="p-3 space-y-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={p.candidate.thumbUrl} alt={`Suggested picture for ${p.term}`} referrerPolicy="no-referrer" className="w-full h-40 object-cover rounded-md bg-muted" loading="lazy" />
+              <p className="text-sm"><span className="font-semibold">{p.term}</span><span className="text-muted-foreground"> · {p.candidate.author}, {p.candidate.license}</span></p>
+              <p className="text-xs text-muted-foreground line-clamp-2">{p.statement}</p>
+              <div className="flex gap-2"><Button size="sm" onClick={() => decide(p.kuId, "approve")}>Use it</Button><Button size="sm" variant="outline" onClick={() => decide(p.kuId, "skip")}>Skip</Button></div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

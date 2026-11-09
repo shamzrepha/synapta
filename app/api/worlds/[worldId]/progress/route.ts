@@ -16,7 +16,7 @@ const schema = z.object({
     .array(
       z.object({
         kuId: z.string().min(1).max(100),
-        template: z.enum(["flip_recall", "cloze", "mcq", "ordering", "matching"]),
+        template: z.enum(["flip_recall", "cloze", "mcq", "ordering", "matching", "image_identify"]),
         correct: z.boolean(),
         firstTry: z.boolean(),
         ms: z.number().int().min(0).max(600_000),

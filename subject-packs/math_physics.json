@@ -1,0 +1,67 @@
+{
+  "id": "math_physics",
+  "name": "Mathematics and physics",
+  "keywords": [
+    "equation",
+    "formula",
+    "theorem",
+    "proof",
+    "derivative",
+    "integral",
+    "force",
+    "velocity",
+    "energy",
+    "vector",
+    "matrix",
+    "function",
+    "variable",
+    "unit",
+    "newton",
+    "momentum",
+    "acceleration"
+  ],
+  "concepts": [
+    {
+      "kind": "topic",
+      "template": [
+        "Definition",
+        "Formula (conditions, units, variables)",
+        "Worked example",
+        "Common errors"
+      ]
+    }
+  ],
+  "ontology": [
+    {
+      "type": "definition",
+      "hint": "definitions"
+    },
+    {
+      "type": "formula",
+      "hint": "formulas with variables and units"
+    },
+    {
+      "type": "rule",
+      "hint": "laws and theorems with their conditions"
+    },
+    {
+      "type": "example",
+      "hint": "worked examples"
+    },
+    {
+      "type": "misc",
+      "hint": "common errors"
+    }
+  ],
+  "themes": [
+    "observatory",
+    "workshop"
+  ],
+  "distractorHints": [
+    "a related term from the same notes"
+  ],
+  "pitfalls": [
+    "Never change a number, unit or symbol.",
+    "Numeric answers are checked by code, never by you."
+  ]
+}
