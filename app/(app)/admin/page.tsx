@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { asArray } from "@/lib/api/client";
 import { AiSelfTest } from "@/components/admin/ai-selftest";
 import { AiKeySettings } from "@/components/admin/ai-key";
+import { WorldsAiSettings } from "@/components/admin/worlds-ai";
 import { DeviceStats } from "@/components/admin/device-stats";
 import { AI_TASK_DEFINITIONS } from "@/lib/ai/tasks";
 import {
@@ -1552,6 +1553,7 @@ export default function AdminConsolePage() {
       {activeTab === "system" && (
         <div className="space-y-6">
           <AiKeySettings />
+          <WorldsAiSettings />
           <AiSelfTest />
           {/* Summary Row */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
