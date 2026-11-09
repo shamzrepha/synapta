@@ -1,0 +1,27 @@
+{
+  "id": "nursing_medical",
+  "name": "Nursing and medicine",
+  "keywords": ["patient", "nursing", "symptom", "diagnosis", "treatment", "drug", "dose", "infection", "pathophysiology", "complication", "management", "stoma", "catheter", "tube", "dyspnoea", "hypoxaemia", "clinical", "ward", "medical", "pharmacological"],
+  "concepts": [
+    { "kind": "condition", "template": ["Definition", "Causes", "Pathophysiology", "Signs and symptoms", "Diagnostics", "Prevention", "Medical management", "Pharmacological management", "Nursing management", "Complications"] },
+    { "kind": "procedure", "template": ["Definition", "Indications", "Contraindications", "Requirements", "Steps", "Aftercare", "Complications", "Documentation"] }
+  ],
+  "ontology": [
+    { "type": "definition", "hint": "what the condition or procedure is" },
+    { "type": "cause", "hint": "causes and risk factors" },
+    { "type": "mechanism_step", "hint": "ordered chain of what happens in the body (set order)" },
+    { "type": "sign_symptom", "hint": "signs and symptoms" },
+    { "type": "diagnostic", "hint": "tests and findings" },
+    { "type": "drug", "hint": "drugs", "extra": ["drug", "class", "action", "adverse", "nursingNote"] },
+    { "type": "procedure_step", "hint": "numbered steps (set order)" },
+    { "type": "nursing_action", "hint": "what the nurse does" },
+    { "type": "rationale", "hint": "why the nurse does it, when the notes say so" },
+    { "type": "contraindication", "hint": "when not to do something" },
+    { "type": "complication", "hint": "complications" },
+    { "type": "prevention", "hint": "prevention" }
+  ],
+  "themes": ["ward", "lab"],
+  "distractorHints": ["other signs of the same condition", "the same step from a related procedure", "another drug of the same class"],
+  "pitfalls": ["Never alter doses.", "Never merge two drugs.", "Keep every 'do not' statement.", "Keep drug abbreviations (for example RHZE) intact.", "Do not add reference ranges that are not in the notes."],
+  "disclaimer": "Study aid built from your notes. Not clinical or legal advice. Follow your lecturer and local protocols."
+}

@@ -18,6 +18,7 @@ export interface FeatureEntry {
 export const FEATURES: FeatureEntry[] = [
   { n: 1, id: "flashcards", title: "AI flashcards", blurb: "Turn any lesson into spaced-repetition cards.", emoji: "🃏", href: "/study/flashcards", group: "Study", status: "live" },
   { n: 2, id: "daily", title: "Daily 5-minute challenge", blurb: "Five questions from what you got wrong.", emoji: "⚡", href: "/study/daily", group: "Study", status: "live" },
+  { n: 44, id: "worlds", title: "My Worlds", blurb: "Upload your notes, merge them into one library, and learn them as a game.", emoji: "🌍", href: "/worlds", group: "Study", status: "live" },
   { n: 41, id: "notes", title: "Study notes", blurb: "Upload a PDF, photo or scan; get clean notes you can refine.", emoji: "📝", href: "/study/notes", group: "Study", status: "live" },
   { n: 43, id: "evaluation", title: "How am I doing?", blurb: "Finds what you are stuck on from your wrong answers and gives you a short plan.", emoji: "🧭", href: "/study/evaluation", group: "Study", status: "live" },
   { n: 3, id: "snap", title: "Snap your homework", blurb: "Photograph a problem; the AI explains it step by step.", emoji: "📸", href: "/study/snap", group: "Study", status: "live" },
