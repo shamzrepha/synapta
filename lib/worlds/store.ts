@@ -88,7 +88,7 @@ export async function deleteCollectionDocs(ref: FirebaseFirestore.CollectionRefe
 /** Removes a world and everything derived from it (R8). Source documents are only removed when asked. */
 export async function deleteWorldData(worldId: string): Promise<void> {
   const k = col.knowledge(worldId);
-  for (const sub of ["units", "concepts", "conflicts", "meta"]) await deleteCollectionDocs(k.collection(sub));
+  for (const sub of ["units", "concepts", "conflicts", "meta", "images"]) await deleteCollectionDocs(k.collection(sub));
   for (const sub of ["nodes", "activities", "mergeLog"]) await deleteCollectionDocs(col.worlds().doc(worldId).collection(sub));
   await k.delete().catch(() => null);
   await col.worlds().doc(worldId).delete();

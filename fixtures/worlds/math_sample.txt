@@ -1,0 +1,5 @@
+NEWTON'S SECOND LAW
+Force equals mass times acceleration: F = m a, with force in newtons and mass in kilograms.
+A 2 kg object accelerated at 3 m/s2 experiences a force of 6 N.
+Common error: forgetting that acceleration and force are vectors.
+The momentum of an object is its mass multiplied by its velocity.

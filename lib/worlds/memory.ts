@@ -14,7 +14,7 @@ export interface ActivityResult {
   selfRating?: RatingName;
 }
 
-const SLOW_MS: Record<Template, number> = { flip_recall: 12_000, mcq: 15_000, cloze: 25_000, ordering: 60_000, matching: 60_000 };
+const SLOW_MS: Record<Template, number> = { flip_recall: 12_000, image_identify: 15_000, mcq: 15_000, cloze: 25_000, ordering: 60_000, matching: 60_000 };
 
 /** Spec 16.2: wrong, Again; right but slow or with a hint, Hard; right, Good; right first time and quick, Easy. */
 export function rateFromResult(r: ActivityResult): RatingName {

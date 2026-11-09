@@ -1,0 +1,57 @@
+{
+  "id": "language_learning",
+  "name": "Language learning",
+  "keywords": [
+    "vocabulary",
+    "grammar",
+    "verb",
+    "noun",
+    "tense",
+    "conjugation",
+    "translation",
+    "sentence",
+    "pronunciation",
+    "phrase",
+    "adjective",
+    "plural",
+    "gender",
+    "article"
+  ],
+  "concepts": [
+    {
+      "kind": "topic",
+      "template": [
+        "Vocabulary set",
+        "Grammar rule (form, use, exceptions, examples)"
+      ]
+    }
+  ],
+  "ontology": [
+    {
+      "type": "vocab",
+      "hint": "words and their meanings (ask for production first)"
+    },
+    {
+      "type": "rule",
+      "hint": "grammar rules and exceptions"
+    },
+    {
+      "type": "example",
+      "hint": "example sentences from the notes"
+    },
+    {
+      "type": "misc",
+      "hint": "phrases"
+    }
+  ],
+  "themes": [
+    "island"
+  ],
+  "distractorHints": [
+    "a related term from the same notes"
+  ],
+  "pitfalls": [
+    "Use only example sentences that are in the notes.",
+    "Keep accents and spelling exactly as written."
+  ]
+}

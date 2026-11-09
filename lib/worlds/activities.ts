@@ -1,7 +1,7 @@
 import { fuzzyContains, jaccard, normalize, tokens, wordCount } from "./fuzzy";
 import { stableId, type KnowledgeUnit, type Library, type SourceAnchor } from "./types";
 
-export type Template = "flip_recall" | "cloze" | "mcq" | "ordering" | "matching";
+export type Template = "flip_recall" | "cloze" | "mcq" | "ordering" | "matching" | "image_identify";
 
 interface Base {
   id: string;
@@ -19,7 +19,14 @@ export interface Cloze extends Base { template: "cloze"; text: string; blanks: A
 export interface Mcq extends Base { template: "mcq"; stem: string; options: string[]; correctIndex: number }
 export interface Ordering extends Base { template: "ordering"; items: string[] }
 export interface Matching extends Base { template: "matching"; pairs: Array<{ left: string; right: string }> }
-export type Activity = FlipRecall | Cloze | Mcq | Ordering | Matching;
+export interface ImageIdentify extends Base {
+  template: "image_identify";
+  stem: string;
+  options: string[];
+  correctIndex: number;
+  image: { url: string; credit: string; license: string; pageUrl: string };
+}
+export type Activity = FlipRecall | Cloze | Mcq | Ordering | Matching | ImageIdentify;
 
 const STOP = new Set(["the", "a", "an", "of", "to", "in", "is", "are", "and", "or", "for", "with", "at", "on", "be", "it", "this", "that", "by", "as", "from", "not", "do", "does", "can", "may", "will", "should", "must"]);
 const aid = (template: Template, kuIds: string[]) => stableId("act", `${template}|${kuIds.join(",")}`);
@@ -132,8 +139,30 @@ export function buildMatchings(units: KnowledgeUnit[]): Matching[] {
   return out;
 }
 
+/** The student-approved pictures from the web, turned into "what is shown here?" questions. */
+export interface ApprovedImage {
+  kuId: string;
+  url: string;
+  credit: string;
+  license: string;
+  pageUrl: string;
+}
+export function buildImageActivities(lib: Library, images: ApprovedImage[]): ImageIdentify[] {
+  const units = active(lib);
+  const out: ImageIdentify[] = [];
+  for (const img of images) {
+    const ku = lib.units[img.kuId];
+    if (!ku || ku.status !== "active") continue;
+    const d = pickDistractors(ku, units);
+    if (d.length < 2) continue;
+    const options = seededShuffle([ku.answer.trim(), ...d], `${ku.id}|img`);
+    out.push({ ...base("image_identify", [ku], 2), template: "image_identify", stem: "What is shown in this picture?", options, correctIndex: options.indexOf(ku.answer.trim()), image: { url: img.url, credit: img.credit, license: img.license, pageUrl: img.pageUrl } });
+  }
+  return out;
+}
+
 /** All activities for a library: every fact gets a flip card, and a second, different view when one can be built. */
-export function buildActivities(lib: Library): Activity[] {
+export function buildActivities(lib: Library, images: ApprovedImage[] = []): Activity[] {
   const units = active(lib).sort((a, b) => a.source.docId.localeCompare(b.source.docId) || a.source.lineStart - b.source.lineStart);
   const out: Activity[] = [];
   for (const u of units) {
@@ -143,7 +172,7 @@ export function buildActivities(lib: Library): Activity[] {
     const cloze = buildCloze(u);
     if (cloze) out.push(cloze);
   }
-  out.push(...buildOrderings(units), ...buildMatchings(units));
+  out.push(...buildOrderings(units), ...buildMatchings(units), ...buildImageActivities(lib, images));
   return out;
 }
 
@@ -184,6 +213,12 @@ export function groundActivity(a: Activity, lib: Library, lineText: (docId: stri
       if (a.options.some((o, i) => i !== a.correctIndex && jaccard(o, a.options[a.correctIndex]) >= 0.8)) return { ok: false, reason: "a wrong option is the same as the right one" };
       break;
     }
+    case "image_identify": {
+      if (!/^https:\/\/upload\.wikimedia\.org\//.test(a.image.url)) return { ok: false, reason: "picture is not from an approved source" };
+      if (a.options.length < 3 || a.options.length > 4 || new Set(a.options.map(normalize)).size !== a.options.length) return { ok: false, reason: "bad options" };
+      if (!covered(a.options[a.correctIndex])) return { ok: false, reason: "right option is not in the cited fact" };
+      break;
+    }
     case "cloze": {
       const b = a.blanks[0];
       if (!b || STOP.has(b.answer.toLowerCase()) || !a.text.includes("_____")) return { ok: false, reason: "blank is not a content word" };
@@ -210,9 +245,9 @@ export interface BuildReport {
   totalFacts: number;
 }
 
-export function buildValidatedActivities(lib: Library, lineText: Parameters<typeof groundActivity>[2]): BuildReport {
+export function buildValidatedActivities(lib: Library, lineText: Parameters<typeof groundActivity>[2], images: ApprovedImage[] = []): BuildReport {
   const dropped: BuildReport["dropped"] = [];
-  const activities = buildActivities(lib).filter((a) => {
+  const activities = buildActivities(lib, images).filter((a) => {
     const g = groundActivity(a, lib, lineText);
     if (!g.ok) dropped.push({ id: a.id, template: a.template, reason: g.reason ?? "failed" });
     return g.ok;

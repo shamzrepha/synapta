@@ -44,6 +44,7 @@ export function ActivityCard({ worldId, activity: a, critical, onAnswered, onNex
   const [result, setResult] = useState<CardResult | null>(null);
   const [showSource, setShowSource] = useState(false);
   const [reported, setReported] = useState(false);
+  const [revealedImage, setRevealedImage] = useState(false);
 
   useEffect(() => {
     started.current = Date.now();
@@ -78,7 +79,7 @@ export function ActivityCard({ worldId, activity: a, critical, onAnswered, onNex
     await fetch("/api/worlds/report", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ worldId, activityId: a.id, kind: "unclear" }) }).catch(() => null);
   };
 
-  const prompt = a.template === "flip_recall" ? a.prompt : a.template === "mcq" ? a.stem : a.template === "cloze" ? "Fill in the missing word." : a.template === "ordering" ? "Put these in the right order." : "Match each pair.";
+  const prompt = a.template === "flip_recall" ? a.prompt : a.template === "mcq" || a.template === "image_identify" ? a.stem : a.template === "cloze" ? "Fill in the missing word." : a.template === "ordering" ? "Put these in the right order." : "Match each pair.";
 
   return (
     <div className="space-y-4">
@@ -106,7 +107,20 @@ export function ActivityCard({ worldId, activity: a, critical, onAnswered, onNex
         </div>
       )}
 
-      {a.template === "mcq" && (
+      {a.template === "image_identify" && (
+        <figure className="space-y-1.5">
+          <div className="relative overflow-hidden rounded-xl border border-border bg-muted">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={a.image.url} alt="A picture to identify" referrerPolicy="no-referrer" className={cn("w-full max-h-72 object-cover transition-[filter] duration-300", !revealedImage && "blur-2xl scale-110")} loading="lazy" />
+            {!revealedImage && (
+              <button type="button" onClick={() => setRevealedImage(true)} className="absolute inset-0 flex items-center justify-center bg-black/30 text-sm font-semibold text-white">Tap to show the picture</button>
+            )}
+          </div>
+          <figcaption className="text-[11px] text-muted-foreground">From the web, not your notes. Picture by {a.image.credit}, {a.image.license}, via <a href={a.image.pageUrl} target="_blank" rel="noreferrer" className="underline">Wikimedia Commons</a>.</figcaption>
+        </figure>
+      )}
+
+      {(a.template === "mcq" || a.template === "image_identify") && (
         <div className="grid gap-2" role="group" aria-label="Choose one answer">
           {a.options.map((o, i) => {
             const isRight = !!result && i === a.correctIndex;
