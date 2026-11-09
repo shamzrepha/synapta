@@ -51,7 +51,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Worlds reads its prompt and Subject Pack files at run time; without this they are missing from the serverless bundle
   outputFileTracingIncludes: {
-    "/api/**": ["./prompts/**/*", "./subject-packs/**/*"],
+    "/api/**": ["./prompts/**/*", "./subject-packs/**/*", "./fixtures/worlds/*.txt"],
   },
   // no browser source maps in production: the shipped code stays minified
   productionBrowserSourceMaps: false,
