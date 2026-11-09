@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { resolveConflict } from "@/lib/worlds/audit";
+import { rebuildWorld } from "@/lib/worlds/build";
 import { col, loadLibrary, saveLibrary, now } from "@/lib/worlds/store";
 
 export const runtime = "nodejs";
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ wor
     if (choice === "later") c.status = "later";
     else lib = resolveConflict(lib, conflictId, choice === "a" ? c.kuIdA : c.kuIdB);
     await saveLibrary(worldId, lib);
+    if (choice !== "later") await rebuildWorld(worldId, lib);
     const open = Object.values(lib.conflicts).filter((x) => x.status === "open").length;
     await col.worlds().doc(worldId).set({ stats: { ...snap.data()?.stats, conflictCount: open }, updatedAt: now() }, { merge: true });
     return NextResponse.json({ ok: true, data: { open } });

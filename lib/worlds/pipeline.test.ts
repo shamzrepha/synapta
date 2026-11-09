@@ -105,6 +105,25 @@ describe("the build pipeline, end to end", () => {
     const job = (await col.jobs().doc(jobId).get()).data()!;
     expect(job.status).toBe("done");
     expect(job.report.unitsAlreadyKnown).toBeGreaterThan(0);
+
+    // the playable world exists: zones, lessons with beats, and grounded activities for every fact
+    expect(world.zones.length).toBeGreaterThan(0);
+    expect(world.nodes.length).toBeGreaterThan(0);
+    expect(world.stats.activityCount).toBeGreaterThanOrEqual(units.length);
+    const acts = [...mem.keys()].filter((k) => k.startsWith("worlds/w1/activities/"));
+    expect(acts.length).toBe(world.stats.activityCount);
+
+    // when the student settles the disagreement, the dropped fact leaves every lesson
+    const [c] = conflicts;
+    const { resolveConflict } = await import("./audit");
+    const { saveLibrary } = await import("./store");
+    const { rebuildWorld } = await import("./build");
+    const settled = resolveConflict(lib, c.id, c.kuIdA);
+    await saveLibrary("w1", settled);
+    await rebuildWorld("w1", settled);
+    const after = [...mem.entries()].filter(([k]) => k.startsWith("worlds/w1/activities/")).map(([, v]) => v as { kuIds: string[] });
+    expect(after.some((a) => a.kuIds.includes(c.kuIdB))).toBe(false);
+    expect(after.some((a) => a.kuIds.includes(c.kuIdA))).toBe(true);
   });
 
   it("adding a third note later rebuilds the same library without duplicating anything", async () => {

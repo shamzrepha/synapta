@@ -10,6 +10,7 @@ import { normalize } from "./fuzzy";
 import { mergeIntoLibrary } from "./merge";
 import { buildOutline, templateHint, type Section } from "./outline";
 import { detectSubject, getPack } from "./packs";
+import { rebuildWorld } from "./build";
 import { col, loadDocPages, loadLibrary, now, saveLibrary } from "./store";
 import { stableId, type Concept, type KnowledgeUnit } from "./types";
 
@@ -187,5 +188,7 @@ async function finalize(jobId: string, job: JobDoc, deps: Deps): Promise<void> {
     { docIds: library.docIds, subjectPackId: pack.id, themeId: pack.themes[0] ?? "island", status: "ready", stats: { kuCount, conceptCount: Object.keys(library.concepts).length, activityCount: 0, conflictCount: report.conflicts, docCount: library.docIds.length }, updatedAt: now() },
     { merge: true }
   );
+  // the playable world: validated activities, zones, nodes and lessons, built from the merged library
+  await rebuildWorld(job.worldId, library);
   await ref.update({ stage: "done", stageLabel: STAGE_LABELS.done, status: "done", report, lockedUntil: 0, error: null, updatedAt: now() });
 }
