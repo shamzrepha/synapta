@@ -1,5 +1,6 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { activeGeminiKey, refreshGeminiKey } from "@/lib/ai/api-key";
+import { activeGroqKey, listGroqModels, refreshGroqKey } from "@/lib/ai/groq";
 import { aiConfigSchema, EMPTY_AI_CONFIG, PROVIDER_PRESETS, AiRouteMissingError, type AiConfig, type ModelProfile, type ProviderAdapter, type ProviderKind, type ProviderMeta, type TaskName } from "./types";
 import { geminiAdapter, openAiCompatibleAdapter } from "./adapters";
 
@@ -47,13 +48,13 @@ async function readProviders(): Promise<Record<string, StoredProvider>> {
 /** Providers for the admin screen: never includes keys, only the last 4 characters. */
 export async function listProviders(): Promise<Array<ProviderMeta & { configured: boolean; last4: string | null }>> {
   const stored = await readProviders();
-  await refreshGeminiKey().catch(() => null);
+  await Promise.all([refreshGeminiKey().catch(() => null), refreshGroqKey().catch(() => null)]);
   const geminiConfigured = Boolean(activeGeminiKey());
   const known = new Map<string, ProviderMeta>(PROVIDER_PRESETS.map((p) => [p.id, p]));
   for (const [id, p] of Object.entries(stored)) if (!known.has(id)) known.set(id, { id, kind: p.kind, label: p.label, baseUrl: p.baseUrl });
   return [...known.values()].map((p) => {
     const s = stored[p.id];
-    const configured = p.kind === "gemini" ? geminiConfigured || Boolean(s?.key) : Boolean(s?.key);
+    const configured = p.kind === "gemini" ? geminiConfigured || Boolean(s?.key) : p.id === "groq" ? Boolean(s?.key) || Boolean(activeGroqKey()) : Boolean(s?.key);
     return { ...p, baseUrl: s?.baseUrl ?? p.baseUrl, label: s?.label ?? p.label, configured, last4: s?.last4 ?? null };
   });
 }
@@ -80,6 +81,11 @@ export async function providerKey(id: string): Promise<{ meta: StoredProvider | 
     const k = activeGeminiKey();
     if (k) return { meta, key: k };
   }
+  if (id === "groq") {
+    await refreshGroqKey().catch(() => null);
+    const k = activeGroqKey();
+    if (k) return { meta, key: k };
+  }
   return null;
 }
 
@@ -102,4 +108,47 @@ export async function resolveChain(task: TaskName, config?: AiConfig): Promise<M
   const chain = keys.map((k) => cfg.models[k]).filter((m): m is ModelProfile => Boolean(m));
   if (chain.length === 0) throw new AiRouteMissingError(task);
   return chain;
+}
+
+/**
+ * One-click setup from the keys the admin already added in "AI Key & Provider": registers the models those keys can use,
+ * sorts them by specialty and suggests a route for every job. The admin can still change anything afterwards (R10:
+ * these names come from the providers and the existing admin settings, never from code).
+ */
+export async function autoSetupFromExistingKeys(by: { uid: string; email: string | null }): Promise<{ config: AiConfig; added: number; notes: string[] }> {
+  const { guessModel, suggestRoutes } = await import("./categories");
+  const { resolveModelChain } = await import("@/lib/ai/router");
+  const config: AiConfig = structuredClone(await getAiConfig(true));
+  const notes: string[] = [];
+  const guesses: Record<string, ReturnType<typeof guessModel>> = {};
+  const register = (provider: string, id: string) => {
+    const key = `${provider}:${id}`;
+    const g = guessModel(id);
+    if (g.specialty === "not_chat") return;
+    if (!config.models[key]) {
+      config.models[key] = { id, provider, capabilities: g.capabilities, contextTokens: g.tier === "tiny" ? 8000 : 32000, maxOutputTokens: g.tier === "tiny" ? 2048 : 4096, tier: g.tier };
+    }
+    guesses[key] = { ...g, tier: config.models[key].tier, capabilities: config.models[key].capabilities };
+  };
+
+  await refreshGeminiKey().catch(() => null);
+  if (activeGeminiKey()) {
+    const names = new Set<string>();
+    for (const task of ["structured", "longdoc", "build", "tutor"]) for (const m of await resolveModelChain(task).catch(() => [] as string[])) names.add(m);
+    names.forEach((m) => register("gemini", m));
+    if (names.size === 0) notes.push("Gemini key found, but no Gemini models are set up. Add one by name in the Gemini card.");
+  } else notes.push("No Gemini key yet.");
+
+  await refreshGroqKey().catch(() => null);
+  const gk = activeGroqKey();
+  if (gk) {
+    const list = await listGroqModels(gk);
+    if (list) list.forEach((m) => register("groq", m));
+    else notes.push("Groq key found, but Groq did not return its model list.");
+  } else notes.push("No Groq key yet.");
+
+  const routes = suggestRoutes(guesses);
+  for (const t of Object.keys(routes) as Array<keyof typeof routes>) if (config.routes[t].length === 0) config.routes[t] = routes[t];
+  const saved = await saveAiConfig(config, by);
+  return { config: saved, added: Object.keys(guesses).length, notes };
 }

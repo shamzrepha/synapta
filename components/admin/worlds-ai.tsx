@@ -139,6 +139,16 @@ export function WorldsAiSettings() {
       c.routes[task] = list.filter(Boolean).filter((k, i, a) => a.indexOf(k) === i);
       return c;
     });
+  const autoSetup = async () => {
+    setBusy("auto");
+    const r = await api<{ config: AiConfig; added: number; notes: string[] }>("/api/admin/worlds/ai/auto", { method: "POST", body: "{}" });
+    setBusy(null);
+    if (!r.ok) return toast({ title: "Couldn't set up", description: r.message, variant: "destructive" });
+    setConfig(r.data.config);
+    setDirty(false);
+    await load();
+    toast({ title: r.data.added ? `Set up ${r.data.added} models from your keys` : "No models found", description: asArray<string>(r.data.notes).join(" ") || "Now press Test on each job.", variant: r.data.added ? "success" : "amber" });
+  };
   const suggest = () => {
     if (!config) return;
     const guesses: Record<string, ModelGuess> = {};
@@ -183,6 +193,11 @@ export function WorldsAiSettings() {
         <p className="text-sm text-muted-foreground mt-1">
           Add a provider key, pull its models, then choose which model does each job. Models that suit a job (for example one that can see images for handwriting) are suggested. Free tiers change often, so check each provider&apos;s console for current limits.
         </p>
+      </div>
+
+      <div className="rounded-lg border border-brand-500/40 bg-brand-500/5 p-3 flex flex-wrap items-center gap-3">
+        <p className="text-sm flex-1 min-w-[200px]"><span className="font-semibold">Fastest way:</span> use the Gemini and Groq keys you already added. This finds their models and picks a good one for each job. You can change anything after.</p>
+        <Button size="sm" onClick={autoSetup} isLoading={busy === "auto"}><Sparkles className="h-4 w-4 mr-1.5" /> Set up from my existing keys</Button>
       </div>
 
       {/* 1. providers */}

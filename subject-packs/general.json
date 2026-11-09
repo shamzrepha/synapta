@@ -1,0 +1,19 @@
+{
+  "id": "general",
+  "name": "Any subject",
+  "keywords": [],
+  "concepts": [{ "kind": "topic", "template": ["Definition", "Explanation", "Examples", "Non-examples", "Relations"] }],
+  "ontology": [
+    { "type": "definition", "hint": "what something is" },
+    { "type": "rule", "hint": "rules, laws and principles" },
+    { "type": "example", "hint": "examples" },
+    { "type": "formula", "hint": "formulas with their variables" },
+    { "type": "date_event", "hint": "dates and events (set order for timelines)" },
+    { "type": "vocab", "hint": "terms and their meanings" },
+    { "type": "cause", "hint": "causes and reasons" },
+    { "type": "misc", "hint": "any other fact worth learning" }
+  ],
+  "themes": ["island"],
+  "distractorHints": ["a related term from the same notes"],
+  "pitfalls": ["Never change a number or a name.", "Use only what is in the notes."]
+}
