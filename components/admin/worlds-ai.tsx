@@ -169,6 +169,12 @@ export function WorldsAiSettings() {
     toast({ title: "Saved. Changes apply within seconds.", variant: "success" });
   };
 
+  const [quality, setQuality] = useState<{ running: boolean; report?: { passed: boolean; groundingPct: number; recallPct: number; unitsKept: number; unitsDropped: number; repairs: number; failures: number; latencyMs: number; notes: string[] }; error?: string }>({ running: false });
+  const runQuality = async () => {
+    setQuality({ running: true });
+    const r = await api<{ report?: NonNullable<typeof quality.report>; error?: string }>("/api/admin/worlds/ai/conformance", { method: "POST", body: "{}" });
+    setQuality(r.ok ? { running: false, report: r.data.report, error: r.data.error } : { running: false, error: r.message });
+  };
   const test = async (task: TaskName) => {
     setTests((t) => ({ ...t, [task]: "running" }));
     const r = await api<TestResult>("/api/admin/worlds/ai/test", { method: "POST", body: JSON.stringify({ task }) });
@@ -329,6 +335,22 @@ export function WorldsAiSettings() {
             );
           })}
         </div>
+      </section>
+
+      <section className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="font-semibold text-sm">4. Quality check</h3>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={runQuality} disabled={dirty || quality.running}>{quality.running ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1" />} Run on a sample note</Button>
+        </div>
+        <p className="text-xs text-muted-foreground">Reads a known sample note with the models you chose for &quot;Pull out the key facts&quot; and scores how many facts it found and how many were really in the note.</p>
+        {quality.error && <p className="text-xs text-rose-600" role="status">{quality.error}</p>}
+        {quality.report && (
+          <div className={cn("rounded-lg border p-3 text-sm space-y-1", quality.report.passed ? "border-teal-600/50 bg-teal-500/5" : "border-orange-500/50 bg-orange-500/5")} role="status">
+            <p className="font-semibold flex items-center gap-1.5">{quality.report.passed ? <CheckCircle2 className="h-4 w-4 text-teal-600" /> : <XCircle className="h-4 w-4 text-orange-600" />} {quality.report.passed ? "Good enough for real notes" : "Not good enough yet"}</p>
+            <p>Found in the notes: {quality.report.groundingPct}% (aim for 95%) · Key facts found: {quality.report.recallPct}% · Facts kept: {quality.report.unitsKept}, dropped: {quality.report.unitsDropped} · Fixes needed: {quality.report.repairs} · Time: {Math.round(quality.report.latencyMs / 1000)}s</p>
+            {asArray<string>(quality.report.notes).map((n) => <p key={n} className="text-xs text-muted-foreground">{n}</p>)}
+          </div>
+        )}
       </section>
 
       <div className="flex items-center gap-3 sticky bottom-0 bg-card/95 backdrop-blur py-3 border-t border-border -mx-5 px-5">

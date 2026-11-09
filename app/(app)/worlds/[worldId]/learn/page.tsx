@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LearningMap, type MapItem } from "@/components/classes/learning-map";
 import { asArray } from "@/lib/api/client";
+import { AskNotes } from "@/components/worlds/ask-notes";
 
 interface MapData {
   world: { id: string; title: string; status: string; disclaimer: string | null; conflictCount: number };
@@ -65,6 +66,7 @@ export default function WorldMapPage({ params }: { params: Promise<{ worldId: st
       {d.world.conflictCount > 0 && (
         <Link href={`/worlds/${worldId}`} className="block rounded-lg border border-orange-500/50 bg-orange-500/10 px-3 py-2 text-sm">Your notes disagree on {d.world.conflictCount} thing{d.world.conflictCount === 1 ? "" : "s"}. Tap to choose which is right.</Link>
       )}
+      <AskNotes worldId={worldId} />
       {items.length === 0 ? <Card className="p-8 text-center text-sm text-muted-foreground">There are no lessons yet. Add more notes to your library.</Card> : <LearningMap classId={worldId} items={items} hrefFor={(id) => `/worlds/${worldId}/node/${id}`} />}
     </div>
   );
