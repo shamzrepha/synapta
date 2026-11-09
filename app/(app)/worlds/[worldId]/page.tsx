@@ -3,7 +3,7 @@
 import React, { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, FileText, Loader2, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileText, Loader2, Play, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -78,6 +78,7 @@ export default function WorldLibraryPage({ params }: { params: Promise<{ worldId
           <h1 className="text-2xl font-extrabold tracking-tight truncate">{d.world.title}</h1>
           <p className="text-sm text-muted-foreground">{d.world.stats.kuCount} facts from {d.world.stats.docCount} note{d.world.stats.docCount === 1 ? "" : "s"}{d.agreed ? ` · ${d.agreed} confirmed by more than one note` : ""}</p>
         </div>
+        {!building && d.world.stats.kuCount > 0 && <Link href={`/worlds/${worldId}/learn`}><Button><Play className="h-4 w-4 mr-1.5" /> Start learning</Button></Link>}
         <Link href={`/worlds/new?world=${worldId}`}><Button variant="outline"><Plus className="h-4 w-4 mr-1.5" /> Add notes</Button></Link>
       </div>
 

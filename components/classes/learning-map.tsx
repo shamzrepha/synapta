@@ -41,7 +41,8 @@ function stateLabel(t: MapTopic): string {
  * The class as a map. Every topic is open; the map recommends where to go next and says why. Nodes show how far you are
  * (a ring around each), the path fills in behind you, and tapping a node opens a short card with a button into the topic.
  */
-export function LearningMap({ classId, items }: { classId: string; items: MapItem[] }) {
+export function LearningMap({ classId, items, hrefFor }: { classId: string; items: MapItem[]; hrefFor?: (id: string) => string }) {
+  const href = (id: string) => (hrefFor ? hrefFor(id) : `/classes/${classId}/topics/${id}`);
   const sorted = useMemo(() => [...items].sort((a, b) => a.order - b.order), [items]);
   const rec = useMemo(() => recommendNext(sorted), [sorted]);
   const progress = classProgress(sorted);
@@ -94,7 +95,7 @@ export function LearningMap({ classId, items }: { classId: string; items: MapIte
             <p className="text-sm leading-relaxed text-muted-foreground">{rec.reason}</p>
           </div>
           {recTopic && (
-            <Link href={`/classes/${classId}/topics/${recTopic.id}`} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-md bg-brand-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 dark:bg-brand-500">
+            <Link href={href(recTopic.id)} className="inline-flex h-11 shrink-0 items-center gap-2 rounded-md bg-brand-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 dark:bg-brand-500">
               Open topic <ArrowRight className="h-4 w-4" />
             </Link>
           )}
@@ -176,7 +177,7 @@ export function LearningMap({ classId, items }: { classId: string; items: MapIte
             )}
             <div className="mt-3 flex items-center justify-between gap-3">
               {open.id === rec.id ? <p className="text-xs text-brand-700 dark:text-brand-300">{rec.reason}</p> : <span />}
-              <Link href={`/classes/${classId}/topics/${open.id}`} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-700 dark:bg-brand-500">
+              <Link href={href(open.id)} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-brand-700 dark:bg-brand-500">
                 Open <ArrowRight className="h-4 w-4" />
               </Link>
             </div>

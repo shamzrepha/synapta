@@ -8,7 +8,7 @@ import { evaluate } from "@/lib/studio/expr";
 import type { ClientChallenge } from "@/lib/quest/schema";
 import { cn } from "@/lib/utils";
 
-type Answer =
+export type Answer =
   | { type: "choose"; index: number }
   | { type: "number"; value: number }
   | { type: "slider"; x: number }
@@ -275,7 +275,7 @@ export function QuestRunner({ classId, kcId, index, objective, onExit, onFinishe
   );
 }
 
-function Widget({ c, answer, setAnswer, locked }: { c: ClientChallenge; answer: Answer | null; setAnswer: (a: Answer | null) => void; locked: boolean }) {
+export function Widget({ c, answer, setAnswer, locked }: { c: ClientChallenge; answer: Answer | null; setAnswer: (a: Answer | null) => void; locked: boolean }) {
   if (c.type === "choose") {
     const sel = answer?.type === "choose" ? answer.index : -1;
     return (
