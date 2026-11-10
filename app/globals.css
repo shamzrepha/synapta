@@ -442,6 +442,7 @@ h1, h2, h3 { text-wrap: balance; }
 }
 /* While the keyboard is up, the bottom menu would sit on top of what you type: hide it, and give the page room to scroll */
 html[data-keyboard="open"] [data-mobile-nav],
-html[data-typing="true"] [data-mobile-nav] { display: none; }
+html[data-typing="true"] [data-mobile-nav],
+body:has(input:focus, textarea:focus, select:focus) [data-mobile-nav] { display: none; }
 html[data-keyboard="open"] body { padding-bottom: 0; }
 textarea, input { scroll-margin-block: 96px; }

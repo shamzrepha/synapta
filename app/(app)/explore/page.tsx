@@ -193,17 +193,20 @@ export default function ExplorePage() {
 
   const [suggesting, setSuggesting] = useState(false);
   /** AI proposes the name, subject and goal from the uploaded notes (or a rough idea in the title box). The teacher can change all of it. */
-  const suggestDetails = async (opts: { seed?: string; onlyEmpty?: boolean } = {}) => {
+  const suggestDetails = async (opts: { seed?: string; onlyEmpty?: boolean; quiet?: boolean } = {}): Promise<{ title: string; subject: string; description: string } | null> => {
     const seed = opts.seed ?? seedText;
     if (!seed.trim() && createTitle.trim().length < 3) {
-      toast({ title: "Add your notes, or type a rough idea in the title box", variant: "amber" });
-      return;
+      toast({ title: "Upload your notes first, or type a rough idea in the title box", variant: "amber" });
+      return null;
     }
     setSuggesting(true);
     try {
       const res = await fetch("/api/classes/suggest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seedText: seed || undefined, idea: createTitle.trim() || undefined }) });
       const j = await res.json();
-      if (!j.ok) return toast({ title: "Couldn't suggest a name", description: j.error?.message, variant: "destructive" });
+      if (!j.ok) {
+        toast({ title: "Couldn't suggest a name", description: j.error?.message, variant: "destructive" });
+        return null;
+      }
       const s = j.data as { title: string; subject: string; description: string; level: "school" | "undergrad" | "professional"; durationWeeks: number; audienceTags: string[] };
       const keep = opts.onlyEmpty;
       if (!keep || !createTitle.trim()) setCreateTitle(s.title);
@@ -212,18 +215,22 @@ export default function ExplorePage() {
       setCreateLevel(s.level);
       setCreateWeeks(s.durationWeeks);
       if (s.audienceTags?.length) setCreateAudienceTags(s.audienceTags);
-      toast({ title: "Suggested by AI", description: "Change anything you like. You can also rename the class later.", variant: "success" });
+      if (!opts.quiet) toast({ title: "Named by AI", description: "Change anything you like. You can also rename the class later in its settings.", variant: "success" });
+      return { title: keep && createTitle.trim() ? createTitle : s.title, subject: keep && createSubject.trim() ? createSubject : s.subject, description: keep && createDescription.trim() ? createDescription : s.description };
     } catch {
       toast({ title: "Network error", variant: "destructive" });
+      return null;
     } finally {
       setSuggesting(false);
     }
   };
 
   const getRecommendations = async () => {
-    if (!createTitle || !createSubject) {
-      toast({ title: "Add a title and subject first", variant: "destructive" });
-      return;
+    let d = { title: createTitle, subject: createSubject, description: createDescription };
+    if (!d.title.trim() || !d.subject.trim()) {
+      const named = await suggestDetails({ onlyEmpty: true, quiet: true });
+      if (!named) return;
+      d = named;
     }
     setRecommending(true);
     try {
@@ -231,9 +238,9 @@ export default function ExplorePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: createTitle,
-          subject: createSubject,
-          description: createDescription,
+          title: d.title,
+          subject: d.subject,
+          description: d.description,
           level: createLevel,
           durationWeeks: createWeeks,
           seedText: seedText || undefined,
@@ -251,17 +258,24 @@ export default function ExplorePage() {
 
   const handleCreateClass = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!createTitle || !createSubject || !createDescription) return;
+    if (!seedText.trim() && !(createTitle && createSubject && createDescription)) return;
 
     setIsCreating(true);
     try {
+      // The teacher doesn't have to type any details: the AI names the class from the notes
+      let d = { title: createTitle, subject: createSubject, description: createDescription };
+      if (!d.title.trim() || !d.subject.trim() || !d.description.trim()) {
+        const named = await suggestDetails({ onlyEmpty: true, quiet: true });
+        if (!named) return;
+        d = named;
+      }
       const res = await fetch("/api/classes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: createTitle,
-          subject: createSubject,
-          description: createDescription,
+          title: d.title,
+          subject: d.subject,
+          description: d.description,
           level: createLevel,
           durationWeeks: createWeeks,
           audienceTags: createAudienceTags,
@@ -292,9 +306,9 @@ export default function ExplorePage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              title: createTitle,
-              subject: createSubject,
-              description: createDescription,
+              title: d.title,
+              subject: d.subject,
+              description: d.description,
               level: createLevel,
               durationWeeks: createWeeks,
               audienceTags: createAudienceTags,
@@ -513,8 +527,8 @@ export default function ExplorePage() {
 
       {/* Create Class Multi-Step Wizard (A4.1) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60  p-4 overflow-y-auto">
-          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4 my-8">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 overflow-y-auto overscroll-contain">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-4 my-4 sm:my-8">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-brand-600 dark:text-brand-400" />
@@ -530,9 +544,9 @@ export default function ExplorePage() {
 
             {/* Stepper indicator */}
             <div className="flex items-center justify-between text-xs font-semibold text-slate-500 pb-2">
-              <span className={wizardStep === 1 ? "text-brand-600 font-bold" : ""}>1. Basics</span>
+              <span className={wizardStep === 1 ? "text-brand-600 font-bold" : ""}>1. Notes</span>
               <span>→</span>
-              <span className={wizardStep === 2 ? "text-brand-600 font-bold" : ""}>2. Seed Material</span>
+              <span className={wizardStep === 2 ? "text-brand-600 font-bold" : ""}>2. Plan</span>
               <span>→</span>
               <span className={wizardStep === 3 ? "text-brand-600 font-bold" : ""}>3. AI Build</span>
             </div>
@@ -540,40 +554,57 @@ export default function ExplorePage() {
             <form onSubmit={handleCreateClass} className="space-y-4">
               {wizardStep === 1 && (
                 <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-500/30 bg-brand-500/5 px-3 py-2">
-                    <p className="flex-1 min-w-[180px] text-xs text-slate-600 dark:text-slate-300">Let the AI name your class from your notes, or from a rough idea typed below. You can edit everything, now or later.</p>
-                    <Button type="button" size="sm" variant="outline" onClick={() => suggestDetails()} isLoading={suggesting}>Suggest with AI</Button>
+                  <div className="rounded-2xl border-2 border-dashed border-brand-500/40 bg-brand-500/5 p-4 text-center space-y-2">
+                    <p className="text-sm font-bold">Start with your notes</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">Upload a PDF, Word file, slides or photos. Sunroot reads them and names the class for you. You can rename it any time in the class settings.</p>
+                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+                      {readingOutline || suggesting ? "Reading…" : seedText.trim() ? "Add more files" : "Upload notes"}
+                      <input
+                        type="file"
+                        multiple
+                        disabled={!!readingOutline || suggesting}
+                        accept=".pdf,.docx,.pptx,.txt,.md,.json,.csv,.png,.jpg,.jpeg,.webp,image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          e.target.value = "";
+                          if (files.length) void readOutlineFiles(files);
+                        }}
+                      />
+                    </label>
+                    {(readingOutline || suggesting) && <p className="text-[11px] font-semibold text-brand-600 animate-pulse">{readingOutline || "Naming your class…"}</p>}
+                    {outlineNote && !readingOutline && !suggesting && <p className="text-[11px] text-slate-500">{outlineNote}</p>}
                   </div>
 
-                  <div className="space-y-1">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Class details <span className="font-normal text-slate-500">(the AI fills these in; edit if you like)</span></p>
+
+<div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Class Title *
+                      Class name
                     </label>
                     <Input
                       type="text"
-                      placeholder="e.g. Linear Control Systems & State-Space"
+                      placeholder="The AI will name it"
                       value={createTitle}
                       onChange={(e) => setCreateTitle(e.target.value)}
-                      required
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Subject Category *
+                      Subject
                     </label>
                     <Input
                       type="text"
                       placeholder="e.g. Electrical Engineering, Robotics"
                       value={createSubject}
                       onChange={(e) => setCreateSubject(e.target.value)}
-                      required
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      What should students be able to do after this class? *
+                      What students will be able to do
                     </label>
                     <textarea
                       rows={3}
@@ -581,7 +612,6 @@ export default function ExplorePage() {
                       value={createDescription}
                       onChange={(e) => setCreateDescription(e.target.value)}
                       className="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs text-slate-900 focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                      required
                     />
                   </div>
 
@@ -645,10 +675,10 @@ export default function ExplorePage() {
                   <div className="flex justify-end pt-2">
                     <Button
                       type="button"
-                      disabled={!createTitle || !createSubject || !createDescription}
+                      disabled={!seedText.trim() && !(createTitle && createSubject && createDescription)}
                       onClick={() => setWizardStep(2)}
                     >
-                      Next: Seed Material →
+                      Next →
                     </Button>
                   </div>
                 </div>
