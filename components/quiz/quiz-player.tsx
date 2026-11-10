@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { ReferenceSheet } from "@/components/lesson/reference-sheet";
 
 interface QuizQuestion {
   id: number;
@@ -56,6 +57,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
   const [streakDays, setStreakDays] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
   const [bankSize, setBankSize] = useState<number | null>(null);
+  const [refQuery, setRefQuery] = useState<string | null>(null);
 
   const startQuiz = async () => {
     setLoading(true);
@@ -96,6 +98,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
 
   const q = questions[current];
   const answered = q ? results[current] : undefined;
+  const sheet = refQuery ? <ReferenceSheet classId={classId} kcId={kcId} query={refQuery} onClose={() => setRefQuery(null)} /> : null;
 
   const submit = useCallback(async () => {
     if (selected === null || !sessionId || answered || submitting) return;
@@ -247,6 +250,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
     const pct = Math.round((correct / Math.max(1, total)) * 100);
     return (
       <div className="space-y-6">
+        {sheet}
         <div className="text-center space-y-2 py-4">
           <Trophy className={cn("h-10 w-10 mx-auto", pct >= 80 ? "text-amber-500" : "text-slate-400")} />
           <h3 className="text-2xl font-extrabold">
@@ -312,6 +316,9 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
                         {r.explanation && (
                           <MarkdownRenderer localized content={r.explanation} className="prose-p:my-0 text-xs text-slate-600 dark:text-slate-400" />
                         )}
+                        <button type="button" onClick={() => setRefQuery(`${qq.question} ${qq.options[r.correctIndex] || ""} ${(r.explanation || "").slice(0, 300)}`)} className="font-semibold text-brand-700 dark:text-brand-300 hover:underline">
+                          Where is this in my notes?
+                        </button>
                       </div>
                     ) : (
                       <p className="text-xs text-slate-500">Skipped</p>
@@ -332,6 +339,7 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
 
   return (
     <div className="space-y-5">
+      {sheet}
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-slate-500">
           <span className="font-semibold">
@@ -418,6 +426,13 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
         >
           <p className="font-bold mb-1">{answered.correct ? "Correct!" : `Not quite — the answer is ${LETTERS[answered.correctIndex]}.`}</p>
           {answered.explanation && <MarkdownRenderer localized content={answered.explanation} className="prose-p:my-1 text-sm" />}
+          <button
+            type="button"
+            onClick={() => setRefQuery(`${q.question} ${q.options[answered.correctIndex] || ""} ${(answered.explanation || "").slice(0, 300)}`)}
+            className="mt-2 text-xs font-semibold text-brand-700 dark:text-brand-300 hover:underline"
+          >
+            Where is this in my notes?
+          </button>
         </div>
       )}
 
