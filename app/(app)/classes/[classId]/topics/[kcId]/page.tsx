@@ -41,6 +41,7 @@ import { RichInline } from "@/components/markdown/rich-inline";
 import { QuizPlayer } from "@/components/quiz/quiz-player";
 import { ProveIt } from "@/components/labs/prove-it";
 import { AudioLesson } from "@/components/lesson/audio-lesson";
+import { InteractiveNote } from "@/components/lesson/interactive-note";
 import { PublishBar } from "@/components/lesson/publish-bar";
 import { LanguagePreview } from "@/components/lesson/language-preview";
 import { PracticeBankTools } from "@/components/lesson/practice-bank-tools";
@@ -516,7 +517,7 @@ export default function TopicPage({
             <div className="space-y-4">
               {(canManage || pub.audio) && !lessonIsThin && <AudioLesson classId={classId} kcId={kcId} viewLang={viewLang} />}
               {!canManage && !pub.lesson ? notPublished("lecture note") : (
-              <Card className="p-6 md:p-8">
+              <Card className="p-4 sm:p-6 md:p-8" translate="no">
                 {lessonBusy && lessonIsThin ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-brand-700 dark:text-brand-300">
@@ -529,7 +530,7 @@ export default function TopicPage({
                     <Skeleton className="h-24 w-full rounded-xl" />
                   </div>
                 ) : (
-                  <MarkdownRenderer localized content={kc.lessonMarkdown || kc.description} />
+                  <InteractiveNote markdown={kc.lessonMarkdown || kc.description} topicTitle={kc.title} />
                 )}
                 {lessonError && (
                   <div className="mt-4 flex flex-wrap items-center gap-3 p-3 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs">
