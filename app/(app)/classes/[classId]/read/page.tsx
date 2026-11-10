@@ -3,13 +3,14 @@
 import React, { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, BookOpen, ListTree, Minus, Plus, Search, X } from "lucide-react";
+import { ArrowLeft, BookOpen, ListTree, Minus, Plus, Search, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InteractiveNote } from "@/components/lesson/interactive-note";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { asArray } from "@/lib/api/client";
 import { rankBlocks } from "@/lib/study/locate";
+import { ReadPlayer, useReadThrough } from "@/components/lesson/read-through";
 import { cn } from "@/lib/utils";
 
 interface Kc {
@@ -50,6 +51,15 @@ function buildSections(kcs: Kc[]): Section[] {
 }
 
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+
+/** The paragraph element inside a topic that begins like the given block text. */
+function findBlockEl(kcId: string, blockText: string): HTMLElement | null {
+  const root = document.querySelector(`[data-kc="${kcId}"]`);
+  if (!root) return null;
+  const want = norm(blockText).slice(0, 50);
+  const els = Array.from(root.querySelectorAll("p, li, td"));
+  return (els.find((e) => norm(e.textContent || "").includes(want)) as HTMLElement | undefined) ?? null;
+}
 
 /** Scrolls to the paragraph (inside a topic) whose text begins like the given block text, and flashes it. */
 function flashBlock(kcId: string, blockText: string): boolean {
@@ -118,6 +128,13 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     setActive(id);
     setTocOpen(false);
   }, []);
+
+  const readable = useMemo(
+    () => sections.filter((s) => s.published?.lesson !== false && (s.lessonMarkdown || "").trim().length >= THIN).map((s) => ({ id: s.id, title: s.title, markdown: s.lessonMarkdown || "" })),
+    [sections]
+  );
+  const voice = useReadThrough({ sections: readable, onSection: (id) => goTo(id), findEl: findBlockEl });
+  const listeningTitle = sections.find((s) => s.id === voice.currentId)?.title || "";
 
   // where am I: the topic whose heading is highest on the screen; also the reading progress bar
   useEffect(() => {
@@ -303,9 +320,16 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                   ) : (
                     <h3 className="text-xl font-bold tracking-tight">{s.title}</h3>
                   )}
-                  <Link href={`/classes/${classId}/topics/${s.id}`} className="text-xs font-semibold text-brand-700 dark:text-brand-300 hover:underline">
-                    Practice this topic →
-                  </Link>
+                  <span className="flex items-center gap-3">
+                    {!hidden && !thin && (
+                      <button type="button" onClick={() => voice.start(s.id)} className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-300 hover:underline" aria-label={`Listen from ${s.title}`}>
+                        <Volume2 className="h-3.5 w-3.5" /> Listen
+                      </button>
+                    )}
+                    <Link href={`/classes/${classId}/topics/${s.id}`} className="text-xs font-semibold text-brand-700 dark:text-brand-300 hover:underline">
+                      Practice this topic →
+                    </Link>
+                  </span>
                 </div>
                 {hidden ? (
                   <p className="text-sm text-muted-foreground">Your teacher hasn&apos;t published this note yet.</p>
@@ -326,10 +350,18 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         </main>
       </div>
 
+      {voice.state !== "idle" && (
+        <div className="fixed inset-x-3 bottom-[4.75rem] lg:bottom-4 lg:left-auto lg:right-6 lg:w-96 z-40">
+          <ReadPlayer api={voice} title={listeningTitle} />
+        </div>
+      )}
+      {voice.failed && (
+        <p className="fixed bottom-24 inset-x-4 z-40 rounded-xl bg-rose-600 text-white text-sm px-3 py-2 text-center">The voice is busy right now. Try again in a moment.</p>
+      )}
       <button
         type="button"
         onClick={() => setTocOpen(true)}
-        className="lg:hidden fixed bottom-24 right-4 z-40 h-12 px-4 rounded-full bg-brand-600 text-white shadow-elevated inline-flex items-center gap-2 text-sm font-semibold"
+        className={cn("lg:hidden fixed right-4 z-40 h-12 px-4 rounded-full bg-brand-600 text-white shadow-elevated inline-flex items-center gap-2 text-sm font-semibold transition-[bottom]", voice.state !== "idle" ? "bottom-48" : "bottom-24")}
       >
         <ListTree className="h-4 w-4" /> Contents
       </button>
