@@ -4,6 +4,8 @@ export interface NotePage {
   id: string;
   title: string;
   body: string;
+  /** an "Overview" page made for text that sat above the first heading */
+  synthetic?: boolean;
 }
 export interface SplitNote {
   title: string | null;
@@ -30,13 +32,13 @@ export function splitNote(markdown: string): SplitNote {
   raws.forEach((r, i) => {
     const body = r.lines.join("\n").trim();
     if (r.level === 0) {
-      if (body) pages.push({ id: "p0", title: "Overview", body });
+      if (body) pages.push({ id: "p0", title: "Overview", body, synthetic: true });
       return;
     }
     // a lone top heading above "##" headings is the note's title, not a page of its own
     if (r.level === 1 && hasH2 && title === null && pages.length === 0) {
       title = r.title;
-      if (body) pages.push({ id: `p${i}`, title: "Overview", body });
+      if (body) pages.push({ id: `p${i}`, title: "Overview", body, synthetic: true });
       return;
     }
     if (!body && !r.title) return;
