@@ -2,6 +2,7 @@
 
 import { readableText } from "@/lib/text/readable";
 import { ClassWorlds } from "@/components/worlds/class-worlds";
+import { EditClassDetails } from "@/components/classes/edit-details";
 import { LearningMap } from "@/components/classes/learning-map";
 import React, { useState, useEffect, use, useCallback } from "react";
 import Link from "next/link";
@@ -342,6 +343,7 @@ export default function ClassOverviewPage({
               {/* Teacher Studio management buttons */}
               {(isOwner || user?.role === "admin") && (
                 <>
+                  <EditClassDetails classId={classId} title={classData.title} subject={classData.subject} description={classData.description} onSaved={(n) => setClassData((c) => (c ? { ...c, ...n } : c))} />
                   <Button variant="outline" size="sm" className="text-xs" onClick={() => publishAllContent(true)} isLoading={isPublishingAll}>
                     <CheckCircle2 className="h-3.5 w-3.5 mr-1 text-emerald-600" /> Publish all content
                   </Button>

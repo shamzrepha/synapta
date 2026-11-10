@@ -5,8 +5,8 @@ import {
   activeGroqKey,
   refreshGroqKey,
   callGroqChat,
-  mapToGroqModel,
 } from "@/lib/ai/groq";
+import { groqModelFor } from "@/lib/ai/groq-assign";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { languageDirective, type LanguageCode } from "@/lib/i18n/languages";
 import { getGeminiClient } from "@/lib/gemini/client";
@@ -555,7 +555,7 @@ async function generateWithFallbackInner<T>({
   if (activeProvider === "groq") {
     if (groqKey) {
       try {
-        const groqModel = mapToGroqModel(undefined, isHeavyTask(task));
+        const groqModel = await groqModelFor(task);
         const groqRes = await callGroqChat({
           model: groqModel,
           systemInstruction,
@@ -607,7 +607,7 @@ async function generateWithFallbackInner<T>({
   } catch (geminiInitErr) {
     if (groqKey) {
       console.warn("[ai-router] Gemini not initialized, routing to Groq:", geminiInitErr);
-      const groqModel = mapToGroqModel(undefined, isHeavyTask(task));
+      const groqModel = await groqModelFor(task);
       const groqRes = await callGroqChat({
         model: groqModel,
         systemInstruction,
@@ -914,7 +914,7 @@ async function generateWithFallbackInner<T>({
   if (groqKey) {
     try {
       console.warn(`[lib/ai/router] All Gemini models exhausted for task "${task}". Activating Groq emergency fallback.`);
-      const groqModel = mapToGroqModel(undefined, isHeavyTask(task));
+      const groqModel = await groqModelFor(task);
       const groqRes = await callGroqChat({
         model: groqModel,
         systemInstruction,

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { asArray } from "@/lib/api/client";
 import { AiSelfTest } from "@/components/admin/ai-selftest";
+import { GroqModelAssignments } from "@/components/admin/groq-models";
 import { AiKeySettings } from "@/components/admin/ai-key";
 import { WorldsAiSettings } from "@/components/admin/worlds-ai";
 import { DeviceStats } from "@/components/admin/device-stats";
@@ -1553,6 +1554,7 @@ export default function AdminConsolePage() {
       {activeTab === "system" && (
         <div className="space-y-6">
           <AiKeySettings />
+          <GroqModelAssignments />
           <WorldsAiSettings />
           <AiSelfTest />
           {/* Summary Row */}

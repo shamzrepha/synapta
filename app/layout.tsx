@@ -33,12 +33,15 @@ const plexMono = IBM_Plex_Mono({
 });
 
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
+import { KeyboardGuard } from "@/components/shell/keyboard-guard";
 
 // Phones, tablets and laptops: scale to device width; respect notches / home indicators
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // when the keyboard opens, resize the page (not just the visual area) so fields stay on screen
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#F6F7FB" },
     { media: "(prefers-color-scheme: dark)", color: "#0B0E1A" },
@@ -102,6 +105,7 @@ export default function RootLayout({
               <ThemeProvider>
                 <ToastProvider>
                   <ClientErrorListener />
+                  <KeyboardGuard />
                   <PageTranslator />
                   {children}
                 </ToastProvider>
