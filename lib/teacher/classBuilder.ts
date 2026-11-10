@@ -29,6 +29,8 @@ export interface ClassBuildInput {
   durationWeeks: number;
   audienceTags?: string[];
   seedMaterialText?: string;
+  /** The seed text is already saved in the class library, so don't feed it to the AI twice. */
+  seedInLibrary?: boolean;
   userId?: string;
 }
 
@@ -239,7 +241,7 @@ export async function buildClassWithAi(input: ClassBuildInput, jobId?: string): 
     .join("\n\n");
 
   const cleanSeed = sanitizeUntrustedPromptText(
-    [input.seedMaterialText || "", libraryText].filter(Boolean).join("\n\n"),
+    [input.seedInLibrary ? "" : input.seedMaterialText || "", libraryText].filter(Boolean).join("\n\n"),
     100000
   );
 
