@@ -557,21 +557,38 @@ export default function ExplorePage() {
                   <div className="rounded-2xl border-2 border-dashed border-brand-500/40 bg-brand-500/5 p-4 text-center space-y-2">
                     <p className="text-sm font-bold">Start with your notes</p>
                     <p className="text-xs text-slate-600 dark:text-slate-300">Upload a PDF, Word file, slides or photos. Sunroot reads them and names the class for you. You can rename it any time in the class settings.</p>
-                    <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
-                      {readingOutline || suggesting ? "Reading…" : seedText.trim() ? "Add more files" : "Upload notes"}
-                      <input
-                        type="file"
-                        multiple
-                        disabled={!!readingOutline || suggesting}
-                        accept=".pdf,.docx,.pptx,.txt,.md,.json,.csv,.png,.jpg,.jpeg,.webp,image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          e.target.value = "";
-                          if (files.length) void readOutlineFiles(files);
-                        }}
-                      />
-                    </label>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <label className="inline-flex cursor-pointer items-center justify-center rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+                        {readingOutline || suggesting ? "Reading…" : seedText.trim() ? "Add more files" : "Upload file (PDF, Word…)"}
+                        <input
+                          type="file"
+                          multiple
+                          disabled={!!readingOutline || suggesting}
+                          accept=".pdf,.docx,.pptx,.txt,.md,.json,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown,text/csv,application/json"
+                          className="hidden"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            e.target.value = "";
+                            if (files.length) void readOutlineFiles(files);
+                          }}
+                        />
+                      </label>
+                      <label className="inline-flex cursor-pointer items-center justify-center rounded-xl border border-brand-500/50 px-4 py-2 text-sm font-semibold text-brand-700 dark:text-brand-300 hover:bg-brand-500/10">
+                        Photo of pages
+                        <input
+                          type="file"
+                          multiple
+                          disabled={!!readingOutline || suggesting}
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            e.target.value = "";
+                            if (files.length) void readOutlineFiles(files);
+                          }}
+                        />
+                      </label>
+                    </div>
                     {(readingOutline || suggesting) && <p className="text-[11px] font-semibold text-brand-600 animate-pulse">{readingOutline || "Naming your class…"}</p>}
                     {outlineNote && !readingOutline && !suggesting && <p className="text-[11px] text-slate-500">{outlineNote}</p>}
                   </div>
@@ -697,7 +714,7 @@ export default function ExplorePage() {
                           type="file"
                           multiple
                           disabled={!!readingOutline}
-                          accept=".pdf,.docx,.pptx,.txt,.md,.json,.csv,.png,.jpg,.jpeg,.webp,image/*"
+                          accept=".pdf,.docx,.pptx,.txt,.md,.json,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown,text/csv,application/json"
                           className="hidden"
                           onChange={(e) => {
                             const files = Array.from(e.target.files || []);

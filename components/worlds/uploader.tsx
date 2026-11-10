@@ -52,6 +52,7 @@ export function WorldUploader({ worldId, classId }: { worldId?: string; classId?
   const [phase, setPhase] = useState<"add" | "check" | "build">("add");
   const [target, setTarget] = useState<string | undefined>(worldId);
   const inputRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
   const { progress, run } = useBuild(() => {
     if (target) router.replace(`/worlds/${target}`);
   });
@@ -182,10 +183,11 @@ export function WorldUploader({ worldId, classId }: { worldId?: string; classId?
         <UploadCloud className="h-8 w-8 mx-auto text-brand-600" />
         <p className="font-semibold">Drop notes, photos or a PDF here</p>
         <p className="text-sm text-muted-foreground">PDF, Word, slides, text, or photos of handwritten pages. Add as many as you like, even on the same topic: they get merged.</p>
-        <input ref={inputRef} type="file" multiple accept=".pdf,.docx,.pptx,.txt,.md,image/*" className="hidden" onChange={(e) => e.target.files && addFiles(e.target.files)} aria-label="Choose files" />
+        <input ref={inputRef} type="file" multiple accept=".pdf,.docx,.pptx,.txt,.md,.json,.csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown,text/csv,application/json" className="hidden" onChange={(e) => e.target.files && addFiles(e.target.files)} aria-label="Choose files" />
+        <input ref={photoRef} type="file" multiple accept="image/*" className="hidden" onChange={(e) => e.target.files && addFiles(e.target.files)} aria-label="Choose photos" />
         <div className="flex justify-center gap-2">
           <Button variant="outline" onClick={() => inputRef.current?.click()}>Choose files</Button>
-          <Button variant="outline" onClick={() => { if (inputRef.current) { inputRef.current.setAttribute("capture", "environment"); inputRef.current.click(); inputRef.current.removeAttribute("capture"); } }}>Take a photo</Button>
+          <Button variant="outline" onClick={() => photoRef.current?.click()}>Photos</Button>
         </div>
         {reading && <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5" role="status"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading {reading}…</p>}
       </div>
