@@ -2,7 +2,7 @@
  * Never touches non-GET requests, other origins, or auth/session endpoints. */
 importScripts("/sw-policy.js");
 
-var VERSION = "v2"; // bumped so phones drop app files saved before this update
+var VERSION = "v3"; // bumped so phones drop app files saved before this update
 var SHELL = "sunroot-shell-" + VERSION;
 var STATIC = "sunroot-static-" + VERSION;
 var DOWNLOADS = "sunroot-downloads"; // unversioned: user data must survive SW updates
