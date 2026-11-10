@@ -94,6 +94,8 @@ export default function ExplorePage() {
       const c = condenseForSyllabus(joined, SYLLABUS_SEED_MAX);
       setSeedText((prev) => (prev.trim() ? `${prev.trim()}\n\n${c.text}` : c.text).slice(0, SYLLABUS_SEED_MAX));
       setOutlineNote(c.condensed ? `Read ${files.length} file${files.length > 1 ? "s" : ""}. It's long, so the AI gets the start plus every chapter and section heading.` : `Read ${files.length} file${files.length > 1 ? "s" : ""}.`);
+      // name the class for the teacher straight away, filling only the boxes she has not typed in
+      void suggestDetails({ seed: c.text, onlyEmpty: true });
     } catch (err) {
       toast({ title: "Couldn't read that file", description: err instanceof Error ? err.message : "Try another file.", variant: "destructive" });
     } finally {
@@ -186,6 +188,35 @@ export default function ExplorePage() {
       );
     } finally {
       setJoiningId(null);
+    }
+  };
+
+  const [suggesting, setSuggesting] = useState(false);
+  /** AI proposes the name, subject and goal from the uploaded notes (or a rough idea in the title box). The teacher can change all of it. */
+  const suggestDetails = async (opts: { seed?: string; onlyEmpty?: boolean } = {}) => {
+    const seed = opts.seed ?? seedText;
+    if (!seed.trim() && createTitle.trim().length < 3) {
+      toast({ title: "Add your notes, or type a rough idea in the title box", variant: "amber" });
+      return;
+    }
+    setSuggesting(true);
+    try {
+      const res = await fetch("/api/classes/suggest", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seedText: seed || undefined, idea: createTitle.trim() || undefined }) });
+      const j = await res.json();
+      if (!j.ok) return toast({ title: "Couldn't suggest a name", description: j.error?.message, variant: "destructive" });
+      const s = j.data as { title: string; subject: string; description: string; level: "school" | "undergrad" | "professional"; durationWeeks: number; audienceTags: string[] };
+      const keep = opts.onlyEmpty;
+      if (!keep || !createTitle.trim()) setCreateTitle(s.title);
+      if (!keep || !createSubject.trim()) setCreateSubject(s.subject);
+      if (!keep || !createDescription.trim()) setCreateDescription(s.description);
+      setCreateLevel(s.level);
+      setCreateWeeks(s.durationWeeks);
+      if (s.audienceTags?.length) setCreateAudienceTags(s.audienceTags);
+      toast({ title: "Suggested by AI", description: "Change anything you like. You can also rename the class later.", variant: "success" });
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setSuggesting(false);
     }
   };
 
@@ -509,6 +540,11 @@ export default function ExplorePage() {
             <form onSubmit={handleCreateClass} className="space-y-4">
               {wizardStep === 1 && (
                 <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-brand-500/30 bg-brand-500/5 px-3 py-2">
+                    <p className="flex-1 min-w-[180px] text-xs text-slate-600 dark:text-slate-300">Let the AI name your class from your notes, or from a rough idea typed below. You can edit everything, now or later.</p>
+                    <Button type="button" size="sm" variant="outline" onClick={() => suggestDetails()} isLoading={suggesting}>Suggest with AI</Button>
+                  </div>
+
                   <div className="space-y-1">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                       Class Title *
