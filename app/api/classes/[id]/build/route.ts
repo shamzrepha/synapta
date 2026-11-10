@@ -3,6 +3,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { buildClassWithAi } from "@/lib/teacher/classBuilder";
 import { parseClassBuildRequest } from "@/lib/teacher/classBuildRequest";
+import { saveSeedAsMaterial } from "@/lib/teacher/seedMaterial";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -19,6 +20,9 @@ export async function POST(
 
     const body = await parseClassBuildRequest(req);
 
+    // Notes given in the create-class wizard join the class library, so lessons, the tutor and later rebuilds use them too
+    const seedInLibrary = await saveSeedAsMaterial(id, body.seedMaterialText, caller.uid);
+
     const result = await buildClassWithAi({
       classId: id,
       title: body.title || classData.title,
@@ -28,6 +32,7 @@ export async function POST(
       durationWeeks: body.durationWeeks || classData.durationWeeks || 4,
       audienceTags: body.audienceTags || classData.audienceTags || [],
       seedMaterialText: body.seedMaterialText,
+      seedInLibrary,
       userId: caller.uid,
     });
 
