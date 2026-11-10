@@ -35,6 +35,7 @@ import type { ClassroomPlan } from "@/components/teacher/classroom-plan";
 import { formatPL, getMasteryStatus } from "@/lib/utils";
 import { MaterialsUploader } from "@/components/teacher/MaterialsUploader";
 import { readPrefs, usePrefs } from "@/components/settings/use-prefs";
+import { peekClass, rememberClass } from "@/lib/client/class-cache";
 
 interface KCItem {
   id: string;
@@ -85,7 +86,11 @@ async function fetchClassPayload(classId: string): Promise<ClassPayload | null> 
     const lang = readPrefs().language;
     const res = await fetch(`/api/classes/${classId}${lang !== "en" ? `?lang=${encodeURIComponent(lang)}` : ""}`);
     const data = await res.json();
-    return data.ok && data.data?.class ? (data.data as ClassPayload) : null;
+    if (data.ok && data.data?.class) {
+      rememberClass(classId, lang, data.data);
+      return data.data as ClassPayload;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -159,7 +164,11 @@ export default function ClassOverviewPage({
   );
 
   useEffect(() => {
-    fetchClassPayload(classId).then((payload) => applyClassPayload(payload));
+    // show the last copy straight away (going back is instant), then refresh it quietly
+    const saved = peekClass<ClassPayload>(classId, readPrefs().language);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (saved) applyClassPayload(saved);
+    fetchClassPayload(classId).then((payload) => applyClassPayload(payload, { silent: !!saved }));
   }, [classId, prefs.language, applyClassPayload]);
 
   // While the AI is drafting the curriculum, refresh every few seconds so progress and topics appear live

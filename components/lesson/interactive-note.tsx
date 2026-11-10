@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { normalizeMath } from "@/lib/text/readable";
 import { readMinutes, splitNote } from "@/lib/study/note-sections";
 import { hashText, splitByTerms, termRegex } from "@/lib/study/terms";
+import { getGlossary, preloadImages, type GlossaryCard } from "@/lib/study/glossary-client";
 import { cn } from "@/lib/utils";
 
 interface TermCard {
@@ -116,15 +118,16 @@ function NoteBody({ markdown }: { markdown: string }) {
 }
 
 /** The pop-up for a tapped word: pictures, what it is, key facts, an example, and "simpler" / "another example". */
-function TermSheet({ term, context, topic, onClose }: { term: string; context: string; topic: string; onClose: () => void }) {
-  const [card, setCard] = useState<TermCard | null>(null);
-  const [pics, setPics] = useState<Pic[]>([]);
+function TermSheet({ term, context, topic, preset, onClose }: { term: string; context: string; topic: string; /** the card prepared in the background, so nothing loads */ preset?: GlossaryCard; onClose: () => void }) {
+  const presetCard: TermCard | null = preset ? { summary: preset.summary, keyPoints: preset.keyPoints || [], example: preset.example || "", imageQuery: preset.imageQuery || "" } : null;
+  const [card, setCard] = useState<TermCard | null>(presetCard);
+  const [pics, setPics] = useState<Pic[]>((preset?.images as Pic[] | undefined) ?? []);
   const [picIdx, setPicIdx] = useState(0);
-  const [busy, setBusy] = useState(true);
+  const [busy, setBusy] = useState(!preset);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("define");
-  const cache = useRef(new Map<string, TermCard>());
-  const imgFor = useRef<string>("");
+  const cache = useRef(new Map<string, TermCard>(presetCard ? [[`${term}|define`, presetCard]] : []));
+  const imgFor = useRef<string>(preset?.images?.length ? term : "");
 
   const load = useCallback(
     async (m: Mode) => {
@@ -172,6 +175,19 @@ function TermSheet({ term, context, topic, onClose }: { term: string; context: s
     void load("define");
   }, [load]);
 
+  // a prepared card without a picture: look one up (the prepared ones already carry their pictures)
+  useEffect(() => {
+    if (!preset || preset.images?.length || !preset.imageQuery) return;
+    let off = false;
+    fetch(`/api/images/search?q=${encodeURIComponent(preset.imageQuery)}`)
+      .then((r) => r.json())
+      .then((p) => !off && setPics((Array.isArray(p?.data?.images) ? (p.data.images as Pic[]) : []).slice(0, 5)))
+      .catch(() => {});
+    return () => {
+      off = true;
+    };
+  }, [preset]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -205,6 +221,16 @@ function TermSheet({ term, context, topic, onClose }: { term: string; context: s
                 <a href={pic.page} target="_blank" rel="noreferrer noopener" className="underline">{pic.author || "Wikimedia Commons"}</a>
                 {pic.license ? `, ${pic.license}` : ""}
               </figcaption>
+              <button
+                type="button"
+                onClick={() => {
+                  setPics((l) => l.filter((_, i) => i !== picIdx));
+                  setPicIdx(0);
+                }}
+                className="text-[11px] font-semibold text-muted-foreground hover:text-foreground underline"
+              >
+                Not the right picture? Remove it
+              </button>
               {pics.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {pics.map((p, i) => (
@@ -276,10 +302,11 @@ function TermSheet({ term, context, topic, onClose }: { term: string; context: s
  * The lesson as an interactive notebook: one page per heading that flips like a notebook (or all pages in one scroll),
  * key words (the bold ones) that open a picture-and-explanation card when tapped, and an "ask more" button on every page.
  */
-export function InteractiveNote({ markdown, topicTitle, bare, lazy }: { markdown: string; topicTitle?: string; /** just the text: no toolbar, no paper, no flip view (used inside the reader) */ bare?: boolean; /** pick the highlighted words only once this note scrolls into view */ lazy?: boolean }) {
+export function InteractiveNote({ markdown, topicTitle, bare, lazy, classId, kcId }: { markdown: string; topicTitle?: string; /** with these, the key-word cards come prepared from the class (saved once, loaded in the background) */ classId?: string; kcId?: string; /** just the text: no toolbar, no paper, no flip view (used inside the reader) */ bare?: boolean; /** pick the highlighted words only once this note scrolls into view */ lazy?: boolean }) {
   const note = useMemo(() => splitNote(markdown), [markdown]);
   const [view, setView] = useState<"pages" | "scroll">("scroll");
   const [terms, setTerms] = useState<string[]>([]);
+  const [cards, setCards] = useState<Map<string, GlossaryCard>>(new Map());
   const [idx, setIdx] = useState(0);
   const [dir, setDir] = useState<"next" | "prev">("next");
   const [term, setTerm] = useState<{ term: string; context: string } | null>(null);
@@ -315,42 +342,55 @@ export function InteractiveNote({ markdown, topicTitle, bare, lazy }: { markdown
     return () => io.disconnect();
   }, [seen]);
 
-  // the AI picks the words worth looking up; the list is remembered on this device so each lesson is analysed once
+  // the words worth looking up. In a class they are prepared once on the server for everyone and loaded in the background,
+  // so tapping a word is instant; otherwise the AI picks them (the list is remembered on this device)
   useEffect(() => {
     if (!seen) return;
     let off = false;
     const key = `sunroot:terms:${hashText(markdown)}`;
-    try {
-      const hit = localStorage.getItem(key);
-      if (hit) {
-        const v = JSON.parse(hit);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        if (Array.isArray(v) && !off) setTerms(v.filter((x) => typeof x === "string"));
-        return;
-      }
-    } catch {
-      /* storage unavailable: just fetch */
-    }
-    if (!markdown || markdown.length < 80) return;
-    fetch("/api/study/terms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: markdown.slice(0, 14000), topic: topicTitle || "" }) })
-      .then((r) => r.json())
-      .then((j) => {
-        const list = Array.isArray(j?.data?.terms) ? (j.data.terms as string[]) : [];
-        if (off) return;
-        setTerms(list);
-        if (list.length) {
-          try {
-            localStorage.setItem(key, JSON.stringify(list));
-          } catch {
-            /* ignore */
-          }
+    const legacy = () => {
+      try {
+        const hit = localStorage.getItem(key);
+        if (hit) {
+          const v = JSON.parse(hit);
+          if (Array.isArray(v) && !off) setTerms(v.filter((x) => typeof x === "string"));
+          return;
         }
-      })
-      .catch(() => {});
+      } catch {
+        /* storage unavailable: just fetch */
+      }
+      if (!markdown || markdown.length < 80) return;
+      fetch("/api/study/terms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: markdown.slice(0, 14000), topic: topicTitle || "" }) })
+        .then((r) => r.json())
+        .then((j) => {
+          const list = Array.isArray(j?.data?.terms) ? (j.data.terms as string[]) : [];
+          if (off) return;
+          setTerms(list);
+          if (list.length) {
+            try {
+              localStorage.setItem(key, JSON.stringify(list));
+            } catch {
+              /* ignore */
+            }
+          }
+        })
+        .catch(() => {});
+    };
+    if (classId && kcId) {
+      getGlossary(classId, kcId).then((prepared) => {
+        if (off) return;
+        if (!prepared || prepared.length === 0) return legacy();
+        setCards(new Map(prepared.map((c) => [c.term.toLowerCase(), c])));
+        setTerms(prepared.map((c) => c.term));
+        preloadImages(prepared, 8);
+      });
+    } else {
+      legacy();
+    }
     return () => {
       off = true;
     };
-  }, [markdown, topicTitle, seen]);
+  }, [markdown, topicTitle, seen, classId, kcId]);
   const termRe = useMemo(() => termRegex(terms), [terms]);
 
   const openTerm = useCallback((t: string, ctx: string) => setTerm({ term: t, context: ctx }), []);
@@ -372,7 +412,7 @@ export function InteractiveNote({ markdown, topicTitle, bare, lazy }: { markdown
             ))}
           </div>
         </TermsCtx.Provider>
-        {term && <TermSheet term={term.term} context={term.context} topic={topic} onClose={() => setTerm(null)} />}
+        {term && createPortal(<TermSheet term={term.term} context={term.context} topic={topic} preset={cards.get(term.term.toLowerCase())} onClose={() => setTerm(null)} />, document.body)}
       </OpenTermCtx.Provider>
     );
   }
@@ -449,7 +489,7 @@ export function InteractiveNote({ markdown, topicTitle, bare, lazy }: { markdown
         )}
       </div>
 
-      {term && <TermSheet term={term.term} context={term.context} topic={topic} onClose={() => setTerm(null)} />}
+      {term && createPortal(<TermSheet term={term.term} context={term.context} topic={topic} preset={cards.get(term.term.toLowerCase())} onClose={() => setTerm(null)} />, document.body)}
     </TermsCtx.Provider>
     </OpenTermCtx.Provider>
   );

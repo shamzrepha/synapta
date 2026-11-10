@@ -56,6 +56,8 @@ const nextConfig: NextConfig = {
   // no browser source maps in production: the shipped code stays minified
   productionBrowserSourceMaps: false,
   experimental: {
+    // keep visited pages in the browser's router cache so Back and Forward show them at once (default is not at all)
+    staleTimes: { dynamic: 120, static: 300 },
     // API requests pass through proxy.ts (write guard); let bodies up to the largest upload (25 MB video) through
     proxyClientMaxBodySize: "26mb",
   },

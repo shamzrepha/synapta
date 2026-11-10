@@ -555,3 +555,6 @@ textarea, input { scroll-margin-block: 96px; }
 
 /* the paragraph being read aloud */
 .note-reading { background: color-mix(in srgb, var(--color-brand-500, #3b6df6) 16%, transparent); border-radius: 0.4rem; box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-brand-500, #3b6df6) 16%, transparent); transition: background-color 0.3s, box-shadow 0.3s; }
+
+/* long classes: the browser skips layout and paint for topics far from the screen */
+.reader-section { content-visibility: auto; contain-intrinsic-size: auto 900px; }
