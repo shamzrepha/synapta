@@ -41,7 +41,7 @@ import { RichInline } from "@/components/markdown/rich-inline";
 import { QuizPlayer } from "@/components/quiz/quiz-player";
 import { ProveIt } from "@/components/labs/prove-it";
 import { AudioLesson } from "@/components/lesson/audio-lesson";
-import { InteractiveNote } from "@/components/lesson/interactive-note";
+import { ReferenceSheet } from "@/components/lesson/reference-sheet";
 import { PublishBar } from "@/components/lesson/publish-bar";
 import { LanguagePreview } from "@/components/lesson/language-preview";
 import { PracticeBankTools } from "@/components/lesson/practice-bank-tools";
@@ -156,6 +156,7 @@ export default function TopicPage({
 
   // Flashcards state
   const [flashcards, setFlashcards] = useState<FlashcardItem[]>([]);
+  const [cardRef, setCardRef] = useState<string | null>(null);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [loadingCards, setLoadingCards] = useState(false);
@@ -517,23 +518,31 @@ export default function TopicPage({
             <div className="space-y-4">
               {(canManage || pub.audio) && !lessonIsThin && <AudioLesson classId={classId} kcId={kcId} viewLang={viewLang} />}
               {!canManage && !pub.lesson ? notPublished("lecture note") : (
-              <Card className="p-4 sm:p-6 md:p-8" translate="no">
+              <Card className="p-5 sm:p-6 space-y-3">
                 {lessonBusy && lessonIsThin ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-brand-700 dark:text-brand-300">
                       <Sparkles className="h-4 w-4 animate-pulse" /> Writing the full lesson for this topic…
                     </div>
-                    <Skeleton className="h-6 w-2/3" />
-                    <Skeleton className="h-4 w-full" />
                     <Skeleton className="h-4 w-full" />
                     <Skeleton className="h-4 w-5/6" />
-                    <Skeleton className="h-24 w-full rounded-xl" />
                   </div>
                 ) : (
-                  <InteractiveNote markdown={kc.lessonMarkdown || kc.description} topicTitle={kc.title} />
+                  <>
+                    <div className="flex items-start gap-3">
+                      <span className="h-10 w-10 shrink-0 grid place-items-center rounded-xl bg-brand-600/10 text-brand-700 dark:text-brand-300"><BookOpen className="h-5 w-5" /></span>
+                      <div className="min-w-0">
+                        <p className="font-bold">Interactive reading</p>
+                        <p className="text-sm text-muted-foreground">The note for this topic lives in the class reader, with a table of contents, tappable key words and search.</p>
+                      </div>
+                    </div>
+                    <Link href={`/classes/${classId}/read?kc=${kcId}`} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 w-full sm:w-auto">
+                      <BookOpen className="h-4 w-4" /> Open this topic in the reader
+                    </Link>
+                  </>
                 )}
                 {lessonError && (
-                  <div className="mt-4 flex flex-wrap items-center gap-3 p-3 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs">
+                  <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs">
                     <span className="flex-1">{lessonError}</span>
                     <Button size="sm" variant="outline" onClick={() => generateLesson()}>
                       <RotateCw className="h-3.5 w-3.5 mr-1" /> Try again
@@ -764,6 +773,10 @@ export default function TopicPage({
                       Show answer
                     </Button>
                   )}
+                  <button type="button" onClick={() => setCardRef(`${flashcards[currentCardIndex].front} ${flashcards[currentCardIndex].back}`)} className="block mx-auto text-xs font-semibold text-brand-700 dark:text-brand-300 hover:underline">
+                    Where is this in my notes?
+                  </button>
+                  {cardRef && <ReferenceSheet classId={classId} kcId={kcId} query={cardRef} onClose={() => setCardRef(null)} />}
                 </div>
               )}
             </Card>

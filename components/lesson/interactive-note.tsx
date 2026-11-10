@@ -276,7 +276,7 @@ function TermSheet({ term, context, topic, onClose }: { term: string; context: s
  * The lesson as an interactive notebook: one page per heading that flips like a notebook (or all pages in one scroll),
  * key words (the bold ones) that open a picture-and-explanation card when tapped, and an "ask more" button on every page.
  */
-export function InteractiveNote({ markdown, topicTitle }: { markdown: string; topicTitle?: string }) {
+export function InteractiveNote({ markdown, topicTitle, bare, lazy }: { markdown: string; topicTitle?: string; /** just the text: no toolbar, no paper, no flip view (used inside the reader) */ bare?: boolean; /** pick the highlighted words only once this note scrolls into view */ lazy?: boolean }) {
   const note = useMemo(() => splitNote(markdown), [markdown]);
   const [view, setView] = useState<"pages" | "scroll">("scroll");
   const [terms, setTerms] = useState<string[]>([]);
@@ -284,6 +284,7 @@ export function InteractiveNote({ markdown, topicTitle }: { markdown: string; to
   const [dir, setDir] = useState<"next" | "prev">("next");
   const [term, setTerm] = useState<{ term: string; context: string } | null>(null);
   const top = useRef<HTMLDivElement>(null);
+  const [seen, setSeen] = useState(!lazy);
 
   const total = note.pages.length;
   const page = note.pages[Math.min(idx, total - 1)];
@@ -302,8 +303,21 @@ export function InteractiveNote({ markdown, topicTitle }: { markdown: string; to
     top.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   };
 
+  // start looking up the key words only when the note is near the screen (the reader holds many topics)
+  useEffect(() => {
+    if (seen || !top.current || typeof IntersectionObserver === "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (!seen) setSeen(true);
+      return;
+    }
+    const io = new IntersectionObserver((e) => e.some((x) => x.isIntersecting) && (setSeen(true), io.disconnect()), { rootMargin: "400px" });
+    io.observe(top.current);
+    return () => io.disconnect();
+  }, [seen]);
+
   // the AI picks the words worth looking up; the list is remembered on this device so each lesson is analysed once
   useEffect(() => {
+    if (!seen) return;
     let off = false;
     const key = `sunroot:terms:${hashText(markdown)}`;
     try {
@@ -336,7 +350,7 @@ export function InteractiveNote({ markdown, topicTitle }: { markdown: string; to
     return () => {
       off = true;
     };
-  }, [markdown, topicTitle]);
+  }, [markdown, topicTitle, seen]);
   const termRe = useMemo(() => termRegex(terms), [terms]);
 
   const openTerm = useCallback((t: string, ctx: string) => setTerm({ term: t, context: ctx }), []);
@@ -344,6 +358,24 @@ export function InteractiveNote({ markdown, topicTitle }: { markdown: string; to
 
   const header = (p: { id: string; title: string }) =>
     p.title ? <h2 className="text-xl sm:text-2xl font-bold tracking-tight leading-snug mt-2 mb-2">{p.title}</h2> : null;
+
+  if (bare) {
+    return (
+      <OpenTermCtx.Provider value={openTerm}>
+        <TermsCtx.Provider value={termRe}>
+          <div ref={top} className="w-full min-w-0">
+            {note.pages.map((p) => (
+              <section key={p.id}>
+                {!p.synthetic && header(p)}
+                <NoteBody markdown={p.body} />
+              </section>
+            ))}
+          </div>
+        </TermsCtx.Provider>
+        {term && <TermSheet term={term.term} context={term.context} topic={topic} onClose={() => setTerm(null)} />}
+      </OpenTermCtx.Provider>
+    );
+  }
 
   return (
     <OpenTermCtx.Provider value={openTerm}>

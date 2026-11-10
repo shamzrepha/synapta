@@ -524,8 +524,8 @@ textarea, input { scroll-margin-block: 96px; }
 }
 .note-explode { animation: note-explode 0.55s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); }
 /* lesson text styles (the typography plugin is not installed, so these are explicit) */
-.note-prose { font-size: 0.97rem; line-height: 1.8; overflow-wrap: anywhere; }
-@media (min-width: 640px) { .note-prose { font-size: 1.04rem; } }
+.note-prose { font-size: calc(0.97rem * var(--note-scale, 1)); line-height: 1.8; overflow-wrap: anywhere; }
+@media (min-width: 640px) { .note-prose { font-size: calc(1.04rem * var(--note-scale, 1)); } }
 .note-prose > :first-child { margin-top: 0; }
 .note-prose p { margin: 0.85rem 0; }
 .note-prose h3 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.35; margin: 1.75rem 0 0.5rem; color: var(--color-brand-700, #1d4ed8); }
@@ -549,3 +549,6 @@ textarea, input { scroll-margin-block: 96px; }
 .note-prose hr { margin: 1.5rem 0; border: 0; border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); }
 .note-prose a { color: var(--color-brand-600, #2563eb); text-decoration: underline; }
 .note-prose .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.25rem 0; }
+
+@keyframes note-flash { 0%, 55% { background: color-mix(in srgb, var(--color-brand-500, #3b6df6) 28%, transparent); } 100% { background: transparent; } }
+.note-flash { animation: note-flash 3.2s ease-out; border-radius: 0.4rem; box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-brand-500, #3b6df6) 12%, transparent); }

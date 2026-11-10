@@ -27,6 +27,7 @@ import {
   MessagesSquare,
   Crown,
   Swords,
+  BookOpen,
 } from "lucide-react";
 import { SessionsPanel } from "@/components/sessions/sessions-panel";
 import { ClassPlanCard } from "@/components/teacher/class-plan-card";
@@ -477,6 +478,11 @@ export default function ClassOverviewPage({
               <span className="flex items-center gap-1">
                 <Layers className="h-3.5 w-3.5" /> {kcs.length} Topics
               </span>
+              {kcs.length > 0 && (
+                <Link href={`/classes/${classId}/read`} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 font-semibold text-white hover:bg-brand-700">
+                  <BookOpen className="h-3.5 w-3.5" /> Interactive reading
+                </Link>
+              )}
               {classData.joinCode && (isOwner || user?.role === "admin") && (
                 <>
                   <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-mono font-semibold">
