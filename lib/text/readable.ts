@@ -65,6 +65,8 @@ export function readableText(text: string | undefined | null): string {
   s = s.replace(/\\\(([\s\S]+?)\\\)|\$([^$\n]+?)\$/g, (_m, a?: string, b?: string) => latexToUnicode(a ?? b ?? ""));
   s = latexToUnicode(s);
   s = s
+    .replace(/^\[Page \d+\]\s*/i, "")
+    .replace(/\s*\[Page \d+\]/gi, "")
     .replace(/```[a-z]*\n?([\s\S]*?)```/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/(\*\*|__)(.+?)\1/g, "$2")

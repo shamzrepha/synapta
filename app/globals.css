@@ -651,8 +651,8 @@ html, body { overflow-x: clip; }
 p, h1, h2, h3, h4, h5, h6, li, blockquote, label, figcaption, dd, dt { overflow-wrap: anywhere; }
 
 /* ===== Sprout, the helper bot ===== */
-.sunroot-bot { position: fixed; left: 0; top: 0; z-index: 85; width: 64px; height: 72px; pointer-events: none; will-change: transform; }
-.sunroot-bot-body { pointer-events: auto; width: 100%; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; background: none; border: 0; padding: 0; }
+.sunroot-bot { position: fixed; left: 0; top: 0; z-index: 85; width: 72px; height: 81px; pointer-events: none; will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+.sunroot-bot-body { pointer-events: auto; width: 100%; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; background: none; border: 0; padding: 0; }
 html[data-keyboard="open"] .sunroot-bot,
 html[data-typing="true"] .sunroot-bot { display: none; }
 .sunroot-bot-bubble {
@@ -662,7 +662,7 @@ html[data-typing="true"] .sunroot-bot { display: none; }
   box-shadow: 0 6px 18px -8px rgba(15, 23, 42, 0.35); animation: sprout-pop 0.25s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1));
 }
 @keyframes sprout-pop { from { opacity: 0; transform: translateY(6px) scale(0.9); } to { opacity: 1; transform: none; } }
-.sprout { display: block; width: 100%; height: 100%; overflow: visible; transform-origin: 50% 90%; transform: scaleX(var(--sx, 1)); }
+.sprout { display: block; width: 100%; height: 100%; overflow: visible; transform-origin: 50% 90%; transform: scaleX(var(--sx, 1)); will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
 .sprout-eyes { transform-origin: 50px 58px; animation: sprout-blink 4.6s infinite; }
 @keyframes sprout-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
 .sprout-leaf { transform-origin: 50px 36px; animation: sprout-sway 3.2s ease-in-out infinite; }
@@ -690,7 +690,6 @@ html[data-typing="true"] .sunroot-bot { display: none; }
 .sprout[data-pose="think"] [data-arm="right"] { transform: rotate(-120deg) translateY(-6px); }
 .sprout[data-pose="think"] .sprout-eyes { transform: translateX(3px); }
 /* hopping between places */
-.sunroot-bot[data-moving="true"] .sprout { animation: none; }
 .sunroot-bot[data-moving="true"] .sprout-foot { animation: sprout-step 0.18s ease-in-out infinite alternate; }
 @keyframes sprout-step { from { transform: translateY(0); } to { transform: translateY(-4px); } }
 /* the pop-up builds itself piece by piece instead of appearing blank */
@@ -767,6 +766,11 @@ html[data-typing="true"] .sunroot-bot { display: none; }
 .sunroot-bot-body { transition: transform 0.7s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.5s; transform-origin: 50% 100%; }
 .sunroot-bot[data-peek="true"] .sunroot-bot-body { transform: translateX(-52%) scale(0.78); transform-origin: 0 100%; opacity: 0.92; }
 .sunroot-bot[data-peek="true"][data-side="right"] .sunroot-bot-body { transform: translateX(52%) scale(0.78); transform-origin: 100% 100%; }
+@media (max-width: 767px) {
+  .sunroot-bot { width: 62px; height: 70px; }
+  .sunroot-bot[data-peek="true"] .sunroot-bot-body { transform: translateX(-38%) scale(0.84); opacity: 0.96; }
+  .sunroot-bot[data-peek="true"][data-side="right"] .sunroot-bot-body { transform: translateX(38%) scale(0.84); opacity: 0.96; }
+}
 .sunroot-bot[data-peek="true"] .sunroot-bot-bubble { display: none; }
 /* the eyes follow your finger or pointer */
 .sprout-look { transform: translate(calc(var(--ex, 0) * 2.4px), calc(var(--ey, 0) * 1.8px)); transition: transform 0.18s ease-out; }

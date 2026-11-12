@@ -28,6 +28,7 @@ import { useToast } from "@/components/ui/toast";
 import { InteractiveNote, type StudySignalPayload } from "@/components/lesson/interactive-note";
 import { TopicDone } from "@/components/lesson/topic-done";
 import { useBot } from "@/components/bot/bot-provider";
+import { readableText } from "@/lib/text/readable";
 import { TextbookWriter } from "@/components/lesson/textbook-writer";
 import { ClassMindMap } from "@/components/classes/class-mind-map";
 import { readMinutes, splitTextbookPages, type TextbookSectionKind } from "@/lib/study/note-sections";
@@ -862,7 +863,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
             s.depth > 0 && "text-[13px]"
           )}
         >
-          {s.title}
+          {readableText(s.title) || s.title}
         </button>
       ))}
     </nav>

@@ -35,7 +35,10 @@ const liveDoc = (classId: string, kcId: string, name: string) => kcRefOf(classId
 export function lessonForStudents(kc: Record<string, unknown>): string {
   const mode = liveMode(kc, "lesson");
   if (mode === "off") return "";
-  if (mode === "snapshot") return typeof kc.liveLessonMarkdown === "string" ? kc.liveLessonMarkdown : "";
+  if (mode === "snapshot") {
+    const live = typeof kc.liveLessonMarkdown === "string" ? kc.liveLessonMarkdown : "";
+    return live || (typeof kc.lessonMarkdown === "string" ? kc.lessonMarkdown : "");
+  }
   return typeof kc.lessonMarkdown === "string" ? kc.lessonMarkdown : "";
 }
 
@@ -83,7 +86,7 @@ async function draftOf(classId: string, kcId: string, kc: Record<string, unknown
   switch (key) {
     case "lesson": {
       const md = typeof kc.lessonMarkdown === "string" ? kc.lessonMarkdown.trim() : "";
-      return { exists: md.length >= 200, fp: stableId(md) };
+      return { exists: md.length >= 20, fp: stableId(md) };
     }
     case "audio": {
       const a = await getAudioLesson(classId, kcId);

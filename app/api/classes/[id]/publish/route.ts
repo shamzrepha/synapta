@@ -58,10 +58,10 @@ export async function POST(
       );
     }
 
-    // Publish all draft KCs and the class document
+    // Publish all active KCs and the class document
     const batch = adminDb().batch();
     for (const d of kcsSnap.docs) {
-      if (d.data().status === "draft") {
+      if (d.data().status !== "archived") {
         batch.update(d.ref, { status: "published", updatedAt: Timestamp.now() });
       }
     }

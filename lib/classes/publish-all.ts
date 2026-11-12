@@ -31,6 +31,10 @@ export async function pushClassContent(caller: AuthUser, classId: string, kcs: K
     const data = d.data();
     const title = String(data.title || "Topic");
     if (published) {
+      // Ensure the topic itself is marked published if not archived
+      if (data.status !== "published" && data.status !== "archived") {
+        await d.ref.update({ status: "published", updatedAt: Timestamp.now() });
+      }
       const status = await liveStatus(classId, d.id, data);
       const lesson = status.find((s) => s.key === "lesson");
       if (!lesson?.hasDraft) result.emptyTopics.push(title);

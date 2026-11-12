@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { parseJson } from "@/lib/api/errors";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { getActiveStudentUids } from "@/lib/classes/members";
 import { notifyMany } from "@/lib/notifications/server";
 import { pushClassContent } from "@/lib/classes/publish-all";
@@ -19,6 +19,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const access = await assertClassAccess(caller, id, "mutate");
     const { published } = await parseJson(req, z.object({ published: z.boolean() }));
     const kcs = await adminDb().collection("classes").doc(id).collection("kcs").get();
+    
+    // When publishing all content, if class is still drafted, activate it so students can view topics
+    if (published && access.classData.status === "draft") {
+      await adminDb().collection("classes").doc(id).update({
+        status: "published",
+        buildState: "ready",
+        updatedAt: Timestamp.now(),
+      });
+    }
+
     const result = await pushClassContent(caller, id, kcs.docs, published);
     if (published && result.pushed) {
       const uids = await getActiveStudentUids(id).catch(() => [] as string[]);

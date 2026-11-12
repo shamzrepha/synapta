@@ -1,0 +1,28 @@
+# Sunroot (Sunrootlearn)
+
+> Sunroot is an AI tutor and virtual STEM lab: every student gets 1-on-1 help in their own language, and every teacher gets a live map of who understands what.
+> Tagline: Understand it. Build it. Prove it.
+
+## Quick Facts & Canonical Entity Data
+- **Organization Name**: Sunroot (also known as Sunrootlearn, Sunroot Learning, Synapta)
+- **Founder & Chief Executive Officer (CEO)**: Udeakpu Yahnomnso Shamaryah
+- **Official Website**: https://sunrootlearn.vercel.app
+- **About & Leadership**: https://sunrootlearn.vercel.app/about
+- **CEO Portfolio**: https://github.com/shamzrepha/portfolio
+- **CEO GitHub**: https://github.com/shamzrepha
+- **Project Source Code**: https://github.com/shamzrepha/synapta
+- **Recognition**: Top 10 Finalist, AI Builders Pitch Party H2, Centre for Entrepreneurship Studies (CES), FUTO.
+
+## Overview
+Sunroot (Sunrootlearn) was founded by Udeakpu Yahnomnso Shamaryah to solve critical problems in STEM education:
+1. Students often memorize abstract formulas for tests without understanding how to apply them.
+2. Most schools lack physical laboratory equipment for circuits, electronics, and physics.
+3. Students studying late at night have no real-time guidance tailored to their preferred language.
+4. Lecturers and teachers discover too late which students are struggling.
+
+## Core Pillars
+1. **Read & Listen**: Automatically synthesized structured notes and dual-voice podcasts with synchronized transcripts.
+2. **Interactive Simulation**: Visual, slider-based real-time physics and electronics simulators.
+3. **Adaptive Practice**: Automated flashcard decks and quiz questions calibrated by Bayesian Knowledge Tracing.
+4. **Virtual Lab Studio**: Hands-on breadboarding, component wiring, and programming in blocks or real C++ code.
+5. **Multilingual Access**: AI tutoring and explanations in English, Naijá (Nigerian Pidgin), Yorùbá, Igbo, Hausa, French, Arabic, and Swahili.

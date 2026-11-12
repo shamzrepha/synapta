@@ -439,7 +439,14 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
 
   // reading a chapter or topic: Sprout waits small, half behind the screen edge, so it never covers the text
   const reading = /^\/classes\/[^/]+\/(read|topics)(\/|$)/.test(pathname);
-  const side: "left" | "right" = typeof window !== "undefined" && window.innerWidth < 768 ? "left" : "right";
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  const side: "left" | "right" = isMobile ? "left" : "right";
   const peek = reading && atHome && !awake && !moving && !bubble;
   const wake = () => {
     setAwake(true);
@@ -465,7 +472,16 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
         createPortal(
           <div ref={layer} className="sunroot-bot" data-moving={moving} data-landed={landed} data-peek={peek} data-side={side} aria-live="polite">
             {bubble && <div className="sunroot-bot-bubble" role="status">{bubble}</div>}
-            <button type="button" className="sunroot-bot-body" onClick={onTap} onPointerEnter={wake} onFocus={wake} aria-label={`Ask ${pet.name}, your study helper`} title={`Ask ${pet.name}`}>
+            <button
+              type="button"
+              className="sunroot-bot-body"
+              onClick={onTap}
+              onTouchStart={wake}
+              onPointerEnter={wake}
+              onFocus={wake}
+              aria-label={`Ask ${pet.name}, your study helper`}
+              title={`Ask ${pet.name}`}
+            >
               <Sprout pose={pose} facing={facing} mood={pet.mood} palette={PALETTES[pet.mood]} gear={pet.gear} />
             </button>
           </div>,

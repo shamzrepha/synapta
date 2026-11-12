@@ -7,7 +7,18 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ArrowUpRight, BookOpenText, Briefcase, Download, GraduationCap, Languages, ListChecks, MessagesSquare, Presentation, Route, School, Sprout, Users, Wrench } from "lucide-react";
-import { SITE_ALT_NAME, SITE_DESCRIPTION, SITE_NAME, getSiteUrl } from "@/lib/site";
+import {
+  FOUNDER_GITHUB_URL,
+  FOUNDER_NAME,
+  FOUNDER_PORTFOLIO_URL,
+  FOUNDER_TITLE,
+  PROJECT_REPO_URL,
+  SITE_ALIASES,
+  SITE_ALT_NAME,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  getSiteUrl,
+} from "@/lib/site";
 
 const LANGS = ["English", "Naijá", "Yorùbá", "Igbo", "Hausa", "Français", "العربية", "Kiswahili"];
 const SUBJECTS = ["Mathematics", "Physics", "Biology", "Law", "Medicine", "History", "Languages", "Electronics", "Accounting", "Literature", "Chemistry", "Economics", "Engineering", "Computer science"];
@@ -51,8 +62,45 @@ const rail = "mx-auto w-full max-w-[1280px] border-x border-border";
 export default function LandingPage() {
   const siteUrl = getSiteUrl();
   const structuredData = [
-    { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, alternateName: [SITE_ALT_NAME, "Sunroot"], url: `${siteUrl}/`, description: SITE_DESCRIPTION },
-    { "@context": "https://schema.org", "@type": "Organization", name: SITE_NAME, url: `${siteUrl}/` },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: SITE_NAME,
+      alternateName: SITE_ALIASES,
+      url: `${siteUrl}/`,
+      description: SITE_DESCRIPTION,
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "@id": `${siteUrl}/#organization`,
+      name: "Sunroot",
+      alternateName: SITE_ALIASES,
+      url: `${siteUrl}/`,
+      logo: `${siteUrl}/logo-mark.svg`,
+      description: SITE_DESCRIPTION,
+      founder: {
+        "@type": "Person",
+        "@id": `${siteUrl}/#founder`,
+        name: FOUNDER_NAME,
+        jobTitle: FOUNDER_TITLE,
+        url: `${siteUrl}/about`,
+        sameAs: [FOUNDER_GITHUB_URL, FOUNDER_PORTFOLIO_URL],
+      },
+      sameAs: [PROJECT_REPO_URL, FOUNDER_GITHUB_URL],
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": `${siteUrl}/#founder`,
+      name: FOUNDER_NAME,
+      jobTitle: FOUNDER_TITLE,
+      worksFor: {
+        "@id": `${siteUrl}/#organization`,
+      },
+      url: `${siteUrl}/about`,
+      sameAs: [FOUNDER_GITHUB_URL, FOUNDER_PORTFOLIO_URL],
+    },
   ];
 
   return (
@@ -71,8 +119,8 @@ export default function LandingPage() {
             <span translate="no" className="text-[17px] font-semibold tracking-tight">Sunroot</span>
           </Link>
           <nav className="hidden items-center gap-8 md:flex" aria-label="Page sections">
-            {[["How it works", "#how"], ["Features", "#features"], ["Who it's for", "#who"], ["Teachers", "#teachers"], ["Languages", "#languages"]].map(([t, h]) => (
-              <a key={h} href={h} className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground">{t}</a>
+            {[["How it works", "#how"], ["Features", "#features"], ["Who it's for", "#who"], ["Teachers", "#teachers"], ["Languages", "#languages"], ["About", "/about"]].map(([t, h]) => (
+              <Link key={h} href={h} className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground">{t}</Link>
             ))}
           </nav>
           <LandingButtons />
@@ -287,6 +335,7 @@ export default function LandingPage() {
             <span className={label}>&copy; 2026</span>
           </div>
           <nav className="flex flex-wrap gap-6" aria-label="Account">
+            <Link href="/about" className={`${label} hover:text-foreground`}>About & Leadership</Link>
             <Link href="/login" className={`${label} hover:text-foreground`}>Log in</Link>
             <Link href="/signup" className={`${label} hover:text-foreground`}>Create account</Link>
           </nav>
