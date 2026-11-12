@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, Layers, Layers3, ListChecks, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { extractRecallItems } from "@/lib/study/recall";
+import { useBot } from "@/components/bot/bot-provider";
 
 /**
  * Shown at the end of a topic's note. It marks the topic as read, offers the ways to lock it in (quiz, flashcards, teach-me),
@@ -59,6 +60,15 @@ export function TopicDone({
   const finished = items.length > 0 && got.length >= items.length;
   const right = got.filter(Boolean).length;
   const passed = finished && right / items.length >= 0.75;
+  const bot = useBot();
+  const cheered = useRef(false);
+  useEffect(() => {
+    // Sprout celebrates a strong recall once, and again when the whole class has been read
+    if ((passed || classDone) && !cheered.current) {
+      cheered.current = true;
+      void bot.cheer(classDone ? "You finished the whole class!" : "Great recall!");
+    }
+  }, [passed, classDone, bot]);
   const answer = (ok: boolean) => {
     const next = [...got, ok];
     setGot(next);

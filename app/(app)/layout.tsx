@@ -15,6 +15,7 @@ import { CommandPalette } from "@/components/shell/command-palette";
 import { AppUpdateBanner } from "@/components/shell/app-update-banner";
 import { DeviceReporter } from "@/components/shell/device-reporter";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { BotProvider } from "@/components/bot/bot-provider";
 
 export default function AppLayout({
   children,
@@ -22,6 +23,7 @@ export default function AppLayout({
   children: React.ReactNode;
 }) {
   return (
+    <BotProvider>
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <AuthGuard />
       <a
@@ -51,5 +53,6 @@ export default function AppLayout({
       <AccessibilityApplier />
       <DeviceReporter />
     </div>
+    </BotProvider>
   );
 }

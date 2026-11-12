@@ -10,6 +10,7 @@ import { PREFS_KEY, parsePrefs } from "@/lib/settings/prefs";
 import { parseAccessibility, type TtsSpeed } from "@/lib/settings/accessibility";
 import { cn } from "@/lib/utils";
 import { LanguageSettings } from "@/components/settings/language-picker";
+import { BotToggle } from "@/components/bot/bot-toggle";
 
 const OPTIONS: Array<{ key: "dataSaver" | "reduceMotion" | "noAutoplay"; title: string; desc: string; icon: React.ReactNode }> = [
   { key: "dataSaver", title: "Data saver", desc: "Audio and 3D wait for a tap, images load smaller, videos don't autoplay.", icon: <Gauge className="h-5 w-5" /> },
@@ -78,6 +79,7 @@ export default function SettingsPage() {
             <Toggle on={prefs[o.key]} onChange={(v) => update({ [o.key]: v })} label={o.title} />
           </div>
         ))}
+        <BotToggle />
       </Card>
 
       <div className="space-y-2">
