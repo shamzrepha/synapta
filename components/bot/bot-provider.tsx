@@ -48,6 +48,12 @@ export interface PetInfo {
 export interface HopOptions {
   pose?: BotPose;
   duration?: number;
+  /** height of the hop's arc in px; 0 moves in a straight line (a lowering on a rope, a fall) */
+  arc?: number;
+  /** CSS easing for the whole move (a straight move only) */
+  easing?: string;
+  /** dangling on a rope: no running bounce, just a gentle sway */
+  glide?: boolean;
   /** where to stand relative to the target */
   anchor?: "below" | "above" | "top-left" | "left" | "perch";
   say?: string;
@@ -80,6 +86,8 @@ export interface BotApi {
   reduced: boolean;
   /** where Sprout's raised hand is on screen (the rope starts there), or null when it is not shown */
   handPoint: () => { x: number; y: number } | null;
+  /** where Sprout's other raised hand is (the rope it hangs from starts there) */
+  anchorPoint: () => { x: number; y: number } | null;
 }
 
 const DEFAULT_PET: PetInfo = { name: "Sprout", mood: "calm", gear: {}, stats: { streakDays: 0, daysAway: 0, avgMastery: null, xp: 0 } };
@@ -103,6 +111,7 @@ const NOOP: BotApi = {
   countLookup: () => {},
   reduced: true,
   handPoint: () => null,
+  anchorPoint: () => null,
 };
 const BotCtx = createContext<BotApi>(NOOP);
 export const useBot = () => useContext(BotCtx);
@@ -142,6 +151,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   const [bubble, setBubble] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
   const [landed, setLanded] = useState(false);
+  const [gliding, setGliding] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname() || "";
   const [atHome, setAtHome] = useState(true);
@@ -241,7 +251,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const move = useCallback(
-    async (x: number, y: number, duration: number, p: BotPose): Promise<boolean> => {
+    async (x: number, y: number, duration: number, p: BotPose, o: { arc?: number; easing?: string; glide?: boolean } = {}): Promise<boolean> => {
       const el = layer.current;
       if (!el) return false;
       const mine = ++moveId.current;
@@ -255,17 +265,20 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
       anim.current?.cancel();
-      const arc = Math.min(80, 26 + Math.hypot(tx - from.x, ty - from.y) / 7);
+      const arc = o.arc ?? Math.min(80, 26 + Math.hypot(tx - from.x, ty - from.y) / 7);
       setMoving(true);
       setLanded(false);
-      const a = el.animate(
-        [
-          { transform: `translate3d(${from.x}px, ${from.y}px, 0)` },
-          { transform: `translate3d(${(from.x + tx) / 2}px, ${Math.min(from.y, ty) - arc}px, 0)`, offset: 0.55 },
-          { transform: `translate3d(${tx}px, ${ty}px, 0)` },
-        ],
-        { duration, easing: "cubic-bezier(0.34, 1.2, 0.5, 1)", fill: "forwards" },
-      );
+      setGliding(!!o.glide);
+      // a hop has a middle keyframe (the top of the arc); a straight move has none, so its easing runs start to end
+      const frames: Keyframe[] =
+        arc > 0
+          ? [
+              { transform: `translate3d(${from.x}px, ${from.y}px, 0)` },
+              { transform: `translate3d(${(from.x + tx) / 2}px, ${Math.min(from.y, ty) - arc}px, 0)`, offset: 0.55 },
+              { transform: `translate3d(${tx}px, ${ty}px, 0)` },
+            ]
+          : [{ transform: `translate3d(${from.x}px, ${from.y}px, 0)` }, { transform: `translate3d(${tx}px, ${ty}px, 0)` }];
+      const a = el.animate(frames, { duration, easing: o.easing ?? "cubic-bezier(0.34, 1.2, 0.5, 1)", fill: "forwards" });
       anim.current = a;
       try {
         await a.finished;
@@ -277,6 +290,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
           a.cancel();
           anim.current = null;
           setMoving(false);
+          setGliding(false);
         }
       }
       // a newer move took over: leave the pose and position to it
@@ -315,7 +329,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       homed.current = false;
       setAtHome(false);
       if (o.say) say(o.say, 2600);
-      await move(x, y, o.duration ?? 900, o.pose ?? "idle");
+      await move(x, y, o.duration ?? 900, o.pose ?? "idle", { arc: o.arc, easing: o.easing, glide: o.glide });
     },
     [enabled, mounted, move, say],
   );
@@ -604,10 +618,46 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     return { x: r.left + r.width * 0.8, y: r.top + r.height * 0.43 };
   }, []);
 
+  const anchorPoint = useCallback(() => {
+    const el = layer.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    // the left hand, raised: a share of the 100 x 112 drawing
+    return { x: r.left + r.width * 0.28, y: r.top + r.height * 0.42 };
+  }, []);
+
   const api = useMemo<BotApi>(
-    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduced: reduce, handPoint }),
-    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduce, handPoint],
+    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduced: reduce, handPoint, anchorPoint }),
+    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduce, handPoint, anchorPoint],
   );
+
+  // the speech bubble always stays fully on screen: Sprout can stand at either edge, and the bubble slides in to fit
+  useEffect(() => {
+    if (!bubble || menuOpen) return;
+    const first = layer.current?.querySelector<HTMLElement>(".sunroot-bot-bubble");
+    if (first) first.style.translate = "";
+    let raf = 0;
+    let shift = 0;
+    const loop = () => {
+      const el = layer.current?.querySelector<HTMLElement>(".sunroot-bot-bubble");
+      if (el) {
+        const r = el.getBoundingClientRect();
+        const left = r.left - shift;
+        const right = r.right - shift;
+        const margin = 8;
+        let want = 0;
+        if (left < margin) want = margin - left;
+        else if (right > window.innerWidth - margin) want = window.innerWidth - margin - right;
+        if (Math.abs(want - shift) > 0.5) {
+          shift = want;
+          el.style.translate = `${shift}px 0`;
+        }
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [bubble, menuOpen]);
 
   // the eyes follow the finger or pointer (a little, so it feels alive but never distracting)
   useEffect(() => {
@@ -746,7 +796,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
                 }, 400);
               }}
             />
-            <div ref={layer} className="sunroot-bot" data-moving={moving} data-landed={landed} data-peek={peek} data-side={side} aria-live="polite">
+            <div ref={layer} className="sunroot-bot" data-moving={moving} data-glide={gliding} data-landed={landed} data-peek={peek} data-side={side} aria-live="polite">
               {bubble && !menuOpen && <div className="sunroot-bot-bubble" role="status">{bubble}</div>}
               {focusLabel && (
                 <div className="sunroot-bot-timer" data-break={focusBreak} aria-label={focusBreak ? "Break time left" : "Focus time left"}>

@@ -846,3 +846,14 @@ body:has([aria-modal="true"]:not([data-sprout-ok])) .sunroot-bot,
 body:has([aria-modal="true"]:not([data-sprout-ok])) .sunroot-jarvis-hud,
 body:has([data-tutor-open]) .sunroot-bot,
 body:has([data-tutor-open]) .sunroot-jarvis-hud { display: none !important; }
+
+/* hanging from the rope hooked to the top of the screen: the free arm is up holding it, and Sprout sways gently instead of running */
+.sprout[data-pose="pull"] [data-arm="left"] { transform: rotate(100deg); }
+.sunroot-bot[data-glide="true"] .sprout { animation: sprout-dangle 1.1s ease-in-out infinite !important; }
+@keyframes sprout-dangle {
+  0%, 100% { transform: scaleX(var(--sx, 1)) rotate(-2.5deg); }
+  50% { transform: scaleX(var(--sx, 1)) rotate(2.5deg) translateY(1px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sunroot-bot[data-glide="true"] .sprout { animation: none !important; }
+}
