@@ -33,7 +33,11 @@ export function JarvisHud({
     <div
       role="dialog"
       aria-label={`${pet.name} Jarvis Desk Buddy`}
-      className="sunroot-jarvis-hud fixed z-50 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-3 sm:right-6 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-brand-500/30 bg-background/95 p-3.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200"
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      style={{ pointerEvents: "auto" }}
+      className="sunroot-jarvis-hud pointer-events-auto fixed z-50 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-3 sm:right-6 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-brand-500/30 bg-background/95 p-3.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200"
     >
       <div className="flex items-center justify-between border-b border-border/60 pb-2.5 mb-2.5">
         <div className="flex items-center gap-2">
@@ -49,9 +53,12 @@ export function JarvisHud({
         </div>
         <button
           type="button"
-          onClick={onClose}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           aria-label="Close desk buddy menu"
-          className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
         >
           <X className="h-4 w-4" />
         </button>
@@ -60,11 +67,11 @@ export function JarvisHud({
       <div className="space-y-1.5">
         <button
           type="button"
-          onClick={() => {
-            onClose();
+          onClick={(e) => {
+            e.stopPropagation();
             onScan();
           }}
-          className="flex w-full items-center gap-3 rounded-xl p-2 text-left text-xs font-medium hover:bg-sky-500/10 transition-colors group"
+          className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left text-xs font-medium hover:bg-sky-500/10 active:bg-sky-500/20 cursor-pointer transition-colors group touch-manipulation"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
             <Search className="h-3.5 w-3.5" />
@@ -77,11 +84,11 @@ export function JarvisHud({
 
         <button
           type="button"
-          onClick={() => {
-            onClose();
+          onClick={(e) => {
+            e.stopPropagation();
             onExplain();
           }}
-          className="flex w-full items-center gap-3 rounded-xl p-2 text-left text-xs font-medium hover:bg-amber-500/10 transition-colors group"
+          className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left text-xs font-medium hover:bg-amber-500/10 active:bg-amber-500/20 cursor-pointer transition-colors group touch-manipulation"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
             <Lightbulb className="h-3.5 w-3.5" />
@@ -94,11 +101,11 @@ export function JarvisHud({
 
         <button
           type="button"
-          onClick={() => {
-            onClose();
+          onClick={(e) => {
+            e.stopPropagation();
             onQuiz();
           }}
-          className="flex w-full items-center gap-3 rounded-xl p-2 text-left text-xs font-medium hover:bg-emerald-500/10 transition-colors group"
+          className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left text-xs font-medium hover:bg-emerald-500/10 active:bg-emerald-500/20 cursor-pointer transition-colors group touch-manipulation"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
             <Target className="h-3.5 w-3.5" />
@@ -111,10 +118,11 @@ export function JarvisHud({
 
         <button
           type="button"
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             onReadAloud();
           }}
-          className="flex w-full items-center gap-3 rounded-xl p-2 text-left text-xs font-medium hover:bg-purple-500/10 transition-colors group"
+          className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left text-xs font-medium hover:bg-purple-500/10 active:bg-purple-500/20 cursor-pointer transition-colors group touch-manipulation"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
             {isReading ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
@@ -127,11 +135,11 @@ export function JarvisHud({
 
         <button
           type="button"
-          onClick={() => {
-            onClose();
+          onClick={(e) => {
+            e.stopPropagation();
             onFlip();
           }}
-          className="flex w-full items-center gap-3 rounded-xl p-2 text-left text-xs font-medium hover:bg-pink-500/10 transition-colors group"
+          className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left text-xs font-medium hover:bg-pink-500/10 active:bg-pink-500/20 cursor-pointer transition-colors group touch-manipulation"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-pink-500/15 text-pink-600 dark:text-pink-400 group-hover:scale-105 transition-transform">
             <RotateCw className="h-3.5 w-3.5" />
@@ -144,11 +152,11 @@ export function JarvisHud({
 
         <button
           type="button"
-          onClick={() => {
-            onClose();
+          onClick={(e) => {
+            e.stopPropagation();
             onAskTutor();
           }}
-          className="flex w-full items-center gap-3 rounded-xl p-2 text-left text-xs font-medium hover:bg-brand-500/15 transition-colors group border border-brand-500/20 bg-brand-500/5"
+          className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left text-xs font-medium hover:bg-brand-500/15 active:bg-brand-500/25 cursor-pointer transition-colors group border border-brand-500/20 bg-brand-500/5 touch-manipulation"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white group-hover:scale-105 transition-transform">
             <MessageSquare className="h-3.5 w-3.5" />

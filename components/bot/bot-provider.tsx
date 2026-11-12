@@ -382,24 +382,35 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     say("Scanning page with magnifying glass...", 2600);
     playCuteVoice("search");
 
-    const candidates = Array.from(
-      document.querySelectorAll<HTMLElement>("[data-term], article h2, article h3, .katex-display, [data-interactive-callout]")
-    )
-      .filter((el) => {
-        const rect = el.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.bottom <= window.innerHeight * 1.5;
-      })
-      .slice(0, 4);
+    let candidates = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        "[data-term], [data-interactive-callout], article h1, article h2, article h3, main h1, main h2, main h3, .katex-display, [data-card]"
+      )
+    ).filter((el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    });
 
     if (candidates.length === 0) {
+      candidates = Array.from(document.querySelectorAll<HTMLElement>("h1, h2, h3, p")).filter((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && (el.textContent?.trim().length ?? 0) > 0;
+      });
+    }
+
+    const targets = candidates.slice(0, 4);
+
+    if (targets.length === 0) {
       await sleep(400);
       await flip();
       say("Looks like a clean page! Ready when you are.", 2600);
       return 0;
     }
 
-    for (const el of candidates) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    for (const el of targets) {
+      try {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      } catch {}
       await hopTo(el, { anchor: "top-left", pose: "search", duration: 800 });
       playCuteVoice("search");
       const prevOutline = el.style.outline;
@@ -413,9 +424,9 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
 
     await rest();
     await flip();
-    say(`Scanned ${candidates.length} key concept${candidates.length > 1 ? "s" : ""}! Ready to study!`, 3200);
-    return candidates.length;
-  }, [enabled, mounted, hopTo, rest, flip, say]);
+    say(`Scanned ${targets.length} core concept${targets.length > 1 ? "s" : ""}! Ready to study!`, 3200);
+    return targets.length;
+  }, [enabled, mounted, hopTo, rest, flip, say, wake]);
 
   // a greeting once per visit, by mood
   useEffect(() => {
@@ -513,16 +524,16 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setMenuOpen(false);
     };
-    const onClickAway = (e: MouseEvent | TouchEvent) => {
+    const onClickAway = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target?.closest(".sunroot-jarvis-hud") || target?.closest(".sunroot-bot-body")) return;
+      if (target?.closest(".sunroot-jarvis-hud") || target?.closest(".sunroot-bot") || target?.closest(".sunroot-bot-body")) return;
       setMenuOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    window.addEventListener("pointerdown", onClickAway);
+    window.addEventListener("click", onClickAway);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("pointerdown", onClickAway);
+      window.removeEventListener("click", onClickAway);
     };
   }, [menuOpen]);
 
@@ -575,8 +586,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       {mounted &&
         enabled &&
         createPortal(
-          <div ref={layer} className="sunroot-bot" data-moving={moving} data-landed={landed} data-peek={peek} data-side={side} aria-live="polite">
-            {bubble && <div className="sunroot-bot-bubble" role="status">{bubble}</div>}
+          <>
             <JarvisHud
               pet={pet}
               open={menuOpen}
@@ -586,27 +596,35 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
                 setMenuOpen(false);
                 wake();
                 say("Asking tutor to break this down simply...", 2200);
-                window.dispatchEvent(
-                  new CustomEvent(ASK_EVENT, {
-                    detail: {
-                      handled: false,
-                      prompt: "Can you explain the main idea of this lesson simply in plain English with a clear example?",
-                    },
-                  })
-                );
+                const ev = new CustomEvent(ASK_EVENT, {
+                  detail: {
+                    handled: false,
+                    prompt: "Can you explain the main idea of this lesson simply in plain English with a clear example?",
+                  },
+                });
+                window.dispatchEvent(ev);
+                window.setTimeout(() => {
+                  if (!(ev.detail as { handled: boolean }).handled) {
+                    say("Here is the key takeaway: Learn core terms first, then test yourself!", 4000);
+                  }
+                }, 400);
               }}
               onQuiz={() => {
                 setMenuOpen(false);
                 wake();
                 say("Starting recall challenge...", 2200);
-                window.dispatchEvent(
-                  new CustomEvent(ASK_EVENT, {
-                    detail: {
-                      handled: false,
-                      prompt: "Give me 1 rapid-fire conceptual recall check question based on what we're learning right now. Wait for my answer before revealing if I'm right!",
-                    },
-                  })
-                );
+                const ev = new CustomEvent(ASK_EVENT, {
+                  detail: {
+                    handled: false,
+                    prompt: "Give me 1 rapid-fire conceptual recall check question based on what we're learning right now. Wait for my answer before revealing if I'm right!",
+                  },
+                });
+                window.dispatchEvent(ev);
+                window.setTimeout(() => {
+                  if (!(ev.detail as { handled: boolean }).handled) {
+                    say("Quick check: Can you explain this concept in your own words without looking?", 4500);
+                  }
+                }, 400);
               }}
               onReadAloud={onReadAloud}
               isReading={isReading}
@@ -614,22 +632,31 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
               onAskTutor={() => {
                 setMenuOpen(false);
                 wake();
-                window.dispatchEvent(new CustomEvent(ASK_EVENT, { detail: { handled: false } }));
+                const ev = new CustomEvent(ASK_EVENT, { detail: { handled: false } });
+                window.dispatchEvent(ev);
+                window.setTimeout(() => {
+                  if (!(ev.detail as { handled: boolean }).handled) {
+                    say("I'm here! What would you like help with?", 3500);
+                  }
+                }, 400);
               }}
             />
-            <button
-              type="button"
-              className="sunroot-bot-body"
-              onClick={onTap}
-              onTouchStart={wake}
-              onPointerEnter={wake}
-              onFocus={wake}
-              aria-label={`Ask ${pet.name}, your study helper`}
-              title={`Ask ${pet.name}`}
-            >
-              <Sprout pose={pose} facing={facing} mood={pet.mood} palette={PALETTES[pet.mood]} gear={pet.gear} />
-            </button>
-          </div>,
+            <div ref={layer} className="sunroot-bot" data-moving={moving} data-landed={landed} data-peek={peek} data-side={side} aria-live="polite">
+              {bubble && <div className="sunroot-bot-bubble" role="status">{bubble}</div>}
+              <button
+                type="button"
+                className="sunroot-bot-body"
+                onClick={onTap}
+                onTouchStart={wake}
+                onPointerEnter={wake}
+                onFocus={wake}
+                aria-label={`Ask ${pet.name}, your study helper`}
+                title={`Ask ${pet.name}`}
+              >
+                <Sprout pose={pose} facing={facing} mood={pet.mood} palette={PALETTES[pet.mood]} gear={pet.gear} />
+              </button>
+            </div>
+          </>,
           document.body,
         )}
     </BotCtx.Provider>

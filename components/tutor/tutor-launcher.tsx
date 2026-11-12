@@ -23,7 +23,7 @@ export function TutorLauncher() {
   const [initialPrompt, setInitialPrompt] = useState("");
   const ctx = contextFromPath(pathname);
   const bot = useBot();
-  const hiddenHere = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p)) || /\/topics\//.test(pathname);
+  const hiddenHere = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p));
 
   // Sprout is the way in: tapping it opens this panel. (The round button below only shows when Sprout is switched off.)
   useEffect(() => {
