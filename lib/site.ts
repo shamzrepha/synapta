@@ -11,9 +11,6 @@ export const SITE_DESCRIPTION =
 
 export const FOUNDER_NAME = "Udeakpu Yahnomnso Shamaryah";
 export const FOUNDER_TITLE = "Founder & Chief Executive Officer (CEO)";
-export const FOUNDER_PORTFOLIO_URL = "https://github.com/shamzrepha/portfolio";
-export const FOUNDER_GITHUB_URL = "https://github.com/shamzrepha";
-export const PROJECT_REPO_URL = "https://github.com/shamzrepha/synapta";
 
 const FALLBACK_URL = "https://sunrootlearn.vercel.app";
 

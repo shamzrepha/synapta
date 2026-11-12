@@ -3,11 +3,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, ArrowUpRight, Award, BookOpen, Code2, Cpu, Globe2, Sparkles, UserCheck } from "lucide-react";
 import {
-  FOUNDER_GITHUB_URL,
   FOUNDER_NAME,
-  FOUNDER_PORTFOLIO_URL,
   FOUNDER_TITLE,
-  PROJECT_REPO_URL,
   SITE_ALIASES,
   SITE_DESCRIPTION,
   SITE_NAME,
@@ -63,7 +60,6 @@ export default function AboutPage() {
           alternateName: SITE_ALIASES,
           url: `${siteUrl}/`,
         },
-        sameAs: [FOUNDER_GITHUB_URL, FOUNDER_PORTFOLIO_URL],
       },
     },
     {
@@ -149,32 +145,20 @@ export default function AboutPage() {
                   multilingual AI tutoring, dynamic physics and circuit simulators, Bayesian Knowledge Tracing, and hands-on lab studios.
                 </p>
 
-                {/* LINKS TO VERIFIED PROFILES */}
+                {/* ACTIONS */}
                 <div className="pt-2 flex flex-wrap gap-2.5">
-                  <a
-                    href={FOUNDER_PORTFOLIO_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:border-muted-foreground hover:bg-muted/50"
+                  <Link
+                    href="/signup"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-brand-400"
                   >
-                    <UserCheck className="h-3.5 w-3.5" /> Founder Portfolio <ArrowUpRight className="h-3 w-3" />
-                  </a>
-                  <a
-                    href={FOUNDER_GITHUB_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:border-muted-foreground hover:bg-muted/50"
+                    Experience Sunroot <ArrowUpRight className="h-3 w-3" />
+                  </Link>
+                  <Link
+                    href="/explore"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3.5 py-1.5 text-xs font-semibold transition-colors hover:border-muted-foreground hover:bg-muted/50"
                   >
-                    <Code2 className="h-3.5 w-3.5" /> GitHub Profile <ArrowUpRight className="h-3 w-3" />
-                  </a>
-                  <a
-                    href={PROJECT_REPO_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold transition-colors hover:border-muted-foreground hover:bg-muted/50"
-                  >
-                    <Cpu className="h-3.5 w-3.5" /> Synapta / Sunroot Repo <ArrowUpRight className="h-3 w-3" />
-                  </a>
+                    Explore Subjects <ArrowUpRight className="h-3 w-3" />
+                  </Link>
                 </div>
               </div>
             </div>
@@ -191,8 +175,8 @@ export default function AboutPage() {
               <div className="flex items-start gap-3 rounded-lg border border-border/40 bg-background/50 p-3.5">
                 <Code2 className="h-5 w-5 shrink-0 text-brand-500" />
                 <div className="text-xs">
-                  <p className="font-semibold text-foreground">Open Engineering</p>
-                  <p className="text-muted-foreground">Modern Next.js, WebAssembly & AI engines</p>
+                  <p className="font-semibold text-foreground">Modern Engineering</p>
+                  <p className="text-muted-foreground">Next.js, WebAssembly & AI engines</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-lg border border-border/40 bg-background/50 p-3.5">
@@ -293,8 +277,9 @@ export default function AboutPage() {
           <p>&copy; 2026 Sunroot Learning. Founded by {FOUNDER_NAME}.</p>
           <div className="flex gap-4">
             <Link href="/" className="hover:text-foreground">Home</Link>
-            <a href={FOUNDER_PORTFOLIO_URL} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">Portfolio</a>
-            <a href={FOUNDER_GITHUB_URL} target="_blank" rel="noopener noreferrer" className="hover:text-foreground">GitHub</a>
+            <Link href="/about" className="hover:text-foreground">About & CEO</Link>
+            <Link href="/login" className="hover:text-foreground">Log in</Link>
+            <Link href="/signup" className="hover:text-foreground">Sign up</Link>
           </div>
         </div>
       </footer>

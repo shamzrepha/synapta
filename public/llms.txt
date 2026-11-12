@@ -8,9 +8,6 @@
 - **Founder & Chief Executive Officer (CEO)**: Udeakpu Yahnomnso Shamaryah
 - **Official Website**: https://sunrootlearn.vercel.app
 - **About & Leadership**: https://sunrootlearn.vercel.app/about
-- **CEO Portfolio**: https://github.com/shamzrepha/portfolio
-- **CEO GitHub**: https://github.com/shamzrepha
-- **Project Source Code**: https://github.com/shamzrepha/synapta
 - **Recognition**: Top 10 Finalist, AI Builders Pitch Party H2, Centre for Entrepreneurship Studies (CES), FUTO.
 
 ## Overview

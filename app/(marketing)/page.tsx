@@ -8,11 +8,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ArrowUpRight, BookOpenText, Briefcase, Download, GraduationCap, Languages, ListChecks, MessagesSquare, Presentation, Route, School, Sprout, Users, Wrench } from "lucide-react";
 import {
-  FOUNDER_GITHUB_URL,
   FOUNDER_NAME,
-  FOUNDER_PORTFOLIO_URL,
   FOUNDER_TITLE,
-  PROJECT_REPO_URL,
   SITE_ALIASES,
   SITE_ALT_NAME,
   SITE_DESCRIPTION,
@@ -86,9 +83,7 @@ export default function LandingPage() {
         jobTitle: FOUNDER_TITLE,
         image: `${siteUrl}/ceo.jpg`,
         url: `${siteUrl}/about`,
-        sameAs: [FOUNDER_GITHUB_URL, FOUNDER_PORTFOLIO_URL],
       },
-      sameAs: [PROJECT_REPO_URL, FOUNDER_GITHUB_URL],
     },
     {
       "@context": "https://schema.org",
@@ -101,7 +96,6 @@ export default function LandingPage() {
         "@id": `${siteUrl}/#organization`,
       },
       url: `${siteUrl}/about`,
-      sameAs: [FOUNDER_GITHUB_URL, FOUNDER_PORTFOLIO_URL],
     },
   ];
 
