@@ -408,6 +408,8 @@ export interface GenerateWithFallbackOptions<T> {
   systemInstruction?: string;
   tools?: unknown[];
   temperature?: number;
+  /** longest answer to allow (long documents such as a textbook chapter need more than the default) */
+  maxOutputTokens?: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   schema?: z.ZodType<T, z.ZodTypeDef, any>;
   userId?: string;
@@ -506,6 +508,7 @@ async function generateWithFallbackInner<T>({
   systemInstruction,
   tools,
   temperature,
+  maxOutputTokens,
   schema,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   userId: _userId,
@@ -563,6 +566,7 @@ async function generateWithFallbackInner<T>({
           contents,
           schema: Boolean(schema),
           temperature,
+          maxTokens: maxOutputTokens,
         });
 
         let parsedData: T | undefined = undefined;
@@ -615,6 +619,7 @@ async function generateWithFallbackInner<T>({
         contents,
         schema: Boolean(schema),
         temperature,
+        maxTokens: maxOutputTokens,
       });
 
       let parsedData: T | undefined = undefined;
@@ -698,6 +703,9 @@ async function generateWithFallbackInner<T>({
         };
         if (typeof temperature === "number") {
           config.temperature = temperature;
+        }
+        if (typeof maxOutputTokens === "number") {
+          config.maxOutputTokens = maxOutputTokens;
         }
         if (tools && tools.length > 0) {
           config.tools = tools;
@@ -922,6 +930,7 @@ async function generateWithFallbackInner<T>({
         contents,
         schema: Boolean(schema),
         temperature,
+        maxTokens: maxOutputTokens,
       });
 
       let parsedData: T | undefined = undefined;

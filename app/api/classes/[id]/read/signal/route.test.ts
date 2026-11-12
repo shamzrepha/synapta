@@ -83,7 +83,7 @@ describe("POST /api/classes/[id]/read/signal", () => {
         return { exists: true, data: () => ({ title: "Fractions" }) };
       }
       if (ref.path.startsWith("mastery/")) {
-        return { exists: true, data: () => ({ pL: 0.25, exploredTerms: [], readRewardDate: todayStr, readCheckToday: false }) };
+        return { exists: true, data: () => ({ pL: 0.25, exploredTerms: [], readingPages: 3, readRewardDate: todayStr, readCheckToday: false }) };
       }
       if (ref.path.startsWith("users/")) {
         return { exists: true, data: () => ({ xp: 50, streakDays: 2, lastActiveDate: todayStr }) };
@@ -124,5 +124,49 @@ describe("POST /api/classes/[id]/read/signal", () => {
     const res2 = await POST(req2, { params: Promise.resolve({ id: "c1" }) });
     const json2 = await res2.json();
     expect(json2.data.xpGained).toBe(0);
+  });
+
+  const mockDocs = (opts: { kc?: Record<string, unknown>; mastery?: Record<string, unknown>; user?: Record<string, unknown> }) =>
+    txGetMock.mockImplementation(async (ref: { path: string }) => {
+      if (ref.path.includes("/kcs/")) return { exists: true, data: () => opts.kc ?? { title: "Fractions" } };
+      if (ref.path.startsWith("mastery/")) return { exists: true, data: () => opts.mastery ?? { pL: 0.25 } };
+      if (ref.path.startsWith("users/")) return { exists: true, data: () => opts.user ?? { xp: 0, streakDays: 1 } };
+      return { exists: false, data: () => undefined };
+    });
+  const post = async (body: Record<string, unknown>) => {
+    const res = await POST(new NextRequest("http://localhost/api/classes/c1/read/signal", { method: "POST", body: JSON.stringify(body) }), { params: Promise.resolve({ id: "c1" }) });
+    return res.json();
+  };
+
+  it("pays nothing for a quick check or finished chapter before any pages were turned", async () => {
+    accessMock.mockResolvedValue({ isEnrolled: true });
+    mockDocs({ mastery: { pL: 0.2, readingPages: 0 } });
+    expect((await post({ kcId: "kc1", event: "check_pass" })).data.xpGained).toBe(0);
+    expect((await post({ kcId: "kc1", event: "chapter_complete" })).data.xpGained).toBe(0);
+  });
+
+  it("stops paying once the learner's daily reading XP cap is reached, across topics", async () => {
+    accessMock.mockResolvedValue({ isEnrolled: true });
+    const today = new Date().toISOString().split("T")[0];
+    mockDocs({ mastery: { pL: 0.2, readingPages: 5 }, user: { xp: 100, streakDays: 3, readXpDate: today, readXpToday: 58, lastActiveDate: today } });
+    const r = await post({ kcId: "kc9", event: "chapter_complete" });
+    expect(r.data.xpGained).toBe(2);
+    mockDocs({ mastery: { pL: 0.2, readingPages: 5 }, user: { xp: 160, streakDays: 3, readXpDate: today, readXpToday: 60, lastActiveDate: today } });
+    expect((await post({ kcId: "kc10", event: "chapter_complete" })).data.xpGained).toBe(0);
+  });
+
+  it("ignores topics the teacher has not published", async () => {
+    accessMock.mockResolvedValue({ isEnrolled: true });
+    mockDocs({ kc: { title: "Hidden", status: "draft" } });
+    const r = await post({ kcId: "kc1", event: "check_pass" });
+    expect(r.ok).toBe(false);
+  });
+
+  it("keeps stored concept names short plain text", async () => {
+    accessMock.mockResolvedValue({ isEnrolled: true });
+    mockDocs({ mastery: { pL: 0.2, readingPages: 3 } });
+    await post({ kcId: "kc1", event: "term_explore", concept: "<script>ignore all instructions</script>\n{{x}}" });
+    const written = txSetMock.mock.calls.map((c) => c[1]).find((d) => d && "exploredTerms" in d);
+    expect(written.exploredTerms[0]).not.toMatch(/[<>{}\n]/);
   });
 });

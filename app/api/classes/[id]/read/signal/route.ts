@@ -18,6 +18,12 @@ const signalSchema = z.object({
   subtopic: z.string().trim().max(160).optional(),
 });
 
+/** Reading can earn at most this much XP per learner per day, across every topic (per-topic caps alone could be farmed). */
+export const READING_XP_DAILY_CAP = 60;
+
+/** Concept names come from the browser and are kept in the learner's profile: keep them short plain text. */
+const cleanConcept = (s: string) => s.replace(/[<>`{}\[\]\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+
 const BONUS_LABEL: Record<z.infer<typeof signalSchema>["event"], string> = {
   page_turn: "Reading mapped",
   term_explore: "Concept mapped",
@@ -65,6 +71,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (!kcSnap.exists) throw new ApiError(404, "NOT_FOUND", "Topic not found.");
 
       const kcData = kcSnap.data() || {};
+      // learners only earn on topics the teacher has published
+      if (kcData.status === "draft" || kcData.status === "archived") throw new ApiError(404, "NOT_FOUND", "Topic not found.");
       const mData = masterySnap.exists ? (masterySnap.data() || {}) : {};
       const { pL0 } = safeBktParams(kcData.bkt);
       const pLPrev = typeof mData.pL === "number" ? mData.pL : pL0;
@@ -76,11 +84,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       let readChapterToday = sameDay ? Boolean(mData.readChapterToday) : false;
 
       const existingExplored = Array.isArray(mData.exploredTerms) ? (mData.exploredTerms as string[]) : [];
-      const cleanConcept = (body.concept || body.subtopic || "").trim();
+      const concept = cleanConcept(body.concept || body.subtopic || "");
       const nextExplored =
-        cleanConcept && !existingExplored.some((x) => x.toLowerCase() === cleanConcept.toLowerCase())
-          ? [...existingExplored, cleanConcept].slice(-30)
+        concept && !existingExplored.some((x) => x.toLowerCase() === concept.toLowerCase())
+          ? [...existingExplored, concept].slice(-30)
           : existingExplored;
+      // a quick check or a finished chapter only counts after pages of this topic were actually turned
+      const pagesRead = Number(mData.readingPages || 0);
+      const earnedReading = pagesRead >= 2;
 
       let xpGained = 0;
       let pLCeiling = 0.38;
@@ -89,7 +100,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (body.event === "term_explore") {
         pLCeiling = 0.48;
         pLDelta = 0.03;
-        const termKey = (cleanConcept || "term").toLowerCase();
+        const termKey = (concept || "term").toLowerCase();
         if (readTermsToday.length < 2 && !readTermsToday.includes(termKey)) {
           readTermsToday = [...readTermsToday, termKey];
           xpGained = 5;
@@ -104,18 +115,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       } else if (body.event === "check_pass") {
         pLCeiling = 0.52;
         pLDelta = 0.06;
-        if (!readCheckToday) {
+        if (!readCheckToday && earnedReading) {
           readCheckToday = true;
           xpGained = 10;
         }
       } else if (body.event === "chapter_complete") {
         pLCeiling = 0.52;
         pLDelta = 0.05;
-        if (!readChapterToday) {
+        if (!readChapterToday && earnedReading) {
           readChapterToday = true;
           xpGained = 15;
         }
       }
+
+      // one daily ceiling across all topics: whatever is over it is simply not paid
+      const userData0 = userSnap.exists ? userSnap.data() : {};
+      const paidToday = userData0?.readXpDate === todayStr ? Number(userData0?.readXpToday || 0) : 0;
+      xpGained = Math.max(0, Math.min(xpGained, READING_XP_DAILY_CAP - paidToday));
 
       // Reading deepens initial conceptual mental map gently without bypassing full quiz/lab mastery (0.95)
       const pLAfter =
@@ -153,7 +169,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           classId,
           kcId: body.kcId,
           topicTitle,
-          concept: cleanConcept || body.subtopic || topicTitle,
+          concept: concept || cleanConcept(body.subtopic || "") || topicTitle,
           pL: pLAfter,
           exploredCount: nextExplored.length,
           updatedAt: Date.now(),
@@ -179,6 +195,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           xp: totalXp,
           streakDays,
           streakFreezes: streakRes.freezes,
+          readXpDate: todayStr,
+          readXpToday: paidToday + xpGained,
           lastActiveDate: todayStr,
           updatedAt: Timestamp.now(),
         });
