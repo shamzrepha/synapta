@@ -27,6 +27,8 @@ import { TutorBubble, parseTutorMessage, type TutorMessage } from "@/components/
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { EnterLabVeil } from "@/components/labs/tap-to-enter";
+import { useCoarsePointer } from "@/lib/ui/use-coarse-pointer";
 
 interface ClientSimulation {
   status: "ready" | "generating" | "failed";
@@ -376,6 +378,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
 
   // Full screen: the browser API where it exists, a full-window layout everywhere else (iPhone Safari has no API for it)
   const [full, setFull] = useState(false);
+  const touch = useCoarsePointer();
   const goFullscreen = () => {
     setFull((v) => {
       const next = !v;
@@ -685,6 +688,8 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
           </button>
         )}
         <TutorBubble message={tutor} className="absolute left-3 right-14 bottom-3 z-10" />
+        {/* on a phone the stage is a still preview: tap it to enter, so the page scrolls instead of the lab */}
+        {!full && touch && <EnterLabVeil onEnter={goFullscreen} />}
         {frameHtml ? (
           <iframe
             key={frameKey}

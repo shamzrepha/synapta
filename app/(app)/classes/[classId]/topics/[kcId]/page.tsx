@@ -39,6 +39,7 @@ import { formatPL, getMasteryStatus, cn } from "@/lib/utils";
 import { LAB_REGISTRY } from "@/components/labs";
 import { AiSimulation } from "@/components/labs/ai-simulation";
 import { PiecesLab } from "@/components/labs/pieces-lab";
+import { TapToEnter } from "@/components/labs/tap-to-enter";
 import { RichInline } from "@/components/markdown/rich-inline";
 import { QuizPlayer } from "@/components/quiz/quiz-player";
 import { ProveIt } from "@/components/labs/prove-it";
@@ -660,6 +661,7 @@ export default function TopicPage({
                   </button>
                   {showClassicLab && (
                     <div className="mt-4">
+                      <TapToEnter title={`${kc.title}: guided lab bench`}>
                       <ClassicLab
                         config={kc.lab?.config as Record<string, string | number> | undefined}
                         onComplete={async (result) => {
@@ -686,6 +688,7 @@ export default function TopicPage({
                           }
                         }}
                       />
+                      </TapToEnter>
                     </div>
                   )}
                 </div>

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Layers, Layers3, ListChecks, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { extractRecallItems } from "@/lib/study/recall";
 
 /**
  * Shown at the end of a topic's note. It marks the topic as read, offers the ways to lock it in (quiz, flashcards, teach-me),
@@ -19,6 +20,8 @@ export function TopicDone({
   classDone,
   classTitle,
   hasPractice = true,
+  markdown,
+  onRecallPass,
 }: {
   classId: string;
   kcId: string;
@@ -30,6 +33,10 @@ export function TopicDone({
   classDone: boolean;
   classTitle: string;
   hasPractice?: boolean;
+  /** the chapter text: its summary and key terms become the "close the book" recall check */
+  markdown?: string;
+  /** the learner recalled most of it: counts as a passed quick check */
+  onRecallPass?: (kcId: string) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -45,6 +52,21 @@ export function TopicDone({
     return () => io.disconnect();
   }, [kcId, onSeen]);
 
+  const items = useMemo(() => extractRecallItems(markdown || "", 4), [markdown]);
+  const [i, setI] = useState(0);
+  const [shown, setShown] = useState(false);
+  const [got, setGot] = useState<boolean[]>([]);
+  const finished = items.length > 0 && got.length >= items.length;
+  const right = got.filter(Boolean).length;
+  const passed = finished && right / items.length >= 0.75;
+  const answer = (ok: boolean) => {
+    const next = [...got, ok];
+    setGot(next);
+    setShown(false);
+    setI(i + 1);
+    if (next.length >= items.length && next.filter(Boolean).length / items.length >= 0.75) onRecallPass?.(kcId);
+  };
+
   const link = (tab: string) => `/classes/${classId}/topics/${kcId}?tab=${tab}`;
   return (
     <div ref={box} className="mt-8 space-y-3">
@@ -52,6 +74,32 @@ export function TopicDone({
         <p className="flex items-center gap-2 font-bold">
           <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" /> You&apos;ve read this chapter: {title}
         </p>
+        {items.length >= 2 && (
+          <div className="rounded-xl border border-border bg-card p-3 space-y-2" role="group" aria-label="Recall check">
+            {!finished ? (
+              <>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Close the book: can you recall it? ({i + 1} of {items.length})</p>
+                <p className="text-[15px] font-medium leading-relaxed">{items[i].prompt}</p>
+                {!shown ? (
+                  <Button type="button" size="sm" variant="outline" onClick={() => setShown(true)}>I&apos;ve tried: show the answer</Button>
+                ) : (
+                  <>
+                    <p className="rounded-lg bg-brand-500/10 px-3 py-2 text-sm"><span className="font-semibold">{items[i].answer}</span></p>
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" onClick={() => answer(true)}>I got it</Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => answer(false)}>Not yet</Button>
+                    </div>
+                  </>
+                )}
+              </>
+            ) : (
+              <p className="text-sm">
+                <span className="font-bold">{right} of {items.length} recalled.</span>{" "}
+                {passed ? "Strong. Now test it with the quiz." : "Flashcards are the best next step: they bring back the ones you missed."}
+              </p>
+            )}
+          </div>
+        )}
         {hasPractice && (
           <>
             <p className="text-sm text-muted-foreground">Lock it in while it&apos;s fresh. Quick practice makes it stick.</p>

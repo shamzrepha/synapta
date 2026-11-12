@@ -12,6 +12,8 @@ import { TutorBubble, parseTutorMessage, type TutorMessage } from "./tutor-bubbl
 import { readableText } from "@/lib/text/readable";
 import { QuestRunner } from "@/components/quest/quest-runner";
 import { cn } from "@/lib/utils";
+import { EnterLabVeil } from "@/components/labs/tap-to-enter";
+import { useCoarsePointer } from "@/lib/ui/use-coarse-pointer";
 
 interface Piece {
   index: number;
@@ -54,6 +56,7 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
   const [tutor, setTutor] = useState<TutorMessage | null>(null);
   const [stars, setStars] = useState(0);
   const [full, setFull] = useState(false);
+  const touch = useCoarsePointer();
   const [quests, setQuests] = useState<QuestInfo[]>([]);
   const [questBusy, setQuestBusy] = useState<number | null>(null);
   const [runIndex, setRunIndex] = useState<number | null>(null);
@@ -464,6 +467,7 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
 
               <div className={cn("relative", full && "flex-1 min-h-0")}>
                 {frame}
+                {!full && touch && <EnterLabVeil onEnter={enterFull} />}
                 <TutorBubble message={tutor} className="absolute left-2 right-12 bottom-2 sm:left-3 sm:bottom-3" />
                 {!full && (
                   <button

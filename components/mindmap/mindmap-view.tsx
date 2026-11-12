@@ -23,12 +23,23 @@ export function MindMapView({
   selectedId,
   onSelect,
   onExplain,
+  nodeStyle,
+  renderActions,
+  hereId,
+  height,
 }: {
   tree: MapNode;
   title: string;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  onExplain: (path: string[]) => void;
+  onExplain?: (path: string[]) => void;
+  /** colours for a node (default: by depth). Fixed colours, so the exported picture matches the screen. */
+  nodeStyle?: (id: string, depth: number) => { fill: string; text: string; dash?: boolean };
+  /** replaces the "Explain this" bar under the map for the selected node */
+  renderActions?: (node: { id: string; title: string }) => React.ReactNode;
+  /** the node to ring as "you are here" */
+  hereId?: string | null;
+  height?: string;
 }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [view, setView] = useState<View>({ x: 0, y: 0, k: 1 });
@@ -44,6 +55,12 @@ export function MindMapView({
     const el = wrapRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
+    // on a phone, keep the text readable (not shrunk to fit the whole tree) and start at the root; the learner pans from there
+    if (r.width < 600) {
+      const kw = clampK(Math.max(0.55, Math.min(1, (r.width - 16) / layout.width)));
+      setView({ k: kw, x: 8, y: Math.max(8, (r.height - layout.height * kw) / 2) });
+      return;
+    }
     const k = clampK(Math.min(1, r.width / layout.width, r.height / layout.height));
     setView({ k, x: (r.width - layout.width * k) / 2, y: Math.max(0, (r.height - layout.height * k) / 2) });
   }, [layout.width, layout.height]);
@@ -180,7 +197,7 @@ export function MindMapView({
       <div className="relative rounded-2xl border border-slate-200 dark:border-slate-800 bg-white overflow-hidden">
         <div
           ref={wrapRef}
-          className="h-[min(60dvh,520px)] w-full cursor-grab active:cursor-grabbing"
+          className={`${height || "h-[min(60dvh,520px)]"} w-full cursor-grab active:cursor-grabbing`}
           style={{ touchAction: "none" }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -198,8 +215,11 @@ export function MindMapView({
                 return <path key={`${l.from}>${l.to}`} d={`M${x1} ${a.y} C${mx} ${a.y} ${mx} ${b.y} ${x2} ${b.y}`} fill="none" stroke={LINK} strokeWidth={2} />;
               })}
               {layout.nodes.map((n) => {
-                const fill = DEPTH_FILL[Math.min(n.depth, DEPTH_FILL.length - 1)];
+                const st = nodeStyle?.(n.id, n.depth);
+                const fill = st?.fill ?? DEPTH_FILL[Math.min(n.depth, DEPTH_FILL.length - 1)];
+                const textFill = st?.text ?? "#ffffff";
                 const isSel = n.id === selectedId;
+                const isHere = n.id === hereId;
                 return (
                   <g key={n.id}>
                     <g
@@ -208,8 +228,9 @@ export function MindMapView({
                       }}
                       style={{ cursor: "pointer" }}
                     >
-                      <rect x={n.x} y={n.y - n.h / 2} width={n.w} height={n.h} rx={n.h / 2} fill={fill} stroke={isSel ? "#f59e0b" : "none"} strokeWidth={isSel ? 3 : 0} />
-                      <text x={n.x + n.w / 2} y={n.y} textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={n.depth === 0 ? 700 : 500} fill="#ffffff" fontFamily="system-ui, sans-serif">
+                      {isHere && <rect x={n.x - 5} y={n.y - n.h / 2 - 5} width={n.w + 10} height={n.h + 10} rx={n.h / 2 + 5} fill="none" stroke="#2563eb" strokeWidth={3} strokeDasharray="6 4" />}
+                      <rect x={n.x} y={n.y - n.h / 2} width={n.w} height={n.h} rx={n.h / 2} fill={fill} stroke={isSel ? "#f59e0b" : st?.dash ? "#64748b" : "none"} strokeWidth={isSel ? 3 : st?.dash ? 1.5 : 0} strokeDasharray={st?.dash && !isSel ? "4 3" : undefined} />
+                      <text x={n.x + n.w / 2} y={n.y} textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={n.depth === 0 ? 700 : 500} fill={textFill} fontFamily="system-ui, sans-serif">
                         {displayTitle(n.title)}
                       </text>
                     </g>
@@ -245,14 +266,20 @@ export function MindMapView({
       {selected && (
         <div className="flex items-center gap-2 rounded-xl border border-amber-300/60 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-2.5">
           <div className="min-w-0 flex-1 text-sm font-semibold truncate">{selected.title}</div>
-          <button
-            type="button"
-            onClick={() => onExplain(pathTo(tree, selected.id))}
-            className="h-9 px-3 shrink-0 rounded-lg bg-brand-600 text-white text-xs font-semibold flex items-center gap-1.5"
-            style={{ minHeight: NODE_H }}
-          >
-            <Sparkles className="h-3.5 w-3.5" /> Explain this
-          </button>
+          {renderActions ? (
+            renderActions({ id: selected.id, title: selected.title })
+          ) : (
+            onExplain && (
+              <button
+                type="button"
+                onClick={() => onExplain(pathTo(tree, selected.id))}
+                className="h-9 px-3 shrink-0 rounded-lg bg-brand-600 text-white text-xs font-semibold flex items-center gap-1.5"
+                style={{ minHeight: NODE_H }}
+              >
+                <Sparkles className="h-3.5 w-3.5" /> Explain this
+              </button>
+            )
+          )}
         </div>
       )}
     </div>

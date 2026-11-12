@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Flame,
   ListTree,
+  Network,
   Minus,
   Plus,
   Rows3,
@@ -27,6 +28,7 @@ import { useToast } from "@/components/ui/toast";
 import { InteractiveNote, type StudySignalPayload } from "@/components/lesson/interactive-note";
 import { TopicDone } from "@/components/lesson/topic-done";
 import { TextbookWriter } from "@/components/lesson/textbook-writer";
+import { ClassMindMap } from "@/components/classes/class-mind-map";
 import { readMinutes, splitTextbookPages, type TextbookSectionKind } from "@/lib/study/note-sections";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { fireCelebration } from "@/components/game/confetti";
@@ -146,8 +148,10 @@ const SectionView = memo(function SectionView({
   onSeen,
   classDone,
   classTitle,
+  onRecallPass,
 }: {
   s: Section;
+  onRecallPass?: (kcId: string) => void;
   classId: string;
   onListen: (id: string) => void;
   nextId?: string | null;
@@ -207,6 +211,8 @@ const SectionView = memo(function SectionView({
           onSeen={onSeen}
           classDone={!!classDone}
           classTitle={classTitle || ""}
+          markdown={text}
+          onRecallPass={onRecallPass}
         />
       )}
     </section>
@@ -224,9 +230,12 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
   const [title, setTitle] = useState("");
   const [kcs, setKcs] = useState<Kc[] | null>(null);
   const [canManage, setCanManage] = useState(false);
+  const [masteryMap, setMasteryMap] = useState<Record<string, number>>({});
+  const [attemptsMap, setAttemptsMap] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [tocOpen, setTocOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   const [scale, setScale] = useState(1);
   const [q, setQ] = useState("");
   const [fromRef, setFromRef] = useState(false);
@@ -272,6 +281,8 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         setTitle(String(j.data.class.title || "Class"));
         setKcs(asArray<Kc>(j.data.kcs));
         setCanManage(!!j.data.isOwner || j.data.role === "owner" || j.data.role === "admin");
+        setMasteryMap(j.data.masteryMap || {});
+        setAttemptsMap(j.data.attemptsMap || {});
       } catch (e) {
         if (!off && !saved) setError(e instanceof Error ? e.message : "Couldn't open this class.");
       }
@@ -534,6 +545,12 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     }
   }, [doneKey]);
   const classDone = readable.length > 0 && readable.every((r) => doneIds.includes(r.id));
+  const recallPass = useCallback(
+    (kcId: string) => {
+      void sendSignal(kcId, "check_pass", sections.find((x) => x.id === kcId)?.title);
+    },
+    [sendSignal, sections]
+  );
   const markDone = useCallback(
     (kcId: string) => {
       setDoneIds((prev) => {
@@ -597,7 +614,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       saveTimer = window.setTimeout(() => {
         if (!cur || window.scrollY < 40) return;
         try {
-          localStorage.setItem(posKey, JSON.stringify({ kc: cur, snippet: firstVisibleBlock(cur), at: Date.now() }));
+          localStorage.setItem(posKey, JSON.stringify({ kc: cur, title: sections.find((x) => x.id === cur)?.title, snippet: firstVisibleBlock(cur), at: Date.now() }));
         } catch {
           /* ignore */
         }
@@ -827,6 +844,9 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
             <Rows3 className="h-3.5 w-3.5" /> Scroll
           </button>
         </div>
+        <button type="button" onClick={() => setMapOpen(true)} className="inline-flex items-center gap-1.5 h-9 rounded-lg border border-border px-2.5 sm:px-3 text-xs font-semibold hover:bg-muted" aria-label="Open the mind map">
+          <Network className="h-4 w-4" /> <span className="hidden sm:inline">Mind map</span>
+        </button>
         <button type="button" onClick={() => setTocOpen(true)} className="lg:hidden inline-flex items-center gap-1.5 h-9 rounded-lg border border-border px-3 text-xs font-semibold hover:bg-muted" aria-label="Open the table of contents">
           <ListTree className="h-4 w-4" /> Contents
         </button>
@@ -1106,6 +1126,8 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                             onSeen={markDone}
                             classDone={classDone}
                             classTitle={title}
+                            markdown={(currentFlip.section.lessonMarkdown || "").trim()}
+                            onRecallPass={recallPass}
                           />
                         )}
 
@@ -1191,6 +1213,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                   onSeen={markDone}
                   classDone={classDone}
                   classTitle={title}
+                  onRecallPass={recallPass}
                 />
               ))}
             </>
@@ -1205,6 +1228,29 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       )}
       {voice.failed && (
         <p className="fixed bottom-24 inset-x-4 z-40 rounded-xl bg-rose-600 text-white text-sm px-3 py-2 text-center">The voice is busy right now. Try again in a moment.</p>
+      )}
+      {mapOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={() => setMapOpen(false)} role="presentation">
+          <div className="note-sheet w-full sm:max-w-4xl max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-card p-4" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Mind map">
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-bold">Mind map: {title}</p>
+              <button type="button" onClick={() => setMapOpen(false)} aria-label="Close" className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted"><X className="h-5 w-5" /></button>
+            </div>
+            <ClassMindMap
+              classId={classId}
+              title={title}
+              kcs={sections.map((x) => ({ id: x.id, title: x.title, order: x.order, parentId: x.parentId }))}
+              masteryMap={masteryMap}
+              attemptsMap={attemptsMap}
+              hereId={active}
+              height="h-[min(62dvh,560px)]"
+              onRead={(id) => {
+                setMapOpen(false);
+                goTo(id);
+              }}
+            />
+          </div>
+        </div>
       )}
       {tocOpen && (
         <div className="lg:hidden fixed inset-0 z-[70] flex items-end bg-black/50" onClick={() => setTocOpen(false)} role="presentation">

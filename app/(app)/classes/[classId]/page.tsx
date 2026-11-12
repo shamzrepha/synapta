@@ -36,6 +36,7 @@ import { formatPL, getMasteryStatus } from "@/lib/utils";
 import { MaterialsUploader } from "@/components/teacher/MaterialsUploader";
 import { readPrefs, usePrefs } from "@/components/settings/use-prefs";
 import { peekClass, rememberClass } from "@/lib/client/class-cache";
+import { ClassMindMap } from "@/components/classes/class-mind-map";
 
 interface KCItem {
   id: string;
@@ -47,6 +48,7 @@ interface KCItem {
   bkt?: { pL0: number; pT: number; pG: number; pS: number };
   lab?: { type: string; config?: Record<string, unknown> };
   objectives?: string[];
+  parentId?: string | null;
 }
 
 interface ClassDetail {
@@ -124,9 +126,9 @@ export default function ClassOverviewPage({
   const [isPublishing, setIsPublishing] = useState(false);
   const [isBuilding, setIsBuilding] = useState(false);
   // students see the map by default; the owner (who manages topics) sees the list. Either can switch, and the choice is remembered.
-  const [viewChoice, setViewChoice] = useState<"map" | "list" | null>(null);
-  const view: "map" | "list" = viewChoice ?? (isOwner ? "list" : "map");
-  const chooseView = (v: "map" | "list") => {
+  const [viewChoice, setViewChoice] = useState<"map" | "list" | "mind" | null>(null);
+  const view: "map" | "list" | "mind" = viewChoice ?? (isOwner ? "list" : "map");
+  const chooseView = (v: "map" | "list" | "mind") => {
     setViewChoice(v);
     try {
       window.localStorage.setItem("sunroot:classView", v);
@@ -136,12 +138,21 @@ export default function ClassOverviewPage({
     const t = setTimeout(() => {
       try {
         const saved = window.localStorage.getItem("sunroot:classView");
-        if (saved === "map" || saved === "list") setViewChoice(saved);
+        if (saved === "map" || saved === "list" || saved === "mind") setViewChoice(saved);
       } catch {}
     }, 0);
     return () => clearTimeout(t);
   }, []);
   const [showMaterialModal, setShowMaterialModal] = useState(false);
+  // where the learner stopped reading (kept on this device by the reader): ringed on the mind map and offered as "Continue"
+  const [leftOffKc, setLeftOffKc] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const pos = JSON.parse(window.localStorage.getItem(`sunroot:readpos:${classId}`) || "null") as { kc?: string } | null;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (pos?.kc) setLeftOffKc(pos.kc);
+    } catch {}
+  }, [classId]);
 
   const applyClassPayload = useCallback((payload: ClassPayload | null, opts: { silent?: boolean } = {}) => {
     setLoading(false);
@@ -642,7 +653,7 @@ export default function ClassOverviewPage({
             </p>
           </div>
           <div className="inline-flex shrink-0 rounded-md border border-border p-0.5" role="group" aria-label="View">
-            {(["map", "list"] as const).map((v) => (
+            {(["map", "mind", "list"] as const).map((v) => (
               <button
                 key={v}
                 type="button"
@@ -650,11 +661,23 @@ export default function ClassOverviewPage({
                 aria-pressed={view === v}
                 className={`rounded px-3 py-1 text-xs font-medium capitalize transition-colors ${view === v ? "bg-brand-600 text-white dark:bg-brand-500" : "text-muted-foreground hover:text-foreground"}`}
               >
-                {v}
+                {v === "mind" ? "Mind map" : v}
               </button>
             ))}
           </div>
         </div>
+
+        {leftOffKc && kcs.some((k) => k.id === leftOffKc) && (isOwner || enrollmentStatus === "active") && (
+          <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-brand-500/30 bg-brand-500/5 p-3">
+            <BookOpen className="h-5 w-5 text-brand-600 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">Where you left off</p>
+              <p className="text-sm font-semibold truncate">{kcs.find((k) => k.id === leftOffKc)?.title}</p>
+            </div>
+            <Link href={`/classes/${classId}/read`} className="inline-flex h-9 items-center rounded-lg bg-brand-600 px-4 text-xs font-semibold text-white hover:bg-brand-700">Continue reading</Link>
+            <button type="button" onClick={() => chooseView("mind")} className="inline-flex h-9 items-center rounded-lg border border-border px-3 text-xs font-semibold hover:bg-muted">Show on the map</button>
+          </div>
+        )}
 
         <ClassWorlds classId={classId} canManage={isOwner || user?.role === "admin"} />
 
@@ -672,6 +695,17 @@ export default function ClassOverviewPage({
               labType: kc.lab?.type,
               objectives: kc.objectives,
             }))}
+          />
+        )}
+
+        {view === "mind" && (
+          <ClassMindMap
+            classId={classId}
+            title={classData.title}
+            kcs={kcs.map((k) => ({ id: k.id, title: k.title, order: k.order, parentId: k.parentId }))}
+            masteryMap={masteryMap}
+            attemptsMap={attemptsMap}
+            hereId={leftOffKc}
           />
         )}
 
