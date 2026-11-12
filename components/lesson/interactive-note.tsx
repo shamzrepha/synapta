@@ -387,15 +387,17 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
       }
       if (off) return;
       const r = el.getBoundingClientRect();
-      const fin = {
+      const finalTop = Math.max(8, r.top - drop.current);
+      // Sprout perches elevated above to haul the pop-up card up
+      const pullSpot = {
         left: r.left,
-        top: Math.max(8, r.top - drop.current),
+        top: Math.max(8, finalTop - 56),
         width: r.width,
         height: r.height,
         right: r.left + r.width,
-        bottom: Math.max(8, r.top - drop.current) + r.height,
+        bottom: Math.max(8, finalTop - 56) + r.height,
       };
-      await b.hopTo(fin as unknown as DOMRect, { anchor: "perch", pose: "pull", duration: 800, say: "Found it! Hauling it up..." });
+      await b.hopTo(pullSpot as unknown as DOMRect, { anchor: "perch", pose: "pull", duration: 800, say: "Found it! Hauling it up..." });
       if (off) return;
       b.setPose("pull");
       const hand = () => b.handPoint();
@@ -437,7 +439,12 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
       }, stop);
       rope.hide();
       if (off) return;
-      // Victory giggle and celebration
+
+      // Sprout jumps down and lands directly on top of the page header / top border of the card!
+      await b.hopTo(el, { anchor: "perch", pose: "jump", duration: 460 });
+      if (off) return;
+
+      // Victory giggle and celebration on top of the header border
       b.setPose("giggle");
       playCuteVoice("cheer");
       b.say("Here it is!", 1800);
