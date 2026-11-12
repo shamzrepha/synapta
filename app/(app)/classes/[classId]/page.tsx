@@ -218,12 +218,23 @@ export default function ClassOverviewPage({
       const res = await fetch(`/api/classes/${classId}/publish`, { method: "POST" });
       const data = await res.json();
       if (data.ok) {
+        const empty = Array.isArray(data.data?.emptyTopics) ? (data.data.emptyTopics as string[]) : [];
+        const skipped = Array.isArray(data.data?.skipped) ? (data.data.skipped as string[]) : [];
+        const pushed = Number(data.data?.pushed) || 0;
         toast({
-          title: "Class Published!",
-          description: `All topics are now live and visible to students.`,
-          variant: "success",
+          title: "Class published",
+          description:
+            empty.length > 0
+              ? `${empty.length} topic${empty.length === 1 ? " has" : "s have"} no lecture note yet, so students will see them empty. Write the full textbook chapters first.`
+              : skipped.length > 0
+                ? `Live, but ${skipped.length} item${skipped.length === 1 ? "" : "s"} couldn't go live: ${skipped[0]}`
+                : pushed > 0
+                  ? `Students can now read ${pushed} published item${pushed === 1 ? "" : "s"}.`
+                  : "Students can open the class.",
+          variant: empty.length > 0 || skipped.length > 0 ? "amber" : "success",
         });
         setClassData((prev) => prev ? { ...prev, status: "published", buildState: "ready" } : prev);
+        void loadData({ silent: true });
       } else {
         toast({
           title: "Publish Failed",
@@ -287,10 +298,11 @@ export default function ClassOverviewPage({
     }
   };
 
-  // Nothing is locked: every topic is open, and the map recommends where to go next.
+  // Members (teacher, admin, enrolled student) have every topic open; a visitor must enroll first.
+  const canOpen = isOwner || user?.role === "admin" || enrollmentStatus === "active";
   const isKcUnlocked = (kc: KCItem): boolean => {
     void kc;
-    return true;
+    return canOpen;
   };
 
   if (loading) {
@@ -498,7 +510,7 @@ export default function ClassOverviewPage({
               <span className="flex items-center gap-1">
                 <Layers className="h-3.5 w-3.5" /> {kcs.length} Topics
               </span>
-              {kcs.length > 0 && (
+              {kcs.length > 0 && canOpen && (
                 <Link href={`/classes/${classId}/read`} className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 font-semibold text-white hover:bg-brand-700">
                   <BookOpen className="h-3.5 w-3.5" /> Interactive reading
                 </Link>
@@ -592,9 +604,9 @@ export default function ClassOverviewPage({
 
         <Card className="p-4 flex items-center justify-between">
           <div>
-            <span className="text-xs text-slate-500 block">Every topic is open to you</span>
+            <span className="text-xs text-slate-500 block">{canOpen ? "Every topic is open to you" : "Enroll to open the lessons"}</span>
             <span className="text-xl font-bold text-amber-500">
-              {kcs.length} topics open
+              {canOpen ? `${kcs.length} topics open` : `${kcs.length} topics`}
             </span>
           </div>
           <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
@@ -799,7 +811,7 @@ export default function ClassOverviewPage({
                       </Link>
                     ) : (
                       <Button size="sm" variant="outline" disabled className="text-xs">
-                        <Lock className="h-3.5 w-3.5 mr-1" /> Prerequisite Locked
+                        <Lock className="h-3.5 w-3.5 mr-1" /> Enroll to open
                       </Button>
                     )}
                   </div>

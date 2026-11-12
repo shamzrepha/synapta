@@ -3,6 +3,9 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { validateAndPruneCycles } from "@/lib/teacher/classBuilder";
+import { pushClassContent, type PushAllResult } from "@/lib/classes/publish-all";
+import { getActiveStudentUids } from "@/lib/classes/members";
+import { notifyMany } from "@/lib/notifications/server";
 
 export const runtime = "nodejs";
 
@@ -13,7 +16,7 @@ export async function POST(
   try {
     const { id } = await params;
     const caller = await requireUser(req, ["teacher", "admin"]);
-    await assertClassAccess(caller, id, "mutate");
+    const access = await assertClassAccess(caller, id, "mutate");
 
     const kcsSnap = await adminDb()
       .collection("classes")
@@ -72,9 +75,20 @@ export async function POST(
 
     await batch.commit();
 
+    // Publishing the class also pushes whatever the teacher has created, so students never open a class
+    // that is "live" but empty. (Content stays a private draft only if the teacher takes it offline.)
+    const fresh = await adminDb().collection("classes").doc(id).collection("kcs").get();
+    const content = await pushClassContent(caller, id, fresh.docs, true).catch(
+      (): PushAllResult => ({ pushed: 0, skipped: ["Content couldn't be pushed. Use Publish all content."], emptyTopics: [] })
+    );
+    if (content.pushed) {
+      const uids = await getActiveStudentUids(id).catch(() => [] as string[]);
+      await notifyMany(uids, { type: "system", title: `New material in “${String(access.classData.title || "your class")}”`, body: "Your teacher published new lessons and practice.", href: `/classes/${id}`, icon: "📣" }).catch(() => null);
+    }
+
     return NextResponse.json({
       ok: true,
-      data: { status: "published", publishedKcs: kcsSnap.size },
+      data: { status: "published", publishedKcs: kcsSnap.size, ...content },
     });
   } catch (error) {
     return handleAuthError(error);

@@ -16,6 +16,10 @@ export function KeyboardGuard() {
     const root = document.documentElement;
     const vv = window.visualViewport;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    // The tallest the window has been while nobody was typing. Some Android WebViews shrink the whole window
+    // (so innerHeight and visualViewport shrink together); comparing with this catches that case too.
+    let calm = window.innerHeight;
+    const typingNow = () => !!document.activeElement?.matches?.(TEXT_FIELD);
 
     const reveal = (el: Element | null) => {
       if (!el || !(el as HTMLElement).matches?.(TEXT_FIELD)) return;
@@ -33,8 +37,9 @@ export function KeyboardGuard() {
     const measure = () => {
       const h = vv?.height ?? window.innerHeight;
       root.style.setProperty("--vvh", `${Math.round(h)}px`);
-      // the visible area shrinks by well over 120px when a keyboard opens
-      const open = window.innerHeight - h > 120;
+      if (!typingNow() && window.innerHeight > calm - 120) calm = Math.max(calm, window.innerHeight);
+      // the visible area shrinks by well over 120px when a keyboard opens (either the visual viewport or the window itself)
+      const open = window.innerHeight - h > 120 || (typingNow() && calm - Math.min(h, window.innerHeight) > 120);
       if (open) root.dataset.keyboard = "open";
       else delete root.dataset.keyboard;
       if (open) reveal(document.activeElement);
@@ -57,7 +62,11 @@ export function KeyboardGuard() {
     measure();
     vv?.addEventListener("resize", measure);
     vv?.addEventListener("scroll", measure);
-    window.addEventListener("orientationchange", measure);
+    window.addEventListener("orientationchange", () => {
+      calm = window.innerHeight;
+      measure();
+    });
+    window.addEventListener("resize", measure);
     document.addEventListener("focusin", onFocusIn);
     document.addEventListener("focusout", onFocusOut);
     return () => {
@@ -65,6 +74,7 @@ export function KeyboardGuard() {
       vv?.removeEventListener("resize", measure);
       vv?.removeEventListener("scroll", measure);
       window.removeEventListener("orientationchange", measure);
+      window.removeEventListener("resize", measure);
       document.removeEventListener("focusin", onFocusIn);
       document.removeEventListener("focusout", onFocusOut);
     };
