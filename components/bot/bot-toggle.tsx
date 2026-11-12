@@ -1,28 +1,39 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { Bot } from "lucide-react";
-import { useBot } from "@/components/bot/bot-provider";
+import { useBot, type BotMode } from "@/components/bot/bot-provider";
+import { cn } from "@/lib/utils";
 
-/** Settings row: turn Sprout, the helper bot, on or off. */
+const MODES: Array<{ id: BotMode; label: string }> = [
+  { id: "lively", label: "Lively" },
+  { id: "calm", label: "Calm" },
+  { id: "off", label: "Off" },
+];
+
+/** Settings row: how much Sprout moves around, and a way into its wardrobe. */
 export function BotToggle() {
-  const { enabled, setEnabled } = useBot();
+  const { mode, setMode, pet } = useBot();
   return (
-    <div className="flex items-center gap-3 p-4">
-      <span className="text-brand-600"><Bot className="h-5 w-5" /></span>
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold text-sm">Sprout, the helper bot</p>
-        <p className="text-xs text-slate-500">A little bot that runs to the word you tap, flips pages and crosses out terms. Turn it off for a calmer screen.</p>
+    <div className="space-y-3 p-4">
+      <div className="flex items-center gap-3">
+        <span className="text-brand-600"><Bot className="h-5 w-5" /></span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-sm">{pet.name}, your helper bot</p>
+          <p className="text-xs text-slate-500">Runs to the word you tap, flips pages, cheers your progress. Lively adds waves and dances while you read; Calm only moves when you ask; Off hides it.</p>
+        </div>
       </div>
-      <button
-        role="switch"
-        aria-checked={enabled}
-        aria-label="Sprout, the helper bot"
-        onClick={() => setEnabled(!enabled)}
-        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${enabled ? "bg-brand-600" : "bg-slate-300 dark:bg-slate-700"}`}
-      >
-        <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${enabled ? "left-[22px]" : "left-0.5"}`} />
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex rounded-lg border border-border p-0.5 text-xs font-semibold" role="group" aria-label="Helper bot energy">
+          {MODES.map((m) => (
+            <button key={m.id} type="button" onClick={() => setMode(m.id)} aria-pressed={mode === m.id} className={cn("px-3 py-1.5 rounded-md", mode === m.id ? "bg-brand-600 text-white" : "text-muted-foreground hover:text-foreground")}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <Link href="/pet" className="text-xs font-semibold text-brand-600 dark:text-brand-400 underline">Name it and dress it up</Link>
+      </div>
     </div>
   );
 }

@@ -662,7 +662,7 @@ html[data-keyboard="open"] .sunroot-bot { display: none; }
 .sprout [data-arm="left"] { transform: rotate(8deg); }
 .sprout [data-arm="right"] { transform: rotate(-8deg); }
 .sprout[data-pose="search"] [data-arm="right"] { transform: rotate(-35deg); }
-.sprout[data-pose="search"] .sprout-lens { opacity: 1; animation: sprout-scan 1.1s ease-in-out infinite; transform-origin: 87px 52px; }
+.sprout[data-pose="search"] .sprout-lens { opacity: 1; animation: sprout-scan 1.1s ease-in-out infinite; transform-origin: 88px 46px; }
 @keyframes sprout-scan { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-3px, 2px) scale(1.12); } }
 .sprout[data-pose="point"] [data-arm="right"] { transform: rotate(-95deg); }
 .sprout[data-pose="cross"] [data-arm="right"] { transform: rotate(-110deg); animation: sprout-scribble 0.28s ease-in-out 3; }
@@ -695,4 +695,55 @@ html[data-keyboard="open"] .sunroot-bot { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .sprout, .sprout-leaf, .sprout-eyes, .sprout-lens, .sprout-sparkles { animation: none !important; }
   .kin-cross::after { animation: none; }
+}
+
+/* ===== Sprout: sprite-style motion ===== */
+.sunroot-bot { width: 72px; height: 81px; }
+.sprout[data-pose="wave"] [data-arm="right"] { transform: rotate(-140deg); animation: sprout-wave-r 0.35s ease-in-out infinite alternate; }
+.sprout[data-pose="dance"] { animation: sprout-dance 0.8s ease-in-out infinite; }
+.sprout[data-pose="dance"] [data-arm="left"] { animation: sprout-wave 0.4s ease-in-out infinite alternate; }
+.sprout[data-pose="dance"] [data-arm="right"] { animation: sprout-wave-r 0.4s ease-in-out 0.2s infinite alternate; }
+.sprout[data-pose="dance"] .sprout-mouth { opacity: 0; }
+.sprout[data-pose="dance"] .sprout-mouth-open { opacity: 1; }
+@keyframes sprout-dance {
+  0%, 100% { transform: scaleX(var(--sx, 1)) rotate(-7deg) translateY(0); }
+  25% { transform: scaleX(var(--sx, 1)) rotate(0deg) translateY(-8px) scale(1.04, 0.96); }
+  50% { transform: scaleX(var(--sx, 1)) rotate(7deg) translateY(0); }
+  75% { transform: scaleX(var(--sx, 1)) rotate(0deg) translateY(-8px) scale(0.96, 1.04); }
+}
+/* a hop in place: crouch, stretch up, land with a squash */
+.sprout[data-pose="jump"] { animation: sprout-jump 0.7s cubic-bezier(0.3, 0.7, 0.4, 1) infinite; }
+@keyframes sprout-jump {
+  0% { transform: scaleX(var(--sx, 1)) scale(1.08, 0.88); }
+  25% { transform: scaleX(var(--sx, 1)) translateY(-22px) scale(0.92, 1.12); }
+  50% { transform: scaleX(var(--sx, 1)) translateY(-26px) rotate(360deg); }
+  75% { transform: scaleX(var(--sx, 1)) translateY(-2px) scale(0.95, 1.06); }
+  100% { transform: scaleX(var(--sx, 1)) scale(1.1, 0.86); }
+}
+.sprout[data-pose="jump"] .sprout-mouth { opacity: 0; }
+.sprout[data-pose="jump"] .sprout-mouth-open { opacity: 1; }
+/* running between places: a quick bounce with a lean */
+.sunroot-bot[data-moving="true"] .sprout { animation: sprout-run 0.24s ease-in-out infinite !important; }
+@keyframes sprout-run {
+  0%, 100% { transform: scaleX(var(--sx, 1)) rotate(-5deg) scale(1.04, 0.96); }
+  50% { transform: scaleX(var(--sx, 1)) rotate(5deg) translateY(-6px) scale(0.97, 1.04); }
+}
+/* landing squash after a hop */
+.sunroot-bot[data-landed="true"] .sprout { animation: sprout-land 0.32s ease-out 1; }
+@keyframes sprout-land {
+  0% { transform: scaleX(var(--sx, 1)) scale(1.14, 0.82); }
+  60% { transform: scaleX(var(--sx, 1)) scale(0.96, 1.06); }
+  100% { transform: scaleX(var(--sx, 1)); }
+}
+.sprout-lens-glint { animation: sprout-glint 1.4s ease-in-out infinite; }
+@keyframes sprout-glint { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.9; } }
+.sprout-zzz { animation: sprout-z 2.2s ease-in-out infinite; transform-origin: 72px 36px; }
+@keyframes sprout-z { 0% { transform: translateY(4px) scale(0.7); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(-8px) scale(1.2); opacity: 0; } }
+.sprout-flames { transform-origin: 50px 34px; animation: sprout-flicker 0.5s ease-in-out infinite alternate; }
+@keyframes sprout-flicker { from { transform: scale(1, 0.9); } to { transform: scale(1.06, 1.12); } }
+.sprout-stars { animation: sprout-twinkle 1.2s ease-in-out infinite alternate; }
+.sprout-flame { animation: sprout-flicker 0.2s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) {
+  .sprout[data-pose="dance"], .sprout[data-pose="jump"], .sprout-zzz, .sprout-flames, .sprout-stars, .sprout-flame, .sprout-lens-glint { animation: none !important; }
+  .sunroot-bot[data-moving="true"] .sprout { animation: none !important; }
 }

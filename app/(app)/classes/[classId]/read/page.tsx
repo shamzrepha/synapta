@@ -560,6 +560,23 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     }
   }, [doneKey]);
   const classDone = readable.length > 0 && readable.every((r) => doneIds.includes(r.id));
+
+  // the bot jumps for joy when the class is a quarter, half, three quarters and fully read
+  const milestone = useRef<number | null>(null);
+  useEffect(() => {
+    if (readable.length === 0) return;
+    const pct = Math.round((doneIds.filter((id) => readable.some((r) => r.id === id)).length / readable.length) * 100);
+    const m = [100, 75, 50, 25].find((t) => pct >= t) ?? 0;
+    if (milestone.current === null) {
+      milestone.current = m; // what was already read before this visit does not count
+      return;
+    }
+    if (m > milestone.current) {
+      milestone.current = m;
+      const bar = progressBar.current?.parentElement;
+      if (bar) void bot.cheerAt(bar, m === 100 ? "You finished the whole class!" : `${m}% of the class read!`);
+    }
+  }, [doneIds, readable, bot]);
   const recallPass = useCallback(
     (kcId: string) => {
       void sendSignal(kcId, "check_pass", sections.find((x) => x.id === kcId)?.title);

@@ -5,10 +5,22 @@ import { createPortal } from "react-dom";
 import { useReducedMotion } from "framer-motion";
 import { usePrefs } from "@/components/settings/use-prefs";
 import { Sprout, type BotPose } from "@/components/bot/sprout";
+import type { Gear } from "@/components/bot/sprout-gear";
+import { MOOD_COPY, PALETTES, type PetMood } from "@/lib/pet/mood";
 
-const W = 64;
-const H = 72;
+const W = 72;
+const H = 81;
 const KEY = "sunroot:bot";
+export const PET_EVENT = "sunroot:pet";
+export type BotMode = "lively" | "calm" | "off";
+
+export interface PetInfo {
+  name: string;
+  mood: PetMood;
+  gear: Gear;
+  stats: { streakDays: number; daysAway: number; avgMastery: number | null; xp: number };
+}
+
 const TIPS = [
   "Tap any glowing word and I'll look it up!",
   "Try recalling it before you peek. It sticks better.",
@@ -27,25 +39,37 @@ export interface HopOptions {
 export interface BotApi {
   enabled: boolean;
   setEnabled: (v: boolean) => void;
+  mode: BotMode;
+  setMode: (m: BotMode) => void;
+  pet: PetInfo;
+  reloadPet: () => void;
   /** run to a place on the page; resolves when Sprout has arrived (at once if the bot is off or motion is reduced) */
   hopTo: (target: Element | DOMRect, o?: HopOptions) => Promise<void>;
   rest: (say?: string) => Promise<void>;
   setPose: (p: BotPose) => void;
   say: (text: string, ms?: number) => void;
   cheer: (text?: string) => Promise<void>;
+  /** run to a spot, jump for joy there, then go home (progress milestones) */
+  cheerAt: (target: Element | DOMRect, text?: string) => Promise<void>;
   /** lookups so far this visit: after a few, the walk gets shorter so it never feels slow */
   quick: boolean;
   countLookup: () => void;
 }
 
+const DEFAULT_PET: PetInfo = { name: "Sprout", mood: "calm", gear: {}, stats: { streakDays: 0, daysAway: 0, avgMastery: null, xp: 0 } };
 const NOOP: BotApi = {
   enabled: false,
   setEnabled: () => {},
+  mode: "off",
+  setMode: () => {},
+  pet: DEFAULT_PET,
+  reloadPet: () => {},
   hopTo: async () => {},
   rest: async () => {},
   setPose: () => {},
   say: () => {},
   cheer: async () => {},
+  cheerAt: async () => {},
   quick: true,
   countLookup: () => {},
 };
@@ -53,22 +77,42 @@ const BotCtx = createContext<BotApi>(NOOP);
 export const useBot = () => useContext(BotCtx);
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
+const sleep = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
+
+function greeting(p: PetInfo): string {
+  const d = p.stats.streakDays;
+  switch (p.mood) {
+    case "sleepy":
+      return `Zzz... I missed you. Study with me to wake ${p.name} up!`;
+    case "fired":
+      return `${d}-day streak! ${p.name} is on fire!`;
+    case "genius":
+      return `Wow, you really know your stuff. ${p.name} feels like a genius!`;
+    case "happy":
+      return `${d} days in a row! ${p.name} is so happy.`;
+    default:
+      return `Hi! I'm ${p.name}. Ready to learn?`;
+  }
+}
 
 /**
- * Sprout lives on a fixed layer above the page. Other components ask it to hop somewhere (to a word, to a page corner, to an
- * equation term), strike a pose, speak a short line or cheer. It can be switched off in Settings and stays still when the
- * learner asked for reduced motion.
+ * The bot lives on a fixed layer above the page. Other components ask it to hop somewhere (to a word, to a page corner, to an
+ * equation term), strike a pose, speak a short line or cheer. It is the learner's pet: it has a name, wears what they bought,
+ * and its colour shows how they are doing. It can be set to lively, calm or off, and stays still for reduced motion.
  */
 export function BotProvider({ children }: { children: React.ReactNode }) {
   const [prefs] = usePrefs();
   const osReduced = useReducedMotion();
   const reduce = Boolean(prefs.reduceMotion || osReduced);
-  const [enabled, setEnabledState] = useState(true);
-  const [pose, setPose] = useState<BotPose>("idle");
+  const [mode, setModeState] = useState<BotMode>("lively");
+  const enabled = mode !== "off";
+  const [pose, setPoseState] = useState<BotPose>("idle");
   const [facing, setFacing] = useState<1 | -1>(1);
   const [bubble, setBubble] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
+  const [landed, setLanded] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [pet, setPet] = useState<PetInfo>(DEFAULT_PET);
   const layer = useRef<HTMLDivElement>(null);
   const at = useRef({ x: 0, y: 0 });
   const homed = useRef(true);
@@ -76,11 +120,17 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   const moveId = useRef(0);
   const bubbleTimer = useRef<number | undefined>(undefined);
   const lookups = useRef(0);
+  const poseRef = useRef<BotPose>("idle");
   const [quick, setQuick] = useState(false);
+
+  const setPose = useCallback((p: BotPose) => {
+    poseRef.current = p;
+    setPoseState(p);
+  }, []);
 
   const home = useCallback(() => {
     const narrow = window.innerWidth < 768;
-    return { x: window.innerWidth - W - 10, y: window.innerHeight - H - (narrow ? 104 : 24) };
+    return { x: window.innerWidth - W - 8, y: window.innerHeight - H - (narrow ? 100 : 24) };
   }, []);
 
   const place = useCallback((x: number, y: number) => {
@@ -88,15 +138,29 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     if (layer.current) layer.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
   }, []);
 
+  const loadPet = useCallback(() => {
+    fetch("/api/pet")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.ok && j.data) setPet({ name: j.data.name || "Sprout", mood: j.data.mood || "calm", gear: j.data.gear || {}, stats: j.data.stats || DEFAULT_PET.stats });
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
     try {
-      setEnabledState(localStorage.getItem(KEY) !== "off");
+      const v = localStorage.getItem(KEY);
+      if (v === "off" || v === "calm") setModeState(v);
     } catch {
-      /* default on */
+      /* default: lively */
     }
-  }, []);
+    loadPet();
+    window.addEventListener(PET_EVENT, loadPet);
+    return () => window.removeEventListener(PET_EVENT, loadPet);
+  }, [loadPet]);
+
   useEffect(() => {
     if (!mounted) return;
     const h = home();
@@ -110,14 +174,15 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("resize", onResize);
   }, [mounted, home, place]);
 
-  const setEnabled = useCallback((v: boolean) => {
-    setEnabledState(v);
+  const setMode = useCallback((m: BotMode) => {
+    setModeState(m);
     try {
-      localStorage.setItem(KEY, v ? "on" : "off");
+      localStorage.setItem(KEY, m);
     } catch {
       /* ignore */
     }
   }, []);
+  const setEnabled = useCallback((v: boolean) => setMode(v ? "lively" : "off"), [setMode]);
 
   const say = useCallback((text: string, ms = 2600) => {
     window.clearTimeout(bubbleTimer.current);
@@ -144,8 +209,9 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
         return true;
       }
       anim.current?.cancel();
-      const arc = Math.min(70, 24 + Math.hypot(tx - from.x, ty - from.y) / 8);
+      const arc = Math.min(80, 26 + Math.hypot(tx - from.x, ty - from.y) / 7);
       setMoving(true);
+      setLanded(false);
       const a = el.animate(
         [
           { transform: `translate3d(${from.x}px, ${from.y}px, 0)` },
@@ -170,9 +236,11 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       // a newer move took over: leave the pose and position to it
       if (moveId.current !== mine) return false;
       setFacing(1);
+      setLanded(true);
+      window.setTimeout(() => setLanded(false), 360);
       return true;
     },
-    [place, reduce],
+    [place, reduce, setPose],
   );
 
   const hopTo = useCallback<BotApi["hopTo"]>(
@@ -208,7 +276,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       if (text) say(text, 2200);
       if (await move(h.x, h.y, 600, "idle")) setPose("idle");
     },
-    [enabled, mounted, home, move, say],
+    [enabled, mounted, home, move, say, setPose],
   );
 
   const cheer = useCallback<BotApi["cheer"]>(
@@ -217,13 +285,24 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       const h = home();
       homed.current = true;
       const myMove = moveId.current + 1;
-      if (!(await move(h.x, h.y, 450, "cheer"))) return;
+      if (!(await move(h.x, h.y, 450, "jump"))) return;
       say(text || "Nice work!", 2600);
-      await new Promise((r) => window.setTimeout(r, reduce ? 800 : 1700));
-      // only go back to idle if nothing else has taken Sprout since
+      await sleep(reduce ? 800 : 1500);
+      // only go back to idle if nothing else has taken the bot since
       if (moveId.current === myMove) setPose("idle");
     },
-    [enabled, mounted, home, move, say, reduce],
+    [enabled, mounted, home, move, say, reduce, setPose],
+  );
+
+  const cheerAt = useCallback<BotApi["cheerAt"]>(
+    async (target, text) => {
+      if (!enabled || !mounted) return;
+      await hopTo(target, { anchor: "below", pose: "jump", duration: 500 });
+      if (text) say(text, 2400);
+      await sleep(reduce ? 600 : 1500);
+      await rest();
+    },
+    [enabled, mounted, hopTo, say, reduce, rest],
   );
 
   const countLookup = useCallback(() => {
@@ -231,10 +310,61 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     if (lookups.current >= 3) setQuick(true);
   }, []);
 
-  const api = useMemo<BotApi>(() => ({ enabled, setEnabled, hopTo, rest, setPose, say, cheer, quick, countLookup }), [enabled, setEnabled, hopTo, rest, say, cheer, quick, countLookup]);
+  // a greeting once per visit, by mood
+  useEffect(() => {
+    if (!mounted || !enabled || pet === DEFAULT_PET) return;
+    try {
+      if (sessionStorage.getItem("sunroot:bot-hello")) return;
+      sessionStorage.setItem("sunroot:bot-hello", "1");
+    } catch {
+      /* say it anyway */
+    }
+    const t = window.setTimeout(() => {
+      if (poseRef.current !== "idle") return;
+      setPose(pet.mood === "sleepy" ? "idle" : "wave");
+      say(greeting(pet), 4200);
+      window.setTimeout(() => poseRef.current === "wave" && setPose("idle"), 1800);
+    }, 1500);
+    return () => window.clearTimeout(t);
+  }, [mounted, enabled, pet, say, setPose]);
+
+  // lively mode: now and then the bot waves, dances, hops or looks around while it waits at home
+  useEffect(() => {
+    if (!mounted || mode !== "lively" || reduce) return;
+    let off = false;
+    let timer: number;
+    const next = () => {
+      timer = window.setTimeout(() => {
+        if (off) return;
+        if (homed.current && !document.hidden && poseRef.current === "idle" && !anim.current) {
+          const antics: Array<{ pose: BotPose; ms: number }> = [
+            { pose: "wave", ms: 1500 },
+            { pose: "dance", ms: 2800 },
+            { pose: "jump", ms: 1500 },
+            { pose: "think", ms: 1800 },
+          ];
+          const a = antics[Math.floor(Math.random() * antics.length)];
+          setPose(a.pose);
+          window.setTimeout(() => poseRef.current === a.pose && setPose("idle"), a.ms);
+        }
+        next();
+      }, 14_000 + Math.random() * 14_000);
+    };
+    next();
+    return () => {
+      off = true;
+      window.clearTimeout(timer);
+    };
+  }, [mounted, mode, reduce, setPose]);
+
+  const api = useMemo<BotApi>(
+    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, quick, countLookup }),
+    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, quick, countLookup],
+  );
 
   const onTap = () => {
-    void cheer(TIPS[Math.floor(Math.random() * TIPS.length)]);
+    const tips = [...TIPS, MOOD_COPY[pet.mood].how];
+    void cheer(tips[Math.floor(Math.random() * tips.length)]);
   };
 
   return (
@@ -243,10 +373,10 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       {mounted &&
         enabled &&
         createPortal(
-          <div ref={layer} className="sunroot-bot" data-moving={moving} aria-live="polite">
+          <div ref={layer} className="sunroot-bot" data-moving={moving} data-landed={landed} aria-live="polite">
             {bubble && <div className="sunroot-bot-bubble" role="status">{bubble}</div>}
-            <button type="button" className="sunroot-bot-body" onClick={onTap} aria-label="Sprout, your study helper. Tap for a tip.">
-              <Sprout pose={pose} facing={facing} />
+            <button type="button" className="sunroot-bot-body" onClick={onTap} aria-label={`${pet.name}, your study helper. Tap for a tip.`}>
+              <Sprout pose={pose} facing={facing} mood={pet.mood} palette={PALETTES[pet.mood]} gear={pet.gear} />
             </button>
           </div>,
           document.body,
