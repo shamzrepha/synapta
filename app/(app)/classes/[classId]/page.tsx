@@ -37,6 +37,8 @@ import { MaterialsUploader } from "@/components/teacher/MaterialsUploader";
 import { readPrefs, usePrefs } from "@/components/settings/use-prefs";
 import { peekClass, rememberClass } from "@/lib/client/class-cache";
 import { ClassMindMap } from "@/components/classes/class-mind-map";
+import { useBot } from "@/components/bot/bot-provider";
+import { classEncouragement } from "@/lib/pet/encourage";
 
 interface KCItem {
   id: string;
@@ -304,6 +306,37 @@ export default function ClassOverviewPage({
     void kc;
     return canOpen;
   };
+
+  // Opening a class: Sprout goes home, watches, and says something true about how this learner is doing here (once per class per visit)
+  const bot = useBot();
+  useEffect(() => {
+    if (loading || !classData || enrollmentStatus !== "active" || isOwner || kcs.length === 0) return;
+    const key = `sunroot:cheer:${classId}`;
+    try {
+      if (sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* say it anyway */
+    }
+    const vals = kcs.map((k) => masteryMap[k.id]).filter((v): v is number => typeof v === "number");
+    const started = kcs.filter((k) => (attemptsMap[k.id] ?? 0) > 0).length;
+    const line = classEncouragement({
+      avg: started > 0 && vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
+      topics: kcs.length,
+      mastered: kcs.filter((k) => (masteryMap[k.id] ?? 0) >= 0.95).length,
+      started,
+      streakDays: bot.pet.stats.streakDays,
+      leftOff: kcs.find((k) => k.id === leftOffKc)?.title ?? null,
+    });
+    let off = false;
+    void bot.rest().then(() => {
+      if (!off) bot.say(line, 6500);
+    });
+    return () => {
+      off = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, classData?.id, enrollmentStatus, isOwner, kcs.length, classId]);
 
   if (loading) {
     return (

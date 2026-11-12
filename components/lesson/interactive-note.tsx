@@ -5,10 +5,13 @@ import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import remarkGfm from "remark-gfm";
 import { BookOpen, CheckCircle2, ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, Lightbulb, Loader2, Rows3, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { normalizeMath } from "@/lib/text/readable";
 import { readMinutes, splitAtomicBlocks, splitTextbookPages, type TextbookPage, type TextbookSectionKind } from "@/lib/study/note-sections";
+import type { PageBudget } from "@/lib/study/page-fit";
+import { Rope, type RopeHandle } from "@/components/bot/rope";
 import { hashText, splitByTerms, termRegex } from "@/lib/study/terms";
 import { getGlossary, preloadImages, type GlossaryCard } from "@/lib/study/glossary-client";
 import { cn } from "@/lib/utils";
@@ -119,7 +122,18 @@ function Item({ children }: { children?: React.ReactNode }) {
   );
 }
 
-const MD_COMPONENTS = { strong: Term, p: Para, li: Item };
+/** A table sits in its own scroll box: wide tables slide sideways instead of squeezing every column into a few letters. */
+function NoteTable(props: React.ComponentPropsWithoutRef<"table">) {
+  return (
+    <div className="note-table" role="region" tabIndex={0} aria-label="Table, scrolls sideways">
+      <table {...props} />
+    </div>
+  );
+}
+
+// single "~" stays plain text ("about ~5 V"); only "~~text~~" strikes through
+const MD_PLUGINS = [remarkMath, [remarkGfm, { singleTilde: false }]] as NonNullable<React.ComponentProps<typeof ReactMarkdown>["remarkPlugins"]>;
+const MD_COMPONENTS = { strong: Term, p: Para, li: Item, table: NoteTable };
 
 const KIND_CALLOUT: Record<TextbookSectionKind, { label: string; tone: string } | null> = {
   overview: { label: "Big Picture", tone: "bg-brand-500/10 text-brand-700 dark:text-brand-300 border-brand-500/25" },
@@ -211,7 +225,7 @@ function NoteBody({
         <React.Fragment key={seg.id}>
           {seg.markdown && (
             <div className="note-prose">
-              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={MD_COMPONENTS}>
+              <ReactMarkdown remarkPlugins={MD_PLUGINS} rehypePlugins={[rehypeKatex]} components={MD_COMPONENTS}>
                 {normalizeMath(seg.markdown)}
               </ReactMarkdown>
             </div>
@@ -264,7 +278,7 @@ function NoteBody({
           </div>
           {revealAnswers && (
             <div className="note-prose text-sm pt-2 border-t border-emerald-500/20">
-              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={MD_COMPONENTS}>
+              <ReactMarkdown remarkPlugins={MD_PLUGINS} rehypePlugins={[rehypeKatex]} components={MD_COMPONENTS}>
                 {normalizeMath(answersMd)}
               </ReactMarkdown>
             </div>
@@ -285,25 +299,55 @@ interface Origin {
   bottom: number;
 }
 
-function TermSheet({ term, context, topic, preset, origin, onClose }: { term: string; context: string; topic: string; /** the card prepared in the background, so nothing loads */ preset?: GlossaryCard; /** where the tapped word is: Sprout runs there and the pop-up grows out of it */ origin?: Origin; onClose: () => void }) {
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+const easeIn = (t: number) => t * t;
+/** Runs `fn(0..1)` once per frame for `ms`; stops early when `stop()` says so. */
+function tween(ms: number, fn: (t: number) => void, stop: () => boolean): Promise<void> {
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    const tick = () => {
+      const t = Math.min(1, (performance.now() - t0) / ms);
+      fn(t);
+      if (t >= 1 || stop()) resolve();
+      else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+function waitFor(cond: () => boolean, ms: number, stop: () => boolean): Promise<void> {
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    const tick = () => {
+      if (cond() || stop() || performance.now() - t0 > ms) resolve();
+      else window.setTimeout(tick, 60);
+    };
+    tick();
+  });
+}
+
+function TermSheet({ term, context, topic, preset, origin, onClose }: { term: string; context: string; topic: string; /** the card prepared in the background, so nothing loads */ preset?: GlossaryCard; /** where the tapped word is: Sprout runs there first */ origin?: Origin; onClose: () => void }) {
   const bot = useBot();
-  const theatrical = !!origin && bot.enabled;
+  const theatrical = !!origin && bot.enabled && !bot.reduced;
   const [arrived, setArrived] = useState(!theatrical);
+  const [settled, setSettled] = useState(!theatrical);
   const sheetRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const ropeRef = useRef<RopeHandle>(null);
+  const readyRef = useRef(false);
+  const drop = useRef(0);
   const botRef = useRef(bot);
   useEffect(() => {
     botRef.current = bot;
   });
-  // Sprout runs to the word with a magnifying glass first; the pop-up opens when it gets there
+  // 1. Sprout runs to the tapped word with its magnifying glass (slowly enough to follow)
   useEffect(() => {
     if (!theatrical || !origin) return;
     let off = false;
     const b = botRef.current;
     b.countLookup();
     void (async () => {
-      await b.hopTo(origin as DOMRect, { pose: "search", duration: b.quick ? 260 : 560, say: b.quick ? undefined : "Let me look that up!" });
+      await b.hopTo(origin as DOMRect, { pose: "search", duration: b.quick ? 560 : 1000, say: b.quick ? undefined : "Let me look that up!" });
       if (off) return;
-      b.say("");
       setArrived(true);
     })();
     return () => {
@@ -312,23 +356,83 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // the pop-up grows out of the word while Sprout carries it to its place
+  // the pop-up is built but waits down on the ground, out of sight, until Sprout is ready to pull it up
   useLayoutEffect(() => {
-    if (!theatrical || !arrived || !origin || !sheetRef.current) return;
+    if (!theatrical || !arrived || !sheetRef.current) return;
     const el = sheetRef.current;
-    const r = el.getBoundingClientRect();
-    const dx = origin.left + origin.width / 2 - (r.left + r.width / 2);
-    const dy = origin.top + origin.height / 2 - (r.top + r.height / 2);
-    const quick = botRef.current.quick;
-    el.animate(
-      [
-        { transform: `translate(${dx}px, ${dy}px) scale(0.12)`, opacity: 0.2 },
-        { transform: "none", opacity: 1 },
-      ],
-      { duration: quick ? 240 : 460, easing: "cubic-bezier(0.2, 0.9, 0.25, 1)" },
-    );
-    void botRef.current.hopTo(el, { anchor: "top-left", pose: "search", duration: quick ? 260 : 480 });
-  }, [theatrical, arrived, origin]);
+    drop.current = Math.max(160, window.innerHeight - el.getBoundingClientRect().top + 16);
+    el.style.transform = `translateY(${drop.current}px)`;
+    if (backdropRef.current) backdropRef.current.style.opacity = "0";
+  }, [theatrical, arrived]);
+  // 2. once the card has loaded: Sprout climbs onto the top border, fires its rope at the pop-up, hauls it up from the ground, lets go and watches
+  useEffect(() => {
+    if (!theatrical || !arrived) return;
+    let off = false;
+    const b = botRef.current;
+    const el = sheetRef.current;
+    const rope = ropeRef.current;
+    if (!el || !rope) return;
+    const slow = !b.quick;
+    const stop = () => off;
+    let pull: Animation | null = null;
+    void (async () => {
+      if (!readyRef.current) {
+        b.say("Hmm, let me dig through my notes...", 3200);
+        await waitFor(() => readyRef.current, 7000, stop);
+        b.say("");
+      }
+      if (off) return;
+      const r = el.getBoundingClientRect();
+      const fin = new DOMRect(r.left, r.top - drop.current, r.width, r.height);
+      await b.hopTo(fin, { anchor: "perch", pose: "pull", duration: slow ? 900 : 520, say: slow ? "Got it! Hold on..." : undefined });
+      if (off) return;
+      b.setPose("pull");
+      const hand = () => b.handPoint();
+      const edge = () => {
+        const q = el.getBoundingClientRect();
+        return { x: q.left + q.width / 2, y: Math.min(q.top + 5, window.innerHeight - 2) };
+      };
+      // fire: the rope flies to the pop-up's top edge, still lying at the bottom of the screen
+      await tween(slow ? 420 : 260, (t) => {
+        const h = hand();
+        if (h) rope.set(h, edge(), easeOut(t), 0.25);
+      }, stop);
+      if (off) return;
+      // haul: the pop-up rises from the ground, the rope pulled tight
+      const dur = slow ? 1700 : 1000;
+      pull = el.animate([{ transform: `translateY(${drop.current}px)` }, { transform: "translateY(0px)" }], { duration: dur, easing: "cubic-bezier(0.3, 0.7, 0.25, 1)", fill: "forwards" });
+      el.style.transform = "";
+      backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur * 0.8, fill: "forwards" });
+      await tween(dur, () => {
+        const h = hand();
+        if (h) rope.set(h, edge(), 1, 0.95);
+      }, stop);
+      if (off) return;
+      try {
+        await pull.finished;
+      } catch {
+        /* cancelled */
+      }
+      if (backdropRef.current) backdropRef.current.style.opacity = "1";
+      el.style.transform = "";
+      pull.cancel();
+      // let go: the hook comes loose and the rope whips back
+      await tween(slow ? 360 : 220, (t) => {
+        const h = hand();
+        if (h) rope.set(h, edge(), 1 - easeIn(t), 0.1);
+      }, stop);
+      rope.hide();
+      if (off) return;
+      b.setPose("idle");
+      setSettled(true);
+    })();
+    return () => {
+      off = true;
+      pull?.cancel();
+      rope.hide();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theatrical, arrived]);
   const presetCard: TermCard | null = preset ? { summary: preset.summary, keyPoints: preset.keyPoints || [], example: preset.example || "", imageQuery: preset.imageQuery || "", wikipediaTitle: preset.wikipediaTitle || "", visual: preset.visual, formula: preset.formula || "" } : null;
   const [card, setCard] = useState<TermCard | null>(presetCard);
   const [pics, setPics] = useState<Pic[]>((preset?.images as Pic[] | undefined) ?? []);
@@ -433,9 +537,12 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
 
   const pic = pics[picIdx];
   useEffect(() => {
-    // Sprout keeps scanning while the answer is still arriving, then points at it
-    if (theatrical && arrived) botRef.current.setPose(card && !busy ? "point" : "search");
-  }, [theatrical, arrived, card, busy]);
+    readyRef.current = !!card && !busy;
+  }, [card, busy]);
+  useEffect(() => {
+    // perched on the pop-up Sprout watches you; while a new answer is on its way it thinks
+    if (theatrical && settled) botRef.current.setPose(busy ? "think" : "idle");
+  }, [theatrical, settled, busy]);
   // what to show above the text: older saved cards have no decision, so a card that already carries pictures keeps them
   const visual: VisualKind = card?.visual ?? preset?.visual ?? (pics.length > 0 ? "photo" : "none");
   const showPics = visual === "photo" || visual === "diagram";
@@ -452,7 +559,9 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
   if (!arrived) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center bg-black/50 p-0 sm:p-4" onClick={onClose} role="presentation">
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center p-0 sm:p-4" onClick={onClose} role="presentation">
+      <div ref={backdropRef} className="absolute inset-0 bg-black/50" aria-hidden="true" />
+      {theatrical && <Rope ref={ropeRef} />}
       <div
         ref={sheetRef}
         role="dialog"
@@ -460,7 +569,7 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
         aria-label={`About ${term}`}
         onClick={(e) => e.stopPropagation()}
         style={theatrical ? { animation: "none" } : undefined}
-        className="note-sheet w-full sm:max-w-md max-h-[88dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-card border border-border shadow-elevated"
+        className="note-sheet relative w-full sm:max-w-md max-h-[88dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-card border border-border shadow-elevated"
       >
         <div className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-card/95 backdrop-blur px-5 pt-4 pb-2">
           <h3 className="text-lg font-bold tracking-tight truncate">{term}</h3>
@@ -603,6 +712,7 @@ export function InteractiveNote({
   topicTitle,
   bare,
   barePageIndex,
+  pageBudget,
   lazy,
   classId,
   kcId,
@@ -617,12 +727,14 @@ export function InteractiveNote({
   bare?: boolean;
   /** when bare, render only a single textbook page index for outer flipbook mode */
   barePageIndex?: number;
+  /** with this, a page holds a fixed number of lines (the reader sets it from the screen); the rest runs onto the next page */
+  pageBudget?: PageBudget;
   /** pick the highlighted words only once this note scrolls into view */
   lazy?: boolean;
   /** callback notified when student explores terms, interacts with simulations, or passes a quick-check */
   onStudySignal?: (sig: StudySignalPayload) => void;
 }) {
-  const note = useMemo(() => splitTextbookPages(markdown), [markdown]);
+  const note = useMemo(() => splitTextbookPages(markdown, pageBudget ? { budget: pageBudget } : undefined), [markdown, pageBudget]);
   const [view, setView] = useState<"pages" | "scroll">("pages");
   const swipeStart = useRef<{ x: number; y: number; time: number } | null>(null);
   const [terms, setTerms] = useState<string[]>([]);

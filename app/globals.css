@@ -569,9 +569,16 @@ textarea, input { scroll-margin-block: 96px; }
 .note-prose code { font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.86em; padding: 0.1em 0.4em; border-radius: 0.375rem; background: color-mix(in srgb, currentColor 9%, transparent); }
 .note-prose pre { margin: 1rem 0; padding: 0.9rem 1rem; border-radius: 0.9rem; background: #0f172a; color: #e2e8f0; overflow-x: auto; font-size: 0.85rem; line-height: 1.6; }
 .note-prose pre code { background: none; padding: 0; color: inherit; }
-.note-prose table { display: block; overflow-x: auto; width: 100%; margin: 1rem 0; border-collapse: collapse; font-size: 0.9rem; }
-.note-prose th, .note-prose td { border: 1px solid color-mix(in srgb, currentColor 15%, transparent); padding: 0.45rem 0.7rem; text-align: left; }
-.note-prose th { background: color-mix(in srgb, var(--color-brand-500, #3b6df6) 9%, transparent); font-weight: 650; }
+/* tables: their own scroll box, a header band, light row stripes, columns that keep whole words */
+.note-table { margin: 1.1rem 0; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid color-mix(in srgb, currentColor 16%, transparent); border-radius: 0.8rem; }
+.note-table:focus-visible { outline: 2px solid var(--color-brand-500, #3b6df6); outline-offset: 2px; }
+.note-table table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9em; line-height: 1.45; }
+.note-table th, .note-table td { padding: 0.55rem 0.8rem; text-align: left; vertical-align: top; min-width: 5.5rem; overflow-wrap: normal; word-break: normal; border-bottom: 1px solid color-mix(in srgb, currentColor 11%, transparent); }
+.note-table th + th, .note-table td + td { border-left: 1px solid color-mix(in srgb, currentColor 9%, transparent); }
+.note-table thead th { background: color-mix(in srgb, var(--color-brand-500, #3b6df6) 11%, var(--color-card, transparent)); font-weight: 700; white-space: nowrap; }
+.note-table tbody tr:nth-child(even) td { background: color-mix(in srgb, currentColor 3.5%, transparent); }
+.note-table tr:last-child td { border-bottom: 0; }
+.note-table td p, .note-table th p { margin: 0; }
 .note-prose img { max-width: 100%; height: auto; border-radius: 0.9rem; margin: 0.75rem 0; }
 .note-prose hr { margin: 1.5rem 0; border: 0; border-top: 1px solid color-mix(in srgb, currentColor 15%, transparent); }
 .note-prose a { color: var(--color-brand-600, #2563eb); text-decoration: underline; }
@@ -728,10 +735,10 @@ html[data-typing="true"] .sunroot-bot { display: none; }
 .sprout[data-pose="jump"] .sprout-mouth { opacity: 0; }
 .sprout[data-pose="jump"] .sprout-mouth-open { opacity: 1; }
 /* running between places: a quick bounce with a lean */
-.sunroot-bot[data-moving="true"] .sprout { animation: sprout-run 0.24s ease-in-out infinite !important; }
+.sunroot-bot[data-moving="true"] .sprout { animation: sprout-run 0.42s ease-in-out infinite !important; }
 @keyframes sprout-run {
-  0%, 100% { transform: scaleX(var(--sx, 1)) rotate(-5deg) scale(1.04, 0.96); }
-  50% { transform: scaleX(var(--sx, 1)) rotate(5deg) translateY(-6px) scale(0.97, 1.04); }
+  0%, 100% { transform: scaleX(var(--sx, 1)) rotate(-4deg) scale(1.03, 0.97); }
+  50% { transform: scaleX(var(--sx, 1)) rotate(4deg) translateY(-5px) scale(0.98, 1.03); }
 }
 /* landing squash after a hop */
 .sunroot-bot[data-landed="true"] .sprout { animation: sprout-land 0.32s ease-out 1; }
@@ -751,4 +758,33 @@ html[data-typing="true"] .sunroot-bot { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .sprout[data-pose="dance"], .sprout[data-pose="jump"], .sprout-zzz, .sprout-flames, .sprout-stars, .sprout-flame, .sprout-lens-glint { animation: none !important; }
   .sunroot-bot[data-moving="true"] .sprout { animation: none !important; }
+}
+
+/* ===== Sprout: ask-me, peeking while you read, pulling a pop-up up with a rope ===== */
+/* the speech bubble opens towards the screen, whichever side Sprout waits on */
+.sunroot-bot[data-side="left"] .sunroot-bot-bubble { right: auto; left: 0; border-radius: 0.9rem 0.9rem 0.9rem 0.2rem; }
+/* while you read, Sprout shrinks and tucks half behind the screen edge, so it never covers the text; a tap or hover brings it back */
+.sunroot-bot-body { transition: transform 0.7s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.5s; transform-origin: 50% 100%; }
+.sunroot-bot[data-peek="true"] .sunroot-bot-body { transform: translateX(-52%) scale(0.78); transform-origin: 0 100%; opacity: 0.92; }
+.sunroot-bot[data-peek="true"][data-side="right"] .sunroot-bot-body { transform: translateX(52%) scale(0.78); transform-origin: 100% 100%; }
+.sunroot-bot[data-peek="true"] .sunroot-bot-bubble { display: none; }
+/* the eyes follow your finger or pointer */
+.sprout-look { transform: translate(calc(var(--ex, 0) * 2.4px), calc(var(--ey, 0) * 1.8px)); transition: transform 0.18s ease-out; }
+/* pulling: one arm up with the rope launcher, the body leans back and tugs */
+.sprout .sprout-launcher { opacity: 0; transition: opacity 0.25s; }
+.sprout[data-pose="pull"] .sprout-launcher { opacity: 1; }
+.sprout[data-pose="pull"] [data-arm="right"] { transform: rotate(-78deg); }
+.sprout[data-pose="pull"] [data-arm="left"] { transform: rotate(30deg); }
+.sprout[data-pose="pull"] { animation: sprout-tug 1s ease-in-out infinite; }
+@keyframes sprout-tug {
+  0%, 100% { transform: scaleX(var(--sx, 1)) rotate(-3deg); }
+  50% { transform: scaleX(var(--sx, 1)) rotate(5deg) translateY(1px) scale(1.02, 0.98); }
+}
+.sprout[data-pose="pull"] .sprout-mouth { opacity: 0; }
+.sprout[data-pose="pull"] .sprout-mouth-open { opacity: 1; }
+/* the rope that Sprout fires at a pop-up */
+.sunroot-rope { position: fixed; inset: 0; width: 100vw; height: 100dvh; pointer-events: none; z-index: 84; overflow: visible; }
+@media (prefers-reduced-motion: reduce) {
+  .sprout[data-pose="pull"] { animation: none !important; }
+  .sunroot-bot-body { transition: none; }
 }

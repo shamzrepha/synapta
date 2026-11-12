@@ -31,6 +31,7 @@ import { useBot } from "@/components/bot/bot-provider";
 import { TextbookWriter } from "@/components/lesson/textbook-writer";
 import { ClassMindMap } from "@/components/classes/class-mind-map";
 import { readMinutes, splitTextbookPages, type TextbookSectionKind } from "@/lib/study/note-sections";
+import { budgetFor, DEFAULT_BUDGET, type PageBudget } from "@/lib/study/page-fit";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { fireCelebration } from "@/components/game/confetti";
 import { asArray } from "@/lib/api/client";
@@ -251,6 +252,29 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
   const [tocOpen, setTocOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [scale, setScale] = useState(1);
+  // A page holds a fixed number of lines for this screen and text size; what does not fit goes to the next page.
+  const [budget, setBudget] = useState<PageBudget>(DEFAULT_BUDGET);
+  useEffect(() => {
+    let t: number | undefined;
+    const calc = () => {
+      // the keyboard shrinks the window: pages must not reflow while typing
+      if (document.documentElement.dataset.keyboard === "open") return;
+      // height in coarse steps, so a phone's address bar sliding away does not re-page the chapter
+      const h = Math.floor(window.innerHeight / 80) * 80;
+      const next = budgetFor(window.innerWidth, h, scale);
+      setBudget((prev) => (prev.maxLines === next.maxLines && prev.charsPerLine === next.charsPerLine ? prev : next));
+    };
+    calc();
+    const onResize = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(calc, 220);
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [scale]);
   const [q, setQ] = useState("");
   const [fromRef, setFromRef] = useState(false);
   const [viewMode, setViewMode] = useState<"flip" | "scroll">("flip");
@@ -367,7 +391,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         });
         return;
       }
-      const split = splitTextbookPages(text);
+      const split = splitTextbookPages(text, { budget });
       const total = split.pages.length;
       split.pages.forEach((pg, idxInSec) => {
         out.push({
@@ -387,7 +411,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       });
     });
     return out;
-  }, [sections]);
+  }, [sections, budget]);
 
   const safeFlipIdx = Math.min(flipIdx, Math.max(0, flipPages.length - 1));
   const currentFlip = flipPages[safeFlipIdx] ?? null;
@@ -1133,6 +1157,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                           bare
                           lazy
                           markdown={(currentFlip.section.lessonMarkdown || "").trim()}
+                          pageBudget={budget}
                           barePageIndex={currentFlip.pageIdxInSection}
                           topicTitle={currentFlip.section.title}
                           classId={classId}

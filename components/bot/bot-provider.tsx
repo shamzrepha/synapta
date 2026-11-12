@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useReducedMotion } from "framer-motion";
+import { usePathname } from "next/navigation";
 import { usePrefs } from "@/components/settings/use-prefs";
 import { Sprout, type BotPose } from "@/components/bot/sprout";
 import type { Gear } from "@/components/bot/sprout-gear";
@@ -12,6 +13,8 @@ const W = 72;
 const H = 81;
 const KEY = "sunroot:bot";
 export const PET_EVENT = "sunroot:pet";
+/** Tapping Sprout asks the AI helper: whoever can open it (the tutor panel) marks the event handled. Otherwise Sprout gives a tip. */
+export const ASK_EVENT = "sunroot:ask-ai";
 export type BotMode = "lively" | "calm" | "off";
 
 export interface PetInfo {
@@ -33,7 +36,7 @@ export interface HopOptions {
   pose?: BotPose;
   duration?: number;
   /** where to stand relative to the target */
-  anchor?: "below" | "above" | "top-left" | "left";
+  anchor?: "below" | "above" | "top-left" | "left" | "perch";
   say?: string;
 }
 export interface BotApi {
@@ -51,9 +54,15 @@ export interface BotApi {
   cheer: (text?: string) => Promise<void>;
   /** run to a spot, jump for joy there, then go home (progress milestones) */
   cheerAt: (target: Element | DOMRect, text?: string) => Promise<void>;
-  /** lookups so far this visit: after a few, the walk gets shorter so it never feels slow */
+  /** run to something the learner tapped (a class card), "open" it, and stay there; the next page sends Sprout home with rest() */
+  openAt: (target: Element | DOMRect, text?: string) => Promise<void>;
+  /** lookups so far this visit: after a few, the walk gets shorter */
   quick: boolean;
   countLookup: () => void;
+  /** motion is reduced (system setting or ours): skip the choreography */
+  reduced: boolean;
+  /** where Sprout's raised hand is on screen (the rope starts there), or null when it is not shown */
+  handPoint: () => { x: number; y: number } | null;
 }
 
 const DEFAULT_PET: PetInfo = { name: "Sprout", mood: "calm", gear: {}, stats: { streakDays: 0, daysAway: 0, avgMastery: null, xp: 0 } };
@@ -70,8 +79,11 @@ const NOOP: BotApi = {
   say: () => {},
   cheer: async () => {},
   cheerAt: async () => {},
+  openAt: async () => {},
   quick: true,
   countLookup: () => {},
+  reduced: true,
+  handPoint: () => null,
 };
 const BotCtx = createContext<BotApi>(NOOP);
 export const useBot = () => useContext(BotCtx);
@@ -112,6 +124,10 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   const [moving, setMoving] = useState(false);
   const [landed, setLanded] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname() || "";
+  const [atHome, setAtHome] = useState(true);
+  const [awake, setAwake] = useState(false);
+  const awakeTimer = useRef<number | undefined>(undefined);
   const [pet, setPet] = useState<PetInfo>(DEFAULT_PET);
   const layer = useRef<HTMLDivElement>(null);
   const at = useRef({ x: 0, y: 0 });
@@ -130,7 +146,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
 
   const home = useCallback(() => {
     const narrow = window.innerWidth < 768;
-    // phones: bottom-left, above the menu, so it never sits on the "Ask tutor" button or the read-aloud bar
+    // phones: bottom-left, above the menu, so it never sits on the read-aloud bar
     return narrow ? { x: 8, y: window.innerHeight - H - 84 } : { x: window.innerWidth - W - 8, y: window.innerHeight - H - 24 };
   }, []);
 
@@ -252,6 +268,11 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       let x = r.left + r.width / 2 - W / 2;
       let y = r.bottom + 2;
       if (anchor === "above") y = r.top - H + 6;
+      if (anchor === "perch") {
+        // stand on the top border of a pop-up, on its left side (the close button is on the right)
+        x = r.left + 14;
+        y = r.top - H + 16;
+      }
       if (anchor === "top-left") {
         x = r.left - W * 0.55;
         y = r.top - H * 0.55;
@@ -263,8 +284,9 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       // not enough room below: stand above
       if (anchor === "below" && y + H > window.innerHeight - 6) y = r.top - H + 6;
       homed.current = false;
-      if (o.say) say(o.say, 2200);
-      await move(x, y, o.duration ?? 600, o.pose ?? "idle");
+      setAtHome(false);
+      if (o.say) say(o.say, 2600);
+      await move(x, y, o.duration ?? 900, o.pose ?? "idle");
     },
     [enabled, mounted, move, say],
   );
@@ -274,8 +296,9 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       if (!enabled || !mounted) return;
       const h = home();
       homed.current = true;
-      if (text) say(text, 2200);
-      if (await move(h.x, h.y, 600, "idle")) setPose("idle");
+      setAtHome(true);
+      if (text) say(text, 2600);
+      if (await move(h.x, h.y, 900, "idle")) setPose("idle");
     },
     [enabled, mounted, home, move, say, setPose],
   );
@@ -285,8 +308,9 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       if (!enabled || !mounted) return;
       const h = home();
       homed.current = true;
+      setAtHome(true);
       const myMove = moveId.current + 1;
-      if (!(await move(h.x, h.y, 450, "jump"))) return;
+      if (!(await move(h.x, h.y, 650, "jump"))) return;
       say(text || "Nice work!", 2600);
       await sleep(reduce ? 800 : 1500);
       // only go back to idle if nothing else has taken the bot since
@@ -298,12 +322,28 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   const cheerAt = useCallback<BotApi["cheerAt"]>(
     async (target, text) => {
       if (!enabled || !mounted) return;
-      await hopTo(target, { anchor: "below", pose: "jump", duration: 500 });
+      await hopTo(target, { anchor: "below", pose: "jump", duration: 800 });
       if (text) say(text, 2400);
       await sleep(reduce ? 600 : 1500);
       await rest();
     },
     [enabled, mounted, hopTo, say, reduce, rest],
+  );
+
+  const openAt = useCallback<BotApi["openAt"]>(
+    async (target, text) => {
+      if (!enabled || !mounted) return;
+      await hopTo(target, { anchor: "top-left", pose: "search", duration: 900, say: text });
+      setPose("point");
+      await sleep(reduce ? 200 : 700);
+      setPose("jump");
+      await sleep(reduce ? 100 : 450);
+      // if the page never changes (navigation failed), do not leave Sprout stranded on the card
+      window.setTimeout(() => {
+        if (!homed.current) void rest();
+      }, 5000);
+    },
+    [enabled, mounted, hopTo, setPose, reduce, rest],
   );
 
   const countLookup = useCallback(() => {
@@ -358,12 +398,61 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     };
   }, [mounted, mode, reduce, setPose]);
 
+  const handPoint = useCallback(() => {
+    const el = layer.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    // the raised hand with the launcher, as a share of the 100 x 112 drawing
+    return { x: r.left + r.width * 0.8, y: r.top + r.height * 0.43 };
+  }, []);
+
   const api = useMemo<BotApi>(
-    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, quick, countLookup }),
-    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, quick, countLookup],
+    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, quick, countLookup, reduced: reduce, handPoint }),
+    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, quick, countLookup, reduce, handPoint],
   );
 
+  // the eyes follow the finger or pointer (a little, so it feels alive but never distracting)
+  useEffect(() => {
+    if (!mounted || !enabled || reduce) return;
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const el = layer.current;
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        const dx = e.clientX - (r.left + r.width / 2);
+        const dy = e.clientY - (r.top + r.height * 0.55);
+        const d = Math.hypot(dx, dy) || 1;
+        const k = Math.min(1, d / 160);
+        el.style.setProperty("--ex", String(((dx / d) * k).toFixed(2)));
+        el.style.setProperty("--ey", String(((dy / d) * k).toFixed(2)));
+      });
+    };
+    window.addEventListener("pointermove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [mounted, enabled, reduce]);
+
+  // reading a chapter or topic: Sprout waits small, half behind the screen edge, so it never covers the text
+  const reading = /^\/classes\/[^/]+\/(read|topics)(\/|$)/.test(pathname);
+  const side: "left" | "right" = typeof window !== "undefined" && window.innerWidth < 768 ? "left" : "right";
+  const peek = reading && atHome && !awake && !moving && !bubble;
+  const wake = () => {
+    setAwake(true);
+    window.clearTimeout(awakeTimer.current);
+    awakeTimer.current = window.setTimeout(() => setAwake(false), 6000);
+  };
+
+  // tapping Sprout asks the AI helper; if nothing can open it on this page, Sprout gives a tip instead
   const onTap = () => {
+    wake();
+    const ev = new CustomEvent(ASK_EVENT, { detail: { handled: false } });
+    window.dispatchEvent(ev);
+    if ((ev.detail as { handled: boolean }).handled) return;
     const tips = [...TIPS, MOOD_COPY[pet.mood].how];
     void cheer(tips[Math.floor(Math.random() * tips.length)]);
   };
@@ -374,9 +463,9 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       {mounted &&
         enabled &&
         createPortal(
-          <div ref={layer} className="sunroot-bot" data-moving={moving} data-landed={landed} aria-live="polite">
+          <div ref={layer} className="sunroot-bot" data-moving={moving} data-landed={landed} data-peek={peek} data-side={side} aria-live="polite">
             {bubble && <div className="sunroot-bot-bubble" role="status">{bubble}</div>}
-            <button type="button" className="sunroot-bot-body" onClick={onTap} aria-label={`${pet.name}, your study helper. Tap for a tip.`}>
+            <button type="button" className="sunroot-bot-body" onClick={onTap} onPointerEnter={wake} onFocus={wake} aria-label={`Ask ${pet.name}, your study helper`} title={`Ask ${pet.name}`}>
               <Sprout pose={pose} facing={facing} mood={pet.mood} palette={PALETTES[pet.mood]} gear={pet.gear} />
             </button>
           </div>,

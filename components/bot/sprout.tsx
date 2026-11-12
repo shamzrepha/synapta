@@ -4,7 +4,7 @@ import React from "react";
 import { BackGear, FaceGear, HatGear, NeckGear, ShoeGear, type Gear } from "@/components/bot/sprout-gear";
 import { PALETTES, type PetMood, type PetPalette } from "@/lib/pet/mood";
 
-export type BotPose = "idle" | "search" | "point" | "cheer" | "think" | "cross" | "dance" | "jump" | "wave";
+export type BotPose = "idle" | "search" | "point" | "cheer" | "think" | "cross" | "dance" | "jump" | "wave" | "pull";
 
 /**
  * Sprout, SunRoot's helper bot: a round blue body, a white face, a little green sprout on top (sun + root).
@@ -37,6 +37,12 @@ export function Sprout({ pose = "idle", facing = 1, className, mood = "calm", pa
       </g>
       <g data-arm="right" style={{ transformOrigin: "74px 66px" }}>
         <rect x="72" y="62" width="14" height="9" rx="4.5" fill={pal.arm} />
+        {/* the rope launcher strapped to the hand: only seen while pulling */}
+        <g className="sprout-launcher">
+          <rect x="82" y="58" width="11" height="9" rx="2.6" fill="#334155" />
+          <rect x="85" y="54" width="5" height="6" rx="1.4" fill="#64748b" />
+          <circle cx="87.5" cy="53.2" r="1.9" fill="#f59e0b" />
+        </g>
       </g>
       {/* body */}
       <rect x="22" y="34" width="56" height="62" rx="26" fill={pal.body} />
@@ -49,11 +55,13 @@ export function Sprout({ pose = "idle", facing = 1, className, mood = "calm", pa
       </defs>
       <rect x="28" y="42" width="44" height="34" rx="15" fill="#eef3ff" />
       {/* face */}
-      <g className="sprout-eyes">
-        <ellipse cx="41" cy="58" rx="4.6" ry="5.4" fill="#0f172a" />
-        <ellipse cx="59" cy="58" rx="4.6" ry="5.4" fill="#0f172a" />
-        <circle cx="42.6" cy="56" r="1.5" fill="#fff" />
-        <circle cx="60.6" cy="56" r="1.5" fill="#fff" />
+      <g className="sprout-look">
+        <g className="sprout-eyes">
+          <ellipse cx="41" cy="58" rx="4.6" ry="5.4" fill="#0f172a" />
+          <ellipse cx="59" cy="58" rx="4.6" ry="5.4" fill="#0f172a" />
+          <circle cx="42.6" cy="56" r="1.5" fill="#fff" />
+          <circle cx="60.6" cy="56" r="1.5" fill="#fff" />
+        </g>
       </g>
       <circle cx="35" cy="66" r="3.4" fill="#fda4af" opacity="0.6" />
       <circle cx="65" cy="66" r="3.4" fill="#fda4af" opacity="0.6" />
