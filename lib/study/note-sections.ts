@@ -61,6 +61,8 @@ export interface TextbookPage {
   sectionTitle: string;
   title: string;
   subtopic: string | null;
+  /** every sub-section on the page, in order */
+  subtopics?: string[];
   sectionIndex: number;
   partIndex: number;
   partTotal: number;
@@ -129,7 +131,7 @@ const wordCount = (str: string) => (str.match(/\S+/g) || []).length;
  * and avoids tiny orphan tail pages.
  */
 export function splitTextbookPages(markdown: string, opts?: { maxWords?: number }): TextbookSplit {
-  const maxWords = Math.max(120, opts?.maxWords ?? 220);
+  const maxWords = Math.max(120, opts?.maxWords ?? 520);
   const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
   type Chunk = { level: 0 | 1 | 2 | 3; title: string; sectionTitle: string; sectionIndex: number; lines: string[] };
   const chunks: Chunk[] = [{ level: 0, title: "", sectionTitle: "", sectionIndex: 0, lines: [] }];
@@ -209,61 +211,64 @@ export function splitTextbookPages(markdown: string, opts?: { maxWords?: number 
     });
   }
 
+  // A page is a full textbook page: one "##" section with its "###" sub-sections, up to about maxWords. A long section runs
+  // over at sub-section boundaries; tiny sections (a short "Key terms") join the page before instead of standing alone.
+  type Pack = { units: Unit[]; words: number };
+  const packs: Pack[] = [];
+  for (const u of units) {
+    const w = wordCount(u.body) + (u.subtopic ? 3 : 0);
+    const last = packs[packs.length - 1];
+    const lastUnit = last?.units[last.units.length - 1];
+    const sameSection = !!last && !!lastUnit && !u.synthetic && !lastUnit.synthetic && lastUnit.sectionIndex === u.sectionIndex;
+    // a short "Key terms" or "Common mistakes" joins the page before; a quick check or a worked example always stays on its own page
+    const tinyKind = classifyKind(u.sectionTitle, u.subtopic || u.title, 1);
+    const tiny = !!last && !!lastUnit && !u.synthetic && !lastUnit.synthetic && wordCount(u.body) < 120 && tinyKind !== "check" && tinyKind !== "example";
+    if (last && ((sameSection && last.words + w <= maxWords) || (tiny && last.words + w <= maxWords * 1.15))) {
+      last.units.push(u);
+      last.words += w;
+    } else {
+      packs.push({ units: [u], words: w });
+    }
+  }
+
   const pages: TextbookPage[] = [];
-  units.forEach((u, uIdx) => {
-    const totalWords = wordCount(u.body);
-    if (totalWords <= maxWords) {
-      pages.push({
-        id: `tp-${uIdx}-0`,
-        sectionTitle: u.sectionTitle,
-        title: u.title,
-        subtopic: u.subtopic,
-        sectionIndex: u.sectionIndex,
-        partIndex: 0,
-        partTotal: 1,
-        kind: classifyKind(u.sectionTitle, u.subtopic || u.title, uIdx),
-        body: u.body,
-        synthetic: u.synthetic,
-      });
+  packs.forEach((pk, pIdx) => {
+    const first = pk.units[0];
+    const multi = pk.units.length > 1;
+    // with several parts on one page every sub-section keeps its own heading inside the page
+    const bodyOf = (u: Unit, idx: number) => (multi || idx > 0 ? [u.subtopic ? `### ${u.subtopic}` : u.title !== first.title ? `## ${u.title}` : "", u.body].filter(Boolean).join("\n\n") : u.body);
+    const body = pk.units.map(bodyOf).join("\n\n").trim();
+    const subtopics = pk.units.map((u) => u.subtopic).filter((x): x is string => !!x);
+    const kind = classifyKind(first.sectionTitle, first.subtopic || first.title, pIdx);
+    const base = { sectionTitle: first.sectionTitle, title: first.title, subtopic: multi ? null : first.subtopic, subtopics, sectionIndex: first.sectionIndex, kind, synthetic: first.synthetic };
+    if (wordCount(body) <= maxWords * 1.3 || multi) {
+      pages.push({ id: `tp-${pIdx}-0`, ...base, partIndex: 0, partTotal: 1, body });
       return;
     }
-    const blocks = splitAtomicBlocks(u.body);
+    // one very long unit: break it between whole paragraphs, never inside a $$ block or code fence
+    const blocks = splitAtomicBlocks(body);
     const groups: string[] = [];
     let cur: string[] = [];
     let curW = 0;
-    for (const b of blocks) {
-      const bw = wordCount(b);
+    for (const blk of blocks) {
+      const bw = wordCount(blk);
       if (cur.length > 0 && curW + bw > maxWords) {
         groups.push(cur.join("\n\n"));
-        cur = [b];
+        cur = [blk];
         curW = bw;
       } else {
-        cur.push(b);
+        cur.push(blk);
         curW += bw;
       }
     }
     if (cur.length > 0) {
-      if (groups.length > 0 && curW < 45 && wordCount(groups[groups.length - 1]) + curW <= maxWords + 65) {
+      if (groups.length > 0 && curW < 60 && wordCount(groups[groups.length - 1]) + curW <= maxWords * 1.3) {
         groups[groups.length - 1] = `${groups[groups.length - 1]}\n\n${cur.join("\n\n")}`;
       } else {
         groups.push(cur.join("\n\n"));
       }
     }
-    const partTotal = groups.length;
-    groups.forEach((g, partIndex) => {
-      pages.push({
-        id: `tp-${uIdx}-${partIndex}`,
-        sectionTitle: u.sectionTitle,
-        title: u.title,
-        subtopic: u.subtopic,
-        sectionIndex: u.sectionIndex,
-        partIndex,
-        partTotal,
-        kind: classifyKind(u.sectionTitle, u.subtopic || u.title, uIdx),
-        body: g,
-        synthetic: u.synthetic,
-      });
-    });
+    groups.forEach((g, partIndex) => pages.push({ id: `tp-${pIdx}-${partIndex}`, ...base, partIndex, partTotal: groups.length, body: g }));
   });
 
   if (pages.length === 0) {

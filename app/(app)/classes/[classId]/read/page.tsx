@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { InteractiveNote, type StudySignalPayload } from "@/components/lesson/interactive-note";
+import { TopicDone } from "@/components/lesson/topic-done";
+import { TextbookWriter } from "@/components/lesson/textbook-writer";
 import { readMinutes, splitTextbookPages, type TextbookSectionKind } from "@/lib/study/note-sections";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { fireCelebration } from "@/components/game/confetti";
@@ -43,6 +45,7 @@ interface Kc {
   lessonMarkdown?: string;
   parentId?: string | null;
   published?: { lesson?: boolean };
+  lessonStyle?: string;
 }
 interface Section extends Kc {
   depth: number;
@@ -137,10 +140,22 @@ const SectionView = memo(function SectionView({
   classId,
   onListen,
   onSignal,
+  nextId,
+  nextTitle,
+  onGoTo,
+  onSeen,
+  classDone,
+  classTitle,
 }: {
   s: Section;
   classId: string;
   onListen: (id: string) => void;
+  nextId?: string | null;
+  nextTitle?: string | null;
+  onGoTo?: (id: string) => void;
+  onSeen?: (kcId: string) => void;
+  classDone?: boolean;
+  classTitle?: string;
   onSignal?: (kcId: string, sig: StudySignalPayload) => void;
 }) {
   const text = (s.lessonMarkdown || "").trim();
@@ -182,6 +197,18 @@ const SectionView = memo(function SectionView({
           onStudySignal={onSignal ? (sig) => onSignal(s.id, sig) : undefined}
         />
       )}
+      {!hidden && !thin && onSeen && (
+        <TopicDone
+          classId={classId}
+          kcId={s.id}
+          title={s.title}
+          nextTitle={nextTitle}
+          onNext={nextId && onGoTo ? () => onGoTo(nextId) : undefined}
+          onSeen={onSeen}
+          classDone={!!classDone}
+          classTitle={classTitle || ""}
+        />
+      )}
     </section>
   );
 });
@@ -196,6 +223,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
 
   const [title, setTitle] = useState("");
   const [kcs, setKcs] = useState<Kc[] | null>(null);
+  const [canManage, setCanManage] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null);
   const [tocOpen, setTocOpen] = useState(false);
@@ -243,6 +271,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         rememberClass(classId, lang, j.data);
         setTitle(String(j.data.class.title || "Class"));
         setKcs(asArray<Kc>(j.data.kcs));
+        setCanManage(!!j.data.isOwner || j.data.role === "owner" || j.data.role === "admin");
       } catch (e) {
         if (!off && !saved) setError(e instanceof Error ? e.message : "Couldn't open this class.");
       }
@@ -262,6 +291,20 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
   }, [classId]);
 
   const sections = useMemo(() => buildSections(kcs || []), [kcs]);
+
+  // fetch the class again (after the teacher's chapters were rewritten) and show the new text
+  const reloadClass = useCallback(async () => {
+    try {
+      const lang = readPrefs().language;
+      const res = await fetch(`/api/classes/${classId}${lang !== "en" ? `?lang=${encodeURIComponent(lang)}` : ""}`);
+      const j = await res.json();
+      if (!j?.ok || !j.data?.class) return;
+      rememberClass(classId, lang, j.data);
+      setKcs(asArray<Kc>(j.data.kcs));
+    } catch {
+      /* keep what is on screen */
+    }
+  }, [classId]);
 
   const flipPages = useMemo(() => {
     const out: Array<{
@@ -468,6 +511,47 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
   const readable = useMemo(
     () => sections.filter((s) => s.published?.lesson !== false && (s.lessonMarkdown || "").trim().length >= THIN).map((s) => ({ id: s.id, title: s.title, markdown: s.lessonMarkdown || "" })),
     [sections]
+  );
+  const nextReadable = useMemo(() => {
+    const m = new Map<string, { id: string; title: string }>();
+    readable.forEach((r, i) => {
+      const nx = readable[i + 1];
+      if (nx) m.set(r.id, { id: nx.id, title: nx.title });
+    });
+    return m;
+  }, [readable]);
+
+  // chapters the learner has read to the end (kept on this device)
+  const doneKey = `sunroot:readdone:${classId}`;
+  const [doneIds, setDoneIds] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(doneKey) || "[]");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (Array.isArray(v)) setDoneIds(v.filter((x) => typeof x === "string"));
+    } catch {
+      /* nothing saved */
+    }
+  }, [doneKey]);
+  const classDone = readable.length > 0 && readable.every((r) => doneIds.includes(r.id));
+  const markDone = useCallback(
+    (kcId: string) => {
+      setDoneIds((prev) => {
+        if (prev.includes(kcId)) return prev;
+        const next = [...prev, kcId];
+        try {
+          localStorage.setItem(doneKey, JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+      if (!completedChapters.current.has(kcId)) {
+        completedChapters.current.add(kcId);
+        void sendSignal(kcId, "chapter_complete", sections.find((x) => x.id === kcId)?.title);
+      }
+    },
+    [doneKey, sendSignal, sections]
   );
   const voice = useReadThrough({ sections: readable, onSection: (id) => goTo(id), findEl: findBlockEl });
   const listeningTitle = sections.find((s) => s.id === voice.currentId)?.title || "";
@@ -723,9 +807,9 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         <div className="h-full bg-brand-600 transition-[width] duration-150" style={{ width: "0%" }} ref={progressBar} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 py-3">
-        <Link href={`/classes/${classId}`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> {title}
+      <div className="flex flex-wrap items-center gap-2 py-2">
+        <Link href={`/classes/${classId}`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground min-w-0 max-w-[55%] sm:max-w-none">
+          <ArrowLeft className="h-4 w-4 shrink-0" /> <span className="truncate">{title}</span>
         </Link>
         <div className="ml-auto inline-flex rounded-xl border border-border p-0.5 text-xs font-semibold bg-card" role="group" aria-label="Reading view">
           <button
@@ -743,8 +827,11 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
             <Rows3 className="h-3.5 w-3.5" /> Scroll
           </button>
         </div>
-        <button type="button" onClick={addBookmark} className="inline-flex items-center gap-1.5 h-9 rounded-lg border border-border px-3 text-xs font-semibold hover:bg-muted" aria-label="Bookmark where I am">
-          <Bookmark className="h-4 w-4" /> Bookmark
+        <button type="button" onClick={() => setTocOpen(true)} className="lg:hidden inline-flex items-center gap-1.5 h-9 rounded-lg border border-border px-3 text-xs font-semibold hover:bg-muted" aria-label="Open the table of contents">
+          <ListTree className="h-4 w-4" /> Contents
+        </button>
+        <button type="button" onClick={addBookmark} className="inline-flex items-center gap-1.5 h-9 rounded-lg border border-border px-2.5 sm:px-3 text-xs font-semibold hover:bg-muted" aria-label="Bookmark where I am">
+          <Bookmark className="h-4 w-4" /> <span className="hidden sm:inline">Bookmark</span>
         </button>
         <div className="flex items-center gap-1" role="group" aria-label="Text size">
           <button type="button" onClick={() => setScaleSaved(scale - 0.1)} aria-label="Smaller text" className="h-9 w-9 grid place-items-center rounded-lg border border-border hover:bg-muted"><Minus className="h-4 w-4" /></button>
@@ -754,7 +841,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       </div>
 
       {/* Live AI Mental Map & Study Bonus Strip */}
-      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card/80 px-3 py-2 text-xs">
+      <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-border bg-card/80 px-3 py-1.5 text-xs">
         <span className="inline-flex items-center gap-1.5 font-semibold text-brand-700 dark:text-brand-300">
           <Brain className="h-3.5 w-3.5" />
           Mental Map{mentalStats.pL !== null ? `: ${Math.round(mentalStats.pL * 100)}%` : ": Active"}
@@ -783,6 +870,10 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
           View Class Map →
         </Link>
       </div>
+
+      {canManage && (
+        <TextbookWriter classId={classId} kcs={(kcs || []).map((k) => ({ id: k.id, title: k.title, lessonStyle: k.lessonStyle }))} onChanged={reloadClass} />
+      )}
 
       <div className="relative mb-3">
         <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -1000,7 +1091,25 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                         />
                       )}
 
-                      <footer className="mt-6 pt-3 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+                      {currentFlip.pageIdxInSection === currentFlip.pageTotalInSection - 1 &&
+                        currentFlip.section.published?.lesson !== false &&
+                        (currentFlip.section.lessonMarkdown || "").trim().length >= THIN && (
+                          <TopicDone
+                            classId={classId}
+                            kcId={currentFlip.section.id}
+                            title={currentFlip.section.title}
+                            nextTitle={nextReadable.get(currentFlip.section.id)?.title}
+                            onNext={() => {
+                              const nx = nextReadable.get(currentFlip.section.id);
+                              if (nx) goTo(nx.id);
+                            }}
+                            onSeen={markDone}
+                            classDone={classDone}
+                            classTitle={title}
+                          />
+                        )}
+
+                      <footer className="mt-6 pt-3 pr-12 border-t border-border/60 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
                         <span className="truncate">{currentFlip.subtopic || currentFlip.section.title}</span>
                         <span className="tabular-nums shrink-0 font-semibold">
                           Page {safeFlipIdx + 1} of {flipPages.length}
@@ -1070,7 +1179,19 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
               <p className="text-sm text-muted-foreground mb-4">{sections.length} topics. Tap any highlighted word to learn more and grow your mental map.</p>
               {sections.length === 0 && <p className="text-sm text-muted-foreground">There are no topics here yet.</p>}
               {sections.map((s) => (
-                <SectionView key={s.id} s={s} classId={classId} onListen={voice.start} onSignal={handleNoteSignal} />
+                <SectionView
+                  key={s.id}
+                  s={s}
+                  classId={classId}
+                  onListen={voice.start}
+                  onSignal={handleNoteSignal}
+                  nextId={nextReadable.get(s.id)?.id}
+                  nextTitle={nextReadable.get(s.id)?.title}
+                  onGoTo={goTo}
+                  onSeen={markDone}
+                  classDone={classDone}
+                  classTitle={title}
+                />
               ))}
             </>
           )}
@@ -1085,13 +1206,6 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       {voice.failed && (
         <p className="fixed bottom-24 inset-x-4 z-40 rounded-xl bg-rose-600 text-white text-sm px-3 py-2 text-center">The voice is busy right now. Try again in a moment.</p>
       )}
-      <button
-        type="button"
-        onClick={() => setTocOpen(true)}
-        className={cn("lg:hidden fixed right-4 z-40 h-12 px-4 rounded-full bg-brand-600 text-white shadow-elevated inline-flex items-center gap-2 text-sm font-semibold transition-[bottom]", voice.state !== "idle" ? "bottom-48" : "bottom-24")}
-      >
-        <ListTree className="h-4 w-4" /> Contents
-      </button>
       {tocOpen && (
         <div className="lg:hidden fixed inset-0 z-[70] flex items-end bg-black/50" onClick={() => setTocOpen(false)} role="presentation">
           <div className="note-sheet w-full max-h-[80dvh] overflow-y-auto rounded-t-3xl bg-card p-4" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Contents">
