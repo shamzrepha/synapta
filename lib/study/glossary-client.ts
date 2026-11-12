@@ -14,6 +14,9 @@ export interface GlossaryCard {
   example: string;
   imageQuery: string;
   wikipediaTitle?: string;
+  /** what the pop-up shows above the text, decided by the AI: a formula, a photo, a diagram or nothing */
+  visual?: "photo" | "diagram" | "formula" | "none";
+  formula?: string;
   images: GlossaryPic[];
 }
 
