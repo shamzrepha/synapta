@@ -84,6 +84,7 @@ export default function LandingPage() {
         "@id": `${siteUrl}/#founder`,
         name: FOUNDER_NAME,
         jobTitle: FOUNDER_TITLE,
+        image: `${siteUrl}/ceo.jpg`,
         url: `${siteUrl}/about`,
         sameAs: [FOUNDER_GITHUB_URL, FOUNDER_PORTFOLIO_URL],
       },
@@ -95,6 +96,7 @@ export default function LandingPage() {
       "@id": `${siteUrl}/#founder`,
       name: FOUNDER_NAME,
       jobTitle: FOUNDER_TITLE,
+      image: `${siteUrl}/ceo.jpg`,
       worksFor: {
         "@id": `${siteUrl}/#organization`,
       },
