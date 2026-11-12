@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { BotLink } from "@/components/bot/bot-link";
 import { useRouter } from "next/navigation";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useToast } from "@/components/ui/toast";
@@ -510,7 +511,7 @@ export default function ExplorePage() {
               </CardContent>
 
               <CardFooter className="pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2">
-                <Link href={`/classes/${item.id}`} className="flex-1 min-w-0">
+                <BotLink href={`/classes/${item.id}`} label={item.title} className="flex-1 min-w-0">
                   {item.userEnrollmentStatus === "active" || item.isOwner ? (
                     <Button size="sm" className="w-full text-xs justify-center">
                       <span className="truncate">{resumeLabel(item.id)}</span>
@@ -520,7 +521,7 @@ export default function ExplorePage() {
                       View Syllabus
                     </Button>
                   )}
-                </Link>
+                </BotLink>
 
                 {item.userEnrollmentStatus === "active" ? (
                   <Link href={`/classes/${item.id}`}>

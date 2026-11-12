@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, X, Maximize2 } from "lucide-react";
 import { TutorChat } from "./tutor-chat";
+import { ASK_EVENT, useBot } from "@/components/bot/bot-provider";
 
 /** Pages with their own chat box, where a floating button would cover the input */
 const HIDDEN_PREFIXES = ["/tutor", "/messages", "/notebook", "/lounge/"];
@@ -20,6 +21,19 @@ export function TutorLauncher() {
   const pathname = usePathname() || "";
   const [open, setOpen] = useState(false);
   const ctx = contextFromPath(pathname);
+  const bot = useBot();
+  const hiddenHere = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p)) || /\/topics\//.test(pathname);
+
+  // Sprout is the way in: tapping it opens this panel. (The round button below only shows when Sprout is switched off.)
+  useEffect(() => {
+    if (hiddenHere) return;
+    const onAsk = (e: Event) => {
+      (e as CustomEvent<{ handled: boolean }>).detail.handled = true;
+      setOpen(true);
+    };
+    window.addEventListener(ASK_EVENT, onAsk);
+    return () => window.removeEventListener(ASK_EVENT, onAsk);
+  }, [hiddenHere]);
 
   useEffect(() => {
     if (!open) return;
@@ -28,11 +42,11 @@ export function TutorLauncher() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  if (HIDDEN_PREFIXES.some((p) => pathname.startsWith(p)) || /\/topics\//.test(pathname)) return null;
+  if (hiddenHere) return null;
 
   return (
     <>
-      {!open && (
+      {!open && !bot.enabled && (
         <button
           type="button"
           data-floating
@@ -48,7 +62,7 @@ export function TutorLauncher() {
         <div className="fixed z-50 inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[420px] md:h-[min(640px,calc(100dvh-6rem))] flex flex-col bg-white dark:bg-slate-950 md:rounded-2xl md:border border-slate-200 dark:border-slate-800 shadow-2xl">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <Sparkles className="h-4 w-4 text-brand-600" />
-            <p className="font-bold flex-1">AI Tutor</p>
+            <p className="font-bold flex-1">Ask {bot.enabled ? bot.pet.name : "the tutor"}</p>
             <Link
               href={`/tutor${ctx.classId ? `?class=${ctx.classId}${ctx.kcId ? `&topic=${ctx.kcId}` : ""}` : ""}`}
               onClick={() => setOpen(false)}

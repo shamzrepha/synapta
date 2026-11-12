@@ -4,6 +4,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import { normalizeMath } from "@/lib/text/readable";
 
@@ -42,8 +43,16 @@ export function MarkdownRenderer({ content, className, localized }: MarkdownRend
       )}
     >
       <ReactMarkdown
-        remarkPlugins={[remarkMath]}
+        // tables, task lists and "~~strike~~"; a single "~" stays plain text ("about ~5 V")
+        remarkPlugins={[remarkMath, [remarkGfm, { singleTilde: false }]]}
         rehypePlugins={[rehypeKatex]}
+        components={{
+          table: (props) => (
+            <div className="note-table" role="region" tabIndex={0} aria-label="Table, scrolls sideways">
+              <table {...props} />
+            </div>
+          ),
+        }}
       >
         {normalizeMath(content)}
       </ReactMarkdown>

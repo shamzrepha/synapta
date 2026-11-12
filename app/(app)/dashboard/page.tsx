@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { MasteryRadar, RadarDataPoint } from "@/components/dashboard/mastery-radar";
 import { Swords, ArrowRight, Compass, Flame, GraduationCap } from "lucide-react";
 import Link from "next/link";
+import { BotLink } from "@/components/bot/bot-link";
 import { asArray } from "@/lib/api/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGameState } from "@/components/game/use-game";
@@ -181,7 +182,7 @@ export default function DashboardPage() {
             <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
               {asArray(classes).map((cls) => (
                 <li key={cls.id}>
-                  <Link href={`/classes/${cls.id}`} className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/60">
+                  <BotLink href={`/classes/${cls.id}`} label={cls.title} className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/60">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-600/10 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
                       <GraduationCap className="h-[18px] w-[18px]" aria-hidden="true" />
                     </span>
@@ -193,7 +194,7 @@ export default function DashboardPage() {
                       </span>
                     </span>
                     <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                  </Link>
+                  </BotLink>
                 </li>
               ))}
             </ul>

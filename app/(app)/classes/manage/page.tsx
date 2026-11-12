@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { BotLink } from "@/components/bot/bot-link";
 import { asArray } from "@/lib/api/client";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -141,11 +142,11 @@ export default function TeacherClassesListPage() {
                 </div>
               </CardContent>
               <CardFooter className="pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2">
-                <Link href={`/classes/${c.id}`} className="flex-1">
+                <BotLink href={`/classes/${c.id}`} label={c.title} className="flex-1">
                   <Button variant="outline" size="sm" className="w-full text-xs">
                     {isTeacher ? "View Syllabus" : "Open class"}
                   </Button>
-                </Link>
+                </BotLink>
                 {isTeacher && (
                   <Link href={`/classes/${c.id}/heatmap`}>
                     <Button variant="outline" size="sm" className="text-xs">
