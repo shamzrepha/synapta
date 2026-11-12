@@ -49,6 +49,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // each deployment knows its own id, so an open page can tell when the site has been updated under it (see /api/version)
+  env: { NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA || "dev" },
   // Worlds reads its prompt and Subject Pack files at run time; without this they are missing from the serverless bundle
   outputFileTracingIncludes: {
     "/api/**": ["./prompts/**/*", "./subject-packs/**/*", "./fixtures/worlds/*.txt"],
