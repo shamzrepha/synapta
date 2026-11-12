@@ -29,6 +29,7 @@ import { InteractiveNote, type StudySignalPayload } from "@/components/lesson/in
 import { TopicDone } from "@/components/lesson/topic-done";
 import { useBot } from "@/components/bot/bot-provider";
 import { readableText } from "@/lib/text/readable";
+import { playPageFlipSound, playCuteVoice } from "@/lib/audio/sfx";
 import { TextbookWriter } from "@/components/lesson/textbook-writer";
 import { ClassMindMap } from "@/components/classes/class-mind-map";
 import { readMinutes, splitTextbookPages, type TextbookSectionKind } from "@/lib/study/note-sections";
@@ -465,6 +466,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     (nextIdx: number) => {
       if (flipPages.length === 0) return;
       const clamped = Math.max(0, Math.min(flipPages.length - 1, nextIdx));
+      if (clamped !== safeFlipIdx) playPageFlipSound();
       const prevPage = flipPages[safeFlipIdx];
       setFlipDir(clamped >= safeFlipIdx ? "next" : "prev");
       setFlipIdx(clamped);
@@ -488,6 +490,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         !completedChapters.current.has(prevPage.section.id)
       ) {
         completedChapters.current.add(prevPage.section.id);
+        playCuteVoice("cheer");
         void sendSignal(prevPage.section.id, "chapter_complete", prevPage.section.title);
       }
       mainRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });

@@ -21,6 +21,7 @@ import type { ImageFilter } from "@/lib/images/commons";
 import katex from "katex";
 import { useBot } from "@/components/bot/bot-provider";
 import type { VisualKind } from "@/lib/study/visual";
+import { playCuteVoice, playPageFlipSound, playPopSound, playPopUpHaulSound, playRopeSwingSound } from "@/lib/audio/sfx";
 
 interface TermCard {
   summary: string;
@@ -327,7 +328,7 @@ function waitFor(cond: () => boolean, ms: number, stop: () => boolean): Promise<
 
 function TermSheet({ term, context, topic, preset, origin, onClose }: { term: string; context: string; topic: string; /** the card prepared in the background, so nothing loads */ preset?: GlossaryCard; /** where the tapped word is: Sprout runs there first */ origin?: Origin; onClose: () => void }) {
   const bot = useBot();
-  const theatrical = !!origin && bot.enabled && !bot.reduced;
+  const theatrical = !!origin && bot.enabled && (bot.mode === "lively" || !bot.reduced);
   const [arrived, setArrived] = useState(!theatrical);
   const [settled, setSettled] = useState(!theatrical);
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -345,6 +346,7 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
     let off = false;
     const b = botRef.current;
     b.countLookup();
+    playCuteVoice("search");
     void (async () => {
       await b.hopTo(origin as DOMRect, { pose: "search", duration: b.quick ? 560 : 1000, say: b.quick ? undefined : "Let me look that up!" });
       if (off) return;
@@ -383,8 +385,15 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
       }
       if (off) return;
       const r = el.getBoundingClientRect();
-      const fin = new DOMRect(r.left, r.top - drop.current, r.width, r.height);
-      await b.hopTo(fin, { anchor: "perch", pose: "pull", duration: slow ? 900 : 520, say: slow ? "Got it! Hold on..." : undefined });
+      const fin = {
+        left: r.left,
+        top: Math.max(8, r.top - drop.current),
+        width: r.width,
+        height: r.height,
+        right: r.left + r.width,
+        bottom: Math.max(8, r.top - drop.current) + r.height,
+      };
+      await b.hopTo(fin as unknown as DOMRect, { anchor: "perch", pose: "pull", duration: slow ? 900 : 520, say: slow ? "Got it! Hold on..." : undefined });
       if (off) return;
       b.setPose("pull");
       const hand = () => b.handPoint();
@@ -393,12 +402,14 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
         return { x: q.left + q.width / 2, y: Math.min(q.top + 5, window.innerHeight - 2) };
       };
       // fire: the rope flies to the pop-up's top edge, still lying at the bottom of the screen
+      playRopeSwingSound();
       await tween(slow ? 420 : 260, (t) => {
         const h = hand();
         if (h) rope.set(h, edge(), easeOut(t), 0.25);
       }, stop);
       if (off) return;
       // haul: the pop-up rises from the ground, the rope pulled tight
+      playPopUpHaulSound();
       const dur = slow ? 1700 : 1000;
       pull = el.animate([{ transform: `translateY(${drop.current}px)` }, { transform: "translateY(0px)" }], { duration: dur, easing: "cubic-bezier(0.3, 0.7, 0.25, 1)", fill: "forwards" });
       el.style.transform = "";
@@ -417,6 +428,7 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
       el.style.transform = "";
       pull.cancel();
       // let go: the hook comes loose and the rope whips back
+      playPopSound();
       await tween(slow ? 360 : 220, (t) => {
         const h = hand();
         if (h) rope.set(h, edge(), 1 - easeIn(t), 0.1);
@@ -756,6 +768,7 @@ export function InteractiveNote({
   const go = (n: number) => {
     const next = Math.max(0, Math.min(total - 1, n));
     if (next === idx) return;
+    playPageFlipSound();
     setDir(next > idx ? "next" : "prev");
     setIdx(next);
     top.current?.scrollIntoView({ block: "start", behavior: "smooth" });

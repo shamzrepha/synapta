@@ -209,7 +209,7 @@ export default function AboutPage() {
           <section className="mt-12 rounded-xl border border-border bg-card/30 p-6 sm:p-8">
             <span className={label}>Milestone & Recognition</span>
             <h2 className="mt-1 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-              Pitching Sunroot at AI Builder's Pitch Party
+              Pitching Sunroot at AI Builder&apos;s Pitch Party
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
               Founder {FOUNDER_NAME} presenting Sunroot on stage as a Top 10 Finalist at the AI Builders Pitch Party H2,

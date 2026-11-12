@@ -443,12 +443,15 @@ h1, h2, h3 { text-wrap: balance; }
 /* While the keyboard is up, the bottom menu would sit on top of what you type: hide it, and give the page room to scroll */
 html[data-keyboard="open"] [data-mobile-nav],
 html[data-typing="true"] [data-mobile-nav],
-body:has(input:focus, textarea:focus, select:focus) [data-mobile-nav] { display: none; }
+body:has(input:focus, textarea:focus, select:focus, [contenteditable="true"]) [data-mobile-nav] { display: none !important; }
 html[data-keyboard="open"] body { padding-bottom: 0; }
 /* floating buttons and players never sit on top of the field you are typing in */
 html[data-keyboard="open"] [data-floating],
 html[data-typing="true"] [data-floating],
-body:has(input:focus, textarea:focus) [data-floating] { display: none !important; }
+html[data-keyboard="open"] .sunroot-bot,
+html[data-typing="true"] .sunroot-bot,
+body:has(input:focus, textarea:focus, select:focus, [contenteditable="true"]) [data-floating],
+body:has(input:focus, textarea:focus, select:focus, [contenteditable="true"]) .sunroot-bot { display: none !important; }
 textarea, input { scroll-margin-block: 96px; }
 
 /* Interactive lesson notebook */
@@ -762,6 +765,27 @@ html[data-typing="true"] .sunroot-bot { display: none; }
 /* ===== Sprout: ask-me, peeking while you read, pulling a pop-up up with a rope ===== */
 /* the speech bubble opens towards the screen, whichever side Sprout waits on */
 .sunroot-bot[data-side="left"] .sunroot-bot-bubble { right: auto; left: 0; border-radius: 0.9rem 0.9rem 0.9rem 0.2rem; }
+.sunroot-bot[data-side="right"] .sunroot-bot-bubble { left: auto; right: 0; border-radius: 0.9rem 0.9rem 0.2rem 0.9rem; }
+/* cute giggle bounce when tapped */
+.sprout[data-pose="giggle"] { animation: sprout-giggle 0.45s ease-in-out infinite; }
+@keyframes sprout-giggle {
+  0%, 100% { transform: scaleX(var(--sx, 1)) rotate(0deg) scale(1); }
+  25% { transform: scaleX(var(--sx, 1)) rotate(-8deg) scale(1.08, 0.94) translateY(-4px); }
+  75% { transform: scaleX(var(--sx, 1)) rotate(8deg) scale(0.96, 1.05) translateY(-7px); }
+}
+.sprout[data-pose="giggle"] .sprout-mouth { opacity: 0; }
+.sprout[data-pose="giggle"] .sprout-mouth-open { opacity: 1; }
+.sprout[data-pose="giggle"] .sprout-sparkles { opacity: 1; animation: sprout-twinkle 0.4s ease-in-out infinite alternate; }
+
+/* somersault / backflip celebration */
+.sprout[data-pose="flip"] { animation: sprout-flip 0.65s cubic-bezier(0.2, 0.8, 0.3, 1) 1; }
+@keyframes sprout-flip {
+  0% { transform: scaleX(var(--sx, 1)) translateY(0) rotate(0deg); }
+  50% { transform: scaleX(var(--sx, 1)) translateY(-28px) rotate(180deg) scale(1.08); }
+  100% { transform: scaleX(var(--sx, 1)) translateY(0) rotate(360deg) scale(1); }
+}
+.sprout[data-pose="flip"] .sprout-mouth { opacity: 0; }
+.sprout[data-pose="flip"] .sprout-mouth-open { opacity: 1; }
 /* while you read, Sprout shrinks and tucks half behind the screen edge, so it never covers the text; a tap or hover brings it back */
 .sunroot-bot-body { transition: transform 0.7s cubic-bezier(0.22, 0.9, 0.3, 1), opacity 0.5s; transform-origin: 50% 100%; }
 .sunroot-bot[data-peek="true"] .sunroot-bot-body { transform: translateX(-52%) scale(0.78); transform-origin: 0 100%; opacity: 0.92; }

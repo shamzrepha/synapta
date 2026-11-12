@@ -4,7 +4,7 @@ import React from "react";
 import { BackGear, FaceGear, HatGear, NeckGear, ShoeGear, type Gear } from "@/components/bot/sprout-gear";
 import { PALETTES, type PetMood, type PetPalette } from "@/lib/pet/mood";
 
-export type BotPose = "idle" | "search" | "point" | "cheer" | "think" | "cross" | "dance" | "jump" | "wave" | "pull";
+export type BotPose = "idle" | "search" | "point" | "cheer" | "think" | "cross" | "dance" | "jump" | "wave" | "pull" | "giggle" | "flip";
 
 /**
  * Sprout, SunRoot's helper bot: a round blue body, a white face, a little green sprout on top (sun + root).

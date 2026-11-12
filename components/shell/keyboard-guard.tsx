@@ -47,7 +47,7 @@ export function KeyboardGuard() {
 
     const onFocusIn = (e: FocusEvent) => {
       const t = e.target as Element | null;
-      if (t?.matches?.(TEXT_FIELD) && window.matchMedia("(pointer: coarse)").matches) {
+      if (t?.matches?.(TEXT_FIELD)) {
         root.dataset.typing = "true";
         reveal(t);
       }

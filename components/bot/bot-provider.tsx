@@ -8,6 +8,7 @@ import { usePrefs } from "@/components/settings/use-prefs";
 import { Sprout, type BotPose } from "@/components/bot/sprout";
 import type { Gear } from "@/components/bot/sprout-gear";
 import { MOOD_COPY, PALETTES, type PetMood } from "@/lib/pet/mood";
+import { playCuteVoice } from "@/lib/audio/sfx";
 
 const W = 72;
 const H = 81;
@@ -146,8 +147,10 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
 
   const home = useCallback(() => {
     const narrow = window.innerWidth < 768;
-    // phones: bottom-left, above the menu, so it never sits on the read-aloud bar
-    return narrow ? { x: 8, y: window.innerHeight - H - 84 } : { x: window.innerWidth - W - 8, y: window.innerHeight - H - 24 };
+    return {
+      x: window.innerWidth - W - (narrow ? 12 : 8),
+      y: window.innerHeight - H - (narrow ? 88 : 24),
+    };
   }, []);
 
   const place = useCallback((x: number, y: number) => {
@@ -306,6 +309,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   const cheer = useCallback<BotApi["cheer"]>(
     async (text) => {
       if (!enabled || !mounted) return;
+      playCuteVoice("cheer");
       const h = home();
       homed.current = true;
       setAtHome(true);
@@ -439,14 +443,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
 
   // reading a chapter or topic: Sprout waits small, half behind the screen edge, so it never covers the text
   const reading = /^\/classes\/[^/]+\/(read|topics)(\/|$)/.test(pathname);
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-  const side: "left" | "right" = isMobile ? "left" : "right";
+  const side: "left" | "right" = "right";
   const peek = reading && atHome && !awake && !moving && !bubble;
   const wake = () => {
     setAwake(true);
@@ -457,6 +454,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   // tapping Sprout asks the AI helper; if nothing can open it on this page, Sprout gives a tip instead
   const onTap = () => {
     wake();
+    playCuteVoice("happy");
     const ev = new CustomEvent(ASK_EVENT, { detail: { handled: false } });
     window.dispatchEvent(ev);
     if ((ev.detail as { handled: boolean }).handled) return;
