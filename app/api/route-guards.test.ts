@@ -20,6 +20,7 @@ const read = (p: string) => fs.readFileSync(p, "utf8");
 /** A route may be open to signed-out visitors only if it is listed here, with the reason it is safe. */
 const PUBLIC_ROUTES: Record<string, string> = {
   "health/route.ts": "uptime check, returns no data",
+  "version/route.ts": "returns only the live deployment id, so an open page can offer a refresh",
   "client-errors/route.ts": "error reporter, rate limited and size capped",
   "auth/session/route.ts": "sign-in: verifies the Firebase token itself",
   "auth/bootstrap/route.ts": "sign-up: verifies the Bearer token itself, rate limited",

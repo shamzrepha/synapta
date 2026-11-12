@@ -13,6 +13,7 @@ import { SiteNotice } from "@/components/shell/site-notice";
 import { AddMaterialSheet } from "@/components/shell/add-material";
 import { CommandPalette } from "@/components/shell/command-palette";
 import { AppUpdateBanner } from "@/components/shell/app-update-banner";
+import { NewVersionWatcher } from "@/components/shell/new-version-watcher";
 import { DeviceReporter } from "@/components/shell/device-reporter";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { BotProvider } from "@/components/bot/bot-provider";
@@ -39,6 +40,7 @@ export default function AppLayout({
           <VerifyEmailBanner />
           <SiteNotice />
           <AppUpdateBanner />
+          <NewVersionWatcher />
           <UpgradeDialog />
           <HubTabs />
           {children}

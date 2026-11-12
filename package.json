@@ -12,6 +12,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:acceptance": "tsx scripts/acceptance-b14.ts",
+    "release:app": "tsx scripts/release-app.ts",
     "check:guards": "node scripts/check-list-guards.mjs",
     "check:models": "node scripts/check-no-hardcoded-models.mjs",
     "verify": "tsc --noEmit && eslint . && vitest run && npm run check:guards && npm run check:models && npm run test:acceptance"
