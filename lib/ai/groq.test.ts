@@ -32,6 +32,7 @@ import {
   setAiProvider,
   aiProviderInfo,
   mapToGroqModel,
+  transcribeAudioWithGroq,
 } from "./groq";
 
 const GROQ_KEY = "gsk_" + "x".repeat(48) + "1234";
@@ -120,5 +121,36 @@ describe("Groq AI Engine and Provider Switcher", () => {
       expect(mapToGroqModel("llama-3.3-70b-specdec")).toBe("llama-3.3-70b-specdec");
       expect(mapToGroqModel("mixtral-8x7b-32768")).toBe("mixtral-8x7b-32768");
     });
+  });
+});
+
+describe("transcribeAudioWithGroq", () => {
+  it("throws clear error when no Groq API key is configured", async () => {
+    await expect(
+      transcribeAudioWithGroq(new Blob(["abc"], { type: "audio/webm" })),
+    ).rejects.toThrow(/no Groq API key/i);
+  });
+
+  it("posts multipart audio to Groq Whisper when a Groq key exists", async () => {
+    process.env.GROQ_API_KEY = "gsk_" + "w".repeat(44);
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ text: "simplify two fourths" }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+    try {
+      const text = await transcribeAudioWithGroq(new Blob(["audio"], { type: "audio/webm" }), {
+        filename: "clip.webm",
+        language: "en",
+      });
+      expect(text).toBe("simplify two fourths");
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain("/audio/transcriptions");
+      expect(init.method).toBe("POST");
+    } finally {
+      vi.unstubAllGlobals();
+      delete process.env.GROQ_API_KEY;
+    }
   });
 });

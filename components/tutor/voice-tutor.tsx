@@ -47,6 +47,9 @@ export function VoiceTutor() {
     speechLangRef.current = prefs.language === "en" ? navigator.language || "en-US" : languageInfo(prefs.language).speech;
   }, [prefs.language]);
   const heardRef = useRef("");
+  const cloudRecRef = useRef<{ stop: () => void; cancel: () => void } | null>(null);
+  const [cloudStatus, setCloudStatus] = useState<{ kind: "recording" | "transcribing" | "error"; text: string } | null>(null);
+  useEffect(() => () => cloudRecRef.current?.cancel(), []);
   const speakToken = useRef(0);
   const speaker = useRef<Speaker | null>(null);
   const emptyRuns = useRef(0);
@@ -59,7 +62,11 @@ export function VoiceTutor() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setSupported(Boolean(getRecognitionCtor(window))), 0);
+    const t = setTimeout(() => {
+      const native = Boolean(getRecognitionCtor(window));
+      const cloud = !native && typeof MediaRecorder !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia);
+      setSupported(native || cloud);
+    }, 0);
     return () => clearTimeout(t);
   }, []);
   useEffect(() => {
@@ -211,12 +218,50 @@ export function VoiceTutor() {
     fns.current = { send, listen };
   });
 
-  const stopListening = () => recRef.current?.stop();
+  const stopListening = () => {
+    if (cloudRecRef.current) {
+      cloudRecRef.current.stop();
+      cloudRecRef.current = null;
+      return;
+    }
+    recRef.current?.stop();
+  };
+  const listenCloud = () => {
+    void (async () => {
+      try {
+        const { startCloudStt } = await import("@/lib/voice/cloud-stt");
+        const handle = await startCloudStt({
+          onStart: () => setCloudStatus({ kind: "recording", text: "Listening via cloud mic — tap Talk when done" }),
+          onTranscribing: () => setCloudStatus({ kind: "transcribing", text: "Transcribing speech..." }),
+          onTranscript: (text) => {
+            setCloudStatus(null);
+            heardRef.current = text;
+            void fns.current.send(text);
+          },
+          onError: (msg) => {
+            setCloudStatus({ kind: "error", text: msg });
+            window.setTimeout(() => setCloudStatus((s) => (s?.kind === "error" ? null : s)), 4500);
+          },
+          onEnd: () => {
+            cloudRecRef.current = null;
+            setCloudStatus((s) => (s?.kind === "error" ? s : null));
+          },
+        });
+        cloudRecRef.current = handle;
+      } catch {
+        cloudRecRef.current = null;
+        setCloudStatus({ kind: "error", text: "Microphone permission denied or unavailable." });
+      }
+    })();
+  };
 
   const onDown = () => {
-    wasListening.current = Boolean(recRef.current);
+    wasListening.current = Boolean(recRef.current || cloudRecRef.current);
     downAt.current = performance.now();
-    if (!recRef.current && !busy) listen();
+    if (!recRef.current && !cloudRecRef.current && !busy) {
+      if (getRecognitionCtor(window)) listen();
+      else listenCloud();
+    }
   };
   const onUp = () => {
     if (wasListening.current) stopListening(); // tap while listening = done talking
@@ -295,14 +340,14 @@ export function VoiceTutor() {
             </button>
           ) : (
             <span className="text-xs text-slate-500 h-12 flex items-center gap-1.5">
-              {busy ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Thinking…</> : listening ? "Listening…" : canTalk ? <><Volume2 className="h-3.5 w-3.5" /> Hold or tap to talk</> : null}
+              {cloudStatus?.kind === "transcribing" ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {cloudStatus.text}</> : cloudStatus?.kind === "error" ? <span className="text-rose-600 dark:text-rose-400">{cloudStatus.text}</span> : busy ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Thinking…</> : listening || cloudStatus?.kind === "recording" ? "Listening…" : canTalk ? <><Volume2 className="h-3.5 w-3.5" /> Hold or tap to talk</> : null}
             </span>
           )}
           <button
             type="button"
             disabled={!canTalk || busy}
-            aria-label={listening ? "Stop listening" : "Talk"}
-            aria-pressed={listening}
+            aria-label={listening || cloudStatus?.kind === "recording" ? "Stop listening" : "Talk"}
+            aria-pressed={listening || cloudStatus?.kind === "recording"}
             onPointerDown={(e) => {
               e.preventDefault();
               onDown();
@@ -313,8 +358,8 @@ export function VoiceTutor() {
             onKeyDown={(e) => {
               if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
                 e.preventDefault();
-                if (recRef.current) stopListening();
-                else listen();
+                if (recRef.current || cloudRecRef.current) stopListening(); else if (getRecognitionCtor(window)) listen(); else listenCloud();
+                /* handled above */
               }
             }}
             className={cn(

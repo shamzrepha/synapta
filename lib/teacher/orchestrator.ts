@@ -6,6 +6,8 @@ import { getTeacherSystemPrompt, checkStudentMessageSafety } from "./prompts";
 import { trackMisconception } from "./misconceptions";
 import { lessonForStudents } from "@/lib/classes/live";
 import { levelInstruction, type ExplainLevel } from "@/lib/study/explain-level";
+import { getAudienceSystemPrompt } from "@/lib/ai/prompts";
+import { loadLearnerAudienceTags } from "@/lib/settings/audience-server";
 
 export interface TeacherAgentParams {
   uid: string;
@@ -18,6 +20,8 @@ export interface TeacherAgentParams {
   userMessage: string;
   /** Optional explanation level (simple / standard / lecturer) */
   level?: ExplainLevel;
+  /** Optional audience / accessibility profile tags */
+  profileTags?: string[];
   history?: Array<{ role: "user" | "model"; text: string }>;
 }
 
@@ -75,7 +79,7 @@ SAFETY:
  * server and put in the system prompt so each answer is a single model call — no function-calling
  * round trips, which were slow and broke on Gemini 3 (tool calls must echo thought signatures).
  */
-export async function runTeacherAgent({ uid, classId, kcId, canSeeDrafts = false, userMessage, level, history = [] }: TeacherAgentParams): Promise<TeacherAgentResponse> {
+export async function runTeacherAgent({ uid, classId, kcId, canSeeDrafts = false, userMessage, level, profileTags = [], history = [] }: TeacherAgentParams): Promise<TeacherAgentResponse> {
   const safety = checkStudentMessageSafety(userMessage);
   const mode: TeacherAgentResponse["mode"] = classId && kcId ? "topic" : classId ? "class" : "general";
   if (!safety.safe) {
@@ -84,8 +88,11 @@ export async function runTeacherAgent({ uid, classId, kcId, canSeeDrafts = false
 
   await checkRateLimitAndQuota(uid, 1200);
   const db = adminDb();
+  const savedTags = await loadLearnerAudienceTags(uid);
+  const mergedTags = Array.from(new Set([...savedTags, ...profileTags]));
 
   let systemInstruction: string;
+  let masteryProb: number | undefined;
   if (classId && kcId) {
     const [kcDoc, classDoc, masteryDoc, misSnap] = await Promise.all([
       db.collection("classes").doc(classId).collection("kcs").doc(kcId).get(),
@@ -96,6 +103,7 @@ export async function runTeacherAgent({ uid, classId, kcId, canSeeDrafts = false
     if (!kcDoc.exists) throw new ApiError(404, "NOT_FOUND", "Topic not found");
     const kc = kcDoc.data()!;
     const pL = typeof masteryDoc.data()?.pL === "number" ? masteryDoc.data()!.pL : 0.2;
+    masteryProb = pL;
     const misconceptions = misSnap ? misSnap.docs.map((d) => String(d.data().label || "")).filter(Boolean) : [];
     systemInstruction =
       getTeacherSystemPrompt({
@@ -128,6 +136,14 @@ FORMAT:
   }
 
   systemInstruction += levelInstruction(level);
+
+  if (mergedTags.length > 0) {
+    const isKids = mergedTags.includes("kids") || mergedTags.includes("teach_the_bot");
+    systemInstruction += "\n\n" + getAudienceSystemPrompt({
+      profileTags: mergedTags,
+      masteryProbability: isKids ? undefined : masteryProb,
+    });
+  }
 
   const contents = [
     ...normalizeHistory(history),

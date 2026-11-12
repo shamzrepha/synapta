@@ -2,6 +2,8 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { DEFAULT_PREFS, PREFS_KEY, parsePrefs, shouldAutoplay, type Prefs } from "@/lib/settings/prefs";
+import { parseAccessibility } from "@/lib/settings/accessibility";
+import { writeAccessibility } from "./use-accessibility";
 
 const EVENT = "sunroot:prefs";
 let cacheRaw: string | null | undefined;
@@ -70,6 +72,9 @@ export async function adoptAccountPrefs(uid: string): Promise<void> {
   }
   const res = await fetch("/api/settings", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
   if (!res?.ok) return;
+  if (res.data?.accessibility) {
+    writeAccessibility(parseAccessibility(res.data.accessibility));
+  }
   const local = getSnapshot();
   const saved = res.data?.prefs ? parsePrefs(res.data.prefs) : null;
   if (!saved) {

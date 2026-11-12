@@ -11,6 +11,9 @@ import { useToast } from "@/components/ui/toast";
 import { asArray } from "@/lib/api/client";
 import { api, errMsg, send } from "@/lib/study/client";
 import { cn } from "@/lib/utils";
+import { FlipCard } from "@/components/ui/flip-card";
+import { fireCelebration } from "@/components/game/confetti";
+import { usePrefs } from "@/components/settings/use-prefs";
 
 interface Deck { id: string; title: string; sourceLabel: string; cardCount: number; dueCount: number; newCount: number; learnedCount: number }
 interface Stats { totalCards: number; dueToday: number; learned: number; reviewedToday: number; totalReviews: number }
@@ -244,6 +247,8 @@ function Review({ deck, onExit }: { deck: Deck; onExit: () => void }) {
   const [requeued, setRequeued] = useState<Set<string>>(() => new Set());
   const [counts, setCounts] = useState({ again: 0, hard: 0, good: 0, easy: 0 });
   const [saving, setSaving] = useState(false);
+  const [prefs] = usePrefs();
+  const [combo, setCombo] = useState(0);
 
   useEffect(() => {
     let alive = true;
@@ -265,6 +270,13 @@ function Review({ deck, onExit }: { deck: Deck; onExit: () => void }) {
     try {
       await send("/api/flashcards/review", { cardId: card.id, rating });
       setCounts((c) => ({ ...c, [rating]: c[rating] + 1 }));
+      if (rating === "good" || rating === "easy") {
+        const nextCombo = combo + 1;
+        setCombo(nextCombo);
+        fireCelebration({ reduceMotion: prefs.reduceMotion, intensity: nextCombo >= 5 ? "medium" : "small" });
+      } else {
+        setCombo(0);
+      }
       if (rating === "again" && !requeued.has(card.id)) {
         setRequeued((s) => new Set(s).add(card.id));
         setQueue((q) => [...(q || []), card]);
@@ -311,16 +323,16 @@ function Review({ deck, onExit }: { deck: Deck; onExit: () => void }) {
       <div className="h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
         <div className="h-full bg-brand-500 transition-all" style={{ width: `${Math.round((pos / queue.length) * 100)}%` }} />
       </div>
-      <p className="text-xs text-slate-500 text-center">{pos + 1} / {queue.length}</p>
-      <Card className="p-5 min-h-[260px] flex flex-col justify-center gap-4 text-center">
-        <p className="text-lg font-semibold whitespace-pre-wrap break-words">{card.front}</p>
-        {shown && (
-          <>
-            <div className="h-px bg-slate-200 dark:bg-slate-700" />
-            <p className="text-base text-slate-700 dark:text-slate-200 whitespace-pre-wrap break-words">{card.back}</p>
-          </>
-        )}
-      </Card>
+      <p className="text-xs text-slate-500 text-center">{pos + 1} / {queue.length}{combo >= 2 ? ` ? 🔥 ${combo}x combo` : ""}</p>
+      <FlipCard
+        flipped={shown}
+        onFlip={() => setShown((s) => !s)}
+        minHeightClass="min-h-[260px]"
+        front={<p className="text-lg font-semibold whitespace-pre-wrap break-words">{card.front}</p>}
+        back={<p className="text-base text-slate-700 dark:text-slate-200 whitespace-pre-wrap break-words">{card.back}</p>}
+        frontPlainText={card.front}
+        backPlainText={card.back}
+      />
       {!shown ? (
         <Button className="w-full" size="lg" onClick={() => setShown(true)}>Show answer</Button>
       ) : (

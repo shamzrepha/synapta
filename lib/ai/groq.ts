@@ -365,3 +365,44 @@ export async function callGroqChat(opts: GroqCallOptions): Promise<GroqCallResul
     model,
   };
 }
+
+export interface GroqTranscriptionOptions {
+  filename?: string;
+  language?: string;
+}
+
+/**
+ * Transcribes an audio blob via Groq Whisper (`whisper-large-v3-turbo`).
+ * Used as a cloud Speech-to-Text fallback when Web Speech Recognition is unavailable.
+ */
+export async function transcribeAudioWithGroq(
+  file: Blob,
+  opts: GroqTranscriptionOptions = {},
+): Promise<string> {
+  await refreshGroqKey();
+  const key = activeGroqKey();
+  if (!key) {
+    throw new Error("Groq STT is unavailable: no Groq API key configured");
+  }
+  const fd = new FormData();
+  fd.append("file", file, opts.filename || "speech.webm");
+  fd.append("model", "whisper-large-v3-turbo");
+  if (opts.language && /^[a-z]{2}(-[A-Z]{2})?$/.test(opts.language)) {
+    fd.append("language", opts.language.slice(0, 2));
+  }
+
+  const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}` },
+    body: fd,
+    signal: AbortSignal.timeout(25_000),
+  });
+  const json = (await res.json().catch(() => null)) as {
+    text?: string;
+    error?: { message?: string };
+  } | null;
+  if (!res.ok) {
+    throw new Error(json?.error?.message || `Groq Whisper failed (${res.status})`);
+  }
+  return (json?.text || "").trim();
+}

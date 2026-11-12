@@ -123,7 +123,7 @@ export default function StreakPage() {
               <div
                 key={d.date}
                 title={`${d.date}: ${d.status}`}
-                className={cn("aspect-square rounded-lg flex items-center justify-center text-[11px] font-semibold", CELL[d.status], d.today && "ring-2 ring-offset-1 ring-brand-600 dark:ring-offset-slate-900")}
+                className={cn("aspect-square rounded-lg flex items-center justify-center text-[11px] font-semibold transition-transform hover:scale-105", CELL[d.status], d.today && "ring-2 ring-offset-1 ring-brand-600 dark:ring-offset-slate-900")}
               >
                 {d.status === "frozen" ? "🧊" : Number(d.date.slice(8))}
               </div>

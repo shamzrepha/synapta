@@ -558,3 +558,56 @@ textarea, input { scroll-margin-block: 96px; }
 
 /* long classes: the browser skips layout and paint for topics far from the screen */
 .reader-section { content-visibility: auto; contain-intrinsic-size: auto 900px; }
+
+/* In-app reduce motion preference (mirrors OS prefers-reduced-motion) */
+html[data-reduce-motion="true"] * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Dyslexia-friendly reading mode: distinct letterforms, zero confusing ligatures, wide word & letter spacing */
+html[data-reading-font="dyslexic"] .prose,
+html[data-reading-font="dyslexic"] .sunroot-readable {
+  font-family: "Atkinson Hyperlegible", "Lexend", "Comic Neue", "Verdana", var(--font-sans);
+  letter-spacing: 0.03em;
+  word-spacing: 0.14em;
+  font-variant-ligatures: none;
+}
+
+html[data-wide-spacing="true"] .prose,
+html[data-wide-spacing="true"] .sunroot-readable {
+  line-height: 1.9;
+  letter-spacing: 0.035em;
+  word-spacing: 0.16em;
+}
+html[data-wide-spacing="true"] .prose p,
+html[data-wide-spacing="true"] .prose li {
+  margin-top: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+/* Warm low-glare reading paper inside flipbooks & lesson readers */
+html[data-warm-paper="true"] .sunroot-paper {
+  background-color: #FDF7EC !important;
+  color: #1F242D !important;
+  border-color: #EBDDC3 !important;
+}
+html.dark[data-warm-paper="true"] .sunroot-paper {
+  background-color: #171512 !important;
+  color: #F4EFE6 !important;
+  border-color: #2E2921 !important;
+}
+
+/* 3D card flip perspective helpers */
+.perspective-1200 {
+  perspective: 1200px;
+}
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}

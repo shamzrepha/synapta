@@ -5,6 +5,8 @@ import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { clamp, fractionFacts, projectileAt, projectileSummary, round, sampleFunction, triangleSquares } from "@/lib/teach/math";
 import { isBalanced, countSide, subscripts } from "@/lib/teach/chem";
 import type { Block } from "@/lib/teach/script";
+import { fireCelebration } from "@/components/game/confetti";
+import { usePrefs } from "@/components/settings/use-prefs";
 
 type Of<T extends Block["type"]> = Extract<Block, { type: T }>;
 
@@ -216,15 +218,73 @@ export function MotionBlock({ b }: { b: Of<"motion"> }) {
 export function FractionBlock({ b }: { b: Of<"fraction"> }) {
   const [den, setDen] = useState(b.den);
   const [num, setNum] = useState(Math.min(b.num, b.den));
+  const [shape, setShape] = useState<"bar" | "pizza">("bar");
+  const [showSlash, setShowSlash] = useState(false);
   const n = Math.min(num, den);
   const f = fractionFacts(n, den);
+  const canSimplify = n > 0 && f.reduced !== `${n}/${den}`;
+  const [rNum, rDen] = f.reduced.split("/");
   return (
     <div className="space-y-3">
-      <div className="flex h-14 overflow-hidden rounded-xl border-2 border-slate-700 dark:border-slate-300" role="img" aria-label={`${n} out of ${den} equal parts shaded`}>
-        {Array.from({ length: den }, (_, i) => (
-          <div key={i} className={`flex-1 border-r last:border-r-0 border-slate-500/50 transition-colors duration-300 ${i < n ? "bg-brand-500" : "bg-transparent"}`} />
-        ))}
+      <div className="flex items-center justify-between gap-2 text-xs">
+        <div className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 p-0.5">
+          <button type="button" onClick={() => setShape("bar")} className={`px-2 py-0.5 rounded font-semibold ${shape === "bar" ? "bg-teal-600 text-white" : "text-slate-500"}`}>Bar</button>
+          <button type="button" onClick={() => setShape("pizza")} className={`px-2 py-0.5 rounded font-semibold ${shape === "pizza" ? "bg-teal-600 text-white" : "text-slate-500"}`}>Pizza</button>
+        </div>
+        {canSimplify && (
+          <button
+            type="button"
+            onClick={() => setShowSlash((v) => !v)}
+            className="px-2.5 py-1 rounded-lg border border-rose-400/50 bg-rose-500/10 text-rose-700 dark:text-rose-300 font-bold"
+          >
+            {showSlash ? "Hide slash" : "Watch simplify slash"}
+          </button>
+        )}
       </div>
+      {shape === "bar" ? (
+        <div className="flex h-14 overflow-hidden rounded-xl border-2 border-slate-700 dark:border-slate-300" role="img" aria-label={`${n} out of ${den} equal parts shaded`}>
+          {Array.from({ length: den }, (_, i) => (
+            <div key={i} className={`flex-1 border-r last:border-r-0 border-slate-500/50 transition-colors duration-300 ${i < n ? "bg-teal-500" : "bg-transparent"}`} />
+          ))}
+        </div>
+      ) : (
+        <svg viewBox="0 0 120 120" className="mx-auto h-32 w-32" role="img" aria-label={`${n} out of ${den} pizza slices shaded`}>
+          <circle cx="60" cy="60" r="52" className="fill-slate-100 dark:fill-slate-800 stroke-slate-600 dark:stroke-slate-300" strokeWidth="2.5" />
+          {Array.from({ length: den }, (_, i) => {
+            if (den === 1) {
+              return <circle key={0} cx="60" cy="60" r="50" className={n >= 1 ? "fill-teal-500/85" : "fill-transparent"} />;
+            }
+            const a0 = (i / den) * 2 * Math.PI - Math.PI / 2;
+            const a1 = ((i + 1) / den) * 2 * Math.PI - Math.PI / 2;
+            const x1 = 60 + 51 * Math.cos(a0);
+            const y1 = 60 + 51 * Math.sin(a0);
+            const x2 = 60 + 51 * Math.cos(a1);
+            const y2 = 60 + 51 * Math.sin(a1);
+            const large = (a1 - a0) > Math.PI ? 1 : 0;
+            return (
+              <path
+                key={i}
+                d={`M 60 60 L ${x1.toFixed(1)} ${y1.toFixed(1)} A 51 51 0 ${large} 1 ${x2.toFixed(1)} ${y2.toFixed(1)} Z`}
+                className={`transition-colors duration-300 stroke-slate-700/70 dark:stroke-slate-900 ${i < n ? "fill-teal-500" : "fill-transparent"}`}
+                strokeWidth="1.5"
+              />
+            );
+          })}
+        </svg>
+      )}
+      {showSlash && canSimplify && (
+        <svg viewBox="0 0 220 76" className="mx-auto h-20 w-56" aria-hidden="true">
+          <text x="54" y="28" textAnchor="middle" className="fill-slate-400 text-[22px] font-bold font-mono">{n}</text>
+          <line x1="36" y1="30" x2="72" y2="10" strokeWidth="3" strokeLinecap="round" className="stroke-rose-500" />
+          <line x1="34" y1="36" x2="74" y2="36" strokeWidth="3" strokeLinecap="round" className="stroke-teal-600" />
+          <text x="54" y="62" textAnchor="middle" className="fill-slate-400 text-[22px] font-bold font-mono">{den}</text>
+          <line x1="36" y1="64" x2="72" y2="44" strokeWidth="3" strokeLinecap="round" className="stroke-rose-500" />
+          <text x="108" y="44" textAnchor="middle" className="fill-teal-600 text-[22px] font-bold">=</text>
+          <text x="158" y="28" textAnchor="middle" className="fill-teal-600 dark:fill-teal-300 text-[24px] font-extrabold font-mono">{rNum}</text>
+          <line x1="138" y1="36" x2="178" y2="36" strokeWidth="3" strokeLinecap="round" className="stroke-teal-600" />
+          <text x="158" y="62" textAnchor="middle" className="fill-teal-600 dark:fill-teal-300 text-[24px] font-extrabold font-mono">{rDen}</text>
+        </svg>
+      )}
       <p className="text-center text-2xl font-extrabold">{n}/{den}</p>
       <p className="text-center text-xs font-mono">= {f.reduced} = {f.decimal} = {f.percent}%</p>
       <div className="space-y-1">
@@ -309,6 +369,7 @@ export function FigureBlock({ b, ms }: { b: Of<"figure">; ms: number }) {
 }
 
 export function CheckBlock({ b }: { b: Of<"check"> }) {
+  const [prefs] = usePrefs();
   const [picked, setPicked] = useState<number | null>(null);
   const done = picked !== null;
   return (
@@ -322,7 +383,7 @@ export function CheckBlock({ b }: { b: Of<"check"> }) {
               key={i}
               type="button"
               disabled={done}
-              onClick={() => setPicked(i)}
+              onClick={() => { setPicked(i); if (i === b.answer) fireCelebration({ reduceMotion: prefs.reduceMotion, intensity: "small" }); }}
               className={`w-full text-left rounded-xl border px-3 py-2 text-sm transition-colors ${done ? (right ? "border-emerald-500 bg-emerald-500/10" : i === picked ? "border-rose-500 bg-rose-500/10" : "border-slate-200 dark:border-slate-800 opacity-60") : "border-slate-300 dark:border-slate-700 hover:border-brand-500"}`}
             >
               {o}
@@ -376,6 +437,9 @@ export function BalanceBlock({ b }: { b: Of<"balance"> }) {
   const ok = isBalanced(L, R);
   const a = countSide(L) || {};
   const c = countSide(R) || {};
+  const leftTotal = Object.values(a).reduce((s, n) => s + n, 0);
+  const rightTotal = Object.values(c).reduce((s, n) => s + n, 0);
+  const tiltDeg = ok ? 0 : Math.max(-10, Math.min(10, (rightTotal - leftTotal) * 1.6));
   const els = [...new Set([...Object.keys(a), ...Object.keys(c)])];
   const stepper = (val: number, set: (n: number) => void, label: string) => (
     <span className="inline-flex items-center rounded-lg border border-slate-300 dark:border-slate-700">
@@ -394,6 +458,14 @@ export function BalanceBlock({ b }: { b: Of<"balance"> }) {
     ));
   return (
     <div className="space-y-3">
+      <svg viewBox="0 0 180 42" className="mx-auto h-10 w-44" aria-hidden="true">
+        <polygon points="90,24 83,39 97,39" className="fill-slate-400 dark:fill-slate-600" />
+        <g style={{ transform: `rotate(${tiltDeg}deg)`, transformOrigin: "90px 23px", transition: "transform 300ms ease" }}>
+          <line x1="28" y1="23" x2="152" y2="23" strokeWidth="3.5" strokeLinecap="round" className={ok ? "stroke-emerald-500" : "stroke-amber-500"} />
+          <circle cx="32" cy="17" r="6" className={ok ? "fill-emerald-500/80" : "fill-teal-500/80"} />
+          <circle cx="148" cy="17" r="6" className={ok ? "fill-emerald-500/80" : "fill-sky-500/80"} />
+        </g>
+      </svg>
       <div className="flex flex-wrap items-center justify-center gap-2 text-sm">
         {side(b.reactants, re, setRe)}
         <span className="px-1 text-lg">→</span>

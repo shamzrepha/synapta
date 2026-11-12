@@ -71,6 +71,7 @@ ${combinedSources}`;
 
       const res = await generateWithFallback({
         task: "long_document",
+        systemInstruction: await (await import("@/lib/settings/audience-server")).appendLearnerAudience(caller.uid),
         userPrompt: prompt,
         userId: caller.uid,
       });
@@ -99,6 +100,7 @@ ${combinedSources}`;
         task: "structured_spec",
         userPrompt: prompt,
         schema: flashcardsSchema,
+        systemInstruction: await (await import("@/lib/settings/audience-server")).appendLearnerAudience(caller.uid),
         userId: caller.uid,
       });
 
@@ -131,6 +133,7 @@ ${combinedSources}`;
         task: "structured_spec",
         userPrompt: prompt,
         schema: quizSchema,
+        systemInstruction: await (await import("@/lib/settings/audience-server")).appendLearnerAudience(caller.uid),
         userId: caller.uid,
       });
 

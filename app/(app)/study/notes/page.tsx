@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
+import { FlipbookNotes } from "@/components/study/flipbook-notes";
 import { TeachPanel } from "@/components/teach/teach-panel";
 import { NoteFlashcards, NoteQuiz } from "@/components/study/note-practice";
 import { UsageStrip } from "@/components/billing/usage-strip";
@@ -244,7 +244,7 @@ export default function StudyNotesPage() {
                 {mode === "pictures" && <ImageFinder key={view.id} initialQuery={view.title} />}
                 {mode === "notes" && (
                   <Card className="p-4 md:p-6" onClick={onNotesClick}>
-                    <MarkdownRenderer content={linkCitations(view.markdown)} />
+                    <FlipbookNotes frameless markdown={linkCitations(view.markdown)} title={view.title} />
                   </Card>
                 )}
                 {page && (

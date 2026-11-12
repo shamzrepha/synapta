@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
+import { FlipbookNotes } from "@/components/study/flipbook-notes";
+import { FlipCard } from "@/components/ui/flip-card";
 import confetti from "canvas-confetti";
 import {
   BookOpen,
@@ -540,6 +542,9 @@ export default function TopicPage({
                       <BookOpen className="h-4 w-4" /> Open this topic in the reader
                     </Link>
                   </>
+                  <div className="mt-4 pt-4 border-t border-border/60">
+                    <FlipbookNotes frameless localized markdown={kc.lessonMarkdown || kc.description} title={kc.title} />
+                  </div>
                 )}
                 {lessonError && (
                   <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl border border-rose-500/30 bg-rose-500/5 text-xs">
@@ -736,24 +741,15 @@ export default function TopicPage({
                     <div className="h-full bg-brand-500 transition-all" style={{ width: `${((currentCardIndex + 1) / flashcards.length) * 100}%` }} />
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setIsFlipped(!isFlipped)}
-                    className={cn(
-                      "w-full min-h-[220px] rounded-2xl border-2 p-6 flex flex-col justify-center items-center text-center shadow-md transition-all",
-                      isFlipped
-                        ? "border-brand-500 bg-brand-500/5"
-                        : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-brand-500"
-                    )}
-                  >
-                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-3">
-                      {isFlipped ? "Answer" : "Question"}
-                    </span>
-                    <MarkdownRenderer localized
-                      content={isFlipped ? flashcards[currentCardIndex].back : flashcards[currentCardIndex].front}
-                      className="text-base font-semibold prose-p:my-1 text-center"
-                    />
-                  </button>
+                  <FlipCard
+                    flipped={isFlipped}
+                    onFlip={() => setIsFlipped(!isFlipped)}
+                    minHeightClass="min-h-[230px]"
+                    front={<MarkdownRenderer localized content={flashcards[currentCardIndex].front} className="text-base font-semibold prose-p:my-1 text-center" />}
+                    back={<MarkdownRenderer localized content={flashcards[currentCardIndex].back} className="text-base font-semibold prose-p:my-1 text-center" />}
+                    frontPlainText={flashcards[currentCardIndex].front}
+                    backPlainText={flashcards[currentCardIndex].back}
+                  />
 
                   {isFlipped ? (
                     <div className="grid grid-cols-2 gap-3 pt-2">

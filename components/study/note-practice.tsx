@@ -8,6 +8,10 @@ import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { fetchJson } from "@/lib/api/client";
 import type { NoteCards, NoteQuiz } from "@/lib/study/note-practice";
 import { cn } from "@/lib/utils";
+import { FlipCard } from "@/components/ui/flip-card";
+import { ReadAloud } from "@/components/ui/read-aloud";
+import { fireCelebration } from "@/components/game/confetti";
+import { usePrefs } from "@/components/settings/use-prefs";
 
 function useMade<T>(noteId: string, kind: "flashcards" | "quiz", pick: (d: Record<string, unknown>) => T | undefined) {
   const [items, setItems] = useState<T | null>(null);
@@ -50,8 +54,10 @@ function Shell({ busy, error, retry, children, label }: { busy: boolean; error: 
 export function NoteFlashcards({ noteId }: { noteId: string }) {
   const { items, busy, error, make } = useMade<NoteCards>(noteId, "flashcards", (d) => d.cards as NoteCards);
   const [i, setI] = useState(0);
+  const [prefs] = usePrefs();
   const [flip, setFlip] = useState(false);
   const [known, setKnown] = useState<Set<number>>(new Set());
+  const [combo, setCombo] = useState(0);
   const cards = items || [];
   const left = cards.map((_, k) => k).filter((k) => !known.has(k));
   const idx = left.includes(i) ? i : left[0] ?? 0;
@@ -61,8 +67,8 @@ export function NoteFlashcards({ noteId }: { noteId: string }) {
       {cards.length > 0 && (
         <Card className="p-4 md:p-6 space-y-4">
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span className="flex-1">{known.size} of {cards.length} known</span>
-            <Button size="sm" variant="ghost" onClick={() => { setKnown(new Set()); setFlip(false); setI(0); void make(true); }}><RefreshCw className="h-3.5 w-3.5 mr-1" /> New set</Button>
+            <span className="flex-1">{known.size} of {cards.length} known{combo >= 2 ? ` ? 🔥 ${combo}x streak!` : ""}</span>
+            <Button size="sm" variant="ghost" onClick={() => { setKnown(new Set()); setFlip(false); setI(0); setCombo(0); void make(true); }}><RefreshCw className="h-3.5 w-3.5 mr-1" /> New set</Button>
           </div>
           {left.length === 0 ? (
             <div className="text-center py-8 space-y-2">
@@ -72,15 +78,26 @@ export function NoteFlashcards({ noteId }: { noteId: string }) {
             </div>
           ) : (
             <>
-              <button type="button" onClick={() => setFlip((f) => !f)} className={cn("w-full min-h-[180px] rounded-2xl border-2 p-5 text-left transition-colors", flip ? "border-brand-500 bg-brand-500/5" : "border-slate-300 dark:border-slate-700")} aria-label={flip ? "Show the question" : "Show the answer"}>
-                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 mb-2">{flip ? "Answer" : "Question"}</p>
-                <MarkdownRenderer content={flip ? card.back : card.front} className="text-base" localized />
-                {!flip && <p className="text-xs text-slate-400 mt-3">Tap to flip</p>}
-              </button>
+              <FlipCard
+                flipped={flip}
+                onFlip={() => setFlip((f) => !f)}
+                minHeightClass="min-h-[210px]"
+                front={<MarkdownRenderer content={card.front} className="text-base text-center" localized />}
+                back={<MarkdownRenderer content={card.back} className="text-base text-center" localized />}
+                frontPlainText={card.front}
+                backPlainText={card.back}
+              />
               {flip && (
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" onClick={() => { setFlip(false); setI(left[(left.indexOf(idx) + 1) % left.length]); }}>Still learning</Button>
-                  <Button onClick={() => { setFlip(false); setKnown((s) => new Set(s).add(idx)); setI(left.find((k) => k > idx) ?? left[0]); }}>I knew it</Button>
+                  <Button variant="outline" onClick={() => { setFlip(false); setCombo(0); setI(left[(left.indexOf(idx) + 1) % left.length]); }}>Still learning</Button>
+                  <Button onClick={() => {
+                    const nextKnown = new Set(known).add(idx);
+                    setFlip(false);
+                    setCombo((c) => c + 1);
+                    setKnown(nextKnown);
+                    setI(left.find((k) => k > idx) ?? left[0]);
+                    fireCelebration({ reduceMotion: prefs.reduceMotion, intensity: nextKnown.size >= cards.length ? "grand" : "small" });
+                  }}>I knew it</Button>
                 </div>
               )}
             </>
@@ -93,9 +110,11 @@ export function NoteFlashcards({ noteId }: { noteId: string }) {
 
 export function NoteQuiz({ noteId }: { noteId: string }) {
   const { items, busy, error, make } = useMade<NoteQuiz>(noteId, "quiz", (d) => d.questions as NoteQuiz);
+  const [prefs] = usePrefs();
   const [q, setQ] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [score, setScore] = useState(0);
+  const [quizCombo, setQuizCombo] = useState(0);
   const qs = items || [];
   const finished = qs.length > 0 && q >= qs.length;
   const cur = qs[q];
@@ -120,13 +139,16 @@ export function NoteQuiz({ noteId }: { noteId: string }) {
             </div>
           ) : (
             <>
-              <p className="text-xs text-slate-500">Question {q + 1} of {qs.length}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-slate-500">Question {q + 1} of {qs.length}{quizCombo >= 2 ? ` ? 🔥 ${quizCombo}x combo` : ""}</p>
+                <ReadAloud text={cur.question} label="Read" showSpeed={false} />
+              </div>
               <MarkdownRenderer content={cur.question} className="font-semibold" localized />
               <div className="space-y-2" role="group" aria-label="Answers">
                 {cur.options.map((o, k) => {
                   const right = k === cur.correctIndex;
                   return (
-                    <button key={k} type="button" disabled={picked !== null} onClick={() => { setPicked(k); if (right) setScore((s) => s + 1); }} className={cn("w-full text-left rounded-xl border px-3 py-2 text-sm", picked === null ? "border-slate-300 dark:border-slate-700 hover:border-brand-500" : right ? "border-emerald-500 bg-emerald-500/10" : k === picked ? "border-rose-500 bg-rose-500/10" : "border-slate-200 dark:border-slate-800 opacity-60")}>
+                    <button key={k} type="button" disabled={picked !== null} onClick={() => { setPicked(k); if (right) { setScore((s) => s + 1); const nextC = quizCombo + 1; setQuizCombo(nextC); fireCelebration({ reduceMotion: prefs.reduceMotion, intensity: nextC >= 3 ? "medium" : "small" }); } else { setQuizCombo(0); } }} className={cn("w-full text-left rounded-xl border px-3 py-2 text-sm", picked === null ? "border-slate-300 dark:border-slate-700 hover:border-brand-500" : right ? "border-emerald-500 bg-emerald-500/10" : k === picked ? "border-rose-500 bg-rose-500/10" : "border-slate-200 dark:border-slate-800 opacity-60")}>
                       <MarkdownRenderer content={o} className="prose-p:my-0" localized />
                     </button>
                   );

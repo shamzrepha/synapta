@@ -96,7 +96,7 @@ ${contextText}`;
     const res = await generateWithFallback({
       task: "tutor_chat",
       userPrompt: conversationPrompt,
-      systemInstruction: systemPrompt,
+      systemInstruction: await (await import("@/lib/settings/audience-server")).appendLearnerAudience(caller.uid, systemPrompt),
       userId: caller.uid,
     });
 

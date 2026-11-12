@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { fireCelebration } from "@/components/game/confetti";
+import { readPrefs } from "@/components/settings/use-prefs";
 import { useToast } from "@/components/ui/toast";
 import { asArray } from "@/lib/api/client";
 import { cn, formatNumber } from "@/lib/utils";
@@ -105,7 +107,7 @@ export default function QuestsPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
             <p className="text-xs text-slate-600 dark:text-slate-400">Reward: +{s.rewardXp} XP and {s.badge.emoji} {s.badge.name} badge</p>
-            <Button size="sm" disabled={!s.complete || s.claimed || !!claiming} isLoading={claiming === s.id} onClick={() => claim(s.id)}>
+            <Button size="sm" disabled={!s.complete || s.claimed || !!claiming} isLoading={claiming === s.id} onClick={() => { void claim(s.id); fireCelebration({ reduceMotion: readPrefs().reduceMotion, intensity: "grand" }); }}>
               {s.claimed ? "Claimed" : s.complete ? "Claim reward" : "Keep going"}
             </Button>
           </div>

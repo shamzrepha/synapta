@@ -6,6 +6,7 @@ import { OfflineManager } from "@/components/offline/offline-manager";
 import { TutorLauncher } from "@/components/tutor/tutor-launcher";
 import { HubTabs } from "@/components/shell/hub-tabs";
 import { ThemeApplier } from "@/components/shop/theme-applier";
+import { AccessibilityApplier } from "@/components/settings/accessibility-applier";
 import { VerifyEmailBanner } from "@/components/shell/verify-email-banner";
 import { UpgradeDialog } from "@/components/billing/upgrade-dialog";
 import { SiteNotice } from "@/components/shell/site-notice";
@@ -47,6 +48,7 @@ export default function AppLayout({
       <TutorLauncher />
       <OfflineManager />
       <ThemeApplier />
+      <AccessibilityApplier />
       <DeviceReporter />
     </div>
   );

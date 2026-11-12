@@ -10,6 +10,9 @@ import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { ReferenceSheet } from "@/components/lesson/reference-sheet";
+import { ReadAloud } from "@/components/ui/read-aloud";
+import { fireCelebration } from "@/components/game/confetti";
+import { usePrefs } from "@/components/settings/use-prefs";
 
 interface QuizQuestion {
   id: number;
@@ -44,6 +47,9 @@ const FOCUSES: Array<{ key: "mixed" | "conceptual" | "calculation" | "applicatio
 
 export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerProps) {
   const { toast } = useToast();
+  const [prefs] = usePrefs();
+  const reduceMotion = Boolean(prefs.reduceMotion);
+  const [combo, setCombo] = useState(0);
   const [count, setCount] = useState(10);
   const [focus, setFocus] = useState<(typeof FOCUSES)[number]["key"]>("mixed");
   const [loading, setLoading] = useState(false);
@@ -121,16 +127,20 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
       }));
       if (typeof d.streakDays === "number") setStreakDays(d.streakDays);
       onEvidence?.({ pLAfter: d.pLAfter, totalXp: d.totalXp, streakDays: d.streakDays });
+      const nextCombo = d.correct ? combo + 1 : 0;
+      setCombo(nextCombo);
       if (d.crossedMasteryFirstTime) {
-        confetti({ particleCount: 140, spread: 75, origin: { y: 0.6 } });
+        if (!reduceMotion) confetti({ particleCount: 140, spread: 75, origin: { y: 0.6 }, disableForReducedMotion: true });
         toast({ title: "Mastery achieved!", description: "You crossed 95% mastery. +100 bonus XP.", variant: "success" });
+      } else if (d.correct) {
+        fireCelebration({ reduceMotion, intensity: nextCombo >= 3 ? "medium" : "small" });
       }
     } catch {
       toast({ title: "Network error", description: "Your answer wasn't submitted.", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
-  }, [selected, sessionId, answered, submitting, current, viewLang, onEvidence, toast]);
+  }, [selected, sessionId, answered, submitting, current, viewLang, onEvidence, toast, combo, reduceMotion]);
 
   const next = useCallback(() => {
     if (current < questions.length - 1) {
@@ -139,11 +149,11 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
     } else {
       setFinished(true);
       const correct = Object.values(results).filter((r) => r.correct).length;
-      if (correct / Math.max(1, questions.length) >= 0.8) {
-        confetti({ particleCount: 100, spread: 60, origin: { y: 0.7 } });
+      if (!reduceMotion && correct / Math.max(1, questions.length) >= 0.8) {
+        confetti({ particleCount: 100, spread: 60, origin: { y: 0.7 }, disableForReducedMotion: true });
       }
     }
-  }, [current, questions.length, results]);
+  }, [current, questions.length, results, reduceMotion]);
 
   // Keyboard: 1-4 / A-D to pick, Enter to submit or continue
   useEffect(() => {
@@ -346,6 +356,11 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
             Question {current + 1} of {questions.length}
           </span>
           <div className="flex items-center gap-2">
+            {combo >= 2 && (
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px] font-bold">
+                🔥 {combo}x streak
+              </Badge>
+            )}
             {q.difficulty && (
               <Badge variant="outline" className="text-[10px] capitalize">
                 {q.difficulty}
@@ -361,7 +376,10 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-5">
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 p-5 space-y-2">
+        <div className="flex justify-end">
+          <ReadAloud text={q.question} label="Read" showSpeed={false} />
+        </div>
         <MarkdownRenderer localized content={q.question} className="text-base font-semibold prose-p:my-1" />
       </div>
 

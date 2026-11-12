@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { usePrefs } from "@/components/settings/use-prefs";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { ShareSheet } from "@/components/social/share-sheet";
 import Link from "next/link";
@@ -10,6 +12,9 @@ import { cn, formatNumber } from "@/lib/utils";
 import { formatCountdown, useNow, type GameState } from "./use-game";
 
 export function LevelCard({ game }: { game: GameState }) {
+  const [prefs] = usePrefs();
+  const osReduced = useReducedMotion();
+  const reduceMotion = Boolean(prefs.reduceMotion || osReduced);
   const l = game.level;
   return (
     <Card className="p-5 overflow-hidden relative border border-border/70 hover:border-brand-500/40 transition-all duration-300">
@@ -25,9 +30,11 @@ export function LevelCard({ game }: { game: GameState }) {
             {game.streakFreezes ? ` · 🧊 ${game.streakFreezes} freeze${game.streakFreezes === 1 ? "" : "s"}` : ""}
           </p>
           <div className="mt-2.5 h-2 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full rounded-full bg-brand-600 transition-all duration-700 shadow-xs"
-              style={{ width: `${Math.round(l.progress * 100)}%` }}
+            <motion.div
+              className="h-full rounded-full bg-brand-600 shadow-xs"
+              initial={reduceMotion ? false : { width: "0%" }}
+              animate={{ width: `${Math.round(l.progress * 100)}%` }}
+              transition={{ duration: reduceMotion ? 0 : 0.7, ease: "easeOut" }}
             />
           </div>
           <p className="text-[11px] text-muted-foreground font-medium mt-1">
@@ -116,6 +123,9 @@ const RARITY_STYLE: Record<string, string> = {
 };
 
 export function BadgeGrid({ game, compact = false }: { game: GameState; compact?: boolean }) {
+  const [prefs] = usePrefs();
+  const osReduced = useReducedMotion();
+  const reduceMotion = Boolean(prefs.reduceMotion || osReduced);
   const { user } = useUserStore();
   const [sharing, setSharing] = useState<GameState["badges"][number] | null>(null);
   const earned = game.badges.filter((b) => b.earnedAt).length;
@@ -129,21 +139,26 @@ export function BadgeGrid({ game, compact = false }: { game: GameState; compact?
         <span className="text-xs text-slate-500">{earned}/{game.badges.length} unlocked</span>
       </div>
       <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
-        {list.map((b) => (
-          <button
+        {list.map((b, idx) => (
+          <motion.button
             type="button"
             key={b.id}
             disabled={!b.earnedAt}
             onClick={() => setSharing(b)}
+            whileHover={reduceMotion || !b.earnedAt ? undefined : { scale: 1.07, rotate: -2 }}
+            whileTap={reduceMotion || !b.earnedAt ? undefined : { scale: 0.96 }}
+            initial={reduceMotion || !b.earnedAt ? false : { opacity: 0, scale: 0.9 }}
+            animate={{ opacity: b.earnedAt ? 1 : 0.4, scale: 1 }}
+            transition={{ delay: reduceMotion ? 0 : Math.min(0.25, idx * 0.02), duration: 0.2 }}
             title={`${b.name} — ${b.description}${b.earnedAt ? " (tap to share)" : " (locked)"}`}
             className={cn(
               "aspect-square rounded-2xl border-2 flex flex-col items-center justify-center p-1 text-center",
-              b.earnedAt ? `${RARITY_STYLE[b.rarity]}  transition-transform` : "border-dashed border-slate-200 dark:border-slate-800 opacity-40 grayscale"
+              b.earnedAt ? RARITY_STYLE[b.rarity] : "border-dashed border-slate-200 dark:border-slate-800 grayscale"
             )}
           >
             <span className="text-2xl">{b.emoji}</span>
             {!compact && <span className="text-[9px] font-semibold leading-tight mt-0.5 line-clamp-2">{b.name}</span>}
-          </button>
+          </motion.button>
         ))}
       </div>
       {sharing && (

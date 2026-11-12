@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     await checkRateLimitAndQuota(caller.uid, 9000);
     const r = await generateWithFallback({
       task: "study_guide",
-      systemInstruction: REFINE_SYSTEM,
+      systemInstruction: await (await import("@/lib/settings/audience-server")).appendLearnerAudience(caller.uid, REFINE_SYSTEM),
       userPrompt: refinePrompt(current.markdown, String(data.sourceText || ""), instruction),
       temperature: 0.3,
       userId: caller.uid,

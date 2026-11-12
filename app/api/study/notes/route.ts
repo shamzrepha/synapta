@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const sourceText = body.text.trim().slice(0, NOTE_SOURCE_MAX * 1.25);
     const r = await generateWithFallback({
       task: "study_guide",
-      systemInstruction: NOTES_SYSTEM,
+      systemInstruction: await (await import("@/lib/settings/audience-server")).appendLearnerAudience(caller.uid, NOTES_SYSTEM),
       userPrompt: generatePrompt(sourceTitle, sourceText),
       temperature: 0.3,
       userId: caller.uid,

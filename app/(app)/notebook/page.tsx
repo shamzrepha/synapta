@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
+import { FlipbookNotes } from "@/components/study/flipbook-notes";
+import { FlipCard } from "@/components/ui/flip-card";
+import { ReadAloud } from "@/components/ui/read-aloud";
+import { fireCelebration } from "@/components/game/confetti";
 import { extractTextFromFile } from "@/lib/pdf/extractor";
 import { cn } from "@/lib/utils";
 import { useLiveChannel } from "@/lib/live/client";
@@ -1168,7 +1172,7 @@ export default function NotebookPage() {
                         </Button>
                       </div>
                       <div className="text-xs leading-relaxed">
-                        <MarkdownRenderer localized content={studyGuideMarkdown} />
+                        <FlipbookNotes frameless localized markdown={studyGuideMarkdown} title="Source Study Guide" />
                       </div>
                     </div>
                   )}
@@ -1203,19 +1207,15 @@ export default function NotebookPage() {
                         <span>Click card to flip</span>
                       </div>
 
-                      <div
-                        onClick={() => setIsCardFlipped(!isCardFlipped)}
-                        className="cursor-pointer min-h-[180px] rounded-2xl border-2 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 flex flex-col justify-center items-center text-center shadow-sm hover:border-brand-500 transition-all select-none"
-                      >
-                        <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mb-2">
-                          {isCardFlipped ? "Answer" : "Question"}
-                        </span>
-                        <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 leading-relaxed">
-                          {isCardFlipped
-                            ? flashcardDeck[currentCardIndex].back
-                            : flashcardDeck[currentCardIndex].front}
-                        </p>
-                      </div>
+                      <FlipCard
+                        flipped={isCardFlipped}
+                        onFlip={() => setIsCardFlipped(!isCardFlipped)}
+                        minHeightClass="min-h-[200px]"
+                        front={<p className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-relaxed">{flashcardDeck[currentCardIndex].front}</p>}
+                        back={<p className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-relaxed">{flashcardDeck[currentCardIndex].back}</p>}
+                        frontPlainText={flashcardDeck[currentCardIndex].front}
+                        backPlainText={flashcardDeck[currentCardIndex].back}
+                      />
 
                       <div className="flex items-center justify-between gap-2">
                         <Button
@@ -1284,17 +1284,21 @@ export default function NotebookPage() {
                                 : "border-slate-200 dark:border-slate-800"
                             }`}
                           >
-                            <p className="font-bold text-slate-900 dark:text-slate-100">
-                              {qIndex + 1}. {q.question}
-                            </p>
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-bold text-slate-900 dark:text-slate-100">
+                                {qIndex + 1}. {q.question}
+                              </p>
+                              <ReadAloud text={q.question} label="Read" showSpeed={false} />
+                            </div>
 
                             <div className="space-y-1.5">
                               {q.options.map((opt, optIndex) => (
                                 <button
                                   key={optIndex}
-                                  onClick={() =>
-                                    setSelectedQuizAnswers((prev) => ({ ...prev, [qIndex]: optIndex }))
-                                  }
+                                  onClick={() => {
+                                    setSelectedQuizAnswers((prev) => ({ ...prev, [qIndex]: optIndex }));
+                                    if (optIndex === q.correctIndex) fireCelebration({ reduceMotion: readPrefs().reduceMotion, intensity: "small" });
+                                  }}
                                   className={`w-full text-left p-2 rounded-lg border text-[11px] transition-all flex items-center justify-between ${
                                     selected === optIndex
                                       ? optIndex === q.correctIndex
