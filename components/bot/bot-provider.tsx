@@ -7,8 +7,9 @@ import { usePathname } from "next/navigation";
 import { usePrefs } from "@/components/settings/use-prefs";
 import { Sprout, type BotPose } from "@/components/bot/sprout";
 import type { Gear } from "@/components/bot/sprout-gear";
-import { MOOD_COPY, PALETTES, type PetMood } from "@/lib/pet/mood";
-import { playCuteVoice } from "@/lib/audio/sfx";
+import { PALETTES, type PetMood } from "@/lib/pet/mood";
+import { playCuteVoice, playPageFlipSound } from "@/lib/audio/sfx";
+import { JarvisHud } from "@/components/bot/jarvis-hud";
 
 const W = 72;
 const H = 81;
@@ -25,13 +26,7 @@ export interface PetInfo {
   stats: { streakDays: number; daysAway: number; avgMastery: number | null; xp: number };
 }
 
-const TIPS = [
-  "Tap any glowing word and I'll look it up!",
-  "Try recalling it before you peek. It sticks better.",
-  "Short bursts win. One chapter, then a quick quiz.",
-  "Stuck? Ask me to explain it a different way.",
-  "Mistakes are how your brain learns. Keep going!",
-];
+
 
 export interface HopOptions {
   pose?: BotPose;
@@ -57,6 +52,10 @@ export interface BotApi {
   cheerAt: (target: Element | DOMRect, text?: string) => Promise<void>;
   /** run to something the learner tapped (a class card), "open" it, and stay there; the next page sends Sprout home with rest() */
   openAt: (target: Element | DOMRect, text?: string) => Promise<void>;
+  /** scan core terms and headings on the page with magnifying glass */
+  scanPage: () => Promise<number>;
+  /** perform a celebration backflip trick */
+  flip: () => Promise<void>;
   /** lookups so far this visit: after a few, the walk gets shorter */
   quick: boolean;
   countLookup: () => void;
@@ -81,6 +80,8 @@ const NOOP: BotApi = {
   cheer: async () => {},
   cheerAt: async () => {},
   openAt: async () => {},
+  scanPage: async () => 0,
+  flip: async () => {},
   quick: true,
   countLookup: () => {},
   reduced: true,
@@ -129,6 +130,15 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   const [atHome, setAtHome] = useState(true);
   const [awake, setAwake] = useState(false);
   const awakeTimer = useRef<number | undefined>(undefined);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isReading, setIsReading] = useState(false);
+
+  const wake = useCallback(() => {
+    setAwake(true);
+    window.clearTimeout(awakeTimer.current);
+    awakeTimer.current = window.setTimeout(() => setAwake(false), 6000);
+  }, []);
+
   const [pet, setPet] = useState<PetInfo>(DEFAULT_PET);
   const layer = useRef<HTMLDivElement>(null);
   const at = useRef({ x: 0, y: 0 });
@@ -355,6 +365,58 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     if (lookups.current >= 3) setQuick(true);
   }, []);
 
+  const flip = useCallback(async () => {
+    if (!enabled || !mounted) return;
+    playPageFlipSound();
+    playCuteVoice("cheer");
+    setPose("flip");
+    say("Ta-da! ✨", 1800);
+    await sleep(720);
+    setPose("idle");
+  }, [enabled, mounted, say, setPose]);
+
+  const scanPage = useCallback(async (): Promise<number> => {
+    if (!enabled || !mounted) return 0;
+    setMenuOpen(false);
+    wake();
+    say("Scanning page with magnifying glass...", 2600);
+    playCuteVoice("search");
+
+    const candidates = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-term], article h2, article h3, .katex-display, [data-interactive-callout]")
+    )
+      .filter((el) => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && rect.top >= 0 && rect.bottom <= window.innerHeight * 1.5;
+      })
+      .slice(0, 4);
+
+    if (candidates.length === 0) {
+      await sleep(400);
+      await flip();
+      say("Looks like a clean page! Ready when you are.", 2600);
+      return 0;
+    }
+
+    for (const el of candidates) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      await hopTo(el, { anchor: "top-left", pose: "search", duration: 800 });
+      playCuteVoice("search");
+      const prevOutline = el.style.outline;
+      const prevTransition = el.style.transition;
+      el.style.transition = "outline 0.3s ease";
+      el.style.outline = "3px solid #0d9488";
+      await sleep(550);
+      el.style.outline = prevOutline;
+      el.style.transition = prevTransition;
+    }
+
+    await rest();
+    await flip();
+    say(`Scanned ${candidates.length} key concept${candidates.length > 1 ? "s" : ""}! Ready to study!`, 3200);
+    return candidates.length;
+  }, [enabled, mounted, hopTo, rest, flip, say]);
+
   // a greeting once per visit, by mood
   useEffect(() => {
     if (!mounted || !enabled || pet === DEFAULT_PET) return;
@@ -411,8 +473,8 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const api = useMemo<BotApi>(
-    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, quick, countLookup, reduced: reduce, handPoint }),
-    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, quick, countLookup, reduce, handPoint],
+    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduced: reduce, handPoint }),
+    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduce, handPoint],
   );
 
   // the eyes follow the finger or pointer (a little, so it feels alive but never distracting)
@@ -445,21 +507,66 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   const reading = /^\/classes\/[^/]+\/(read|topics)(\/|$)/.test(pathname);
   const side: "left" | "right" = "right";
   const peek = reading && atHome && !awake && !moving && !bubble;
-  const wake = () => {
-    setAwake(true);
-    window.clearTimeout(awakeTimer.current);
-    awakeTimer.current = window.setTimeout(() => setAwake(false), 6000);
-  };
 
-  // tapping Sprout asks the AI helper; if nothing can open it on this page, Sprout gives a tip instead
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    const onClickAway = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(".sunroot-jarvis-hud") || target?.closest(".sunroot-bot-body")) return;
+      setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onClickAway);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onClickAway);
+    };
+  }, [menuOpen]);
+
+  const onReadAloud = useCallback(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      say("Voice readout not supported on this browser.", 2200);
+      return;
+    }
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setIsReading(false);
+      setPose("idle");
+      say("Stopped reading.", 1600);
+      return;
+    }
+    const heading = document.querySelector("h1, h2, h3")?.textContent?.trim() || "";
+    const p = document.querySelector("article p, main p, [data-readable] p")?.textContent?.trim() || "";
+    const text = [heading, p].filter(Boolean).join(". ");
+    if (!text) {
+      say("Nothing to read on this page yet!", 2000);
+      return;
+    }
+    const utter = new SpeechSynthesisUtterance(text.slice(0, 420));
+    utter.rate = 1.0;
+    utter.pitch = 1.08;
+    setIsReading(true);
+    setPose("dance");
+    say("Reading out loud...", 3000);
+    utter.onend = () => {
+      setIsReading(false);
+      setPose("idle");
+    };
+    utter.onerror = () => {
+      setIsReading(false);
+      setPose("idle");
+    };
+    window.speechSynthesis.speak(utter);
+  }, [say, setPose]);
+
+  // tapping Sprout toggles the Jarvis Desk Buddy HUD
   const onTap = () => {
     wake();
     playCuteVoice("happy");
-    const ev = new CustomEvent(ASK_EVENT, { detail: { handled: false } });
-    window.dispatchEvent(ev);
-    if ((ev.detail as { handled: boolean }).handled) return;
-    const tips = [...TIPS, MOOD_COPY[pet.mood].how];
-    void cheer(tips[Math.floor(Math.random() * tips.length)]);
+    setMenuOpen((prev) => !prev);
   };
 
   return (
@@ -470,6 +577,46 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
         createPortal(
           <div ref={layer} className="sunroot-bot" data-moving={moving} data-landed={landed} data-peek={peek} data-side={side} aria-live="polite">
             {bubble && <div className="sunroot-bot-bubble" role="status">{bubble}</div>}
+            <JarvisHud
+              pet={pet}
+              open={menuOpen}
+              onClose={() => setMenuOpen(false)}
+              onScan={scanPage}
+              onExplain={() => {
+                setMenuOpen(false);
+                wake();
+                say("Asking tutor to break this down simply...", 2200);
+                window.dispatchEvent(
+                  new CustomEvent(ASK_EVENT, {
+                    detail: {
+                      handled: false,
+                      prompt: "Can you explain the main idea of this lesson simply in plain English with a clear example?",
+                    },
+                  })
+                );
+              }}
+              onQuiz={() => {
+                setMenuOpen(false);
+                wake();
+                say("Starting recall challenge...", 2200);
+                window.dispatchEvent(
+                  new CustomEvent(ASK_EVENT, {
+                    detail: {
+                      handled: false,
+                      prompt: "Give me 1 rapid-fire conceptual recall check question based on what we're learning right now. Wait for my answer before revealing if I'm right!",
+                    },
+                  })
+                );
+              }}
+              onReadAloud={onReadAloud}
+              isReading={isReading}
+              onFlip={flip}
+              onAskTutor={() => {
+                setMenuOpen(false);
+                wake();
+                window.dispatchEvent(new CustomEvent(ASK_EVENT, { detail: { handled: false } }));
+              }}
+            />
             <button
               type="button"
               className="sunroot-bot-body"

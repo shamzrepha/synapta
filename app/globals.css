@@ -450,8 +450,11 @@ html[data-keyboard="open"] [data-floating],
 html[data-typing="true"] [data-floating],
 html[data-keyboard="open"] .sunroot-bot,
 html[data-typing="true"] .sunroot-bot,
+html[data-keyboard="open"] .sunroot-jarvis-hud,
+html[data-typing="true"] .sunroot-jarvis-hud,
 body:has(input:focus, textarea:focus, select:focus, [contenteditable="true"]) [data-floating],
-body:has(input:focus, textarea:focus, select:focus, [contenteditable="true"]) .sunroot-bot { display: none !important; }
+body:has(input:focus, textarea:focus, select:focus, [contenteditable="true"]) .sunroot-bot,
+body:has(input:focus, textarea:focus, select:focus, [contenteditable="true"]) .sunroot-jarvis-hud { display: none !important; }
 textarea, input { scroll-margin-block: 96px; }
 
 /* Interactive lesson notebook */

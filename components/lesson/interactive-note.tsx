@@ -340,7 +340,7 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
   useEffect(() => {
     botRef.current = bot;
   });
-  // 1. Sprout runs to the tapped word with its magnifying glass (slowly enough to follow)
+  // 1. Sprout runs to the tapped word with its magnifying glass (slowly and clearly enough to follow)
   useEffect(() => {
     if (!theatrical || !origin) return;
     let off = false;
@@ -348,7 +348,10 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
     b.countLookup();
     playCuteVoice("search");
     void (async () => {
-      await b.hopTo(origin as DOMRect, { pose: "search", duration: b.quick ? 560 : 1000, say: b.quick ? undefined : "Let me look that up!" });
+      await b.hopTo(origin as DOMRect, { pose: "search", duration: 1100, say: "Let me inspect this!" });
+      if (off) return;
+      // Pause at the word so learner clearly sees Sprout examining it with the magnifying glass
+      await new Promise((res) => window.setTimeout(res, 520));
       if (off) return;
       setArrived(true);
     })();
@@ -374,7 +377,6 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
     const el = sheetRef.current;
     const rope = ropeRef.current;
     if (!el || !rope) return;
-    const slow = !b.quick;
     const stop = () => off;
     let pull: Animation | null = null;
     void (async () => {
@@ -393,7 +395,7 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
         right: r.left + r.width,
         bottom: Math.max(8, r.top - drop.current) + r.height,
       };
-      await b.hopTo(fin as unknown as DOMRect, { anchor: "perch", pose: "pull", duration: slow ? 900 : 520, say: slow ? "Got it! Hold on..." : undefined });
+      await b.hopTo(fin as unknown as DOMRect, { anchor: "perch", pose: "pull", duration: 800, say: "Found it! Hauling it up..." });
       if (off) return;
       b.setPose("pull");
       const hand = () => b.handPoint();
@@ -403,15 +405,15 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
       };
       // fire: the rope flies to the pop-up's top edge, still lying at the bottom of the screen
       playRopeSwingSound();
-      await tween(slow ? 420 : 260, (t) => {
+      await tween(650, (t) => {
         const h = hand();
         if (h) rope.set(h, edge(), easeOut(t), 0.25);
       }, stop);
       if (off) return;
       // haul: the pop-up rises from the ground, the rope pulled tight
       playPopUpHaulSound();
-      const dur = slow ? 1700 : 1000;
-      pull = el.animate([{ transform: `translateY(${drop.current}px)` }, { transform: "translateY(0px)" }], { duration: dur, easing: "cubic-bezier(0.3, 0.7, 0.25, 1)", fill: "forwards" });
+      const dur = 1850;
+      pull = el.animate([{ transform: `translateY(${drop.current}px)` }, { transform: "translateY(0px)" }], { duration: dur, easing: "cubic-bezier(0.25, 0.9, 0.3, 1)", fill: "forwards" });
       el.style.transform = "";
       backdropRef.current?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur * 0.8, fill: "forwards" });
       await tween(dur, () => {
@@ -429,11 +431,17 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
       pull.cancel();
       // let go: the hook comes loose and the rope whips back
       playPopSound();
-      await tween(slow ? 360 : 220, (t) => {
+      await tween(380, (t) => {
         const h = hand();
         if (h) rope.set(h, edge(), 1 - easeIn(t), 0.1);
       }, stop);
       rope.hide();
+      if (off) return;
+      // Victory giggle and celebration
+      b.setPose("giggle");
+      playCuteVoice("cheer");
+      b.say("Here it is!", 1800);
+      await new Promise((res) => window.setTimeout(res, 600));
       if (off) return;
       b.setPose("idle");
       setSettled(true);

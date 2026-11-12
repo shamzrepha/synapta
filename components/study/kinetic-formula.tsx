@@ -551,8 +551,8 @@ function EquationStepsStage({
     if (!el || !botRef.current.enabled) return;
     let off = false;
     const id = window.setTimeout(() => {
-      void botRef.current.hopTo(el, { anchor: "left", pose: "cross", duration: 340 }).then(() => {
-        if (!off) window.setTimeout(() => void botRef.current.rest(), 1100);
+      void botRef.current.hopTo(el, { anchor: "left", pose: "cross", duration: 600 }).then(() => {
+        if (!off) window.setTimeout(() => void botRef.current.rest(), 1200);
       });
     }, 250);
     return () => {

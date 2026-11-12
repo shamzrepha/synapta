@@ -82,10 +82,12 @@ async function fetchTopics(classId: string): Promise<TopicLite[]> {
 export function TutorChat({
   initialClassId = "",
   initialKcId = "",
+  initialPrompt = "",
   compact = false,
 }: {
   initialClassId?: string;
   initialKcId?: string;
+  initialPrompt?: string;
   compact?: boolean;
 }) {
   const [classes, setClasses] = useState<ClassLite[]>([]);
@@ -158,6 +160,18 @@ export function TutorChat({
       setBusy(false);
     }
   };
+
+  const sentInitial = useRef(false);
+  useEffect(() => {
+    if (initialPrompt && !sentInitial.current && !busy) {
+      sentInitial.current = true;
+      const t = setTimeout(() => {
+        void send(initialPrompt);
+      }, 350);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrompt, busy]);
 
   const speak = (m: Msg) => {
     speaker.current ||= createSpeaker();

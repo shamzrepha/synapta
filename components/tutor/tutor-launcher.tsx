@@ -20,6 +20,7 @@ function contextFromPath(pathname: string): { classId: string; kcId: string } {
 export function TutorLauncher() {
   const pathname = usePathname() || "";
   const [open, setOpen] = useState(false);
+  const [initialPrompt, setInitialPrompt] = useState("");
   const ctx = contextFromPath(pathname);
   const bot = useBot();
   const hiddenHere = HIDDEN_PREFIXES.some((p) => pathname.startsWith(p)) || /\/topics\//.test(pathname);
@@ -28,7 +29,13 @@ export function TutorLauncher() {
   useEffect(() => {
     if (hiddenHere) return;
     const onAsk = (e: Event) => {
-      (e as CustomEvent<{ handled: boolean }>).detail.handled = true;
+      const custom = e as CustomEvent<{ handled: boolean; prompt?: string }>;
+      custom.detail.handled = true;
+      if (custom.detail?.prompt) {
+        setInitialPrompt(custom.detail.prompt);
+      } else {
+        setInitialPrompt("");
+      }
       setOpen(true);
     };
     window.addEventListener(ASK_EVENT, onAsk);
@@ -77,7 +84,13 @@ export function TutorLauncher() {
             </button>
           </div>
           <div className="flex-1 min-h-0 pb-[env(safe-area-inset-bottom)]">
-            <TutorChat key={`${ctx.classId}:${ctx.kcId}`} initialClassId={ctx.classId} initialKcId={ctx.kcId} compact />
+            <TutorChat
+              key={`${ctx.classId}:${ctx.kcId}:${initialPrompt ? "with-prompt" : "default"}`}
+              initialClassId={ctx.classId}
+              initialKcId={ctx.kcId}
+              initialPrompt={initialPrompt}
+              compact
+            />
           </div>
         </div>
       )}
