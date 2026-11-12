@@ -3,11 +3,12 @@
 import React, { memo, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, BookOpen, Bookmark, ListTree, Minus, Plus, Search, Trash2, Volume2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Bookmark, ChevronLeft, ChevronRight, ListTree, Minus, Plus, Rows3, Search, Trash2, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { InteractiveNote } from "@/components/lesson/interactive-note";
+import { readMinutes, splitNote } from "@/lib/study/note-sections";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { asArray } from "@/lib/api/client";
 import { rankBlocks } from "@/lib/study/locate";
@@ -158,6 +159,11 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
   const [scale, setScale] = useState(1);
   const [q, setQ] = useState("");
   const [fromRef, setFromRef] = useState(false);
+  const [viewMode, setViewMode] = useState<"flip" | "scroll">("flip");
+  const [flipIdx, setFlipIdx] = useState(0);
+  const [flipDir, setFlipDir] = useState<"next" | "prev">("next");
+  const mainRef = useRef<HTMLElement>(null);
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const progressBar = useRef<HTMLDivElement>(null);
   const jumped = useRef(false);
   const [marks, setMarks] = useState<Mark[]>([]);
@@ -203,13 +209,130 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
 
   const sections = useMemo(() => buildSections(kcs || []), [kcs]);
 
-  const goTo = useCallback((id: string) => {
-    const el = document.getElementById(`kc-${id}`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-    setActive(id);
-    setTocOpen(false);
-  }, []);
+  const flipPages = useMemo(() => {
+    const out: Array<{
+      key: string;
+      section: Section;
+      sectionIdx: number;
+      pageIdxInSection: number;
+      pageTotalInSection: number;
+      pageTitle: string;
+      pageBody: string;
+      readMins: number;
+    }> = [];
+    sections.forEach((s, sectionIdx) => {
+      const text = (s.lessonMarkdown || "").trim();
+      const hidden = s.published?.lesson === false;
+      const thin = text.length < THIN;
+      if (hidden || thin) {
+        out.push({
+          key: `${s.id}:0`,
+          section: s,
+          sectionIdx,
+          pageIdxInSection: 0,
+          pageTotalInSection: 1,
+          pageTitle: s.title,
+          pageBody: s.description || "",
+          readMins: 1,
+        });
+        return;
+      }
+      const split = splitNote(text);
+      const total = split.pages.length;
+      split.pages.forEach((pg, idxInSec) => {
+        out.push({
+          key: `${s.id}:${idxInSec}`,
+          section: s,
+          sectionIdx,
+          pageIdxInSection: idxInSec,
+          pageTotalInSection: total,
+          pageTitle: pg.title || s.title,
+          pageBody: pg.body,
+          readMins: readMinutes(pg.body),
+        });
+      });
+    });
+    return out;
+  }, [sections]);
+
+  const safeFlipIdx = Math.min(flipIdx, Math.max(0, flipPages.length - 1));
+  const currentFlip = flipPages[safeFlipIdx] ?? null;
+
+  const goToPage = useCallback(
+    (nextIdx: number) => {
+      if (flipPages.length === 0) return;
+      const clamped = Math.max(0, Math.min(flipPages.length - 1, nextIdx));
+      setFlipDir(clamped >= safeFlipIdx ? "next" : "prev");
+      setFlipIdx(clamped);
+      const target = flipPages[clamped];
+      if (target) setActive(target.section.id);
+      mainRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+    [flipPages, safeFlipIdx]
+  );
+
+  const findFlipIndex = useCallback(
+    (id: string, snippet?: string, pageHint?: number) => {
+      const matches = flipPages
+        .map((p, idx) => ({ p, idx }))
+        .filter(({ p }) => p.section.id === id);
+      if (matches.length === 0) return -1;
+      if (snippet) {
+        const needle = snippet.trim().toLowerCase().slice(0, 40);
+        if (needle.length >= 6) {
+          const hit = matches.find(({ p }) =>
+            (p.pageTitle + "\n" + p.pageBody).toLowerCase().includes(needle)
+          );
+          if (hit) return hit.idx;
+        }
+      }
+      if (typeof pageHint === "number" && pageHint >= 0 && pageHint < matches.length) {
+        return matches[pageHint].idx;
+      }
+      return matches[0].idx;
+    },
+    [flipPages]
+  );
+
+  const goTo = useCallback(
+    (id: string, snippet?: string, pageHint?: number) => {
+      if (viewMode === "flip") {
+        const idx = findFlipIndex(id, snippet, pageHint);
+        if (idx >= 0) goToPage(idx);
+        setTocOpen(false);
+        return;
+      }
+      const el = document.getElementById(`kc-${id}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      setActive(id);
+      setTocOpen(false);
+    },
+    [viewMode, findFlipIndex, goToPage]
+  );
+
+  const switchMode = useCallback(
+    (nextMode: "flip" | "scroll") => {
+      if (nextMode === viewMode) return;
+      if (nextMode === "flip") {
+        const targetKc = active || sections[0]?.id;
+        setViewMode("flip");
+        if (targetKc) {
+          const idx = findFlipIndex(targetKc);
+          if (idx >= 0) setFlipIdx(idx);
+        }
+      } else {
+        const targetKc = currentFlip?.section.id || active;
+        setViewMode("scroll");
+        if (targetKc) {
+          window.setTimeout(() => {
+            document.getElementById(`kc-${targetKc}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }, 80);
+        }
+      }
+    },
+    [viewMode, active, sections, currentFlip, findFlipIndex]
+  );
 
   const readable = useMemo(
     () => sections.filter((s) => s.published?.lesson !== false && (s.lessonMarkdown || "").trim().length >= THIN).map((s) => ({ id: s.id, title: s.title, markdown: s.lessonMarkdown || "" })),
@@ -218,9 +341,33 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
   const voice = useReadThrough({ sections: readable, onSection: (id) => goTo(id), findEl: findBlockEl });
   const listeningTitle = sections.find((s) => s.id === voice.currentId)?.title || "";
 
-  // where am I: the topic whose heading is highest on the screen; also the reading progress bar
+  // where am I: progress bar + saving reading position (works in both flipbook and scroll modes)
   useEffect(() => {
     if (sections.length === 0) return;
+    if (viewMode === "flip") {
+      if (progressBar.current) {
+        const pct = flipPages.length > 0 ? ((safeFlipIdx + 1) / flipPages.length) * 100 : 0;
+        progressBar.current.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+      }
+      if (!currentFlip || safeFlipIdx === 0) return;
+      const t = window.setTimeout(() => {
+        try {
+          const snip = firstVisibleBlock(currentFlip.section.id) || currentFlip.pageBody.slice(0, 80).trim();
+          localStorage.setItem(
+            posKey,
+            JSON.stringify({
+              kc: currentFlip.section.id,
+              page: currentFlip.pageIdxInSection,
+              snippet: snip,
+              at: Date.now(),
+            })
+          );
+        } catch {
+          /* ignore */
+        }
+      }, 350);
+      return () => window.clearTimeout(t);
+    }
     let saveTimer: number | undefined;
     const onScroll = () => {
       const h = document.documentElement;
@@ -231,7 +378,6 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         if (el && el.getBoundingClientRect().top <= window.innerHeight * 0.3) cur = s.id;
       }
       setActive((a) => cur ?? a ?? sections[0].id);
-      // remember where the learner is, so they can continue from here next time
       window.clearTimeout(saveTimer);
       saveTimer = window.setTimeout(() => {
         if (!cur || window.scrollY < 40) return;
@@ -248,23 +394,50 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       window.clearTimeout(saveTimer);
       window.removeEventListener("scroll", onScroll);
     };
-  }, [sections, posKey]);
+  }, [sections, posKey, viewMode, flipPages.length, safeFlipIdx, currentFlip]);
+
+  // keyboard Left/Right arrows turn pages in flipbook mode
+  useEffect(() => {
+    if (viewMode !== "flip" || tocOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "ArrowRight" && safeFlipIdx < flipPages.length - 1) {
+        e.preventDefault();
+        goToPage(safeFlipIdx + 1);
+      } else if (e.key === "ArrowLeft" && safeFlipIdx > 0) {
+        e.preventDefault();
+        goToPage(safeFlipIdx - 1);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [viewMode, tocOpen, safeFlipIdx, flipPages.length, goToPage]);
 
   // opening the reader again: continue where the learner left off (a quiz link or search takes priority)
   useEffect(() => {
     if (jumped.current || sections.length === 0 || wantKc || wantFind) return;
     try {
-      const pos = JSON.parse(localStorage.getItem(posKey) || "null") as { kc?: string; snippet?: string } | null;
+      const pos = JSON.parse(localStorage.getItem(posKey) || "null") as { kc?: string; page?: number; snippet?: string } | null;
       if (!pos?.kc || !sections.some((x) => x.id === pos.kc)) return;
       const t = window.setTimeout(() => {
         jumped.current = true;
+        if (viewMode === "flip") {
+          const targetIdx = findFlipIndex(pos.kc!, pos.snippet, typeof pos.page === "number" ? pos.page : undefined);
+          if (targetIdx > 0) {
+            setFlipIdx(targetIdx);
+            setActive(pos.kc!);
+            setResumed(true);
+          }
+          return;
+        }
         if (jumpToBlock(pos.kc!, pos.snippet || "")) setResumed(true);
       }, 250);
       return () => window.clearTimeout(t);
     } catch {
       /* nothing saved */
     }
-  }, [sections, wantKc, wantFind, posKey]);
+  }, [sections, wantKc, wantFind, posKey, viewMode, findFlipIndex]);
 
   // prepare every topic's key-word cards and pictures in the background, so no tap ever waits
   useEffect(() => {
@@ -303,17 +476,18 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     if (jumped.current || sections.length === 0 || (!wantKc && !wantFind)) return;
     const t = window.setTimeout(() => {
       jumped.current = true;
-      if (wantKc) goTo(wantKc);
+      let best: { kc: string; text: string; score: number } | null = null;
       if (wantFind) {
         const pool = wantKc ? sections.filter((s) => s.id === wantKc) : sections;
-        let best: { kc: string; text: string; score: number } | null = null;
         for (const s of pool) {
           const r = rankBlocks(s.lessonMarkdown || "", wantFind, 1)[0];
           if (r && (!best || r.score > best.score)) best = { kc: s.id, text: r.text, score: r.score };
         }
-        if (best) window.setTimeout(() => flashBlock(best!.kc, best!.text), 700);
-        setFromRef(true);
       }
+      if (wantKc) goTo(wantKc, best?.text);
+      else if (best) goTo(best.kc, best.text);
+      if (best) window.setTimeout(() => flashBlock(best!.kc, best!.text), 700);
+      if (wantFind) setFromRef(true);
     }, 400);
     return () => window.clearTimeout(t);
   }, [sections, wantKc, wantFind, goTo]);
@@ -349,7 +523,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
             <button
               type="button"
               onClick={() => {
-                goTo(m.kc);
+                goTo(m.kc, m.snippet);
                 if (m.snippet) window.setTimeout(() => flashBlock(m.kc, m.snippet), 650);
               }}
               className="flex-1 min-w-0 text-left rounded-lg px-2 py-1.5 hover:bg-muted"
@@ -376,7 +550,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
           style={{ paddingLeft: `${0.6 + s.depth * 0.9}rem` }}
           className={cn(
             "w-full text-left rounded-lg py-2 pr-2 text-sm leading-snug transition-colors",
-            active === s.id ? "bg-brand-600/10 text-brand-700 dark:text-brand-300 font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted",
+            (active || currentFlip?.section.id || sections[0]?.id) === s.id ? "bg-brand-600/10 text-brand-700 dark:text-brand-300 font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-muted",
             s.depth > 0 && "text-[13px]"
           )}
         >
@@ -415,7 +589,23 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         <Link href={`/classes/${classId}`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> {title}
         </Link>
-        <button type="button" onClick={addBookmark} className="ml-auto inline-flex items-center gap-1.5 h-9 rounded-lg border border-border px-3 text-xs font-semibold hover:bg-muted" aria-label="Bookmark where I am">
+        <div className="ml-auto inline-flex rounded-xl border border-border p-0.5 text-xs font-semibold bg-card" role="group" aria-label="Reading view">
+          <button
+            type="button"
+            onClick={() => switchMode("flip")}
+            className={cn("px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5 transition-colors", viewMode === "flip" ? "bg-brand-600 text-white" : "text-muted-foreground hover:text-foreground")}
+          >
+            <BookOpen className="h-3.5 w-3.5" /> Flipbook
+          </button>
+          <button
+            type="button"
+            onClick={() => switchMode("scroll")}
+            className={cn("px-2.5 py-1.5 rounded-lg inline-flex items-center gap-1.5 transition-colors", viewMode === "scroll" ? "bg-brand-600 text-white" : "text-muted-foreground hover:text-foreground")}
+          >
+            <Rows3 className="h-3.5 w-3.5" /> Scroll
+          </button>
+        </div>
+        <button type="button" onClick={addBookmark} className="inline-flex items-center gap-1.5 h-9 rounded-lg border border-border px-3 text-xs font-semibold hover:bg-muted" aria-label="Bookmark where I am">
           <Bookmark className="h-4 w-4" /> Bookmark
         </button>
         <div className="flex items-center gap-1" role="group" aria-label="Text size">
@@ -448,7 +638,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                   className="w-full text-left px-3 py-2.5 hover:bg-muted border-b border-border last:border-0"
                   onClick={() => {
                     setQ("");
-                    goTo(r.kc.id);
+                    goTo(r.kc.id, r.text);
                     if (r.heading || r.text !== r.kc.title) window.setTimeout(() => flashBlock(r.kc.id, r.text), 650);
                   }}
                 >
@@ -465,7 +655,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         <div className="mb-3 flex items-center gap-2 rounded-xl border border-brand-500/30 bg-brand-500/5 px-3 py-2 text-sm">
           <BookOpen className="h-4 w-4 text-brand-600 shrink-0" />
           <span className="flex-1">Back where you left off.</span>
-          <Button size="sm" variant="outline" onClick={() => { setResumed(false); window.scrollTo({ top: 0, behavior: "smooth" }); try { localStorage.removeItem(posKey); } catch {} }}>Start from the top</Button>
+          <Button size="sm" variant="outline" onClick={() => { setResumed(false); if (viewMode === "flip") goToPage(0); else window.scrollTo({ top: 0, behavior: "smooth" }); try { localStorage.removeItem(posKey); } catch {} }}>Start from the top</Button>
         </div>
       )}
       {fromRef && (
@@ -485,13 +675,174 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
           </div>
         </aside>
 
-        <main className="min-w-0 note-paper">
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight mb-1">{title}</h1>
-          <p className="text-sm text-muted-foreground mb-4">{sections.length} topics. Tap any highlighted word to learn more.</p>
-          {sections.length === 0 && <p className="text-sm text-muted-foreground">There are no topics here yet.</p>}
-          {sections.map((s) => (
-            <SectionView key={s.id} s={s} classId={classId} onListen={voice.start} />
-          ))}
+        <main
+          ref={mainRef}
+          className={viewMode === "flip" ? "min-w-0 space-y-4 scroll-mt-16" : "min-w-0 note-paper sunroot-paper"}
+        >
+          {viewMode === "flip" ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight leading-tight">{title}</h1>
+                  <p className="text-xs text-muted-foreground">
+                    {sections.length} topics · {flipPages.length} notebook {flipPages.length === 1 ? "page" : "pages"}. Swipe or press ← → to flip. Tap highlighted words to learn more.
+                  </p>
+                </div>
+                {currentFlip && (
+                  <span className="inline-flex items-center rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold tabular-nums">
+                    Page {safeFlipIdx + 1} / {flipPages.length}
+                  </span>
+                )}
+              </div>
+
+              {flipPages.length === 0 ? (
+                <div className="note-paper sunroot-paper">
+                  <p className="text-sm text-muted-foreground">There are no topics here yet.</p>
+                </div>
+              ) : (
+                currentFlip && (
+                  <>
+                    <article
+                      key={currentFlip.key}
+                      id={`kc-${currentFlip.section.id}`}
+                      data-kc={currentFlip.section.id}
+                      onTouchStart={(e) => {
+                        const t = e.touches[0];
+                        if (t) swipeStart.current = { x: t.clientX, y: t.clientY };
+                      }}
+                      onTouchEnd={(e) => {
+                        const start = swipeStart.current;
+                        swipeStart.current = null;
+                        const t = e.changedTouches[0];
+                        if (!start || !t) return;
+                        const dx = t.clientX - start.x;
+                        const dy = t.clientY - start.y;
+                        if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                          if (dx < 0 && safeFlipIdx < flipPages.length - 1) goToPage(safeFlipIdx + 1);
+                          else if (dx > 0 && safeFlipIdx > 0) goToPage(safeFlipIdx - 1);
+                        }
+                      }}
+                      className={cn(
+                        "note-paper sunroot-paper touch-pan-y",
+                        flipDir === "next" ? "note-flip-next" : "note-flip-prev"
+                      )}
+                    >
+                      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2.5 mb-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
+                            Topic {currentFlip.sectionIdx + 1} of {sections.length}
+                            {currentFlip.pageTotalInSection > 1
+                              ? ` · Part ${currentFlip.pageIdxInSection + 1}/${currentFlip.pageTotalInSection}`
+                              : ""}
+                            {` · ${currentFlip.readMins} min read`}
+                          </p>
+                          {currentFlip.section.depth === 0 ? (
+                            <h2 className="text-2xl font-bold tracking-tight truncate">{currentFlip.section.title}</h2>
+                          ) : (
+                            <h3 className="text-xl font-bold tracking-tight truncate">{currentFlip.section.title}</h3>
+                          )}
+                        </div>
+                        <span className="flex items-center gap-3 shrink-0">
+                          {currentFlip.section.published?.lesson !== false &&
+                            (currentFlip.section.lessonMarkdown || "").trim().length >= THIN && (
+                              <button
+                                type="button"
+                                onClick={() => voice.start(currentFlip.section.id)}
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 dark:text-brand-300 hover:underline"
+                                aria-label={`Listen from ${currentFlip.section.title}`}
+                              >
+                                <Volume2 className="h-3.5 w-3.5" /> Listen
+                              </button>
+                            )}
+                          <Link
+                            href={`/classes/${classId}/topics/${currentFlip.section.id}`}
+                            className="text-xs font-semibold text-brand-700 dark:text-brand-300 hover:underline"
+                          >
+                            Practice this topic →
+                          </Link>
+                        </span>
+                      </div>
+
+                      {currentFlip.section.published?.lesson === false ? (
+                        <p className="text-sm text-muted-foreground">Your teacher hasn&apos;t published this note yet.</p>
+                      ) : (currentFlip.section.lessonMarkdown || "").trim().length < THIN ? (
+                        <div className="space-y-2">
+                          {currentFlip.section.description && (
+                            <p className="note-prose">{currentFlip.section.description}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            The full note for this topic is written the first time it is opened.{" "}
+                            <Link
+                              href={`/classes/${classId}/topics/${currentFlip.section.id}`}
+                              className="text-brand-600 underline"
+                            >
+                              Open the topic
+                            </Link>
+                          </p>
+                        </div>
+                      ) : (
+                        <InteractiveNote
+                          bare
+                          lazy
+                          markdown={(currentFlip.section.lessonMarkdown || "").trim()}
+                          barePageIndex={currentFlip.pageIdxInSection}
+                          topicTitle={currentFlip.section.title}
+                          classId={classId}
+                          kcId={currentFlip.section.id}
+                        />
+                      )}
+                    </article>
+
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => goToPage(safeFlipIdx - 1)}
+                        disabled={safeFlipIdx === 0}
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-1" /> Prev page
+                      </Button>
+                      <div className="flex items-center gap-1.5 overflow-x-auto max-w-[14rem] sm:max-w-xs py-1" aria-hidden>
+                        {flipPages.slice(Math.max(0, safeFlipIdx - 5), Math.max(0, safeFlipIdx - 5) + 12).map((fp) => {
+                          const realIdx = flipPages.indexOf(fp);
+                          return (
+                            <button
+                              key={fp.key}
+                              type="button"
+                              tabIndex={-1}
+                              onClick={() => goToPage(realIdx)}
+                              className={cn(
+                                "h-2 rounded-full transition-all shrink-0",
+                                realIdx === safeFlipIdx
+                                  ? "w-6 bg-brand-600"
+                                  : "w-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400"
+                              )}
+                            />
+                          );
+                        })}
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => goToPage(safeFlipIdx + 1)}
+                        disabled={safeFlipIdx >= flipPages.length - 1}
+                      >
+                        Next page <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </div>
+                  </>
+                )
+              )}
+            </>
+          ) : (
+            <>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight mb-1">{title}</h1>
+              <p className="text-sm text-muted-foreground mb-4">{sections.length} topics. Tap any highlighted word to learn more.</p>
+              {sections.length === 0 && <p className="text-sm text-muted-foreground">There are no topics here yet.</p>}
+              {sections.map((s) => (
+                <SectionView key={s.id} s={s} classId={classId} onListen={voice.start} />
+              ))}
+            </>
+          )}
         </main>
       </div>
 

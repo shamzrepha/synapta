@@ -5,7 +5,7 @@ import { buildSimulationPrompt } from "@/lib/sim/build";
 
 describe("learning design spec", () => {
   it("keeps docs/ai/LEARNING-DESIGN-SPEC.md identical to the code", () => {
-    expect(readFileSync("docs/ai/LEARNING-DESIGN-SPEC.md", "utf8")).toBe(specMarkdown());
+    expect(readFileSync("docs/ai/LEARNING-DESIGN-SPEC.md", "utf8").replace(/\r\n/g, "\n")).toBe(specMarkdown());
   });
   it("selects parts", () => {
     const s = designSpec("common", "class");

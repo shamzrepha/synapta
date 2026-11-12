@@ -12,6 +12,8 @@ import { readMinutes, splitNote } from "@/lib/study/note-sections";
 import { hashText, splitByTerms, termRegex } from "@/lib/study/terms";
 import { getGlossary, preloadImages, type GlossaryCard } from "@/lib/study/glossary-client";
 import { cn } from "@/lib/utils";
+import { extractKineticScenesForPage } from "@/lib/study/kinetic-parser";
+import { KineticStage } from "@/components/study/kinetic-formula";
 
 interface TermCard {
   summary: string;
@@ -107,13 +109,20 @@ function Item({ children }: { children?: React.ReactNode }) {
 
 const MD_COMPONENTS = { strong: Term, p: Para, li: Item };
 
-function NoteBody({ markdown }: { markdown: string }) {
+function NoteBody({ markdown, pageTitle, pageKey }: { markdown: string; pageTitle?: string; pageKey?: string }) {
+  const { cleanMarkdown, scenes } = useMemo(
+    () => extractKineticScenesForPage(markdown, pageTitle),
+    [markdown, pageTitle]
+  );
   return (
-    <div className="note-prose">
-      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={MD_COMPONENTS}>
-        {normalizeMath(markdown)}
-      </ReactMarkdown>
-    </div>
+    <>
+      <div className="note-prose">
+        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={MD_COMPONENTS}>
+          {normalizeMath(cleanMarkdown)}
+        </ReactMarkdown>
+      </div>
+      <KineticStage scenes={scenes} pageKey={pageKey || pageTitle || cleanMarkdown.slice(0, 24)} />
+    </>
   );
 }
 
@@ -302,9 +311,10 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
  * The lesson as an interactive notebook: one page per heading that flips like a notebook (or all pages in one scroll),
  * key words (the bold ones) that open a picture-and-explanation card when tapped, and an "ask more" button on every page.
  */
-export function InteractiveNote({ markdown, topicTitle, bare, lazy, classId, kcId }: { markdown: string; topicTitle?: string; /** with these, the key-word cards come prepared from the class (saved once, loaded in the background) */ classId?: string; kcId?: string; /** just the text: no toolbar, no paper, no flip view (used inside the reader) */ bare?: boolean; /** pick the highlighted words only once this note scrolls into view */ lazy?: boolean }) {
+export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, lazy, classId, kcId }: { markdown: string; topicTitle?: string; /** with these, the key-word cards come prepared from the class (saved once, loaded in the background) */ classId?: string; kcId?: string; /** just the text: no toolbar, no paper, no flip view (used inside the reader) */ bare?: boolean; /** when bare, render only a single split page index for outer flipbook mode */ barePageIndex?: number; /** pick the highlighted words only once this note scrolls into view */ lazy?: boolean }) {
   const note = useMemo(() => splitNote(markdown), [markdown]);
-  const [view, setView] = useState<"pages" | "scroll">("scroll");
+  const [view, setView] = useState<"pages" | "scroll">("pages");
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const [terms, setTerms] = useState<string[]>([]);
   const [cards, setCards] = useState<Map<string, GlossaryCard>>(new Map());
   const [idx, setIdx] = useState(0);
@@ -400,14 +410,24 @@ export function InteractiveNote({ markdown, topicTitle, bare, lazy, classId, kcI
     p.title ? <h2 className="text-xl sm:text-2xl font-bold tracking-tight leading-snug mt-2 mb-2">{p.title}</h2> : null;
 
   if (bare) {
+    const clampedIdx =
+      typeof barePageIndex === "number"
+        ? Math.min(Math.max(0, barePageIndex), Math.max(0, note.pages.length - 1))
+        : null;
+    const pagesToShow =
+      clampedIdx !== null ? note.pages.slice(clampedIdx, clampedIdx + 1) : note.pages;
     return (
       <OpenTermCtx.Provider value={openTerm}>
         <TermsCtx.Provider value={termRe}>
           <div ref={top} className="w-full min-w-0">
-            {note.pages.map((p) => (
+            {pagesToShow.map((p) => (
               <section key={p.id}>
                 {!p.synthetic && header(p)}
-                <NoteBody markdown={p.body} />
+                <NoteBody
+                  markdown={p.body}
+                  pageTitle={p.title || topic}
+                  pageKey={`${kcId || topic}-${p.id}-${clampedIdx ?? "all"}`}
+                />
               </section>
             ))}
           </div>
@@ -457,19 +477,51 @@ export function InteractiveNote({ markdown, topicTitle, bare, lazy, classId, kcI
 
         {view === "pages" ? (
           <>
-            <article key={page.id + idx} className={cn("note-paper", dir === "next" ? "note-flip-next" : "note-flip-prev")}>
+            <article
+              key={page.id + idx}
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowRight" && idx < total - 1) {
+                  e.preventDefault();
+                  go(idx + 1);
+                } else if (e.key === "ArrowLeft" && idx > 0) {
+                  e.preventDefault();
+                  go(idx - 1);
+                }
+              }}
+              onTouchStart={(e) => {
+                const t = e.touches[0];
+                if (t) swipeStart.current = { x: t.clientX, y: t.clientY };
+              }}
+              onTouchEnd={(e) => {
+                const start = swipeStart.current;
+                swipeStart.current = null;
+                const t = e.changedTouches[0];
+                if (!start || !t) return;
+                const dx = t.clientX - start.x;
+                const dy = t.clientY - start.y;
+                if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                  if (dx < 0 && idx < total - 1) go(idx + 1);
+                  else if (dx > 0 && idx > 0) go(idx - 1);
+                }
+              }}
+              className={cn("note-paper sunroot-paper touch-pan-y focus:outline-none", dir === "next" ? "note-flip-next" : "note-flip-prev")}
+            >
               {header(page)}
               <p className="text-[11px] text-muted-foreground mb-3 pl-11">{readMinutes(page.body)} min read · page {idx + 1} of {total}</p>
-              <NoteBody markdown={page.body} />
+              <NoteBody markdown={page.body} pageTitle={page.title || topic} pageKey={`${kcId || topic}-${page.id}-${idx}`} />
             </article>
             <div className="flex items-center justify-between gap-3">
               <Button type="button" variant="outline" onClick={() => go(idx - 1)} disabled={idx === 0}>
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
               </Button>
-              <div className="flex gap-1.5" aria-hidden>
-                {note.pages.slice(0, 12).map((p, i) => (
-                  <span key={p.id} className={cn("h-1.5 rounded-full transition-all", i === idx ? "w-5 bg-brand-600" : "w-1.5 bg-slate-300 dark:bg-slate-700")} />
-                ))}
+              <div className="flex flex-col items-center gap-1" aria-hidden>
+                <div className="flex gap-1.5">
+                  {note.pages.slice(0, 12).map((p, i) => (
+                    <span key={p.id} className={cn("h-1.5 rounded-full transition-all", i === idx ? "w-5 bg-brand-600" : "w-1.5 bg-slate-300 dark:bg-slate-700")} />
+                  ))}
+                </div>
+                {total > 1 && <span className="text-[10px] text-muted-foreground">Swipe or press ← →</span>}
               </div>
               <Button type="button" onClick={() => go(idx + 1)} disabled={idx >= total - 1}>
                 Next <ChevronRight className="h-4 w-4 ml-1" />
@@ -477,12 +529,12 @@ export function InteractiveNote({ markdown, topicTitle, bare, lazy, classId, kcI
             </div>
           </>
         ) : (
-          <article className="note-paper">
+          <article className="note-paper sunroot-paper">
             {note.title && <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight mb-2">{note.title}</h1>}
             {note.pages.map((p) => (
               <section key={p.id}>
                 {!p.synthetic && header(p)}
-                <NoteBody markdown={p.body} />
+                <NoteBody markdown={p.body} pageTitle={p.title || topic} pageKey={`${kcId || topic}-${p.id}`} />
               </section>
             ))}
           </article>
