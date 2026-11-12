@@ -12,6 +12,7 @@ import { normalizeMath } from "@/lib/text/readable";
 import { readMinutes, splitAtomicBlocks, splitTextbookPages, type TextbookPage, type TextbookSectionKind } from "@/lib/study/note-sections";
 import type { PageBudget } from "@/lib/study/page-fit";
 import { Rope, type RopeHandle } from "@/components/bot/rope";
+import { rappelMs } from "@/lib/pet/motion";
 import { hashText, splitByTerms, termRegex } from "@/lib/study/terms";
 import { getGlossary, preloadImages, type GlossaryCard } from "@/lib/study/glossary-client";
 import { cn } from "@/lib/utils";
@@ -405,7 +406,16 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
         const q = el.getBoundingClientRect();
         return { x: q.left + q.width / 2, y: Math.min(q.top + 5, window.innerHeight - 2) };
       };
-      // fire: the rope flies to the pop-up's top edge, still lying at the bottom of the screen
+      // hook a second rope to the top of the screen: Sprout hangs from it by one hand while the other hand hauls the card
+      const a0 = b.anchorPoint();
+      const hook = { x: a0 ? a0.x : window.innerWidth - 40, y: 4 };
+      playRopeSwingSound();
+      await tween(240, (t) => {
+        const a = b.anchorPoint();
+        if (a) rope.setAnchor(a, hook, easeOut(t));
+      }, stop);
+      if (off) return;
+      // fire: the haul rope flies to the pop-up's top edge, still lying at the bottom of the screen
       playRopeSwingSound();
       await tween(650, (t) => {
         const h = hand();
@@ -437,18 +447,27 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
         const h = hand();
         if (h) rope.set(h, edge(), 1 - easeIn(t), 0.1);
       }, stop);
-      rope.hide();
       if (off) return;
 
-      // Sprout jumps down and lands directly on top of the page header / top border of the card!
-      await b.hopTo(el, { anchor: "perch", pose: "jump", duration: 460 });
+      // lower itself down the rope it hangs from: one straight, smooth descent (no hop up first, no overshoot), landing on the card's top border
+      const dropMs = rappelMs(finalTop - pullSpot.top);
+      const lowering = tween(dropMs + 60, () => {
+        const a = b.anchorPoint();
+        if (a) rope.setAnchor(a, hook, 1);
+      }, stop);
+      await Promise.all([b.hopTo(el, { anchor: "perch", pose: "pull", duration: dropMs, arc: 0, easing: "cubic-bezier(0.45, 0.05, 0.4, 1)", glide: true }), lowering]);
       if (off) return;
 
-      // Victory giggle and celebration on top of the header border
+      // landed: unhook, the rope drops away, and a little giggle on the card's top border
       b.setPose("giggle");
       playCuteVoice("cheer");
       b.say("Here it is!", 1800);
-      await new Promise((res) => window.setTimeout(res, 600));
+      await tween(300, (t) => {
+        const a = b.anchorPoint();
+        if (a) rope.setAnchor(a, hook, 1 - easeIn(t));
+      }, stop);
+      rope.hide();
+      await new Promise((res) => window.setTimeout(res, 350));
       if (off) return;
       b.setPose("idle");
       setSettled(true);
