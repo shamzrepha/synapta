@@ -445,6 +445,10 @@ html[data-keyboard="open"] [data-mobile-nav],
 html[data-typing="true"] [data-mobile-nav],
 body:has(input:focus, textarea:focus, select:focus) [data-mobile-nav] { display: none; }
 html[data-keyboard="open"] body { padding-bottom: 0; }
+/* floating buttons and players never sit on top of the field you are typing in */
+html[data-keyboard="open"] [data-floating],
+html[data-typing="true"] [data-floating],
+body:has(input:focus, textarea:focus) [data-floating] { display: none !important; }
 textarea, input { scroll-margin-block: 96px; }
 
 /* Interactive lesson notebook */
@@ -642,7 +646,8 @@ p, h1, h2, h3, h4, h5, h6, li, blockquote, label, figcaption, dd, dt { overflow-
 /* ===== Sprout, the helper bot ===== */
 .sunroot-bot { position: fixed; left: 0; top: 0; z-index: 85; width: 64px; height: 72px; pointer-events: none; will-change: transform; }
 .sunroot-bot-body { pointer-events: auto; width: 100%; height: 100%; cursor: pointer; -webkit-tap-highlight-color: transparent; background: none; border: 0; padding: 0; }
-html[data-keyboard="open"] .sunroot-bot { display: none; }
+html[data-keyboard="open"] .sunroot-bot,
+html[data-typing="true"] .sunroot-bot { display: none; }
 .sunroot-bot-bubble {
   position: absolute; bottom: 100%; right: 0; margin-bottom: 4px; max-width: 14rem; min-width: 5rem; width: max-content;
   padding: 0.4rem 0.7rem; border-radius: 0.9rem 0.9rem 0.2rem 0.9rem; font-size: 0.75rem; font-weight: 600; line-height: 1.3;

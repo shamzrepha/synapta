@@ -138,6 +138,23 @@ const KIND_LABELS: Partial<Record<TextbookSectionKind, string>> = {
   mistakes: "Watch Out",
 };
 
+/** What a topic shows when its full note doesn't exist yet. Students never generate content: they are told their teacher is on it. */
+function EmptyNote({ classId, kcId, description, canManage }: { classId: string; kcId: string; description?: string; canManage: boolean }) {
+  return (
+    <div className="space-y-2">
+      {description && <p className="note-prose">{description}</p>}
+      {canManage ? (
+        <p className="text-xs text-muted-foreground">
+          This topic has no full note yet, so students see it empty. On the class page use <b>Write full textbook chapters</b>, or{" "}
+          <Link href={`/classes/${classId}/topics/${kcId}`} className="text-brand-600 underline">open the topic</Link> to write it.
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">Your teacher is still writing this chapter. It will show up here as soon as it is published.</p>
+      )}
+    </div>
+  );
+}
+
 const SectionView = memo(function SectionView({
   s,
   classId,
@@ -150,8 +167,10 @@ const SectionView = memo(function SectionView({
   classDone,
   classTitle,
   onRecallPass,
+  canManage = false,
 }: {
   s: Section;
+  canManage?: boolean;
   onRecallPass?: (kcId: string) => void;
   classId: string;
   onListen: (id: string) => void;
@@ -184,13 +203,7 @@ const SectionView = memo(function SectionView({
       {hidden ? (
         <p className="text-sm text-muted-foreground">Your teacher hasn&apos;t published this note yet.</p>
       ) : thin ? (
-        <div className="space-y-2">
-          {s.description && <p className="note-prose">{s.description}</p>}
-          <p className="text-xs text-muted-foreground">
-            The full note for this topic is written the first time it is opened.{" "}
-            <Link href={`/classes/${classId}/topics/${s.id}`} className="text-brand-600 underline">Open the topic</Link>
-          </p>
-        </div>
+        <EmptyNote classId={classId} kcId={s.id} description={s.description} canManage={canManage} />
       ) : (
         <InteractiveNote
           bare
@@ -1114,20 +1127,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                       {currentFlip.section.published?.lesson === false ? (
                         <p className="text-sm text-muted-foreground">Your teacher hasn&apos;t published this note yet.</p>
                       ) : (currentFlip.section.lessonMarkdown || "").trim().length < THIN ? (
-                        <div className="space-y-2">
-                          {currentFlip.section.description && (
-                            <p className="note-prose">{currentFlip.section.description}</p>
-                          )}
-                          <p className="text-xs text-muted-foreground">
-                            The full note for this topic is written the first time it is opened.{" "}
-                            <Link
-                              href={`/classes/${classId}/topics/${currentFlip.section.id}`}
-                              className="text-brand-600 underline"
-                            >
-                              Open the topic
-                            </Link>
-                          </p>
-                        </div>
+                        <EmptyNote classId={classId} kcId={currentFlip.section.id} description={currentFlip.section.description} canManage={canManage} />
                       ) : (
                         <InteractiveNote
                           bare
@@ -1245,6 +1245,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                   onSeen={markDone}
                   classDone={classDone}
                   classTitle={title}
+                  canManage={canManage}
                   onRecallPass={recallPass}
                 />
               ))}
@@ -1254,12 +1255,12 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       </div>
 
       {voice.state !== "idle" && (
-        <div className="fixed inset-x-3 bottom-[4.75rem] lg:bottom-4 lg:left-auto lg:right-6 lg:w-96 z-40">
+        <div data-floating className="fixed inset-x-3 bottom-[4.75rem] lg:bottom-4 lg:left-auto lg:right-6 lg:w-96 z-40">
           <ReadPlayer api={voice} title={listeningTitle} />
         </div>
       )}
       {voice.failed && (
-        <p className="fixed bottom-24 inset-x-4 z-40 rounded-xl bg-rose-600 text-white text-sm px-3 py-2 text-center">The voice is busy right now. Try again in a moment.</p>
+        <p data-floating className="fixed bottom-24 inset-x-4 z-40 rounded-xl bg-rose-600 text-white text-sm px-3 py-2 text-center">The voice is busy right now. Try again in a moment.</p>
       )}
       {mapOpen && (
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/50 sm:p-4" onClick={() => setMapOpen(false)} role="presentation">

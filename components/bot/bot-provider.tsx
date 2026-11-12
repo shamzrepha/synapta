@@ -130,7 +130,8 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
 
   const home = useCallback(() => {
     const narrow = window.innerWidth < 768;
-    return { x: window.innerWidth - W - 8, y: window.innerHeight - H - (narrow ? 100 : 24) };
+    // phones: bottom-left, above the menu, so it never sits on the "Ask tutor" button or the read-aloud bar
+    return narrow ? { x: 8, y: window.innerHeight - H - 84 } : { x: window.innerWidth - W - 8, y: window.innerHeight - H - 24 };
   }, []);
 
   const place = useCallback((x: number, y: number) => {
