@@ -8,6 +8,7 @@ import { Play, Pause, RotateCcw, Sparkles, StepForward, Gauge } from "lucide-rea
 import { cn } from "@/lib/utils";
 import { evaluate } from "@/lib/studio/expr";
 import { usePrefs } from "@/components/settings/use-prefs";
+import { useBot } from "@/components/bot/bot-provider";
 import {
   gcd,
   type ConceptFlowScene,
@@ -537,6 +538,29 @@ function EquationStepsStage({
     setRawPlaying(true);
   };
 
+  // Sprout hops to the term being crossed out and scribbles over it as the line draws
+  const bot = useBot();
+  const botRef = useRef(bot);
+  useEffect(() => {
+    botRef.current = bot;
+  });
+  const stageEl = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (reduceMotion) return;
+    const el = stageEl.current?.querySelector('[data-cross="latest"]');
+    if (!el || !botRef.current.enabled) return;
+    let off = false;
+    const id = window.setTimeout(() => {
+      void botRef.current.hopTo(el, { anchor: "left", pose: "cross", duration: 340 }).then(() => {
+        if (!off) window.setTimeout(() => void botRef.current.rest(), 1100);
+      });
+    }, 250);
+    return () => {
+      off = true;
+      window.clearTimeout(id);
+    };
+  }, [visibleCount, reduceMotion]);
+
   return (
     <StageShell
       badge="Step Motion"
@@ -563,7 +587,7 @@ function EquationStepsStage({
         </>
       }
     >
-      <div className="space-y-2.5">
+      <div className="space-y-2.5" ref={stageEl}>
         {scene.steps.slice(0, visibleCount).map((step, i) => {
           const isLatest = i === visibleCount - 1;
           return (
@@ -598,7 +622,7 @@ function EquationStepsStage({
                         <span key={ci}>
                           {chunk}
                           {ci < arr.length - 1 && (
-                            <span className="relative inline-block px-0.5 text-rose-500/80 line-through decoration-2 decoration-rose-500">
+                            <span data-cross={isLatest ? "latest" : undefined} className={isLatest ? "kin-cross" : "relative inline-block px-0.5 text-rose-500/80 line-through decoration-2 decoration-rose-500"}>
                               {step.slashTerm}
                             </span>
                           )}

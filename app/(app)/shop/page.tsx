@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { asArray } from "@/lib/api/client";
-import { SHOP_ITEMS, isEquippable, type ShopItem, type EquipSlot } from "@/lib/shop/catalog";
+import { SHOP_ITEMS, isEquippable, slotOf, type ShopItem, type EquipSlot } from "@/lib/shop/catalog";
+import { PET_EVENT } from "@/components/bot/bot-provider";
 import { THEME_EVENT } from "@/components/shop/theme-applier";
 import { formatNumber } from "@/lib/utils";
 import type { ShopState } from "@/lib/shop/server";
@@ -15,6 +16,7 @@ const SECTIONS: Array<{ title: string; kinds: ShopItem["kind"][] }> = [
   { title: "Accent themes", kinds: ["theme"] },
   { title: "Avatar frames", kinds: ["frame"] },
   { title: "Titles", kinds: ["title"] },
+  { title: "Sprout's wardrobe", kinds: ["pet"] },
   { title: "Streak boosters", kinds: ["freeze", "recovery"] },
 ];
 
@@ -72,6 +74,7 @@ export default function ShopPage() {
       const json = await post("/api/shop/purchase", { itemId: item.id });
       if (json.ok) {
         setState(json.data.state);
+        if (item.kind === "pet") window.dispatchEvent(new Event(PET_EVENT));
         toast({ title: `${item.emoji} ${item.name}`, description: `Purchased for ${formatNumber(json.data.spent)} XP.`, variant: "success" });
       } else {
         toast({ title: "Couldn't buy that", description: json.error?.message || "Try again.", variant: "destructive" });
@@ -92,6 +95,7 @@ export default function ShopPage() {
       if (json.ok) {
         setState(json.data);
         if (slot === "theme") window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: itemId }));
+        if (slot.startsWith("pet_")) window.dispatchEvent(new Event(PET_EVENT));
       } else {
         toast({ title: "Couldn't equip", description: json.error?.message, variant: "destructive" });
       }
@@ -119,9 +123,14 @@ export default function ShopPage() {
         <p className="text-xs text-slate-500">
           {state ? `${formatNumber(state.xp)} total · ${formatNumber(state.xpSpent)} spent` : ""}
         </p>
-        <Link href="/streak" className="text-xs font-semibold text-brand-600 dark:text-brand-400 underline">
-          Streak page
-        </Link>
+        <div className="flex gap-3">
+          <Link href="/pet" className="text-xs font-semibold text-brand-600 dark:text-brand-400 underline">
+            Dress up Sprout
+          </Link>
+          <Link href="/streak" className="text-xs font-semibold text-brand-600 dark:text-brand-400 underline">
+            Streak page
+          </Link>
+        </div>
       </Card>
 
       {SECTIONS.map((section) => (
@@ -133,7 +142,7 @@ export default function ShopPage() {
               .map((item) => {
                 const owned = !!state?.owned[item.id];
                 const equippable = isEquippable(item);
-                const slot = item.kind as EquipSlot;
+                const slot = slotOf(item) as EquipSlot;
                 const equipped = equippable && state?.equipped[slot] === item.id;
                 const price = item.kind === "recovery" ? state?.recovery.cost ?? 0 : item.price;
                 const disabledReason =

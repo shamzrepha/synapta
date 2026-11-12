@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api/errors";
 import { MAX_STREAK_FREEZES } from "@/lib/game/streak";
 import { dayIdFor } from "@/lib/game/quests";
 import { addDays, recoveryCost, recoveryState } from "@/lib/streak/logic";
-import { checkPurchase, getItem, isEquippable, spendableXp, type EquipSlot } from "./catalog";
+import { ALL_SLOTS, checkPurchase, getItem, isEquippable, slotOf, spendableXp, type EquipSlot } from "./catalog";
 
 export interface ShopState {
   xp: number;
@@ -35,9 +35,10 @@ function cleanOwned(raw: unknown): Record<string, string> {
 function cleanEquipped(raw: unknown, owned: Record<string, string>): Partial<Record<EquipSlot, string>> {
   const out: Partial<Record<EquipSlot, string>> = {};
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  for (const slot of ["theme", "frame", "title"] as EquipSlot[]) {
+  for (const slot of ALL_SLOTS) {
     const id = r[slot];
-    if (typeof id === "string" && owned[id] !== undefined && getItem(id)?.kind === slot) out[slot] = id;
+    const item = typeof id === "string" ? getItem(id) : undefined;
+    if (typeof id === "string" && owned[id] !== undefined && item && slotOf(item) === slot) out[slot] = id;
   }
   return out;
 }
@@ -141,7 +142,7 @@ export async function equipItem(uid: string, slot: EquipSlot, itemId: string | n
       return;
     }
     const item = getItem(itemId);
-    if (!item || item.kind !== slot) throw new ApiError(400, "VALIDATION", "That item can't go in this slot.");
+    if (!item || slotOf(item) !== slot) throw new ApiError(400, "VALIDATION", "That item can't go in this slot.");
     const owned = (snap.data()!.shopOwned || {}) as Record<string, unknown>;
     if (!owned[itemId]) throw new ApiError(403, "NOT_OWNED", "You don't own this item yet.");
     t.update(userRef, { [`shopEquipped.${slot}`]: itemId });

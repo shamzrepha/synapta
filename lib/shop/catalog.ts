@@ -1,5 +1,9 @@
-export type ShopKind = "theme" | "frame" | "title" | "freeze" | "recovery";
-export type EquipSlot = "theme" | "frame" | "title";
+export type ShopKind = "theme" | "frame" | "title" | "freeze" | "recovery" | "pet";
+export type PetSlot = "hat" | "shoes" | "face" | "back";
+export type PetEquipSlot = `pet_${PetSlot}`;
+export type EquipSlot = "theme" | "frame" | "title" | PetEquipSlot;
+export const PET_SLOTS: PetSlot[] = ["hat", "face", "back", "shoes"];
+export const ALL_SLOTS: EquipSlot[] = ["theme", "frame", "title", "pet_hat", "pet_face", "pet_back", "pet_shoes"];
 
 export interface ShopItem {
   id: string;
@@ -14,6 +18,8 @@ export interface ShopItem {
   frameClass?: string;
   /** title: text shown under the name */
   titleText?: string;
+  /** pet: where on Sprout it is worn */
+  petSlot?: PetSlot;
 }
 
 export const THEME_SHADES = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
@@ -39,6 +45,19 @@ export const SHOP_ITEMS: ShopItem[] = [
   { id: "title_streak_keeper", kind: "title", name: "Title: Streak Keeper", description: "Consistency is everything.", emoji: "🔥", price: 200, titleText: "Streak Keeper" },
   { id: "title_polymath", kind: "title", name: "Title: Polymath", description: "Curious about everything.", emoji: "📚", price: 400, titleText: "Polymath" },
 
+  { id: "pet_hat_cap", kind: "pet", petSlot: "hat", name: "Sprout's cap", description: "A sporty red cap.", emoji: "🧢", price: 80 },
+  { id: "pet_hat_headphones", kind: "pet", petSlot: "hat", name: "Headphones", description: "Study beats on.", emoji: "🎧", price: 180 },
+  { id: "pet_hat_wizard", kind: "pet", petSlot: "hat", name: "Wizard hat", description: "For a very wise sprout.", emoji: "🧙", price: 150 },
+  { id: "pet_hat_crown", kind: "pet", petSlot: "hat", name: "Crown", description: "Rule the leaderboard.", emoji: "👑", price: 400 },
+  { id: "pet_face_glasses", kind: "pet", petSlot: "face", name: "Round glasses", description: "Looks very clever.", emoji: "🤓", price: 90 },
+  { id: "pet_face_shades", kind: "pet", petSlot: "face", name: "Sunglasses", description: "Too cool for homework.", emoji: "😎", price: 100 },
+  { id: "pet_back_scarf", kind: "pet", petSlot: "back", name: "Green scarf", description: "Cosy for late study.", emoji: "🧣", price: 120 },
+  { id: "pet_back_backpack", kind: "pet", petSlot: "back", name: "Backpack", description: "Ready for class.", emoji: "🎒", price: 150 },
+  { id: "pet_back_cape", kind: "pet", petSlot: "back", name: "Hero cape", description: "Fly through your lessons.", emoji: "🦸", price: 200 },
+  { id: "pet_shoes_sneakers", kind: "pet", petSlot: "shoes", name: "Sneakers", description: "Faster hops.", emoji: "👟", price: 120 },
+  { id: "pet_shoes_boots", kind: "pet", petSlot: "shoes", name: "Boots", description: "Puddle proof.", emoji: "🥾", price: 160 },
+  { id: "pet_shoes_rocket", kind: "pet", petSlot: "shoes", name: "Rocket shoes", description: "Blast off.", emoji: "🚀", price: 350 },
+
   { id: "streak_freeze", kind: "freeze", name: "Streak freeze", description: "Covers one missed day automatically. You can hold up to 3.", emoji: "🧊", price: 120 },
   { id: "streak_recovery", kind: "recovery", name: "Streak recovery", description: "Restore a streak you broke in the last 24 hours. Price depends on streak length.", emoji: "🩹", price: 0 },
 ];
@@ -50,7 +69,14 @@ export function getItem(id: string): ShopItem | undefined {
 }
 
 export function isEquippable(item: ShopItem): boolean {
-  return item.kind === "theme" || item.kind === "frame" || item.kind === "title";
+  return item.kind === "theme" || item.kind === "frame" || item.kind === "title" || item.kind === "pet";
+}
+
+/** The slot an equippable item goes into. */
+export function slotOf(item: ShopItem): EquipSlot | null {
+  if (item.kind === "pet") return item.petSlot ? (`pet_${item.petSlot}` as EquipSlot) : null;
+  if (item.kind === "theme" || item.kind === "frame" || item.kind === "title") return item.kind;
+  return null;
 }
 
 /** Spendable XP never goes below zero; total XP and level are unaffected by spending. */

@@ -27,6 +27,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { InteractiveNote, type StudySignalPayload } from "@/components/lesson/interactive-note";
 import { TopicDone } from "@/components/lesson/topic-done";
+import { useBot } from "@/components/bot/bot-provider";
 import { TextbookWriter } from "@/components/lesson/textbook-writer";
 import { ClassMindMap } from "@/components/classes/class-mind-map";
 import { readMinutes, splitTextbookPages, type TextbookSectionKind } from "@/lib/study/note-sections";
@@ -456,6 +457,20 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     [flipPages, safeFlipIdx, sendSignal]
   );
 
+  // turning forward with the button or the curl: Sprout hops to the corner and flips the page, then goes back
+  const bot = useBot();
+  const flipForward = useCallback(() => {
+    const corner = document.querySelector(".note-corner-curl");
+    if (!bot.enabled || !corner) {
+      goToPage(safeFlipIdx + 1);
+      return;
+    }
+    void bot.hopTo(corner, { anchor: "left", pose: "point", duration: 320 }).then(() => {
+      goToPage(safeFlipIdx + 1);
+      void bot.rest();
+    });
+  }, [bot, goToPage, safeFlipIdx]);
+
   const findFlipIndex = useCallback(
     (id: string, snippet?: string, pageHint?: number) => {
       const matches = flipPages
@@ -545,6 +560,23 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     }
   }, [doneKey]);
   const classDone = readable.length > 0 && readable.every((r) => doneIds.includes(r.id));
+
+  // the bot jumps for joy when the class is a quarter, half, three quarters and fully read
+  const milestone = useRef<number | null>(null);
+  useEffect(() => {
+    if (readable.length === 0) return;
+    const pct = Math.round((doneIds.filter((id) => readable.some((r) => r.id === id)).length / readable.length) * 100);
+    const m = [100, 75, 50, 25].find((t) => pct >= t) ?? 0;
+    if (milestone.current === null) {
+      milestone.current = m; // what was already read before this visit does not count
+      return;
+    }
+    if (m > milestone.current) {
+      milestone.current = m;
+      const bar = progressBar.current?.parentElement;
+      if (bar) void bot.cheerAt(bar, m === 100 ? "You finished the whole class!" : `${m}% of the class read!`);
+    }
+  }, [doneIds, readable, bot]);
   const recallPass = useCallback(
     (kcId: string) => {
       void sendSignal(kcId, "check_pass", sections.find((x) => x.id === kcId)?.title);
@@ -1022,7 +1054,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                       {safeFlipIdx < flipPages.length - 1 && (
                         <button
                           type="button"
-                          onClick={() => goToPage(safeFlipIdx + 1)}
+                          onClick={flipForward}
                           aria-label="Turn to next page"
                           title="Flip page"
                           className="note-corner-curl flex items-end justify-end p-1.5 text-brand-700 dark:text-brand-300"
@@ -1185,7 +1217,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                       </div>
                       <Button
                         type="button"
-                        onClick={() => goToPage(safeFlipIdx + 1)}
+                        onClick={flipForward}
                         disabled={safeFlipIdx >= flipPages.length - 1}
                       >
                         Next page <ChevronRight className="h-4 w-4 ml-1" />

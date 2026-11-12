@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
@@ -16,6 +16,7 @@ import { extractKineticScenesForPage, type KineticScene } from "@/lib/study/kine
 import { KineticStage } from "@/components/study/kinetic-formula";
 import type { ImageFilter } from "@/lib/images/commons";
 import katex from "katex";
+import { useBot } from "@/components/bot/bot-provider";
 import type { VisualKind } from "@/lib/study/visual";
 
 interface TermCard {
@@ -44,7 +45,7 @@ export interface StudySignalPayload {
 
 /** The sentence or paragraph a tapped word sits in, so the explanation fits the topic. */
 const ContextCtx = React.createContext<string>("");
-const OpenTermCtx = React.createContext<(term: string, context: string) => void>(() => {});
+const OpenTermCtx = React.createContext<(term: string, context: string, el?: Element | null) => void>(() => {});
 
 function nodeText(n: React.ReactNode): string {
   if (n == null || typeof n === "boolean") return "";
@@ -62,7 +63,7 @@ function Term({ children }: { children?: React.ReactNode }) {
   return (
     <button
       type="button"
-      onClick={() => open(text, ctx)}
+      onClick={(e) => open(text, ctx, e.currentTarget)}
       className="note-term"
       aria-label={`${text}: tap for a picture and explanation`}
     >
@@ -74,12 +75,12 @@ function Term({ children }: { children?: React.ReactNode }) {
 const TermsCtx = React.createContext<RegExp | null>(null);
 
 /** Turns every relevant word in a paragraph into a tappable highlight (each word once per paragraph). */
-function highlight(node: React.ReactNode, re: RegExp | null, used: Set<string>, open: (t: string, c: string) => void, ctx: string): React.ReactNode {
+function highlight(node: React.ReactNode, re: RegExp | null, used: Set<string>, open: (t: string, c: string, el?: Element | null) => void, ctx: string): React.ReactNode {
   if (!re) return node;
   if (typeof node === "string") {
     return splitByTerms(node, re, used).map((p, i) =>
       p.term ? (
-        <button key={i} type="button" onClick={() => open(p.text, ctx)} className="note-term" aria-label={`${p.text}: tap for a picture and explanation`}>
+        <button key={i} type="button" onClick={(e) => open(p.text, ctx, e.currentTarget)} className="note-term" aria-label={`${p.text}: tap for a picture and explanation`}>
           {p.text}
         </button>
       ) : (
@@ -275,7 +276,59 @@ function NoteBody({
 }
 
 /** The pop-up for a tapped word: topic-filtered pictures, what it is, key facts, an example, and "simpler" / "another example". */
-function TermSheet({ term, context, topic, preset, onClose }: { term: string; context: string; topic: string; /** the card prepared in the background, so nothing loads */ preset?: GlossaryCard; onClose: () => void }) {
+interface Origin {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  right: number;
+  bottom: number;
+}
+
+function TermSheet({ term, context, topic, preset, origin, onClose }: { term: string; context: string; topic: string; /** the card prepared in the background, so nothing loads */ preset?: GlossaryCard; /** where the tapped word is: Sprout runs there and the pop-up grows out of it */ origin?: Origin; onClose: () => void }) {
+  const bot = useBot();
+  const theatrical = !!origin && bot.enabled;
+  const [arrived, setArrived] = useState(!theatrical);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const botRef = useRef(bot);
+  useEffect(() => {
+    botRef.current = bot;
+  });
+  // Sprout runs to the word with a magnifying glass first; the pop-up opens when it gets there
+  useEffect(() => {
+    if (!theatrical || !origin) return;
+    let off = false;
+    const b = botRef.current;
+    b.countLookup();
+    void (async () => {
+      await b.hopTo(origin as DOMRect, { pose: "search", duration: b.quick ? 260 : 560, say: b.quick ? undefined : "Let me look that up!" });
+      if (off) return;
+      b.say("");
+      setArrived(true);
+    })();
+    return () => {
+      off = true;
+      void botRef.current.rest();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // the pop-up grows out of the word while Sprout carries it to its place
+  useLayoutEffect(() => {
+    if (!theatrical || !arrived || !origin || !sheetRef.current) return;
+    const el = sheetRef.current;
+    const r = el.getBoundingClientRect();
+    const dx = origin.left + origin.width / 2 - (r.left + r.width / 2);
+    const dy = origin.top + origin.height / 2 - (r.top + r.height / 2);
+    const quick = botRef.current.quick;
+    el.animate(
+      [
+        { transform: `translate(${dx}px, ${dy}px) scale(0.12)`, opacity: 0.2 },
+        { transform: "none", opacity: 1 },
+      ],
+      { duration: quick ? 240 : 460, easing: "cubic-bezier(0.2, 0.9, 0.25, 1)" },
+    );
+    void botRef.current.hopTo(el, { anchor: "top-left", pose: "search", duration: quick ? 260 : 480 });
+  }, [theatrical, arrived, origin]);
   const presetCard: TermCard | null = preset ? { summary: preset.summary, keyPoints: preset.keyPoints || [], example: preset.example || "", imageQuery: preset.imageQuery || "", wikipediaTitle: preset.wikipediaTitle || "", visual: preset.visual, formula: preset.formula || "" } : null;
   const [card, setCard] = useState<TermCard | null>(presetCard);
   const [pics, setPics] = useState<Pic[]>((preset?.images as Pic[] | undefined) ?? []);
@@ -379,6 +432,10 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
   };
 
   const pic = pics[picIdx];
+  useEffect(() => {
+    // Sprout keeps scanning while the answer is still arriving, then points at it
+    if (theatrical && arrived) botRef.current.setPose(card && !busy ? "point" : "search");
+  }, [theatrical, arrived, card, busy]);
   // what to show above the text: older saved cards have no decision, so a card that already carries pictures keeps them
   const visual: VisualKind = card?.visual ?? preset?.visual ?? (pics.length > 0 ? "photo" : "none");
   const showPics = visual === "photo" || visual === "diagram";
@@ -392,13 +449,17 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
     }
   }, [visual, card?.formula, preset?.formula]);
 
+  if (!arrived) return null;
+
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center bg-black/50 p-0 sm:p-4" onClick={onClose} role="presentation">
       <div
+        ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-label={`About ${term}`}
         onClick={(e) => e.stopPropagation()}
+        style={theatrical ? { animation: "none" } : undefined}
         className="note-sheet w-full sm:max-w-md max-h-[88dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-card border border-border shadow-elevated"
       >
         <div className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-card/95 backdrop-blur px-5 pt-4 pb-2">
@@ -493,9 +554,9 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
 
           {card && (
             <div className={cn("space-y-3 transition-opacity", busy && "opacity-50")}>
-              <p className="text-[15px] leading-relaxed">{card.summary}</p>
+              <p className="text-[15px] leading-relaxed note-build note-build-1">{card.summary}</p>
               {card.keyPoints.length > 0 && (
-                <ul className="space-y-1.5 text-sm">
+                <ul className="space-y-1.5 text-sm note-build note-build-2">
                   {card.keyPoints.map((k, i) => (
                     <li key={i} className="flex gap-2">
                       <span className="mt-2 h-1.5 w-1.5 rounded-full bg-brand-500 shrink-0" />
@@ -505,7 +566,7 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
                 </ul>
               )}
               {card.example && (
-                <div className="rounded-xl bg-brand-500/5 border border-brand-500/20 p-3 text-sm">
+                <div className="rounded-xl bg-brand-500/5 border border-brand-500/20 p-3 text-sm note-build note-build-3">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300 mb-1 flex items-center gap-1">
                     <Lightbulb className="h-3.5 w-3.5" /> Example
                   </p>
@@ -515,7 +576,7 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
             </div>
           )}
 
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2 pt-1 note-build note-build-4">
             <Button size="sm" variant="outline" onClick={() => load("simpler")} disabled={busy}>Explain simpler</Button>
             <Button size="sm" variant="outline" onClick={() => load("example")} disabled={busy}>Another example</Button>
           </div>
@@ -568,7 +629,7 @@ export function InteractiveNote({
   const [cards, setCards] = useState<Map<string, GlossaryCard>>(new Map());
   const [idx, setIdx] = useState(0);
   const [dir, setDir] = useState<"next" | "prev">("next");
-  const [term, setTerm] = useState<{ term: string; context: string } | null>(null);
+  const [term, setTerm] = useState<{ term: string; context: string; origin?: Origin } | null>(null);
   const top = useRef<HTMLDivElement>(null);
   const [seen, setSeen] = useState(!lazy);
 
@@ -649,8 +710,9 @@ export function InteractiveNote({
   const termRe = useMemo(() => termRegex(terms), [terms]);
 
   const openTerm = useCallback(
-    (t: string, ctx: string) => {
-      setTerm({ term: t, context: ctx });
+    (t: string, ctx: string, el?: Element | null) => {
+      const r = el?.getBoundingClientRect();
+      setTerm({ term: t, context: ctx, origin: r ? { left: r.left, top: r.top, width: r.width, height: r.height, right: r.right, bottom: r.bottom } : undefined });
       onStudySignal?.({ event: "term_explore", concept: t });
     },
     [onStudySignal]
@@ -714,7 +776,7 @@ export function InteractiveNote({
             ))}
           </div>
         </TermsCtx.Provider>
-        {term && createPortal(<TermSheet term={term.term} context={term.context} topic={topic} preset={cards.get(term.term.toLowerCase())} onClose={() => setTerm(null)} />, document.body)}
+        {term && createPortal(<TermSheet term={term.term} context={term.context} topic={topic} origin={term.origin} preset={cards.get(term.term.toLowerCase())} onClose={() => setTerm(null)} />, document.body)}
       </OpenTermCtx.Provider>
     );
   }
@@ -871,7 +933,7 @@ export function InteractiveNote({
         )}
       </div>
 
-      {term && createPortal(<TermSheet term={term.term} context={term.context} topic={topic} preset={cards.get(term.term.toLowerCase())} onClose={() => setTerm(null)} />, document.body)}
+      {term && createPortal(<TermSheet term={term.term} context={term.context} topic={topic} origin={term.origin} preset={cards.get(term.term.toLowerCase())} onClose={() => setTerm(null)} />, document.body)}
     </TermsCtx.Provider>
     </OpenTermCtx.Provider>
   );
