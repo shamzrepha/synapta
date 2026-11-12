@@ -523,6 +523,29 @@ textarea, input { scroll-margin-block: 96px; }
   to { opacity: 1; transform: none; filter: none; }
 }
 .note-explode { animation: note-explode 0.55s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); }
+.note-corner-curl {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 3rem;
+  height: 3rem;
+  background: linear-gradient(315deg, color-mix(in srgb, var(--color-brand-500, #3b6df6) 14%, var(--color-card, #ffffff)) 0%, color-mix(in srgb, var(--color-brand-500, #3b6df6) 6%, #e2e8f0) 48%, transparent 50%);
+  border-top-left-radius: 0.75rem;
+  box-shadow: -3px -3px 10px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  transition: width 0.2s ease, height 0.2s ease, box-shadow 0.2s ease;
+}
+.note-corner-curl:hover,
+.note-corner-curl:focus-visible {
+  width: 3.75rem;
+  height: 3.75rem;
+  box-shadow: -5px -5px 14px rgba(15, 23, 42, 0.14);
+  outline: none;
+}
+.dark .note-corner-curl {
+  background: linear-gradient(315deg, color-mix(in srgb, var(--color-brand-400, #60a5fa) 18%, #0f172a) 0%, color-mix(in srgb, var(--color-brand-400, #60a5fa) 8%, #1e293b) 48%, transparent 50%);
+  box-shadow: -3px -3px 10px rgba(0, 0, 0, 0.4);
+}
 /* lesson text styles (the typography plugin is not installed, so these are explicit) */
 .note-prose { font-size: calc(0.97rem * var(--note-scale, 1)); line-height: 1.8; overflow-wrap: anywhere; }
 @media (min-width: 640px) { .note-prose { font-size: calc(1.04rem * var(--note-scale, 1)); } }

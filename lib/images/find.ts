@@ -1,4 +1,4 @@
-import { searchImages, isAllowedImageUrl } from "@/lib/images/commons";
+import { searchImages, isAllowedImageUrl, type ImageFilter } from "@/lib/images/commons";
 
 /**
  * Finds pictures that really show the thing, not just something nearby. Order of trust:
@@ -75,28 +75,77 @@ async function openverse(query: string): Promise<PickedImage[]> {
   return out;
 }
 
-export async function findBestImages(opts: { term: string; wikipediaTitle?: string; imageQuery?: string; limit?: number }): Promise<PickedImage[]> {
+const NOISE_TITLE_RE = /\b(logo|wordmark|favicon|coat of arms|flag of|signature|autograph|disambiguation|placeholder|stub|album cover|book cover|poster|seal of|locator map)\b/i;
+const DIAGRAM_RE = /(diagram|schematic|cross[- ]?section|structure|labeled|anatomy|cycle|chart|circuit|pathway|illustration|vector|\.svg)/i;
+
+function isNoisyImage(title: string, term: string): boolean {
+  const m = NOISE_TITLE_RE.exec(title);
+  if (!m) return false;
+  return !term.toLowerCase().includes(m[1].toLowerCase());
+}
+
+export async function findBestImages(opts: {
+  term: string;
+  wikipediaTitle?: string;
+  imageQuery?: string;
+  topic?: string;
+  filter?: ImageFilter;
+  limit?: number;
+}): Promise<PickedImage[]> {
   const term = opts.term.trim();
   const q = (opts.imageQuery || term).trim();
+  const filter = opts.filter ?? "all";
+  const topic = (opts.topic || "").trim();
+  const topicWords = words(topic);
+  const queryWithContext = topicWords.length > 0 && titleMatch(topic, q) === 0 ? `${q} ${topicWords[0]}` : q;
+
   const [lead, commons, ov] = await Promise.all([
     wikipediaLead(opts.wikipediaTitle || term),
-    searchImages(q, 6).catch(() => []),
-    openverse(q).catch(() => []),
+    searchImages(q, 10, filter).catch(() => []),
+    filter === "diagram" ? Promise.resolve([]) : openverse(queryWithContext).catch(() => []),
   ]);
+
+  const matchBest = (title: string) => {
+    const tScore = titleMatch(term, title);
+    const qScore = q && q.toLowerCase() !== term.toLowerCase() ? titleMatch(q, title) * 0.92 : 0;
+    return Math.max(tScore, qScore);
+  };
+
+  const contextBoost = (title: string) => (topic ? titleMatch(topic, title) * 0.45 : 0);
+  const isSvg = (url: string) => /\.svg(\?|$)/i.test(url);
+
   const scored: Array<{ img: PickedImage; score: number }> = [];
-  if (lead) scored.push({ img: lead, score: 2 + titleMatch(term, `${lead.title} ${opts.wikipediaTitle || ""}`) });
+  if (lead && !isNoisyImage(lead.title, term)) {
+    const svg = isSvg(lead.url);
+    if (!(filter === "photo" && svg)) {
+      const m = matchBest(`${lead.title} ${opts.wikipediaTitle || ""}`);
+      const diagBoost = filter === "diagram" && (svg || DIAGRAM_RE.test(lead.title)) ? 0.8 : 0;
+      scored.push({ img: lead, score: 2 + m + contextBoost(lead.title) + diagBoost });
+    }
+  }
   for (const c of commons) {
-    const m = titleMatch(term, c.title);
-    if (m >= 0.5) scored.push({ img: { url: c.url, page: c.page, title: c.title, author: c.author, license: c.license, source: "commons" }, score: 1 + m });
+    if (isNoisyImage(c.title, term)) continue;
+    const svg = isSvg(c.url);
+    if (filter === "photo" && svg) continue;
+    const m = matchBest(c.title);
+    if (m < 0.45) continue;
+    const diagBoost = filter === "diagram" ? (svg || DIAGRAM_RE.test(c.title) || DIAGRAM_RE.test(c.url) ? 1.1 : -0.3) : 0;
+    scored.push({
+      img: { url: c.url, page: c.page, title: c.title, author: c.author, license: c.license, source: "commons" },
+      score: 1 + m + contextBoost(c.title) + diagBoost,
+    });
   }
   for (const o of ov) {
-    const m = titleMatch(term, o.title);
-    if (m >= 0.6) scored.push({ img: o, score: m });
+    if (isNoisyImage(o.title, term)) continue;
+    if (filter === "photo" && isSvg(o.url)) continue;
+    const m = matchBest(o.title);
+    if (m >= 0.55) scored.push({ img: o, score: m + contextBoost(o.title) });
   }
+
   const seen = new Set<string>();
   return scored
     .sort((a, b) => b.score - a.score)
-    .filter((s) => (seen.has(s.img.url) ? false : (seen.add(s.img.url), true)))
-    .slice(0, opts.limit ?? 5)
-    .map((s) => s.img);
+    .filter((entry) => (seen.has(entry.img.url) ? false : (seen.add(entry.img.url), true)))
+    .slice(0, opts.limit ?? 6)
+    .map((entry) => entry.img);
 }

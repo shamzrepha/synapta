@@ -3,13 +3,31 @@
 import React, { memo, use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, BookOpen, Bookmark, ChevronLeft, ChevronRight, ListTree, Minus, Plus, Rows3, Search, Trash2, Volume2, X } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Bookmark,
+  Brain,
+  ChevronLeft,
+  ChevronRight,
+  Flame,
+  ListTree,
+  Minus,
+  Plus,
+  Rows3,
+  Search,
+  Sparkles,
+  Trash2,
+  Volume2,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { InteractiveNote } from "@/components/lesson/interactive-note";
-import { readMinutes, splitNote } from "@/lib/study/note-sections";
+import { InteractiveNote, type StudySignalPayload } from "@/components/lesson/interactive-note";
+import { readMinutes, splitTextbookPages, type TextbookSectionKind } from "@/lib/study/note-sections";
 import { readPrefs } from "@/components/settings/use-prefs";
+import { fireCelebration } from "@/components/game/confetti";
 import { asArray } from "@/lib/api/client";
 import { rankBlocks } from "@/lib/study/locate";
 import { ReadPlayer, useReadThrough } from "@/components/lesson/read-through";
@@ -102,12 +120,29 @@ function jumpToBlock(kcId: string, snippet: string): boolean {
   const heading = document.getElementById(`kc-${kcId}`);
   if (!heading) return false;
   const el = snippet ? findBlockEl(kcId, snippet) : null;
-  (el || heading).scrollIntoView({ block: el ? "start" : "start", behavior: "auto" });
+  (el || heading).scrollIntoView({ block: "start", behavior: "auto" });
   if (el) window.scrollBy(0, -80);
   return true;
 }
 
-const SectionView = memo(function SectionView({ s, classId, onListen }: { s: Section; classId: string; onListen: (id: string) => void }) {
+const KIND_LABELS: Partial<Record<TextbookSectionKind, string>> = {
+  example: "Worked Example",
+  check: "Quick Check",
+  terms: "Key Terms",
+  mistakes: "Watch Out",
+};
+
+const SectionView = memo(function SectionView({
+  s,
+  classId,
+  onListen,
+  onSignal,
+}: {
+  s: Section;
+  classId: string;
+  onListen: (id: string) => void;
+  onSignal?: (kcId: string, sig: StudySignalPayload) => void;
+}) {
   const text = (s.lessonMarkdown || "").trim();
   const hidden = s.published?.lesson === false;
   const thin = text.length < THIN;
@@ -137,7 +172,15 @@ const SectionView = memo(function SectionView({ s, classId, onListen }: { s: Sec
           </p>
         </div>
       ) : (
-        <InteractiveNote bare lazy markdown={text} topicTitle={s.title} classId={classId} kcId={s.id} />
+        <InteractiveNote
+          bare
+          lazy
+          markdown={text}
+          topicTitle={s.title}
+          classId={classId}
+          kcId={s.id}
+          onStudySignal={onSignal ? (sig) => onSignal(s.id, sig) : undefined}
+        />
       )}
     </section>
   );
@@ -162,10 +205,20 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
   const [viewMode, setViewMode] = useState<"flip" | "scroll">("flip");
   const [flipIdx, setFlipIdx] = useState(0);
   const [flipDir, setFlipDir] = useState<"next" | "prev">("next");
+  const [mentalStats, setMentalStats] = useState<{
+    pL: number | null;
+    explored: number;
+    sessionXp: number;
+    streakDays: number | null;
+  }>({ pL: null, explored: 0, sessionXp: 0, streakDays: null });
+  const [rewardBanner, setRewardBanner] = useState<string | null>(null);
   const mainRef = useRef<HTMLElement>(null);
-  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const pointerStart = useRef<{ x: number; y: number; time: number } | null>(null);
   const progressBar = useRef<HTMLDivElement>(null);
   const jumped = useRef(false);
+  const seenPages = useRef<Set<string>>(new Set());
+  const completedChapters = useRef<Set<string>>(new Set());
+  const rewardTimer = useRef<number | null>(null);
   const [marks, setMarks] = useState<Mark[]>([]);
   const [resumed, setResumed] = useState(false);
   const posKey = `sunroot:readpos:${classId}`;
@@ -204,6 +257,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     }
     return () => {
       off = true;
+      if (rewardTimer.current) window.clearTimeout(rewardTimer.current);
     };
   }, [classId]);
 
@@ -217,6 +271,10 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       pageIdxInSection: number;
       pageTotalInSection: number;
       pageTitle: string;
+      subtopic: string | null;
+      partIndex: number;
+      partTotal: number;
+      kind: TextbookSectionKind;
       pageBody: string;
       readMins: number;
     }> = [];
@@ -232,12 +290,16 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
           pageIdxInSection: 0,
           pageTotalInSection: 1,
           pageTitle: s.title,
+          subtopic: null,
+          partIndex: 0,
+          partTotal: 1,
+          kind: "section",
           pageBody: s.description || "",
           readMins: 1,
         });
         return;
       }
-      const split = splitNote(text);
+      const split = splitTextbookPages(text);
       const total = split.pages.length;
       split.pages.forEach((pg, idxInSec) => {
         out.push({
@@ -247,6 +309,10 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
           pageIdxInSection: idxInSec,
           pageTotalInSection: total,
           pageTitle: pg.title || s.title,
+          subtopic: pg.subtopic,
+          partIndex: pg.partIndex,
+          partTotal: pg.partTotal,
+          kind: pg.kind,
           pageBody: pg.body,
           readMins: readMinutes(pg.body),
         });
@@ -258,17 +324,82 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
   const safeFlipIdx = Math.min(flipIdx, Math.max(0, flipPages.length - 1));
   const currentFlip = flipPages[safeFlipIdx] ?? null;
 
+  const sendSignal = useCallback(
+    async (
+      kcId: string,
+      event: "page_turn" | "term_explore" | "interactive_play" | "check_pass" | "chapter_complete",
+      concept?: string,
+      subtopic?: string
+    ) => {
+      try {
+        const res = await fetch(`/api/classes/${classId}/read/signal`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kcId, event, concept, subtopic }),
+        });
+        const j = await res.json().catch(() => null);
+        if (!j?.ok || !j.data) return;
+        const { xpGained, streakDays, pL, exploredCount, bonusLabel } = j.data as {
+          xpGained?: number;
+          streakDays?: number;
+          pL?: number | null;
+          exploredCount?: number;
+          bonusLabel?: string | null;
+        };
+        setMentalStats((prev) => ({
+          pL: typeof pL === "number" ? pL : prev.pL,
+          explored: typeof exploredCount === "number" ? Math.max(prev.explored, exploredCount) : prev.explored,
+          sessionXp: prev.sessionXp + (xpGained || 0),
+          streakDays: typeof streakDays === "number" ? streakDays : prev.streakDays,
+        }));
+        if (xpGained && xpGained > 0) {
+          setRewardBanner(`+${xpGained} XP · ${bonusLabel || "Focus bonus"}`);
+          if (rewardTimer.current) window.clearTimeout(rewardTimer.current);
+          rewardTimer.current = window.setTimeout(() => setRewardBanner(null), 4000);
+          fireCelebration({
+            reduceMotion: readPrefs().reduceMotion,
+            intensity: xpGained >= 15 ? "medium" : "small",
+          });
+        }
+      } catch {
+        /* signal sync is best-effort; never interrupt reading */
+      }
+    },
+    [classId]
+  );
+
   const goToPage = useCallback(
     (nextIdx: number) => {
       if (flipPages.length === 0) return;
       const clamped = Math.max(0, Math.min(flipPages.length - 1, nextIdx));
+      const prevPage = flipPages[safeFlipIdx];
       setFlipDir(clamped >= safeFlipIdx ? "next" : "prev");
       setFlipIdx(clamped);
       const target = flipPages[clamped];
-      if (target) setActive(target.section.id);
+      if (target) {
+        setActive(target.section.id);
+        if (!seenPages.current.has(target.key)) {
+          seenPages.current.add(target.key);
+          void sendSignal(
+            target.section.id,
+            "page_turn",
+            target.subtopic || target.pageTitle,
+            target.subtopic || undefined
+          );
+        }
+      }
+      if (
+        prevPage &&
+        clamped > safeFlipIdx &&
+        prevPage.pageIdxInSection === prevPage.pageTotalInSection - 1 &&
+        !completedChapters.current.has(prevPage.section.id)
+      ) {
+        completedChapters.current.add(prevPage.section.id);
+        void sendSignal(prevPage.section.id, "chapter_complete", prevPage.section.title);
+      }
       mainRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     },
-    [flipPages, safeFlipIdx]
+    [flipPages, safeFlipIdx, sendSignal]
   );
 
   const findFlipIndex = useCallback(
@@ -281,7 +412,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         const needle = snippet.trim().toLowerCase().slice(0, 40);
         if (needle.length >= 6) {
           const hit = matches.find(({ p }) =>
-            (p.pageTitle + "\n" + p.pageBody).toLowerCase().includes(needle)
+            (p.pageTitle + "\n" + (p.subtopic || "") + "\n" + p.pageBody).toLowerCase().includes(needle)
           );
           if (hit) return hit.idx;
         }
@@ -396,16 +527,16 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     };
   }, [sections, posKey, viewMode, flipPages.length, safeFlipIdx, currentFlip]);
 
-  // keyboard Left/Right arrows turn pages in flipbook mode
+  // keyboard Left/Right arrows & PageUp/PageDown turn pages in flipbook mode
   useEffect(() => {
     if (viewMode !== "flip" || tocOpen) return;
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (e.key === "ArrowRight" && safeFlipIdx < flipPages.length - 1) {
+      if ((e.key === "ArrowRight" || e.key === "PageDown") && safeFlipIdx < flipPages.length - 1) {
         e.preventDefault();
         goToPage(safeFlipIdx + 1);
-      } else if (e.key === "ArrowLeft" && safeFlipIdx > 0) {
+      } else if ((e.key === "ArrowLeft" || e.key === "PageUp") && safeFlipIdx > 0) {
         e.preventDefault();
         goToPage(safeFlipIdx - 1);
       }
@@ -514,6 +645,13 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     }
   };
 
+  const handleNoteSignal = useCallback(
+    (kcId: string, sig: StudySignalPayload, subtopic?: string) => {
+      void sendSignal(kcId, sig.event, sig.concept, subtopic);
+    },
+    [sendSignal]
+  );
+
   const bookmarksList = marks.length > 0 && (
     <div className="mb-3">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1 px-2">Bookmarks</p>
@@ -615,6 +753,37 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         </div>
       </div>
 
+      {/* Live AI Mental Map & Study Bonus Strip */}
+      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card/80 px-3 py-2 text-xs">
+        <span className="inline-flex items-center gap-1.5 font-semibold text-brand-700 dark:text-brand-300">
+          <Brain className="h-3.5 w-3.5" />
+          Mental Map{mentalStats.pL !== null ? `: ${Math.round(mentalStats.pL * 100)}%` : ": Active"}
+        </span>
+        {mentalStats.explored > 0 && (
+          <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-muted-foreground">
+            {mentalStats.explored} {mentalStats.explored === 1 ? "concept" : "concepts"} mapped
+          </span>
+        )}
+        {mentalStats.sessionXp > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 font-semibold text-amber-800 dark:text-amber-300">
+            <Sparkles className="h-3 w-3" /> +{mentalStats.sessionXp} XP
+          </span>
+        )}
+        {mentalStats.streakDays && mentalStats.streakDays > 0 ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 font-semibold text-emerald-700 dark:text-emerald-300">
+            <Flame className="h-3 w-3" /> {mentalStats.streakDays}d streak
+          </span>
+        ) : null}
+        {rewardBanner && (
+          <span className="rounded-full bg-brand-600 text-white px-2.5 py-0.5 font-semibold animate-pulse">
+            {rewardBanner}
+          </span>
+        )}
+        <Link href={`/classes/${classId}/map`} className="ml-auto font-semibold text-brand-700 dark:text-brand-300 hover:underline">
+          View Class Map →
+        </Link>
+      </div>
+
       <div className="relative mb-3">
         <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <input
@@ -685,7 +854,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                 <div>
                   <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight leading-tight">{title}</h1>
                   <p className="text-xs text-muted-foreground">
-                    {sections.length} topics · {flipPages.length} notebook {flipPages.length === 1 ? "page" : "pages"}. Swipe or press ← → to flip. Tap highlighted words to learn more.
+                    {sections.length} chapters · {flipPages.length} textbook {flipPages.length === 1 ? "page" : "pages"}. Swipe, drag, click the page curl, or press ← → to flip.
                   </p>
                 </div>
                 {currentFlip && (
@@ -706,36 +875,72 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                       key={currentFlip.key}
                       id={`kc-${currentFlip.section.id}`}
                       data-kc={currentFlip.section.id}
-                      onTouchStart={(e) => {
-                        const t = e.touches[0];
-                        if (t) swipeStart.current = { x: t.clientX, y: t.clientY };
+                      onPointerDown={(e) => {
+                        if ((e.target as HTMLElement)?.closest("button,a,input,select,textarea,figure")) return;
+                        pointerStart.current = { x: e.clientX, y: e.clientY, time: Date.now() };
                       }}
-                      onTouchEnd={(e) => {
-                        const start = swipeStart.current;
-                        swipeStart.current = null;
-                        const t = e.changedTouches[0];
-                        if (!start || !t) return;
-                        const dx = t.clientX - start.x;
-                        const dy = t.clientY - start.y;
-                        if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                      onPointerUp={(e) => {
+                        const start = pointerStart.current;
+                        pointerStart.current = null;
+                        if (!start) return;
+                        const sel = typeof window !== "undefined" ? window.getSelection()?.toString() : "";
+                        if (sel && sel.length > 0) return;
+                        const dx = e.clientX - start.x;
+                        const dy = e.clientY - start.y;
+                        if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.35 && Date.now() - start.time < 900) {
                           if (dx < 0 && safeFlipIdx < flipPages.length - 1) goToPage(safeFlipIdx + 1);
                           else if (dx > 0 && safeFlipIdx > 0) goToPage(safeFlipIdx - 1);
                         }
                       }}
                       className={cn(
-                        "note-paper sunroot-paper touch-pan-y",
+                        "note-paper sunroot-paper touch-pan-y relative",
                         flipDir === "next" ? "note-flip-next" : "note-flip-prev"
                       )}
                     >
-                      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2.5 mb-3">
+                      {safeFlipIdx > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => goToPage(safeFlipIdx - 1)}
+                          aria-label="Turn to previous page"
+                          title="Previous page"
+                          className="hidden sm:flex absolute inset-y-4 left-0 w-7 items-center justify-center opacity-0 hover:opacity-100 focus:opacity-100 text-brand-700 dark:text-brand-300 transition-opacity"
+                        >
+                          <ChevronLeft className="h-5 w-5" />
+                        </button>
+                      )}
+                      {safeFlipIdx < flipPages.length - 1 && (
+                        <button
+                          type="button"
+                          onClick={() => goToPage(safeFlipIdx + 1)}
+                          aria-label="Turn to next page"
+                          title="Flip page"
+                          className="note-corner-curl flex items-end justify-end p-1.5 text-brand-700 dark:text-brand-300"
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+
+                      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border pb-2.5 mb-4">
                         <div className="min-w-0">
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
-                            Topic {currentFlip.sectionIdx + 1} of {sections.length}
-                            {currentFlip.pageTotalInSection > 1
-                              ? ` · Part ${currentFlip.pageIdxInSection + 1}/${currentFlip.pageTotalInSection}`
-                              : ""}
-                            {` · ${currentFlip.readMins} min read`}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
+                            <span>Chapter {currentFlip.sectionIdx + 1} of {sections.length}</span>
+                            {currentFlip.subtopic && (
+                              <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] tracking-normal normal-case">
+                                {currentFlip.subtopic}
+                              </span>
+                            )}
+                            {KIND_LABELS[currentFlip.kind] && (
+                              <span className="rounded-full bg-amber-500/15 text-amber-800 dark:text-amber-300 px-2 py-0.5 text-[10px] tracking-normal normal-case">
+                                {KIND_LABELS[currentFlip.kind]}
+                              </span>
+                            )}
+                            {currentFlip.partTotal > 1 && (
+                              <span className="text-muted-foreground font-medium">
+                                · Continuation {currentFlip.partIndex + 1}/{currentFlip.partTotal}
+                              </span>
+                            )}
+                            <span className="text-muted-foreground font-medium">· {currentFlip.readMins} min read</span>
+                          </div>
                           {currentFlip.section.depth === 0 ? (
                             <h2 className="text-2xl font-bold tracking-tight truncate">{currentFlip.section.title}</h2>
                           ) : (
@@ -789,11 +994,21 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                           topicTitle={currentFlip.section.title}
                           classId={classId}
                           kcId={currentFlip.section.id}
+                          onStudySignal={(sig) =>
+                            handleNoteSignal(currentFlip.section.id, sig, currentFlip.subtopic || undefined)
+                          }
                         />
                       )}
+
+                      <footer className="mt-6 pt-3 border-t border-border/60 flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span className="truncate">{currentFlip.subtopic || currentFlip.section.title}</span>
+                        <span className="tabular-nums shrink-0 font-semibold">
+                          Page {safeFlipIdx + 1} of {flipPages.length}
+                        </span>
+                      </footer>
                     </article>
 
-                    <div className="flex items-center justify-between gap-3 pt-1">
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                       <Button
                         type="button"
                         variant="outline"
@@ -802,24 +1017,40 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                       >
                         <ChevronLeft className="h-4 w-4 mr-1" /> Prev page
                       </Button>
-                      <div className="flex items-center gap-1.5 overflow-x-auto max-w-[14rem] sm:max-w-xs py-1" aria-hidden>
-                        {flipPages.slice(Math.max(0, safeFlipIdx - 5), Math.max(0, safeFlipIdx - 5) + 12).map((fp) => {
-                          const realIdx = flipPages.indexOf(fp);
-                          return (
-                            <button
-                              key={fp.key}
-                              type="button"
-                              tabIndex={-1}
-                              onClick={() => goToPage(realIdx)}
-                              className={cn(
-                                "h-2 rounded-full transition-all shrink-0",
-                                realIdx === safeFlipIdx
-                                  ? "w-6 bg-brand-600"
-                                  : "w-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400"
-                              )}
-                            />
-                          );
-                        })}
+                      <div className="flex flex-col items-center gap-1 flex-1 min-w-[9rem] max-w-xs">
+                        {flipPages.length > 2 ? (
+                          <input
+                            type="range"
+                            min={0}
+                            max={flipPages.length - 1}
+                            value={safeFlipIdx}
+                            onChange={(e) => goToPage(Number(e.target.value))}
+                            aria-label="Flip through textbook pages"
+                            className="w-full accent-brand-600 cursor-pointer h-1.5"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-1.5" aria-hidden>
+                            {flipPages.map((fp, idx) => (
+                              <button
+                                key={fp.key}
+                                type="button"
+                                tabIndex={-1}
+                                onClick={() => goToPage(idx)}
+                                className={cn(
+                                  "h-2 rounded-full transition-all shrink-0",
+                                  idx === safeFlipIdx
+                                    ? "w-6 bg-brand-600"
+                                    : "w-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400"
+                                )}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {flipPages.length > 1 && (
+                          <span className="text-[10px] text-muted-foreground">
+                            Drag page corner, swipe, or ← →
+                          </span>
+                        )}
                       </div>
                       <Button
                         type="button"
@@ -836,10 +1067,10 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
           ) : (
             <>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight mb-1">{title}</h1>
-              <p className="text-sm text-muted-foreground mb-4">{sections.length} topics. Tap any highlighted word to learn more.</p>
+              <p className="text-sm text-muted-foreground mb-4">{sections.length} topics. Tap any highlighted word to learn more and grow your mental map.</p>
               {sections.length === 0 && <p className="text-sm text-muted-foreground">There are no topics here yet.</p>}
               {sections.map((s) => (
-                <SectionView key={s.id} s={s} classId={classId} onListen={voice.start} />
+                <SectionView key={s.id} s={s} classId={classId} onListen={voice.start} onSignal={handleNoteSignal} />
               ))}
             </>
           )}

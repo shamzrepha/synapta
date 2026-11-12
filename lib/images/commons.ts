@@ -1,5 +1,7 @@
 /** Finds freely licensed pictures on Wikimedia Commons (diagrams, parts, anatomy, equipment) to show next to a lesson. */
 
+export type ImageFilter = "all" | "diagram" | "photo";
+
 export interface FoundImage {
   url: string;
   page: string;
@@ -35,6 +37,9 @@ export function parseCommons(json: unknown): FoundImage[] {
     if (!info) continue;
     const url = info.thumburl || info.url;
     if (!isAllowedImageUrl(url) || !OK_MIME.test(String(info.mime || ""))) continue;
+    const w = Number(info.thumbwidth || info.width) || 0;
+    const h = Number(info.thumbheight || info.height) || 0;
+    if (w > 0 && h > 0 && (w < 140 || h < 140 || w / h > 4.2 || h / w > 4.2)) continue;
     const meta = (info.extmetadata || {}) as Record<string, { value?: unknown }>;
     out.push({
       idx: Number(p.index) || 99,
@@ -43,36 +48,40 @@ export function parseCommons(json: unknown): FoundImage[] {
       title: strip(String(p.title || "").replace(/^File:/, "").replace(/\.[a-z0-9]+$/i, "")),
       author: strip(meta.Artist?.value) || "Unknown author",
       license: strip(meta.LicenseShortName?.value) || "See source",
-      width: Number(info.thumbwidth || info.width) || 0,
-      height: Number(info.thumbheight || info.height) || 0,
+      width: w,
+      height: h,
     });
   }
   return out.sort((a, b) => a.idx - b.idx).map(({ idx: _i, ...rest }) => (void _i, rest));
 }
 
-export function commonsUrl(query: string, limit = 6): string {
+export function commonsUrl(query: string, limit = 6, filter: ImageFilter = "all"): string {
+  const typeClause = filter === "photo" ? "filetype:bitmap" : "filetype:bitmap|drawing";
+  const boosted = filter === "diagram" ? `${query.slice(0, 95)} diagram` : query.slice(0, 110);
   const q = new URLSearchParams({
     action: "query",
     format: "json",
     generator: "search",
     gsrnamespace: "6",
-    gsrsearch: `${query.slice(0, 120)} filetype:bitmap|drawing`,
-    gsrlimit: String(Math.min(12, limit * 2)),
+    gsrsearch: `${boosted} ${typeClause}`,
+    gsrlimit: String(Math.min(16, limit * 2)),
     prop: "imageinfo",
-    iiprop: "url|mime|extmetadata",
+    iiprop: "url|size|mime|extmetadata",
     iiurlwidth: "900",
     origin: "*",
   });
   return `https://commons.wikimedia.org/w/api.php?${q.toString()}`;
 }
 
-export async function searchImages(query: string, limit = 6): Promise<FoundImage[]> {
+export async function searchImages(query: string, limit = 6, filter: ImageFilter = "all"): Promise<FoundImage[]> {
   const q = query.trim();
   if (q.length < 2) return [];
   try {
-    const res = await fetch(commonsUrl(q, limit), { headers: { "User-Agent": "SunrootLearn/1.0 (education app)" }, signal: AbortSignal.timeout(8000), next: { revalidate: 86400 } });
+    const res = await fetch(commonsUrl(q, limit, filter), { headers: { "User-Agent": "SunrootLearn/1.0 (education app)" }, signal: AbortSignal.timeout(8000), next: { revalidate: 86400 } });
     if (!res.ok) return [];
-    return parseCommons(await res.json()).slice(0, limit);
+    const parsed = parseCommons(await res.json());
+    if (filter === "photo") return parsed.filter((x) => !/\.svg(\?|$)/i.test(x.url)).slice(0, limit);
+    return parsed.slice(0, limit);
   } catch {
     return [];
   }

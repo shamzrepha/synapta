@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
+
+const StageVariantCtx = createContext<"card" | "textbook">("card");
 import { motion, useReducedMotion } from "framer-motion";
 import { Play, Pause, RotateCcw, Sparkles, StepForward, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -42,6 +44,23 @@ function StageShell({
   controls?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const variant = useContext(StageVariantCtx);
+  if (variant === "textbook") {
+    return (
+      <figure className="my-4 rounded-xl border border-border/50 border-l-[3px] border-l-brand-500/60 bg-brand-500/[0.028] dark:bg-brand-400/[0.04]">
+        <div className="p-3.5 sm:p-4">{children}</div>
+        <figcaption className="flex flex-wrap items-center justify-between gap-2 px-3.5 sm:px-4 py-2 border-t border-border/40 text-xs">
+          <span className="inline-flex items-center gap-1.5 font-medium text-muted-foreground">
+            <Sparkles className="h-3 w-3 text-brand-600 dark:text-brand-300 shrink-0" />
+            <span className="font-semibold text-foreground/85">Interactive Figure</span>
+            <span>· {badge}</span>
+            {title && <span className="italic text-muted-foreground truncate max-w-[16rem] sm:max-w-xs">— {title}</span>}
+          </span>
+          {controls && <div className="flex items-center gap-1.5">{controls}</div>}
+        </figcaption>
+      </figure>
+    );
+  }
   return (
     <div
       className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-[#fbfaf6] dark:bg-[#0d1421] shadow-sm"
@@ -935,9 +954,13 @@ function KidCounterStage({
 export function KineticStage({
   scenes,
   pageKey,
+  variant = "card",
+  onInteract,
 }: {
   scenes: KineticScene[];
   pageKey: string | number;
+  variant?: "card" | "textbook";
+  onInteract?: () => void;
 }) {
   const [prefs] = usePrefs();
   const osReduced = useReducedMotion();
@@ -947,7 +970,12 @@ export function KineticStage({
   if (!scenes.length) return null;
 
   return (
-    <div className="space-y-3 my-4" data-testid="kinetic-stage">
+    <StageVariantCtx.Provider value={variant}>
+      <div
+        className={variant === "textbook" ? "space-y-2" : "space-y-3 my-4"}
+        data-testid="kinetic-stage"
+        onPointerDownCapture={() => onInteract?.()}
+      >
       {scenes.map((scene, idx) => {
         const key = `${pageKey}-${scene.kind}-${idx}`;
         const common = { pageKey: key, reduceMotion, autoPlay };
@@ -964,6 +992,7 @@ export function KineticStage({
             return <KidCounterStage key={key} scene={scene} {...common} />;
         }
       })}
-    </div>
+      </div>
+    </StageVariantCtx.Provider>
   );
 }

@@ -102,7 +102,7 @@ Use the lesson's language and plain text (no markdown). Be accurate: never inven
     const picked = r.data.cards.filter((c, i, a) => keep.has(c.term.toLowerCase()) && a.findIndex((x) => x.term.toLowerCase() === c.term.toLowerCase()) === i);
     const cards: Card[] = await mapLimit(picked, 6, async (c) => ({
       ...c,
-      images: c.imageQuery || c.wikipediaTitle ? await findBestImages({ term: c.term, wikipediaTitle: c.wikipediaTitle, imageQuery: c.imageQuery || c.term }).catch(() => []) : [],
+      images: c.imageQuery || c.wikipediaTitle ? await findBestImages({ term: c.term, wikipediaTitle: c.wikipediaTitle, imageQuery: c.imageQuery || c.term, topic: title }).catch(() => []) : [],
     }));
 
     if (cards.length > 0) await cacheRef.set({ hash, cards, createdAt: Timestamp.now() }).catch(() => {});

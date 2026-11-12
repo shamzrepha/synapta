@@ -5,21 +5,23 @@ import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { BookOpen, ChevronLeft, ChevronRight, ExternalLink, Lightbulb, Loader2, Rows3, Sparkles, X } from "lucide-react";
+import { BookOpen, CheckCircle2, ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, Lightbulb, Loader2, Rows3, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { normalizeMath } from "@/lib/text/readable";
-import { readMinutes, splitNote } from "@/lib/study/note-sections";
+import { readMinutes, splitAtomicBlocks, splitTextbookPages, type TextbookPage, type TextbookSectionKind } from "@/lib/study/note-sections";
 import { hashText, splitByTerms, termRegex } from "@/lib/study/terms";
 import { getGlossary, preloadImages, type GlossaryCard } from "@/lib/study/glossary-client";
 import { cn } from "@/lib/utils";
-import { extractKineticScenesForPage } from "@/lib/study/kinetic-parser";
+import { extractKineticScenesForPage, type KineticScene } from "@/lib/study/kinetic-parser";
 import { KineticStage } from "@/components/study/kinetic-formula";
+import type { ImageFilter } from "@/lib/images/commons";
 
 interface TermCard {
   summary: string;
   keyPoints: string[];
   example: string;
   imageQuery: string;
+  wikipediaTitle?: string;
 }
 interface Pic {
   url: string;
@@ -29,6 +31,11 @@ interface Pic {
   license: string;
 }
 type Mode = "define" | "simpler" | "example";
+
+export interface StudySignalPayload {
+  event: "term_explore" | "interactive_play" | "check_pass";
+  concept?: string;
+}
 
 /** The sentence or paragraph a tapped word sits in, so the explanation fits the topic. */
 const ContextCtx = React.createContext<string>("");
@@ -79,7 +86,6 @@ function highlight(node: React.ReactNode, re: RegExp | null, used: Set<string>, 
   if (React.isValidElement(node)) {
     const el = node as React.ReactElement<{ children?: React.ReactNode; className?: string }>;
     const cls = String(el.props.className || "");
-    // leave existing tappable words, code, links and maths alone
     if (el.type === Term || el.type === "code" || el.type === "a" || el.type === "button" || /katex/.test(cls)) return node;
     if (el.props.children !== undefined) return React.cloneElement(el, undefined, highlight(el.props.children, re, used, open, ctx));
   }
@@ -109,34 +115,195 @@ function Item({ children }: { children?: React.ReactNode }) {
 
 const MD_COMPONENTS = { strong: Term, p: Para, li: Item };
 
-function NoteBody({ markdown, pageTitle, pageKey }: { markdown: string; pageTitle?: string; pageKey?: string }) {
-  const { cleanMarkdown, scenes } = useMemo(
-    () => extractKineticScenesForPage(markdown, pageTitle),
-    [markdown, pageTitle]
-  );
+const KIND_CALLOUT: Record<TextbookSectionKind, { label: string; tone: string } | null> = {
+  overview: { label: "Big Picture", tone: "bg-brand-500/10 text-brand-700 dark:text-brand-300 border-brand-500/25" },
+  section: null,
+  example: { label: "Worked Walkthrough", tone: "bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30" },
+  mistakes: { label: "Watch Out", tone: "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/25" },
+  terms: { label: "Key Concepts", tone: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/25" },
+  check: { label: "Self-Check", tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/25" },
+};
+
+function splitAnswerSpoiler(md: string): { promptMd: string; answersMd: string | null } {
+  const match = /(?:^|\n)(\*{1,2}Answers?:\*{1,2}[\s\S]*)$/i.exec(md);
+  if (!match || match.index === undefined) return { promptMd: md, answersMd: null };
+  const promptMd = md.slice(0, match.index).trim();
+  const answersMd = match[1].trim();
+  return promptMd ? { promptMd, answersMd } : { promptMd: md, answersMd: null };
+}
+
+/**
+ * Interleaves textbook prose with inline interactive motion figures at the exact paragraph
+ * or subtopic block where the formula/concept is explained, rather than isolating them at the bottom.
+ */
+function buildBlendedSegments(markdown: string, pageTitle?: string) {
+  const whole = extractKineticScenesForPage(markdown, pageTitle);
+  const { promptMd, answersMd } = splitAnswerSpoiler(whole.cleanMarkdown);
+  const blocks = splitAtomicBlocks(promptMd);
+  const segments: Array<{ id: string; markdown: string; scenes: KineticScene[] }> = [];
+  const usedKinds = new Set<KineticScene["kind"]>();
+
+  let proseBuf: string[] = [];
+  let placed = 0;
+
+  const flushProse = (scenes: KineticScene[]) => {
+    const md = proseBuf.join("\n\n").trim();
+    if (md || scenes.length > 0) {
+      segments.push({ id: `seg-${segments.length}`, markdown: md, scenes });
+    }
+    proseBuf = [];
+  };
+
+  for (let i = 0; i < blocks.length; i++) {
+    const blk = blocks[i];
+    proseBuf.push(blk);
+    if (placed < 2) {
+      const candidate = extractKineticScenesForPage(blk, pageTitle).scenes.filter((sc) => !usedKinds.has(sc.kind));
+      if (candidate.length > 0) {
+        const picked = candidate[0];
+        usedKinds.add(picked.kind);
+        placed += 1;
+        flushProse([picked]);
+      }
+    }
+  }
+  flushProse([]);
+
+  const remaining = whole.scenes.filter((sc) => !usedKinds.has(sc.kind)).slice(0, Math.max(0, 2 - placed));
+  if (remaining.length > 0) {
+    if (segments.length > 0) {
+      const insertAt = Math.min(segments.length - 1, Math.max(0, Math.floor(segments.length / 2)));
+      segments[insertAt].scenes = [...segments[insertAt].scenes, ...remaining];
+    } else {
+      segments.push({ id: "seg-0", markdown: "", scenes: remaining });
+    }
+  }
+
+  return { segments, answersMd };
+}
+
+function NoteBody({
+  markdown,
+  pageTitle,
+  pageKey,
+  onInteractivePlay,
+  onQuickCheckPass,
+}: {
+  markdown: string;
+  pageTitle?: string;
+  pageKey?: string;
+  onInteractivePlay?: () => void;
+  onQuickCheckPass?: () => void;
+}) {
+  const { segments, answersMd } = useMemo(() => buildBlendedSegments(markdown, pageTitle), [markdown, pageTitle]);
+  const [revealAnswers, setRevealAnswers] = useState(false);
+  const [checkedOk, setCheckedOk] = useState(false);
+
   return (
-    <>
-      <div className="note-prose">
-        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={MD_COMPONENTS}>
-          {normalizeMath(cleanMarkdown)}
-        </ReactMarkdown>
-      </div>
-      <KineticStage scenes={scenes} pageKey={pageKey || pageTitle || cleanMarkdown.slice(0, 24)} />
-    </>
+    <div className="space-y-3">
+      {segments.map((seg, i) => (
+        <React.Fragment key={seg.id}>
+          {seg.markdown && (
+            <div className="note-prose">
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={MD_COMPONENTS}>
+                {normalizeMath(seg.markdown)}
+              </ReactMarkdown>
+            </div>
+          )}
+          {seg.scenes.length > 0 && (
+            <KineticStage
+              variant="textbook"
+              scenes={seg.scenes}
+              pageKey={`${pageKey || pageTitle || "note"}-s${i}`}
+              onInteract={onInteractivePlay}
+            />
+          )}
+        </React.Fragment>
+      ))}
+
+      {answersMd && (
+        <div className="mt-4 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.04] p-3.5 space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+              Try answering from memory first, then check yourself:
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setRevealAnswers((v) => !v)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold hover:bg-muted"
+              >
+                {revealAnswers ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                {revealAnswers ? "Hide answers" : "Reveal answers"}
+              </button>
+              <button
+                type="button"
+                disabled={checkedOk}
+                onClick={() => {
+                  setCheckedOk(true);
+                  setRevealAnswers(true);
+                  onQuickCheckPass?.();
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors",
+                  checkedOk
+                    ? "bg-emerald-600 text-white"
+                    : "bg-brand-600 text-white hover:bg-brand-700"
+                )}
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {checkedOk ? "Mapped! (+10 XP)" : "Got it! (+10 XP)"}
+              </button>
+            </div>
+          </div>
+          {revealAnswers && (
+            <div className="note-prose text-sm pt-2 border-t border-emerald-500/20">
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={MD_COMPONENTS}>
+                {normalizeMath(answersMd)}
+              </ReactMarkdown>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
-/** The pop-up for a tapped word: pictures, what it is, key facts, an example, and "simpler" / "another example". */
+/** The pop-up for a tapped word: topic-filtered pictures, what it is, key facts, an example, and "simpler" / "another example". */
 function TermSheet({ term, context, topic, preset, onClose }: { term: string; context: string; topic: string; /** the card prepared in the background, so nothing loads */ preset?: GlossaryCard; onClose: () => void }) {
-  const presetCard: TermCard | null = preset ? { summary: preset.summary, keyPoints: preset.keyPoints || [], example: preset.example || "", imageQuery: preset.imageQuery || "" } : null;
+  const presetCard: TermCard | null = preset ? { summary: preset.summary, keyPoints: preset.keyPoints || [], example: preset.example || "", imageQuery: preset.imageQuery || "", wikipediaTitle: preset.wikipediaTitle || "" } : null;
   const [card, setCard] = useState<TermCard | null>(presetCard);
   const [pics, setPics] = useState<Pic[]>((preset?.images as Pic[] | undefined) ?? []);
   const [picIdx, setPicIdx] = useState(0);
+  const [imgFilter, setImgFilter] = useState<ImageFilter>("all");
+  const [imgBusy, setImgBusy] = useState(false);
   const [busy, setBusy] = useState(!preset);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("define");
   const cache = useRef(new Map<string, TermCard>(presetCard ? [[`${term}|define`, presetCard]] : []));
-  const imgFor = useRef<string>(preset?.images?.length ? term : "");
+  const imgFor = useRef<string>(preset?.images?.length ? `${term}|all` : "");
+
+  const fetchFilteredImages = useCallback(
+    async (query: string, wiki: string | undefined, filter: ImageFilter) => {
+      const q = (query || term).trim();
+      if (!q) return;
+      setImgBusy(true);
+      try {
+        const params = new URLSearchParams({ q, term, topic: topic || "", filter });
+        if (wiki) params.set("wiki", wiki);
+        const r = await fetch(`/api/images/search?${params.toString()}`);
+        const p = await r.json();
+        const list = Array.isArray(p?.data?.images) ? (p.data.images as Pic[]) : [];
+        setPics(list.slice(0, 6));
+        setPicIdx(0);
+      } catch {
+        /* ignore image failure */
+      } finally {
+        setImgBusy(false);
+      }
+    },
+    [term, topic]
+  );
 
   const load = useCallback(
     async (m: Mode) => {
@@ -158,17 +325,10 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
         const c = j.data as TermCard;
         cache.current.set(key, c);
         setCard(c);
-        // pictures are fetched once per word, from the first explanation's search phrase
-        if (c.imageQuery && imgFor.current !== term) {
-          imgFor.current = term;
-          fetch(`/api/images/search?q=${encodeURIComponent(c.imageQuery)}`)
-            .then((r) => r.json())
-            .then((p) => {
-              const list = Array.isArray(p?.data?.images) ? (p.data.images as Pic[]) : [];
-              setPics(list.slice(0, 5));
-              setPicIdx(0);
-            })
-            .catch(() => {});
+        const imgKey = `${term}|${imgFilter}`;
+        if ((c.imageQuery || c.wikipediaTitle) && imgFor.current !== imgKey) {
+          imgFor.current = imgKey;
+          void fetchFilteredImages(c.imageQuery || term, c.wikipediaTitle, imgFilter);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Couldn't explain that right now.");
@@ -176,7 +336,7 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
         setBusy(false);
       }
     },
-    [term, context, topic]
+    [term, context, topic, imgFilter, fetchFilteredImages]
   );
 
   useEffect(() => {
@@ -184,24 +344,31 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
     void load("define");
   }, [load]);
 
-  // a prepared card without a picture: look one up (the prepared ones already carry their pictures)
   useEffect(() => {
-    if (!preset || preset.images?.length || !preset.imageQuery) return;
-    let off = false;
-    fetch(`/api/images/search?q=${encodeURIComponent(preset.imageQuery)}`)
-      .then((r) => r.json())
-      .then((p) => !off && setPics((Array.isArray(p?.data?.images) ? (p.data.images as Pic[]) : []).slice(0, 5)))
-      .catch(() => {});
-    return () => {
-      off = true;
-    };
-  }, [preset]);
+    if (!preset || preset.images?.length || (!preset.imageQuery && !preset.wikipediaTitle)) return;
+    if (imgFor.current === `${term}|${imgFilter}`) return;
+    imgFor.current = `${term}|${imgFilter}`;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchFilteredImages(preset.imageQuery || term, preset.wikipediaTitle, imgFilter);
+  }, [preset, term, imgFilter, fetchFilteredImages]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  const changeImgFilter = (next: ImageFilter) => {
+    if (next === imgFilter) return;
+    setImgFilter(next);
+    imgFor.current = `${term}|${next}`;
+    if (next === "all" && preset?.images?.length) {
+      setPics(preset.images as Pic[]);
+      setPicIdx(0);
+      return;
+    }
+    void fetchFilteredImages(card?.imageQuery || preset?.imageQuery || term, card?.wikipediaTitle || preset?.wikipediaTitle, next);
+  };
 
   const pic = pics[picIdx];
 
@@ -222,35 +389,67 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
         </div>
 
         <div className="px-5 pb-5 space-y-4">
-          {pic && (
-            <figure className="note-explode space-y-1.5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={pic.url} alt={pic.title || term} loading="lazy" className="w-full max-h-64 object-contain rounded-2xl bg-white border border-border" />
-              <figcaption className="text-[11px] text-muted-foreground">
-                <a href={pic.page} target="_blank" rel="noreferrer noopener" className="underline">{pic.author || "Wikimedia Commons"}</a>
-                {pic.license ? `, ${pic.license}` : ""}
-              </figcaption>
-              <button
-                type="button"
-                onClick={() => {
-                  setPics((l) => l.filter((_, i) => i !== picIdx));
-                  setPicIdx(0);
-                }}
-                className="text-[11px] font-semibold text-muted-foreground hover:text-foreground underline"
-              >
-                Not the right picture? Remove it
-              </button>
-              {pics.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {pics.map((p, i) => (
-                    <button key={p.url} type="button" onClick={() => setPicIdx(i)} aria-label={`Picture ${i + 1}`} className={cn("h-12 w-12 shrink-0 rounded-lg overflow-hidden border-2 bg-white", i === picIdx ? "border-brand-500" : "border-transparent opacity-70")}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={p.url} alt="" className="h-full w-full object-cover" />
+          {(pic || imgBusy || card?.imageQuery || preset?.imageQuery) && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Visual Filter</span>
+                <div className="inline-flex rounded-lg border border-border p-0.5 text-[11px] font-semibold" role="group" aria-label="Filter pictures">
+                  {(["all", "diagram", "photo"] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => changeImgFilter(f)}
+                      className={cn(
+                        "px-2 py-0.5 rounded-md capitalize transition-colors",
+                        imgFilter === f ? "bg-brand-600 text-white" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {f === "all" ? "Best" : f === "diagram" ? "Diagrams" : "Photos"}
                     </button>
                   ))}
                 </div>
+              </div>
+              {imgBusy && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-3">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Finding accurate {imgFilter === "diagram" ? "diagrams" : imgFilter === "photo" ? "photos" : "pictures"}...
+                </div>
               )}
-            </figure>
+              {!imgBusy && !pic && (
+                <p className="text-xs text-muted-foreground py-1">No matching {imgFilter === "all" ? "picture" : imgFilter} found for &ldquo;{term}&rdquo; in this topic.</p>
+              )}
+              {!imgBusy && pic && (
+                <figure className="note-explode space-y-1.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={pic.url} alt={pic.title || term} loading="lazy" className="w-full max-h-64 object-contain rounded-2xl bg-white border border-border" />
+                  <figcaption className="text-[11px] text-muted-foreground flex items-center justify-between gap-2">
+                    <span className="truncate">
+                      <a href={pic.page} target="_blank" rel="noreferrer noopener" className="underline">{pic.author || "Wikimedia Commons"}</a>
+                      {pic.license ? `, ${pic.license}` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPics((l) => l.filter((_, i) => i !== picIdx));
+                        setPicIdx(0);
+                      }}
+                      className="shrink-0 text-[11px] font-semibold text-muted-foreground hover:text-foreground underline"
+                    >
+                      Wrong image? Skip
+                    </button>
+                  </figcaption>
+                  {pics.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {pics.map((p, i) => (
+                        <button key={p.url} type="button" onClick={() => setPicIdx(i)} aria-label={`Picture ${i + 1}`} className={cn("h-12 w-12 shrink-0 rounded-lg overflow-hidden border-2 bg-white", i === picIdx ? "border-brand-500" : "border-transparent opacity-70")}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.url} alt="" className="h-full w-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </figure>
+              )}
+            </div>
           )}
 
           {busy && !card && (
@@ -297,7 +496,7 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
             <a href={`https://www.google.com/search?q=${encodeURIComponent(`${term} ${topic}`.trim())}`} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">
               <ExternalLink className="h-3.5 w-3.5" /> Search Google
             </a>
-            <a href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${term} ${topic}`.trim())}`} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">
+            <a href={`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(`${term} ${topic} diagram`.trim())}`} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted">
               <ExternalLink className="h-3.5 w-3.5" /> More pictures
             </a>
           </div>
@@ -308,13 +507,36 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
 }
 
 /**
- * The lesson as an interactive notebook: one page per heading that flips like a notebook (or all pages in one scroll),
- * key words (the bold ones) that open a picture-and-explanation card when tapped, and an "ask more" button on every page.
+ * Splits a Markdown lesson into structured textbook pages (sections, subtopics, and balanced continuation pages)
+ * with inline blended figures, tappable key terms, quick-check callouts, and multiple book-flip gestures.
  */
-export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, lazy, classId, kcId }: { markdown: string; topicTitle?: string; /** with these, the key-word cards come prepared from the class (saved once, loaded in the background) */ classId?: string; kcId?: string; /** just the text: no toolbar, no paper, no flip view (used inside the reader) */ bare?: boolean; /** when bare, render only a single split page index for outer flipbook mode */ barePageIndex?: number; /** pick the highlighted words only once this note scrolls into view */ lazy?: boolean }) {
-  const note = useMemo(() => splitNote(markdown), [markdown]);
+export function InteractiveNote({
+  markdown,
+  topicTitle,
+  bare,
+  barePageIndex,
+  lazy,
+  classId,
+  kcId,
+  onStudySignal,
+}: {
+  markdown: string;
+  topicTitle?: string;
+  /** with these, the key-word cards come prepared from the class (saved once, loaded in the background) */
+  classId?: string;
+  kcId?: string;
+  /** just the text: no toolbar, no paper, no flip view (used inside the reader) */
+  bare?: boolean;
+  /** when bare, render only a single textbook page index for outer flipbook mode */
+  barePageIndex?: number;
+  /** pick the highlighted words only once this note scrolls into view */
+  lazy?: boolean;
+  /** callback notified when student explores terms, interacts with simulations, or passes a quick-check */
+  onStudySignal?: (sig: StudySignalPayload) => void;
+}) {
+  const note = useMemo(() => splitTextbookPages(markdown), [markdown]);
   const [view, setView] = useState<"pages" | "scroll">("pages");
-  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const swipeStart = useRef<{ x: number; y: number; time: number } | null>(null);
   const [terms, setTerms] = useState<string[]>([]);
   const [cards, setCards] = useState<Map<string, GlossaryCard>>(new Map());
   const [idx, setIdx] = useState(0);
@@ -326,7 +548,6 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
   const total = note.pages.length;
   const page = note.pages[Math.min(idx, total - 1)];
 
-  // a regenerated lesson can have fewer pages
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (idx > total - 1) setIdx(0);
@@ -340,7 +561,6 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
     top.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   };
 
-  // start looking up the key words only when the note is near the screen (the reader holds many topics)
   useEffect(() => {
     if (seen || !top.current || typeof IntersectionObserver === "undefined") {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -352,8 +572,6 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
     return () => io.disconnect();
   }, [seen]);
 
-  // the words worth looking up. In a class they are prepared once on the server for everyone and loaded in the background,
-  // so tapping a word is instant; otherwise the AI picks them (the list is remembered on this device)
   useEffect(() => {
     if (!seen) return;
     let off = false;
@@ -367,7 +585,7 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
           return;
         }
       } catch {
-        /* storage unavailable: just fetch */
+        /* storage unavailable */
       }
       if (!markdown || markdown.length < 80) return;
       fetch("/api/study/terms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: markdown.slice(0, 14000), topic: topicTitle || "" }) })
@@ -403,11 +621,46 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
   }, [markdown, topicTitle, seen, classId, kcId]);
   const termRe = useMemo(() => termRegex(terms), [terms]);
 
-  const openTerm = useCallback((t: string, ctx: string) => setTerm({ term: t, context: ctx }), []);
+  const openTerm = useCallback(
+    (t: string, ctx: string) => {
+      setTerm({ term: t, context: ctx });
+      onStudySignal?.({ event: "term_explore", concept: t });
+    },
+    [onStudySignal]
+  );
   const topic = topicTitle || note.title || "";
 
-  const header = (p: { id: string; title: string }) =>
-    p.title ? <h2 className="text-xl sm:text-2xl font-bold tracking-tight leading-snug mt-2 mb-2">{p.title}</h2> : null;
+  const header = (p: TextbookPage) => {
+    const callout = KIND_CALLOUT[p.kind];
+    return (
+      <div className="mb-3 space-y-1">
+        {(callout || p.subtopic || p.partTotal > 1) && (
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+            {callout && (
+              <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 font-semibold", callout.tone)}>
+                {callout.label}
+              </span>
+            )}
+            {p.subtopic && p.sectionTitle && p.subtopic !== p.sectionTitle && (
+              <span className="font-semibold uppercase tracking-wide text-muted-foreground">
+                {p.sectionTitle}
+              </span>
+            )}
+            {p.partTotal > 1 && (
+              <span className="text-muted-foreground">
+                · Page {p.partIndex + 1} of {p.partTotal}
+              </span>
+            )}
+          </div>
+        )}
+        {(p.subtopic || p.title) && (
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight leading-snug">
+            {p.subtopic || p.title}
+          </h2>
+        )}
+      </div>
+    );
+  };
 
   if (bare) {
     const clampedIdx =
@@ -419,14 +672,16 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
     return (
       <OpenTermCtx.Provider value={openTerm}>
         <TermsCtx.Provider value={termRe}>
-          <div ref={top} className="w-full min-w-0">
+          <div ref={top} className="w-full min-w-0 space-y-6">
             {pagesToShow.map((p) => (
               <section key={p.id}>
                 {!p.synthetic && header(p)}
                 <NoteBody
                   markdown={p.body}
-                  pageTitle={p.title || topic}
+                  pageTitle={p.subtopic || p.title || topic}
                   pageKey={`${kcId || topic}-${p.id}-${clampedIdx ?? "all"}`}
+                  onInteractivePlay={() => onStudySignal?.({ event: "interactive_play", concept: p.subtopic || p.title })}
+                  onQuickCheckPass={() => onStudySignal?.({ event: "check_pass", concept: p.subtopic || p.title })}
                 />
               </section>
             ))}
@@ -445,12 +700,12 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
           <div className="min-w-0">
             {note.title && <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground truncate">{note.title}</p>}
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-brand-500" /> Tap any <span className="note-term pointer-events-none">highlighted word</span> to learn more
+              <Sparkles className="h-3.5 w-3.5 text-brand-500" /> Tap any <span className="note-term pointer-events-none">highlighted word</span> for verified diagrams & explanations
             </p>
           </div>
           <div className="inline-flex rounded-xl border border-border p-0.5 text-xs font-semibold" role="group" aria-label="Reading view">
             <button type="button" onClick={() => setView("pages")} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-1.5", view === "pages" ? "bg-brand-600 text-white" : "text-muted-foreground")}>
-              <BookOpen className="h-3.5 w-3.5" /> Flip pages
+              <BookOpen className="h-3.5 w-3.5" /> Flip book
             </button>
             <button type="button" onClick={() => setView("scroll")} className={cn("px-3 py-1.5 rounded-lg flex items-center gap-1.5", view === "scroll" ? "bg-brand-600 text-white" : "text-muted-foreground")}>
               <Rows3 className="h-3.5 w-3.5" /> Continuous
@@ -459,7 +714,7 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
         </div>
 
         {view === "pages" && total > 1 && (
-          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" role="tablist" aria-label="Pages of this lesson">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1" role="tablist" aria-label="Pages of this textbook chapter">
             {note.pages.map((p, i) => (
               <button
                 key={p.id}
@@ -467,9 +722,9 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
                 role="tab"
                 aria-selected={i === idx}
                 onClick={() => go(i)}
-                className={cn("shrink-0 max-w-[11rem] truncate rounded-full border px-3 py-1.5 text-xs font-semibold", i === idx ? "border-brand-600 bg-brand-600 text-white" : "border-border text-muted-foreground hover:text-foreground")}
+                className={cn("shrink-0 max-w-[12rem] truncate rounded-full border px-3 py-1.5 text-xs font-semibold", i === idx ? "border-brand-600 bg-brand-600 text-white" : "border-border text-muted-foreground hover:text-foreground")}
               >
-                {i + 1}. {p.title || "Page"}
+                {i + 1}. {p.subtopic || p.title || "Page"}{p.partTotal > 1 ? ` (${p.partIndex + 1}/${p.partTotal})` : ""}
               </button>
             ))}
           </div>
@@ -481,47 +736,89 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
               key={page.id + idx}
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === "ArrowRight" && idx < total - 1) {
+                if ((e.key === "ArrowRight" || e.key === "PageDown") && idx < total - 1) {
                   e.preventDefault();
                   go(idx + 1);
-                } else if (e.key === "ArrowLeft" && idx > 0) {
+                } else if ((e.key === "ArrowLeft" || e.key === "PageUp") && idx > 0) {
                   e.preventDefault();
                   go(idx - 1);
                 }
               }}
-              onTouchStart={(e) => {
-                const t = e.touches[0];
-                if (t) swipeStart.current = { x: t.clientX, y: t.clientY };
+              onPointerDown={(e) => {
+                if ((e.target as HTMLElement)?.closest("button,a,input,select,textarea,figure")) return;
+                swipeStart.current = { x: e.clientX, y: e.clientY, time: Date.now() };
               }}
-              onTouchEnd={(e) => {
+              onPointerUp={(e) => {
                 const start = swipeStart.current;
                 swipeStart.current = null;
-                const t = e.changedTouches[0];
-                if (!start || !t) return;
-                const dx = t.clientX - start.x;
-                const dy = t.clientY - start.y;
-                if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+                if (!start) return;
+                const sel = typeof window !== "undefined" ? window.getSelection()?.toString() : "";
+                if (sel && sel.length > 0) return;
+                const dx = e.clientX - start.x;
+                const dy = e.clientY - start.y;
+                if (Math.abs(dx) > 55 && Math.abs(dx) > Math.abs(dy) * 1.4 && Date.now() - start.time < 900) {
                   if (dx < 0 && idx < total - 1) go(idx + 1);
                   else if (dx > 0 && idx > 0) go(idx - 1);
                 }
               }}
-              className={cn("note-paper sunroot-paper touch-pan-y focus:outline-none", dir === "next" ? "note-flip-next" : "note-flip-prev")}
+              className={cn("note-paper sunroot-paper touch-pan-y focus:outline-none relative", dir === "next" ? "note-flip-next" : "note-flip-prev")}
             >
+              {idx > 0 && (
+                <button
+                  type="button"
+                  onClick={() => go(idx - 1)}
+                  aria-label="Turn to previous page"
+                  className="hidden sm:flex absolute inset-y-4 left-0 w-7 items-center justify-center opacity-0 hover:opacity-100 focus:opacity-100 text-brand-700 dark:text-brand-300 transition-opacity"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+              {idx < total - 1 && (
+                <button
+                  type="button"
+                  onClick={() => go(idx + 1)}
+                  aria-label="Turn to next page"
+                  title="Turn page"
+                  className="note-corner-curl"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              )}
               {header(page)}
-              <p className="text-[11px] text-muted-foreground mb-3 pl-11">{readMinutes(page.body)} min read · page {idx + 1} of {total}</p>
-              <NoteBody markdown={page.body} pageTitle={page.title || topic} pageKey={`${kcId || topic}-${page.id}-${idx}`} />
+              <p className="text-[11px] text-muted-foreground mb-3">
+                {readMinutes(page.body)} min read · Page {idx + 1} of {total}
+              </p>
+              <NoteBody
+                markdown={page.body}
+                pageTitle={page.subtopic || page.title || topic}
+                pageKey={`${kcId || topic}-${page.id}-${idx}`}
+                onInteractivePlay={() => onStudySignal?.({ event: "interactive_play", concept: page.subtopic || page.title })}
+                onQuickCheckPass={() => onStudySignal?.({ event: "check_pass", concept: page.subtopic || page.title })}
+              />
             </article>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <Button type="button" variant="outline" onClick={() => go(idx - 1)} disabled={idx === 0}>
                 <ChevronLeft className="h-4 w-4 mr-1" /> Back
               </Button>
-              <div className="flex flex-col items-center gap-1" aria-hidden>
-                <div className="flex gap-1.5">
-                  {note.pages.slice(0, 12).map((p, i) => (
-                    <span key={p.id} className={cn("h-1.5 rounded-full transition-all", i === idx ? "w-5 bg-brand-600" : "w-1.5 bg-slate-300 dark:bg-slate-700")} />
-                  ))}
-                </div>
-                {total > 1 && <span className="text-[10px] text-muted-foreground">Swipe or press ← →</span>}
+              <div className="flex flex-col items-center gap-1 flex-1 min-w-[8rem] max-w-xs">
+                {total > 2 ? (
+                  <input
+                    type="range"
+                    min={0}
+                    max={total - 1}
+                    value={idx}
+                    onChange={(e) => go(Number(e.target.value))}
+                    aria-label="Flip through pages"
+                    className="w-full accent-brand-600 cursor-pointer h-1.5"
+                  />
+                ) : (
+                  <div className="flex gap-1.5" aria-hidden>
+                    {note.pages.map((p, i) => (
+                      <span key={p.id} className={cn("h-1.5 rounded-full transition-all", i === idx ? "w-5 bg-brand-600" : "w-1.5 bg-slate-300 dark:bg-slate-700")} />
+                    ))}
+                  </div>
+                )}
+                {total > 1 && <span className="text-[10px] text-muted-foreground">Swipe, drag, curl corner, or ← →</span>}
               </div>
               <Button type="button" onClick={() => go(idx + 1)} disabled={idx >= total - 1}>
                 Next <ChevronRight className="h-4 w-4 ml-1" />
@@ -529,12 +826,18 @@ export function InteractiveNote({ markdown, topicTitle, bare, barePageIndex, laz
             </div>
           </>
         ) : (
-          <article className="note-paper sunroot-paper">
+          <article className="note-paper sunroot-paper space-y-6">
             {note.title && <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight mb-2">{note.title}</h1>}
             {note.pages.map((p) => (
               <section key={p.id}>
                 {!p.synthetic && header(p)}
-                <NoteBody markdown={p.body} pageTitle={p.title || topic} pageKey={`${kcId || topic}-${p.id}`} />
+                <NoteBody
+                  markdown={p.body}
+                  pageTitle={p.subtopic || p.title || topic}
+                  pageKey={`${kcId || topic}-${p.id}`}
+                  onInteractivePlay={() => onStudySignal?.({ event: "interactive_play", concept: p.subtopic || p.title })}
+                  onQuickCheckPass={() => onStudySignal?.({ event: "check_pass", concept: p.subtopic || p.title })}
+                />
               </section>
             ))}
           </article>
