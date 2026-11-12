@@ -44,11 +44,15 @@ async function wikipediaLead(title: string): Promise<PickedImage | null> {
   const j = (await ok(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, "_"))}?redirect=true`)) as {
     type?: string;
     title?: string;
-    thumbnail?: { source?: string };
+    thumbnail?: { source?: string; width?: number; height?: number };
     originalimage?: { source?: string; width?: number };
     content_urls?: { desktop?: { page?: string } };
   } | null;
   if (!j || j.type === "disambiguation") return null;
+  // very wide or very tall lead pictures (banners, panoramas, scans) read as odd in a small card
+  const w = j.thumbnail?.width;
+  const h = j.thumbnail?.height;
+  if (w && h && (w / h > 2.6 || h / w > 2.2)) return null;
   // a 960px copy is sharp enough and light to load
   const src = j.thumbnail?.source ? j.thumbnail.source.replace(/\/\d+px-/, "/960px-") : j.originalimage?.source;
   if (!isAllowedImageUrl(src)) return null;

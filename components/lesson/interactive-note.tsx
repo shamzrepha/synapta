@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { extractKineticScenesForPage, type KineticScene } from "@/lib/study/kinetic-parser";
 import { KineticStage } from "@/components/study/kinetic-formula";
 import type { ImageFilter } from "@/lib/images/commons";
+import katex from "katex";
+import type { VisualKind } from "@/lib/study/visual";
 
 interface TermCard {
   summary: string;
@@ -22,6 +24,9 @@ interface TermCard {
   example: string;
   imageQuery: string;
   wikipediaTitle?: string;
+  /** what the pop-up shows above the text: decided by the AI per word */
+  visual?: VisualKind;
+  formula?: string;
 }
 interface Pic {
   url: string;
@@ -271,11 +276,11 @@ function NoteBody({
 
 /** The pop-up for a tapped word: topic-filtered pictures, what it is, key facts, an example, and "simpler" / "another example". */
 function TermSheet({ term, context, topic, preset, onClose }: { term: string; context: string; topic: string; /** the card prepared in the background, so nothing loads */ preset?: GlossaryCard; onClose: () => void }) {
-  const presetCard: TermCard | null = preset ? { summary: preset.summary, keyPoints: preset.keyPoints || [], example: preset.example || "", imageQuery: preset.imageQuery || "", wikipediaTitle: preset.wikipediaTitle || "" } : null;
+  const presetCard: TermCard | null = preset ? { summary: preset.summary, keyPoints: preset.keyPoints || [], example: preset.example || "", imageQuery: preset.imageQuery || "", wikipediaTitle: preset.wikipediaTitle || "", visual: preset.visual, formula: preset.formula || "" } : null;
   const [card, setCard] = useState<TermCard | null>(presetCard);
   const [pics, setPics] = useState<Pic[]>((preset?.images as Pic[] | undefined) ?? []);
   const [picIdx, setPicIdx] = useState(0);
-  const [imgFilter, setImgFilter] = useState<ImageFilter>("all");
+  const [imgFilter, setImgFilter] = useState<ImageFilter>(preset?.visual === "photo" ? "photo" : preset?.visual === "diagram" ? "diagram" : "all");
   const [imgBusy, setImgBusy] = useState(false);
   const [busy, setBusy] = useState(!preset);
   const [error, setError] = useState<string | null>(null);
@@ -325,10 +330,13 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
         const c = j.data as TermCard;
         cache.current.set(key, c);
         setCard(c);
-        const imgKey = `${term}|${imgFilter}`;
-        if ((c.imageQuery || c.wikipediaTitle) && imgFor.current !== imgKey) {
+        // a picture only for words the AI said need one (a photo or a diagram); formulas and ideas get none
+        const f: ImageFilter = c.visual === "photo" ? "photo" : "diagram";
+        const imgKey = `${term}|${f}`;
+        if ((c.visual === "photo" || c.visual === "diagram") && (c.imageQuery || c.wikipediaTitle) && imgFor.current !== imgKey) {
           imgFor.current = imgKey;
-          void fetchFilteredImages(c.imageQuery || term, c.wikipediaTitle, imgFilter);
+          setImgFilter(f);
+          void fetchFilteredImages(c.imageQuery || term, c.wikipediaTitle, f);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Couldn't explain that right now.");
@@ -345,7 +353,7 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
   }, [load]);
 
   useEffect(() => {
-    if (!preset || preset.images?.length || (!preset.imageQuery && !preset.wikipediaTitle)) return;
+    if (!preset || preset.images?.length || (preset.visual !== "photo" && preset.visual !== "diagram") || (!preset.imageQuery && !preset.wikipediaTitle)) return;
     if (imgFor.current === `${term}|${imgFilter}`) return;
     imgFor.current = `${term}|${imgFilter}`;
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -371,6 +379,18 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
   };
 
   const pic = pics[picIdx];
+  // what to show above the text: older saved cards have no decision, so a card that already carries pictures keeps them
+  const visual: VisualKind = card?.visual ?? preset?.visual ?? (pics.length > 0 ? "photo" : "none");
+  const showPics = visual === "photo" || visual === "diagram";
+  const formulaHtml = useMemo(() => {
+    const f = (card?.formula || preset?.formula || "").trim();
+    if (visual !== "formula" || !f) return "";
+    try {
+      return katex.renderToString(f, { displayMode: true, throwOnError: false, output: "html" });
+    } catch {
+      return "";
+    }
+  }, [visual, card?.formula, preset?.formula]);
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center bg-black/50 p-0 sm:p-4" onClick={onClose} role="presentation">
@@ -389,7 +409,14 @@ function TermSheet({ term, context, topic, preset, onClose }: { term: string; co
         </div>
 
         <div className="px-5 pb-5 space-y-4">
-          {(pic || imgBusy || card?.imageQuery || preset?.imageQuery) && (
+          {formulaHtml && (
+            <div
+              className="note-explode overflow-x-auto rounded-2xl border border-brand-500/25 bg-brand-500/5 px-4 py-5 text-center text-xl"
+              aria-label={`Formula for ${term}`}
+              dangerouslySetInnerHTML={{ __html: formulaHtml }}
+            />
+          )}
+          {showPics && (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Visual Filter</span>
