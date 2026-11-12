@@ -44,6 +44,17 @@ interface ClassItem {
   isOwner?: boolean;
 }
 
+/** "Continue: <chapter>" for a class the learner has started reading (kept on this device by the reader), else "Open class". */
+function resumeLabel(classId: string): string {
+  try {
+    const pos = JSON.parse(window.localStorage.getItem(`sunroot:readpos:${classId}`) || "null") as { title?: string } | null;
+    if (pos?.title) return `Continue: ${pos.title}`;
+  } catch {
+    /* nothing saved */
+  }
+  return "Open class";
+}
+
 export default function ExplorePage() {
   const { user } = useUserStore();
   const { toast } = useToast();
@@ -456,7 +467,13 @@ export default function ExplorePage() {
           {filtered.map((item) => (
             <Card
               key={item.id}
-              className="flex flex-col border-slate-200 dark:border-slate-800 hover:border-brand-500/40 transition-all shadow-sm"
+              // a class you are in opens straight from its card; no need to go through the syllabus button
+              onClick={(e) => {
+                if (!(item.userEnrollmentStatus === "active" || item.isOwner)) return;
+                if ((e.target as HTMLElement).closest("a,button")) return;
+                router.push(`/classes/${item.id}`);
+              }}
+              className={`flex flex-col border-slate-200 dark:border-slate-800 hover:border-brand-500/40 transition-all shadow-sm ${item.userEnrollmentStatus === "active" || item.isOwner ? "cursor-pointer" : ""}`}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between gap-2 mb-2">
@@ -493,10 +510,16 @@ export default function ExplorePage() {
               </CardContent>
 
               <CardFooter className="pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between gap-2">
-                <Link href={`/classes/${item.id}`} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full text-xs">
-                    View Syllabus
-                  </Button>
+                <Link href={`/classes/${item.id}`} className="flex-1 min-w-0">
+                  {item.userEnrollmentStatus === "active" || item.isOwner ? (
+                    <Button size="sm" className="w-full text-xs justify-center">
+                      <span className="truncate">{resumeLabel(item.id)}</span>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" className="w-full text-xs">
+                      View Syllabus
+                    </Button>
+                  )}
                 </Link>
 
                 {item.userEnrollmentStatus === "active" ? (

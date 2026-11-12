@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
   // flat, precise controls: no gradient, no glow, no press-scale; a clear focus ring
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 select-none",
+  "inline-flex max-w-full items-center justify-center gap-2 whitespace-normal text-center sm:whitespace-nowrap rounded-lg text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 select-none",
   {
     variants: {
       variant: {
@@ -18,9 +18,9 @@ const buttonVariants = cva(
         amber: "bg-amber-400 text-slate-950 hover:bg-amber-300 font-semibold",
       },
       size: {
-        default: "h-10 px-4 py-2 min-h-[44px] md:min-h-[40px]",
-        sm: "h-9 rounded-md px-3 text-xs min-h-[36px]",
-        lg: "h-11 px-5 text-sm min-h-[44px]",
+        default: "px-4 py-2 min-h-[44px] md:min-h-[40px]",
+        sm: "rounded-md px-3 py-1.5 text-xs min-h-[36px]",
+        lg: "px-5 py-2.5 text-sm min-h-[44px]",
         icon: "h-10 w-10 min-h-[44px] min-w-[44px] md:min-h-[40px] md:min-w-[40px]",
       },
     },
