@@ -593,6 +593,7 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
+        data-sprout-ok
         aria-label={`About ${term}`}
         onClick={(e) => e.stopPropagation()}
         style={theatrical ? { animation: "none" } : undefined}

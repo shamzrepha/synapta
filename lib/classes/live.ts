@@ -35,10 +35,8 @@ const liveDoc = (classId: string, kcId: string, name: string) => kcRefOf(classId
 export function lessonForStudents(kc: Record<string, unknown>): string {
   const mode = liveMode(kc, "lesson");
   if (mode === "off") return "";
-  if (mode === "snapshot") {
-    const live = typeof kc.liveLessonMarkdown === "string" ? kc.liveLessonMarkdown : "";
-    return live || (typeof kc.lessonMarkdown === "string" ? kc.lessonMarkdown : "");
-  }
+  // a pushed snapshot is exactly what students see: never fall back to the teacher's working copy, which may hold unfinished edits
+  if (mode === "snapshot") return typeof kc.liveLessonMarkdown === "string" ? kc.liveLessonMarkdown : "";
   return typeof kc.lessonMarkdown === "string" ? kc.lessonMarkdown : "";
 }
 
@@ -86,7 +84,8 @@ async function draftOf(classId: string, kcId: string, kc: Record<string, unknown
   switch (key) {
     case "lesson": {
       const md = typeof kc.lessonMarkdown === "string" ? kc.lessonMarkdown.trim() : "";
-      return { exists: md.length >= 20, fp: stableId(md) };
+      // a real lecture note, not a stub: anything shorter reads as "your teacher is still writing this" to students anyway
+      return { exists: md.length >= 200, fp: stableId(md) };
     }
     case "audio": {
       const a = await getAudioLesson(classId, kcId);

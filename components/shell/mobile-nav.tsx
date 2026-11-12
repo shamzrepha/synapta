@@ -45,7 +45,7 @@ export function MobileNav() {
   };
 
   return (
-    <nav data-mobile-nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
+    <nav data-mobile-nav data-dock className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
       <div className="grid h-16 grid-cols-5">
         {left.map(tab)}
         <div className="flex items-center justify-center">

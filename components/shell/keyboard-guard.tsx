@@ -47,7 +47,9 @@ export function KeyboardGuard() {
 
     const onFocusIn = (e: FocusEvent) => {
       const t = e.target as Element | null;
-      if (t?.matches?.(TEXT_FIELD)) {
+      // a PC has no on-screen keyboard, so Sprout and the buttons stay; phones and tablets (touch) get out of the way
+      const touch = window.matchMedia("(pointer: coarse)").matches || (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+      if (t?.matches?.(TEXT_FIELD) && touch) {
         root.dataset.typing = "true";
         reveal(t);
       }

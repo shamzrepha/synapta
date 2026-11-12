@@ -26,7 +26,7 @@ export default function ShopPage() {
       </p>
       <PartShop tray={tray} onTray={setTray} />
       {count > 0 && (
-        <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-4 z-40 px-3">
+        <div data-dock className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-4 z-40 px-3">
           <div className="mx-auto max-w-3xl rounded-2xl bg-slate-900 text-white p-3 flex items-center gap-3 shadow-xl">
             <Wrench className="h-5 w-5 text-amber-300 shrink-0" />
             <p className="text-xs flex-1 min-w-0 truncate">{count} part{count > 1 ? "s" : ""}: {tray.map((t) => `${t.qty}× ${name(t.type)}`).join(", ")}</p>

@@ -66,7 +66,7 @@ export function TutorLauncher() {
         </button>
       )}
       {open && (
-        <div className="fixed z-50 inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[420px] md:h-[min(640px,calc(100dvh-6rem))] flex flex-col bg-white dark:bg-slate-950 md:rounded-2xl md:border border-slate-200 dark:border-slate-800 shadow-2xl">
+        <div data-tutor-open className="fixed z-50 inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[420px] md:h-[min(640px,calc(100dvh-6rem))] flex flex-col bg-white dark:bg-slate-950 md:rounded-2xl md:border border-slate-200 dark:border-slate-800 shadow-2xl">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <Sparkles className="h-4 w-4 text-brand-600" />
             <p className="font-bold flex-1">Ask {bot.enabled ? bot.pet.name : "the tutor"}</p>

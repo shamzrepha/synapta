@@ -5,11 +5,13 @@ export interface Prefs {
   dataSaver: boolean;
   reduceMotion: boolean;
   noAutoplay: boolean;
+  /** Sprout's little sounds and chirps (on by default; off for anyone who finds sound distracting) */
+  soundEffects: boolean;
   /** the learner's language: the AI writes and speaks in it, and the main menus use it */
   language: LanguageCode;
 }
 
-export const DEFAULT_PREFS: Prefs = { dataSaver: false, reduceMotion: false, noAutoplay: false, language: DEFAULT_LANGUAGE };
+export const DEFAULT_PREFS: Prefs = { dataSaver: false, reduceMotion: false, noAutoplay: false, soundEffects: true, language: DEFAULT_LANGUAGE };
 export const PREFS_KEY = "sunroot.prefs";
 
 /** Accepts anything (JSON string, object, null) and returns a complete, valid Prefs. */
@@ -28,6 +30,7 @@ export function parsePrefs(raw: unknown): Prefs {
     dataSaver: o.dataSaver === true,
     reduceMotion: o.reduceMotion === true,
     noAutoplay: o.noAutoplay === true,
+    soundEffects: o.soundEffects !== false,
     language: isLanguageCode(o.language) ? o.language : DEFAULT_LANGUAGE,
   };
 }

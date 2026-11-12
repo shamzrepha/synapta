@@ -20,6 +20,8 @@ describe("push to students", () => {
     const kc = { lessonMarkdown: "v2 draft edits", liveLessonMarkdown: "v1 pushed", contentPublished: { lesson: { fp: "a" } } };
     expect(lessonForStudents(kc)).toBe("v1 pushed");
     expect(lessonForStudents({ ...kc, contentPublished: { lesson: false } })).toBe("");
+    // a pushed snapshot is all students get: an empty one never falls back to the teacher's unfinished working copy
+    expect(lessonForStudents({ lessonMarkdown: "draft the teacher is still editing", liveLessonMarkdown: "", contentPublished: { lesson: { fp: "a" } } })).toBe("");
     expect(lessonForStudents({ lessonMarkdown: "old topic" })).toBe("old topic");
   });
 

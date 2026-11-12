@@ -4,7 +4,7 @@ import React from "react";
 import { BackGear, FaceGear, HatGear, NeckGear, ShoeGear, type Gear } from "@/components/bot/sprout-gear";
 import { PALETTES, type PetMood, type PetPalette } from "@/lib/pet/mood";
 
-export type BotPose = "idle" | "search" | "point" | "cheer" | "think" | "cross" | "dance" | "jump" | "wave" | "pull" | "giggle" | "flip";
+export type BotPose = "idle" | "search" | "point" | "cheer" | "think" | "cross" | "dance" | "jump" | "wave" | "pull" | "giggle" | "flip" | "nap";
 
 /**
  * Sprout, SunRoot's helper bot: a round blue body, a white face, a little green sprout on top (sun + root).
@@ -83,6 +83,13 @@ export function Sprout({ pose = "idle", facing = 1, className, mood = "calm", pa
         <g>
           <path d="M35 53 h12 M53 53 h12" stroke={pal.body} strokeWidth="6" strokeLinecap="round" />
           <text x="72" y="36" fontSize="13" fontWeight="700" fill="#64748b" className="sprout-zzz">z</text>
+        </g>
+      )}
+      {/* napping when nobody has touched the screen for a while: closed eyes (CSS) and floating z's */}
+      {pose === "nap" && (
+        <g aria-hidden="true">
+          <text x="70" y="38" fontSize="12" fontWeight="700" fill="#64748b" className="sprout-zzz">z</text>
+          <text x="80" y="26" fontSize="9" fontWeight="700" fill="#94a3b8" className="sprout-zzz sprout-zzz-late">z</text>
         </g>
       )}
       {/* on fire: little flames over the head; genius: stars */}

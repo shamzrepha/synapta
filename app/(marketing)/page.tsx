@@ -114,9 +114,9 @@ export default function LandingPage() {
             <Image src="/logo-mark.svg" alt="" width={28} height={28} className="h-7 w-7" priority />
             <span translate="no" className="text-[17px] font-semibold tracking-tight">Sunroot</span>
           </Link>
-          <nav className="hidden items-center gap-8 md:flex" aria-label="Page sections">
+          <nav className="hidden items-center gap-6 xl:gap-8 lg:flex" aria-label="Page sections">
             {[["How it works", "#how"], ["Features", "#features"], ["Who it's for", "#who"], ["Teachers", "#teachers"], ["Languages", "#languages"], ["About", "/about"]].map(([t, h]) => (
-              <Link key={h} href={h} className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground">{t}</Link>
+              <Link key={h} href={h} className="whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground">{t}</Link>
             ))}
           </nav>
           <LandingButtons />

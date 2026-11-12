@@ -6,7 +6,7 @@ import { ArrowRight, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useTheme } from "@/components/providers/theme-provider";
 
-const cta = "inline-flex h-9 items-center gap-2 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white dark:bg-brand-500 transition-colors hover:bg-brand-400";
+const cta = "inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-brand-600 px-4 text-sm font-semibold text-white dark:bg-brand-500 transition-colors hover:bg-brand-400";
 
 /** The landing page's top-right controls: light/dark switch, then "Open Sunroot" for signed-in people or "Log in" and "Start free" for guests. */
 export function LandingButtons() {
@@ -14,7 +14,7 @@ export function LandingButtons() {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
       <button
         type="button"
         onClick={toggleTheme}
@@ -31,7 +31,7 @@ export function LandingButtons() {
         </Link>
       ) : (
         <>
-          <Link href="/login" className="hidden h-9 items-center rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
+          <Link href="/login" className="hidden h-9 items-center whitespace-nowrap rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:inline-flex">
             Log in
           </Link>
           <Link href="/signup" className={cta}>

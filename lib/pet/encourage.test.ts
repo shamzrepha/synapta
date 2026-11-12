@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classEncouragement } from "./encourage";
+import { classEncouragement, dayHello } from "./encourage";
 
 const base = { topics: 10, mastered: 0, started: 0, streakDays: 0, avg: null as number | null };
 
@@ -25,5 +25,14 @@ describe("classEncouragement", () => {
   it("copes with an empty class and stays short", () => {
     expect(classEncouragement({ ...base, topics: 0 })).toMatch(/no topics/);
     expect(classEncouragement({ ...base, avg: 0.5, started: 3, leftOff: "x".repeat(200), streakDays: 9 }).length).toBeLessThanOrEqual(180);
+  });
+});
+
+describe("dayHello", () => {
+  it("fits the hour", () => {
+    expect(dayHello(2)).toMatch(/late/i);
+    expect(dayHello(8)).toBe("Good morning!");
+    expect(dayHello(14)).toBe("Good afternoon!");
+    expect(dayHello(21)).toBe("Good evening!");
   });
 });

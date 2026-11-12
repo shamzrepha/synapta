@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Download, X, CheckCircle2, RotateCw, Sparkles, AlertCircle } from "lucide-react";
 import { installedBuild, needsUpdate, parseLatest, type LatestApp } from "@/lib/native/app-update";
 
@@ -9,17 +9,27 @@ const DISMISS_KEY = "sunroot:updateDismissed";
 type UpdateStatus = "idle" | "downloading" | "complete" | "error";
 
 /**
- * In-app update manager:
- * Downloads newer APKs directly inside the app with a real-time progress bar,
- * triggers package installation, and restarts the app without needing Chrome browser.
+ * In-app update manager: downloads the newer APK inside the app with a live progress bar and hands it to Android's installer.
+ * A web page cannot install an app by itself, so it never claims the update is applied: Android asks the person to tap Install,
+ * and the new version is only in place when they reopen Sunroot.
  */
 export function AppUpdateBanner() {
   const [latest, setLatest] = useState<LatestApp | null>(null);
   const [status, setStatus] = useState<UpdateStatus>("idle");
-  const [progress, setProgress] = useState(0);
+  // null while the server has not said how big the file is: the bar then just keeps moving
+  const [progress, setProgress] = useState<number | null>(0);
   const [bytesInfo, setBytesInfo] = useState("");
-  const [countdown, setCountdown] = useState(3);
   const [errorMsg, setErrorMsg] = useState("");
+  const blobRef = useRef<Blob | null>(null);
+  const urlRef = useRef<string | null>(null);
+
+  // let go of the downloaded file when the banner goes away
+  useEffect(
+    () => () => {
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     let alive = true;
@@ -52,7 +62,8 @@ export function AppUpdateBanner() {
       const res = await fetch(latest.url, { cache: "no-store" });
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
-      const total = Number(res.headers.get("content-length")) || 8872596;
+      const total = Number(res.headers.get("content-length")) || 0;
+      if (!total) setProgress(null);
       const reader = res.body?.getReader();
 
       if (!reader) {
@@ -73,9 +84,13 @@ export function AppUpdateBanner() {
         if (value) {
           chunks.push(value);
           received += value.length;
-          const pct = Math.min(99, Math.round((received / total) * 100));
-          setProgress(pct);
-          setBytesInfo(`${(received / (1024 * 1024)).toFixed(1)} / ${(total / (1024 * 1024)).toFixed(1)} MB`);
+          const mb = (n: number) => (n / (1024 * 1024)).toFixed(1);
+          if (total) {
+            setProgress(Math.min(99, Math.round((received / total) * 100)));
+            setBytesInfo(`${mb(received)} / ${mb(total)} MB`);
+          } else {
+            setBytesInfo(`${mb(received)} MB`);
+          }
         }
       }
 
@@ -89,60 +104,37 @@ export function AppUpdateBanner() {
     }
   };
 
-  const finishUpdate = (blob: Blob) => {
-    setStatus("complete");
-    setBytesInfo("Ready to install!");
-
-    // 1. Trigger the package file in the Android environment
+  const openInstaller = () => {
+    const blob = blobRef.current;
+    if (!blob) return;
+    // hand the file to Android's installer through the download, and also through the app's own opener when it exists
     try {
-      const blobUrl = URL.createObjectURL(blob);
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = blobUrl;
+      a.href = urlRef.current;
       a.download = `sunroot-${latest?.versionName || "update"}.apk`;
       document.body.appendChild(a);
       a.click();
       window.setTimeout(() => {
         try {
           document.body.removeChild(a);
-          URL.revokeObjectURL(blobUrl);
         } catch {}
-      }, 5000);
+      }, 1000);
     } catch (e) {
       console.error("Trigger blob install error:", e);
     }
-
-    // 2. Also try native openUrl if Capacitor App plugin exists
     try {
-      const win = typeof window !== "undefined" ? (window as unknown as {
-        Capacitor?: {
-          Plugins?: {
-            App?: { openUrl?: (opts: { url: string }) => Promise<{ completed?: boolean }> };
-          };
-        };
-      }) : undefined;
-      if (win?.Capacitor?.Plugins?.App?.openUrl && latest?.url) {
-        void win.Capacitor.Plugins.App.openUrl({ url: latest.url });
-      }
+      const win = window as unknown as { Capacitor?: { Plugins?: { App?: { openUrl?: (opts: { url: string }) => Promise<unknown> } } } };
+      if (win.Capacitor?.Plugins?.App?.openUrl && latest?.url) void win.Capacitor.Plugins.App.openUrl({ url: latest.url });
     } catch {}
-
-    // 3. Countdown and restart the app
-    let c = 3;
-    setCountdown(3);
-    const interval = window.setInterval(() => {
-      c -= 1;
-      setCountdown(c);
-      if (c <= 0) {
-        window.clearInterval(interval);
-        restartApp();
-      }
-    }, 1000);
   };
 
-  const restartApp = () => {
-    // Clear caches and reload app fresh
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
+  const finishUpdate = (blob: Blob) => {
+    blobRef.current = blob;
+    setStatus("complete");
+    setBytesInfo("Download finished");
+    openInstaller();
   };
 
   if (!latest) return null;
@@ -165,7 +157,7 @@ export function AppUpdateBanner() {
                 Sunroot update ready (v{latest.versionName})
               </div>
               <div className="text-[11px] text-muted-foreground truncate">
-                Includes new Sprout animations, Jarvis buddy &amp; speed fixes
+                New features and fixes. Download it right here, no browser needed.
               </div>
             </div>
           </div>
@@ -204,14 +196,14 @@ export function AppUpdateBanner() {
               <RotateCw className="h-3.5 w-3.5 animate-spin text-brand-600" />
               <span>Downloading update (v{latest.versionName})...</span>
             </div>
-            <span className="font-bold text-brand-600 dark:text-brand-400">{progress}%</span>
+            <span className="font-bold text-brand-600 dark:text-brand-400">{progress === null ? "" : `${progress}%`}</span>
           </div>
 
           {/* Progress Bar Track & Fill */}
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-brand-600 to-emerald-500 transition-all duration-150 ease-out"
-              style={{ width: `${progress}%` }}
+              className={`h-full rounded-full bg-gradient-to-r from-brand-600 to-emerald-500 transition-all duration-150 ease-out ${progress === null ? "w-1/3 animate-pulse" : ""}`}
+              style={progress === null ? undefined : { width: `${progress}%` }}
             />
           </div>
 
@@ -222,29 +214,37 @@ export function AppUpdateBanner() {
         </div>
       )}
 
-      {/* 3. COMPLETE STATE: Restart Countdown & Action */}
+      {/* 3. DOWNLOADED: Android's installer takes over; we only say what is true */}
       {status === "complete" && (
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
+        <div className="space-y-2.5">
+          <div className="flex items-start gap-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="h-4 w-4" />
             </div>
-            <div>
-              <div className="text-xs font-bold text-foreground">Update complete!</div>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-foreground">Downloaded v{latest.versionName}</div>
               <div className="text-[11px] text-muted-foreground">
-                Restarting Sunroot in {countdown}s to apply changes...
+                Tap <b>Install</b> when Android asks. If it doesn&apos;t, allow &ldquo;install unknown apps&rdquo; for Sunroot, then press the button below. Reopen Sunroot afterwards.
               </div>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={restartApp}
-            className="cursor-pointer rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-95 transition-all touch-manipulation flex items-center gap-1.5"
-          >
-            <RotateCw className="h-3.5 w-3.5" />
-            <span>Restart Now</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={openInstaller}
+              className="cursor-pointer rounded-xl bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-700 active:scale-95 transition-all touch-manipulation flex items-center gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>Open installer</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setLatest(null)}
+              className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+            >
+              Later
+            </button>
+          </div>
         </div>
       )}
 
