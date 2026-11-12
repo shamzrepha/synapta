@@ -14,6 +14,7 @@ const schema = z.object({
   dataSaver: z.boolean().optional(),
   reduceMotion: z.boolean().optional(),
   noAutoplay: z.boolean().optional(),
+  soundEffects: z.boolean().optional(),
   language: z.enum(LANGUAGE_CODES).optional(),
   accessibility: z.unknown().optional(),
 });
@@ -45,6 +46,7 @@ export async function PUT(req: NextRequest) {
       typeof rawPrefs.dataSaver === "boolean" ||
       typeof rawPrefs.reduceMotion === "boolean" ||
       typeof rawPrefs.noAutoplay === "boolean" ||
+      typeof rawPrefs.soundEffects === "boolean" ||
       typeof rawPrefs.language === "string";
 
     const update: Record<string, unknown> = { prefsUpdatedAt: Timestamp.now() };

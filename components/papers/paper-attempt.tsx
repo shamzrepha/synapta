@@ -128,7 +128,7 @@ export function PaperAttempt({ paper, onSubmitted }: { paper: PaperData; onSubmi
         </Card>
       ))}
 
-      <div className="fixed bottom-0 inset-x-0 z-10 p-3 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800 md:static md:border-0 md:bg-transparent md:p-0">
+      <div data-dock className="fixed bottom-0 inset-x-0 z-10 p-3 bg-white/95 dark:bg-slate-950/95 border-t border-slate-200 dark:border-slate-800 md:static md:border-0 md:bg-transparent md:p-0">
         <Button onClick={submit} disabled={submitting} size="lg" className="w-full max-w-3xl mx-auto flex">
           {submitting ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Marking…</> : "Submit paper"}
         </Button>

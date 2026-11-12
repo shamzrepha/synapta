@@ -26,3 +26,11 @@ export function classEncouragement(p: ClassProgress): string {
   else line = `Every expert started here. One small topic at a time, you've got this.${p.leftOff ? resume : ""}`;
   return `${line}${streak}`.slice(0, 180);
 }
+
+/** A hello that fits the hour (0-23), so Sprout does not say "ready to learn?" at 2 in the morning. */
+export function dayHello(hour: number): string {
+  if (hour >= 0 && hour < 5) return "Up late? Don't forget to rest!";
+  if (hour < 12) return "Good morning!";
+  if (hour < 18) return "Good afternoon!";
+  return "Good evening!";
+}

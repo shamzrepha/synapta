@@ -12,10 +12,11 @@ import { cn } from "@/lib/utils";
 import { LanguageSettings } from "@/components/settings/language-picker";
 import { BotToggle } from "@/components/bot/bot-toggle";
 
-const OPTIONS: Array<{ key: "dataSaver" | "reduceMotion" | "noAutoplay"; title: string; desc: string; icon: React.ReactNode }> = [
+const OPTIONS: Array<{ key: "dataSaver" | "reduceMotion" | "noAutoplay" | "soundEffects"; title: string; desc: string; icon: React.ReactNode }> = [
   { key: "dataSaver", title: "Data saver", desc: "Audio and 3D wait for a tap, images load smaller, videos don't autoplay.", icon: <Gauge className="h-5 w-5" /> },
   { key: "reduceMotion", title: "Reduce motion", desc: "Calmer transitions instead of 3D flips and motion effects.", icon: <Sparkles className="h-5 w-5" /> },
   { key: "noAutoplay", title: "Don't autoplay audio or video", desc: "Nothing starts playing until you press play.", icon: <VolumeX className="h-5 w-5" /> },
+  { key: "soundEffects", title: "Sprout sounds", desc: "Little chirps and page-flip sounds. Turn off if sound distracts you.", icon: <Volume2 className="h-5 w-5" /> },
 ];
 
 const SPEEDS: TtsSpeed[] = [0.85, 1, 1.25];

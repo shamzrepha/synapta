@@ -10,6 +10,9 @@ import type { Gear } from "@/components/bot/sprout-gear";
 import { PALETTES, type PetMood } from "@/lib/pet/mood";
 import { playCuteVoice, playPageFlipSound } from "@/lib/audio/sfx";
 import { JarvisHud } from "@/components/bot/jarvis-hud";
+import { homeFor, hudPlacement, type Box } from "@/lib/pet/placement";
+import { formatClock, IDLE, remainingMs, startFocus, tick, type FocusState } from "@/lib/pet/focus";
+import { dayHello } from "@/lib/pet/encourage";
 
 const W = 72;
 const H = 81;
@@ -17,6 +20,20 @@ const KEY = "sunroot:bot";
 export const PET_EVENT = "sunroot:pet";
 /** Tapping Sprout asks the AI helper: whoever can open it (the tutor panel) marks the event handled. Otherwise Sprout gives a tip. */
 export const ASK_EVENT = "sunroot:ask-ai";
+/** "Read this aloud": the reader answers it with the app's real (neural) voice. Nothing uses the robotic device voice. */
+export const LISTEN_EVENT = "sunroot:listen";
+
+/** Bars fixed to the screen (the phone menu, the read-aloud player) that Sprout must not stand on. */
+function readDocks(): Box[] {
+  const out: Box[] = [];
+  document.querySelectorAll<HTMLElement>("[data-dock]").forEach((el) => {
+    const cs = getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden" || cs.position !== "fixed") return;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) out.push({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+  });
+  return out;
+}
 export type BotMode = "lively" | "calm" | "off";
 
 export interface PetInfo {
@@ -105,7 +122,7 @@ function greeting(p: PetInfo): string {
     case "happy":
       return `${d} days in a row! ${p.name} is so happy.`;
     default:
-      return `Hi! I'm ${p.name}. Ready to learn?`;
+      return `${dayHello(new Date().getHours())} I'm ${p.name}. Ready to learn?`;
   }
 }
 
@@ -131,7 +148,12 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   const [awake, setAwake] = useState(false);
   const awakeTimer = useRef<number | undefined>(undefined);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isReading, setIsReading] = useState(false);
+  const [hudAnchor, setHudAnchor] = useState<Box | null>(null);
+  // focus sprint: a short timer Sprout keeps watch over
+  const focusRef = useRef<FocusState>(IDLE);
+  const [focusLabel, setFocusLabel] = useState<string | null>(null);
+  const [focusBreak, setFocusBreak] = useState(false);
+  const lastActive = useRef(0);
 
   const wake = useCallback(() => {
     setAwake(true);
@@ -155,13 +177,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     setPoseState(p);
   }, []);
 
-  const home = useCallback(() => {
-    const narrow = window.innerWidth < 768;
-    return {
-      x: window.innerWidth - W - (narrow ? 12 : 8),
-      y: window.innerHeight - H - (narrow ? 88 : 24),
-    };
-  }, []);
+  const home = useCallback(() => homeFor(window.innerWidth, window.innerHeight, W, H, readDocks()), []);
 
   const place = useCallback((x: number, y: number) => {
     at.current = { x, y };
@@ -428,6 +444,111 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     return targets.length;
   }, [enabled, mounted, hopTo, rest, flip, say, wake]);
 
+  // "Show off": Sprout introduces itself and what it is wearing, dances, then does a backflip
+  const showOff = useCallback(async () => {
+    if (!enabled || !mounted) return;
+    setMenuOpen(false);
+    wake();
+    playCuteVoice("cheer");
+    const worn = Object.values(pet.gear || {}).filter(Boolean).length;
+    const streak = pet.stats.streakDays;
+    say(`I'm ${pet.name}!${worn ? ` Wearing ${worn} cool thing${worn > 1 ? "s" : ""}.` : ""}${streak ? ` ${streak}-day streak!` : ""}`, 4200);
+    setPose("dance");
+    await sleep(reduce ? 600 : 1600);
+    await flip();
+  }, [enabled, mounted, pet, say, setPose, reduce, flip, wake]);
+
+  // focus sprint: start or stop a short timer; Sprout keeps watch, cheers halfway and at the end, then calls a break
+  const toggleSprint = useCallback(
+    (minutes = 10) => {
+      setMenuOpen(false);
+      wake();
+      if (focusRef.current.phase !== "idle") {
+        focusRef.current = IDLE;
+        setFocusLabel(null);
+        setFocusBreak(false);
+        say("Sprint stopped. No worries, come back any time.", 2800);
+        return;
+      }
+      focusRef.current = startFocus(Date.now(), minutes);
+      setFocusLabel(formatClock(minutes * 60_000));
+      setFocusBreak(false);
+      playCuteVoice("happy");
+      say(`${minutes}-minute focus sprint! I'll keep watch. Go!`, 3600);
+      setPose("think");
+      window.setTimeout(() => poseRef.current === "think" && setPose("idle"), 1600);
+    },
+    [say, setPose, wake],
+  );
+  useEffect(() => {
+    if (!mounted || !enabled) return;
+    const t = window.setInterval(() => {
+      const st = focusRef.current;
+      if (st.phase === "idle") return;
+      const now = Date.now();
+      const r = tick(st, now);
+      focusRef.current = r.state;
+      setFocusLabel(r.state.phase === "idle" ? null : formatClock(remainingMs(r.state, now)));
+      setFocusBreak(r.state.phase === "break");
+      if (r.event === "halfway") say("Halfway there! Keep going, you've got this.", 3200);
+      if (r.event === "focus-done") void cheer(`Sprint done! Take a ${Math.round((r.state.endsAt - now) / 60_000)}-minute break: stretch and sip some water.`);
+      if (r.event === "break-done") {
+        setPose("wave");
+        say("Break over. Ready for another sprint?", 3600);
+        window.setTimeout(() => poseRef.current === "wave" && setPose("idle"), 1800);
+      }
+    }, 1000);
+    return () => window.clearInterval(t);
+  }, [mounted, enabled, say, cheer, setPose]);
+
+  // napping: nobody has touched the screen for about a minute and a half, so Sprout dozes off; any touch wakes it
+  useEffect(() => {
+    if (!mounted || !enabled) return;
+    lastActive.current = Date.now();
+    const bump = () => {
+      lastActive.current = Date.now();
+      if (poseRef.current === "nap") {
+        setPose("wave");
+        say("Oh, you're back!", 2200);
+        window.setTimeout(() => poseRef.current === "wave" && setPose("idle"), 1400);
+      }
+    };
+    const events = ["pointerdown", "pointermove", "keydown", "scroll", "touchstart", "wheel"] as const;
+    events.forEach((e) => window.addEventListener(e, bump, { passive: true, capture: true }));
+    const t = window.setInterval(() => {
+      if (mode !== "lively" || reduce || !homed.current || anim.current || menuOpen || document.hidden) return;
+      if (poseRef.current !== "idle" || focusRef.current.phase === "focus") return; // keeps watch during a sprint
+      if (Date.now() - lastActive.current > 90_000) setPose("nap");
+    }, 5000);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, bump, { capture: true }));
+      window.clearInterval(t);
+    };
+  }, [mounted, enabled, mode, reduce, menuOpen, say, setPose]);
+
+  // a bar that appears or disappears under Sprout (the read-aloud player, the phone menu): hop up onto it or back down
+  useEffect(() => {
+    if (!mounted || !enabled) return;
+    const t = window.setInterval(() => {
+      if (!homed.current || anim.current || document.hidden) return;
+      const n = home();
+      const c = at.current;
+      if (Math.abs(n.x - c.x) > 3 || Math.abs(n.y - c.y) > 3) void move(n.x, n.y, reduce ? 0 : 520, "idle");
+    }, 700);
+    return () => window.clearInterval(t);
+  }, [mounted, enabled, home, move, reduce]);
+
+  // the menu follows Sprout if the screen changes (turning the phone)
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onResize = () => {
+      const r = layer.current?.getBoundingClientRect();
+      if (r) setHudAnchor({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [menuOpen]);
+
   // a greeting once per visit, by mood
   useEffect(() => {
     if (!mounted || !enabled || pet === DEFAULT_PET) return;
@@ -537,46 +658,27 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     };
   }, [menuOpen]);
 
+  // "Listen": the reader reads the chapter with the app's neural voice. Off the reader there is nothing to read, so say so.
   const onReadAloud = useCallback(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      say("Voice readout not supported on this browser.", 2200);
-      return;
+    setMenuOpen(false);
+    wake();
+    const ev = new CustomEvent(LISTEN_EVENT, { detail: { handled: false } });
+    window.dispatchEvent(ev);
+    if ((ev.detail as { handled: boolean }).handled) {
+      say("Reading it out loud!", 2200);
+      setPose("dance");
+      window.setTimeout(() => poseRef.current === "dance" && setPose("idle"), 1800);
+    } else {
+      say("Open a chapter in the reader and tap Listen. I'll read it with a real voice.", 4200);
     }
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-      setIsReading(false);
-      setPose("idle");
-      say("Stopped reading.", 1600);
-      return;
-    }
-    const heading = document.querySelector("h1, h2, h3")?.textContent?.trim() || "";
-    const p = document.querySelector("article p, main p, [data-readable] p")?.textContent?.trim() || "";
-    const text = [heading, p].filter(Boolean).join(". ");
-    if (!text) {
-      say("Nothing to read on this page yet!", 2000);
-      return;
-    }
-    const utter = new SpeechSynthesisUtterance(text.slice(0, 420));
-    utter.rate = 1.0;
-    utter.pitch = 1.08;
-    setIsReading(true);
-    setPose("dance");
-    say("Reading out loud...", 3000);
-    utter.onend = () => {
-      setIsReading(false);
-      setPose("idle");
-    };
-    utter.onerror = () => {
-      setIsReading(false);
-      setPose("idle");
-    };
-    window.speechSynthesis.speak(utter);
-  }, [say, setPose]);
+  }, [say, setPose, wake]);
 
   // tapping Sprout toggles the Jarvis Desk Buddy HUD
   const onTap = () => {
     wake();
     playCuteVoice("happy");
+    const r = layer.current?.getBoundingClientRect();
+    if (r) setHudAnchor({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
     setMenuOpen((prev) => !prev);
   };
 
@@ -627,8 +729,11 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
                 }, 400);
               }}
               onReadAloud={onReadAloud}
-              isReading={isReading}
+              placement={hudAnchor ? hudPlacement(hudAnchor, window.innerWidth, window.innerHeight, readDocks()) : null}
               onFlip={flip}
+              focusLabel={focusLabel}
+              onFocus={() => toggleSprint(10)}
+              onShowOff={showOff}
               onAskTutor={() => {
                 setMenuOpen(false);
                 wake();
@@ -642,7 +747,13 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
               }}
             />
             <div ref={layer} className="sunroot-bot" data-moving={moving} data-landed={landed} data-peek={peek} data-side={side} aria-live="polite">
-              {bubble && <div className="sunroot-bot-bubble" role="status">{bubble}</div>}
+              {bubble && !menuOpen && <div className="sunroot-bot-bubble" role="status">{bubble}</div>}
+              {focusLabel && (
+                <div className="sunroot-bot-timer" data-break={focusBreak} aria-label={focusBreak ? "Break time left" : "Focus time left"}>
+                  {focusBreak ? "break " : ""}
+                  {focusLabel}
+                </div>
+              )}
               <button
                 type="button"
                 className="sunroot-bot-body"

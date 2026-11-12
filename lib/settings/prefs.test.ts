@@ -8,7 +8,8 @@ describe("prefs", () => {
     expect(parsePrefs(42)).toEqual(DEFAULT_PREFS);
   });
   it("parses strings and objects, coercing to booleans", () => {
-    expect(parsePrefs('{"dataSaver":true,"reduceMotion":"yes"}')).toEqual({ dataSaver: true, reduceMotion: false, noAutoplay: false, language: "en" });
+    expect(parsePrefs('{"dataSaver":true,"reduceMotion":"yes"}')).toEqual({ dataSaver: true, reduceMotion: false, noAutoplay: false, soundEffects: true, language: "en" });
+    expect(parsePrefs({ soundEffects: false }).soundEffects).toBe(false);
     expect(parsePrefs({ noAutoplay: true }).noAutoplay).toBe(true);
   });
   it("data saver disables autoplay and defers heavy content", () => {

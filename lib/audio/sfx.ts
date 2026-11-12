@@ -2,6 +2,7 @@
  * Procedural Web Audio Sound Effects & Companion Vocalizations for Sunroot.
  * Zero external audio files required — 100% offline, low-latency, and mobile-friendly.
  */
+import { PREFS_KEY, parsePrefs } from "@/lib/settings/prefs";
 
 let ctx: AudioContext | null = null;
 
@@ -22,18 +23,15 @@ function getAudioContext(): AudioContext | null {
   return ctx;
 }
 
-/** Check if sound is muted via user preferences */
+/** Sounds are on unless the learner turned them off in Settings (or asked for no autoplay / data saving). */
 function isSoundAllowed(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const raw = localStorage.getItem("sunroot:prefs");
-    if (!raw) return true;
-    const parsed = JSON.parse(raw);
-    if (parsed.soundEffects === false) return false;
+    const p = parsePrefs(localStorage.getItem(PREFS_KEY));
+    return p.soundEffects && !p.noAutoplay && !p.dataSaver;
   } catch {
-    /* fallback to enabled */
+    return true;
   }
-  return true;
 }
 
 /**

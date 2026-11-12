@@ -25,11 +25,11 @@ export async function GET(
 
     // Not a member: landing page only. Opening a shared link never unlocks lessons by itself.
     if (!access.canView) {
-      const shouldPreview = access.canPreview || classData.status === "published";
-      const outline = shouldPreview
+      // landing page only for public published classes; a private class shows nothing about its topics to people outside it
+      const outline = access.canPreview
         ? (await adminDb().collection("classes").doc(id).collection("kcs").orderBy("order", "asc").get()).docs
             .map((d) => ({ id: d.id, ...(d.data() as { title?: string; status?: string; summary?: string; description?: string; order?: number }) }))
-            .filter((k) => k.status !== "archived")
+            .filter((k) => k.status !== "draft" && k.status !== "archived")
             .map((k) => ({ id: k.id, title: k.title || "Topic", summary: String(k.summary || k.description || "").slice(0, 160), order: k.order ?? 0, status: "published", locked: true }))
         : [];
       return NextResponse.json({
@@ -71,13 +71,8 @@ export async function GET(
     let kcs = kcsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     if (role === "student" || role === "visitor") {
-      kcs = kcs.filter((k) => {
-        const s = (k as { status?: string }).status;
-        if (s === "archived") return false;
-        // In a published class, all curriculum topics are visible to enrolled students
-        if (classData.status === "published") return true;
-        return s === "published";
-      });
+      // drafts and archived topics stay hidden; publishing the class (or pushing a topic's content) marks its topics published
+      kcs = kcs.filter((k) => (k as { status?: string }).status !== "draft" && (k as { status?: string }).status !== "archived");
     }
     // Students only get what the teacher published: drafts (lecture note, labs) never leave the server
     kcs = kcs.map((k) => {

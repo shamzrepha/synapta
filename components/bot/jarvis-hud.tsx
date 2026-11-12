@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { Sparkles, Search, Lightbulb, Target, Volume2, VolumeX, MessageSquare, X, RotateCw } from "lucide-react";
+import { Sparkles, Search, Lightbulb, Target, Volume2, MessageSquare, X, RotateCw, Timer, Trophy } from "lucide-react";
 import type { PetInfo } from "@/components/bot/bot-provider";
+import type { HudPlacement } from "@/lib/pet/placement";
 
 export function JarvisHud({
   pet,
@@ -14,7 +15,10 @@ export function JarvisHud({
   onReadAloud,
   onFlip,
   onAskTutor,
-  isReading = false,
+  placement,
+  focusLabel,
+  onFocus,
+  onShowOff,
 }: {
   pet: PetInfo;
   open: boolean;
@@ -25,9 +29,14 @@ export function JarvisHud({
   onReadAloud: () => void;
   onFlip: () => void;
   onAskTutor: () => void;
-  isReading?: boolean;
+  /** where to open, worked out from where Sprout stands, so it never sits on Sprout or a bar */
+  placement: HudPlacement | null;
+  /** time left in a running focus sprint, or null when none is running */
+  focusLabel: string | null;
+  onFocus: () => void;
+  onShowOff: () => void;
 }) {
-  if (!open) return null;
+  if (!open || !placement) return null;
 
   return (
     <div
@@ -36,8 +45,8 @@ export function JarvisHud({
       onPointerDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
-      style={{ pointerEvents: "auto" }}
-      className="sunroot-jarvis-hud pointer-events-auto fixed z-50 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] right-3 sm:right-6 w-[min(340px,calc(100vw-24px))] rounded-2xl border border-brand-500/30 bg-background/95 p-3.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200"
+      style={{ pointerEvents: "auto", right: placement.right, bottom: placement.bottom, width: placement.width, maxHeight: placement.maxHeight }}
+      className="sunroot-jarvis-hud pointer-events-auto fixed z-[80] overflow-y-auto overscroll-contain rounded-2xl border border-brand-500/30 bg-background/95 p-3.5 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200"
     >
       <div className="flex items-center justify-between border-b border-border/60 pb-2.5 mb-2.5">
         <div className="flex items-center gap-2">
@@ -125,11 +134,45 @@ export function JarvisHud({
           className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left text-xs font-medium hover:bg-purple-500/10 active:bg-purple-500/20 cursor-pointer transition-colors group touch-manipulation"
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-purple-500/15 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
-            {isReading ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+            <Volume2 className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="font-semibold text-foreground">{isReading ? "Stop Reading" : "Read Section Aloud"}</div>
-            <div className="text-[10px] text-muted-foreground">{isReading ? "Mute active voice reader" : "Voice read of key takeaways"}</div>
+            <div className="font-semibold text-foreground">Listen to this chapter</div>
+            <div className="text-[10px] text-muted-foreground">Read aloud with the real voice</div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onFocus();
+          }}
+          className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left text-xs font-medium hover:bg-orange-500/10 active:bg-orange-500/20 cursor-pointer transition-colors group touch-manipulation"
+        >
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-orange-500/15 text-orange-600 dark:text-orange-400 group-hover:scale-105 transition-transform">
+            <Timer className="h-3.5 w-3.5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold text-foreground">{focusLabel ? `Stop sprint (${focusLabel})` : "Focus sprint"}</div>
+            <div className="text-[10px] text-muted-foreground">{focusLabel ? "End the timer early" : "10 minutes of focus, then a short break"}</div>
+          </div>
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onShowOff();
+          }}
+          className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left text-xs font-medium hover:bg-yellow-500/10 active:bg-yellow-500/20 cursor-pointer transition-colors group touch-manipulation"
+        >
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 group-hover:scale-105 transition-transform">
+            <Trophy className="h-3.5 w-3.5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold text-foreground">Show off</div>
+            <div className="text-[10px] text-muted-foreground">Meet Sprout, its outfit and its streak</div>
           </div>
         </button>
 

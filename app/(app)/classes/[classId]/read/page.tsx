@@ -34,6 +34,7 @@ import { TextbookWriter } from "@/components/lesson/textbook-writer";
 import { ClassMindMap } from "@/components/classes/class-mind-map";
 import { readMinutes, splitTextbookPages, type TextbookSectionKind } from "@/lib/study/note-sections";
 import { budgetFor, DEFAULT_BUDGET, type PageBudget } from "@/lib/study/page-fit";
+import { LISTEN_EVENT } from "@/components/bot/bot-provider";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { fireCelebration } from "@/components/game/confetti";
 import { asArray } from "@/lib/api/client";
@@ -645,6 +646,22 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
   );
   const voice = useReadThrough({ sections: readable, onSection: (id) => goTo(id), findEl: findBlockEl });
   const listeningTitle = sections.find((s) => s.id === voice.currentId)?.title || "";
+
+  // Sprout's "Listen to this chapter": read the chapter on screen with the app's real voice
+  const voiceRef = useRef(voice);
+  useEffect(() => {
+    voiceRef.current = voice;
+  });
+  useEffect(() => {
+    const onListen = (e: Event) => {
+      const id = (viewMode === "flip" ? currentFlip?.section.id : active) || readable[0]?.id;
+      if (!id || !readable.some((r) => r.id === id)) return; // nothing readable here: Sprout says so
+      (e as CustomEvent<{ handled: boolean }>).detail.handled = true;
+      voiceRef.current.start(id);
+    };
+    window.addEventListener(LISTEN_EVENT, onListen);
+    return () => window.removeEventListener(LISTEN_EVENT, onListen);
+  }, [viewMode, currentFlip, active, readable]);
 
   // where am I: progress bar + saving reading position (works in both flipbook and scroll modes)
   useEffect(() => {
@@ -1284,7 +1301,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       </div>
 
       {voice.state !== "idle" && (
-        <div data-floating className="fixed inset-x-3 bottom-[4.75rem] lg:bottom-4 lg:left-auto lg:right-6 lg:w-96 z-40">
+        <div data-floating data-dock className="fixed inset-x-3 bottom-[4.75rem] lg:bottom-4 lg:left-auto lg:right-6 lg:w-96 z-40">
           <ReadPlayer api={voice} title={listeningTitle} />
         </div>
       )}
