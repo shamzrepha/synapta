@@ -1,0 +1,352 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>SunrootLearn: welcome film</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#0a1a52;font-family:'Inter','DM Sans',system-ui,sans-serif}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;background:linear-gradient(170deg,#0a1a52 0%,#1740c4 60%,#2f6af0 100%)}
+.abs{position:absolute;left:0;top:0;transform-origin:50% 50%;will-change:transform}
+.blob{border-radius:50%;filter:blur(60px);background:rgba(120,170,255,.35)}
+.h1{width:960px;left:60px;text-align:center;color:#fff;font-weight:900;letter-spacing:-.02em;line-height:1.02;text-shadow:0 6px 30px rgba(5,15,70,.45)}
+.sub{width:900px;left:90px;text-align:center;color:#dbe7ff;font-weight:600;font-size:46px}
+.chip{z-index:6;display:flex;align-items:center;gap:18px;padding:22px 34px;background:#fff;border-radius:28px;color:#0f1d4d;font-weight:800;font-size:44px;box-shadow:0 14px 40px rgba(5,15,70,.35);white-space:nowrap}
+.chip i{display:block;width:52px;height:52px;border-radius:14px;background:#3b6df6}
+.chip.out{background:#eaf0ff}
+#phone{width:760px;height:1645px;border-radius:64px;border:14px solid #0b1230;background:#0b1230;overflow:hidden;box-shadow:0 40px 90px rgba(3,10,50,.55)}
+#phone .scr{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#sheet{position:absolute;left:0;top:758px;width:760px;height:887px}
+.ring{border-radius:50%;border:10px solid rgba(255,255,255,.6)}
+#caps{left:70px;width:940px;top:1590px;text-align:center}
+#caps span{display:inline-block;padding:14px 30px;border-radius:26px;background:rgba(6,16,64,.72);color:#fff;font-weight:800;font-size:52px;line-height:1.22;backdrop-filter:blur(4px)}
+#caps b{color:#9ec0ff;font-weight:800}
+#caps b.on{color:#fff}
+.badge{display:flex;align-items:center;gap:16px;padding:20px 34px;border-radius:999px;background:#fff;color:#0f1d4d;font-weight:900;font-size:50px;box-shadow:0 14px 40px rgba(5,15,70,.35)}
+.gold{color:#b45309}
+.logoimg{width:760px}
+#confetti{position:absolute;left:0;top:0}
+</style></head>
+<body>
+<div id="stage">
+  <div class="abs blob" id="b1" style="width:700px;height:700px"></div>
+  <div class="abs blob" id="b2" style="width:600px;height:600px;background:rgba(20,184,166,.25)"></div>
+  <div class="abs ring" id="ringA" style="width:300px;height:300px"></div>
+  <div class="abs ring" id="ringB" style="width:300px;height:300px"></div>
+
+  <div class="abs h1" id="hl" style="font-size:132px;top:260px"></div>
+  <div class="abs sub" id="sb" style="top:690px"></div>
+
+  <!-- S4 cards -->
+  <div class="abs chip" id="c1"><i></i>New courses</div>
+  <div class="abs chip" id="c2"><i style="background:#14b8a6"></i>New lecturers</div>
+  <div class="abs chip" id="c3"><i style="background:#8b5cf6"></i>So many notes</div>
+  <!-- S5 chips -->
+  <div class="abs chip" id="f1"><i></i>Lecture notes</div>
+  <div class="abs chip" id="f2"><i style="background:#f97316"></i>Slides</div>
+  <div class="abs chip" id="f3"><i style="background:#14b8a6"></i>Photo of the board</div>
+  <div class="abs chip out" id="o1">Lessons</div>
+  <div class="abs chip out" id="o2">Flashcards</div>
+  <div class="abs chip out" id="o3">Quizzes</div>
+
+  <div class="abs" id="phone">
+    <img class="scr" id="img1" src="assets/phone-lesson.png">
+    <img class="scr" id="img2" src="assets/phone-focus.png" style="opacity:0">
+    <div class="abs ring" id="tap" style="width:90px;height:90px;border-color:#3b6df6;border-width:8px;opacity:0"></div>
+    <img id="sheet" src="assets/popup-sheet.png" style="opacity:0">
+  </div>
+  <div class="abs chip" id="sprint" style="background:#3b6df6;color:#fff;font-size:50px;padding:22px 40px">10-minute sprint</div>
+
+  <div class="abs badge" id="xp"><span class="gold">+50 XP</span></div>
+  <div class="abs badge" id="streak">Day 3 streak</div>
+  <div class="abs badge" id="lvl">Level up!</div>
+
+  <img class="abs logoimg" id="logo" style="background:#fff;border-radius:70px;padding:30px 50px;width:700px" src="assets/logo.svg">
+  <div class="abs h1" id="cta" style="font-size:96px;top:1010px"></div>
+  <div class="abs chip" id="btn" style="background:#3b6df6;color:#fff;font-size:64px;padding:30px 70px;border-radius:999px;border:6px solid #fff">Start free today</div>
+  <div class="abs sub" id="url" style="top:1380px;font-size:48px"></div>
+
+  <div class="abs" id="sprout" style="width:400px;height:430px"></div>
+  <canvas id="confetti" width="1080" height="1920"></canvas>
+  <div class="abs" id="caps"><span></span></div>
+</div>
+<script src="sprout.js"></script>
+<script>
+const CFG = Object.assign({ school: '', url: 'sunrootlearn.vercel.app' }, window.CONFIG || {});
+const TL = window.TIMELINE;
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);
+const eio = (x) => (x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const back = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const lerp = (a, b, k) => a + (b - a) * k;
+const place = (el, x, y, s = 1, r = 0, o = 1) => {
+  el.style.transform = `translate(${x}px,${y}px) translate(-50%,-50%) rotate(${r}deg) scale(${s})`;
+  el.style.opacity = o;
+};
+const setText = (el, s) => { if (el._t !== s) { el._t = s; el.innerHTML = s; } };
+
+const spr = createSprout($('sprout'));
+const sprEl = $('sprout');
+const S = { 1: 0.15, 2: 4.2, 3: 6.8, 4: 9.8, 5: 15.1, 6: 22.2, 7: 26.9, 8: 31.1, 9: 35.6 };
+const TOTAL = TL.total;
+
+// kinetic headline: each word pops in staggered
+function kinetic(el, words, t0, y, size, color) {
+  if (el._w !== words.join('|')) {
+    el._w = words.join('|');
+    el.innerHTML = words.map((w) => `<span style="display:inline-block;margin:0 .14em;will-change:transform">${w}</span>`).join('');
+  }
+  [...el.children].forEach((c, i) => {
+    const k = prog(CUR_T, t0 + i * .1, t0 + i * .1 + .45);
+    c.style.transform = `translateY(${(1 - back(k)) * 110}px) scale(${.6 + .4 * back(k)})`;
+    c.style.opacity = clamp(k * 3);
+  });
+  el.style.top = y + 'px'; el.style.fontSize = size + 'px'; el.style.opacity = 1;
+}
+let CUR_T = 0;
+function hideH() { $('hl').style.opacity = 0; $('sb').style.opacity = 0; }
+
+// ---------- confetti (deterministic) ----------
+const cv = $('confetti'), cx = cv.getContext('2d');
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const COLS = ['#ffffff', '#9ec0ff', '#3b6df6', '#14b8a6', '#fbbf24', '#ffffff', '#60a5fa'];
+function mkBurst(seed, n, ox, oy, spread) {
+  const r = mulberry(seed); const ps = [];
+  for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + (r() - .5) * spread; const v = 700 + r() * 1100; ps.push({ vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: 14 + r() * 18, h: 8 + r() * 12, c: COLS[(r() * COLS.length) | 0], rot: r() * 6, vr: (r() - .5) * 14, ox, oy }); }
+  return ps;
+}
+const BURSTS = [
+  { t: 0.3, ps: mkBurst(1, 120, 540, 1000, 2.6) },
+  { t: 0.5, ps: mkBurst(2, 70, 120, 1500, 1.4) },
+  { t: 0.5, ps: mkBurst(3, 70, 960, 1500, 1.4) },
+  { t: 35.7, ps: mkBurst(4, 140, 540, 1250, 2.8) },
+  { t: 36.0, ps: mkBurst(5, 80, 100, 1500, 1.4) },
+  { t: 36.0, ps: mkBurst(6, 80, 980, 1500, 1.4) },
+];
+function drawConfetti(t) {
+  cx.clearRect(0, 0, 1080, 1920);
+  for (const b of BURSTS) {
+    const u = t - b.t; if (u < 0 || u > 4) continue;
+    for (const p of b.ps) {
+      const drag = Math.exp(-u * 1.6);
+      const x = p.ox + p.vx * (1 - drag) / 1.6, y = p.oy + p.vy * (1 - drag) / 1.6 + 700 * u * u * .5;
+      cx.save(); cx.translate(x, y); cx.rotate(p.rot + p.vr * u); cx.globalAlpha = clamp((4 - u) / 1.2);
+      cx.scale(1, Math.cos(u * 9 + p.rot)); cx.fillStyle = p.c; cx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); cx.restore();
+    }
+  }
+}
+
+// ---------- Sprout keyframes ----------
+// [t, x, y, size px, rotation, ease]; pose is set per scene below
+const KF = [
+  [0.0, 540, 2300, 560, 0], [0.45, 540, 1300, 560, 0], [0.65, 540, 1130, 560, 0], [0.9, 540, 1280, 560, 0], [1.1, 540, 1200, 560, 0],
+  [3.8, 540, 1200, 560, 0], [4.5, 540, 1230, 500, 0], [6.5, 540, 1230, 500, 0],
+  [7.1, 540, 1060, 700, 0], [9.5, 540, 1060, 700, 0],
+  [10.4, 780, 1400, 430, 0], [14.7, 780, 1400, 430, 0],
+  [15.6, 190, 1380, 340, 0], [21.9, 190, 1380, 340, 0],
+  [22.15, 60, 1350, 280, 0],
+  [23.6, 560, 580, 240, 0], [25.4, 560, 580, 240, 0],
+  [26.1, 270, 740, 230, 0], [26.7, 270, 740, 230, 0],
+  [27.4, 880, 1330, 330, 0], [30.7, 880, 1330, 330, 0],
+  [31.7, 540, 1020, 640, 0], [35.4, 540, 1020, 640, 0],
+  [36.1, 540, 440, 430, 0], [43, 540, 440, 430, 0],
+];
+function kf(t) {
+  let i = 0; while (i < KF.length - 2 && t >= KF[i + 1][0]) i++;
+  const a = KF[i], b = KF[i + 1]; const k = eio(prog(t, a[0], b[0]));
+  return { x: lerp(a[1], b[1], k), y: lerp(a[2], b[2], k), s: lerp(a[3], b[3], k) };
+}
+
+function voiceMouth(t) {
+  for (const l of TL.lines) {
+    const u = t - l.start; if (u >= 0 && u < l.dur) return l.env[Math.min(l.env.length - 1, Math.floor(u * 30))] || 0;
+  }
+  return 0;
+}
+function blink(t) { const p = (t * 1000) % 3100; return p < 140 ? Math.sin(p / 140 * Math.PI) : 0; }
+function sceneOf(t) { let s = 1; for (const k of Object.keys(S)) if (t >= S[k]) s = +k; return s; }
+
+// ---------- main frame ----------
+window.renderAsync = async function (t) {
+  CUR_T = t;
+  const sc = sceneOf(t);
+  // background drift
+  place($('b1'), 200 + 120 * Math.sin(t * .4), 400 + 160 * Math.cos(t * .3), 1, 0, 1);
+  place($('b2'), 900 - 140 * Math.sin(t * .35), 1500 + 120 * Math.sin(t * .5), 1, 0, 1);
+
+  // headline blocks
+  hideH();
+  for (let i = 0; i < 6; i++) { const e = document.getElementById('pg' + i); if (e) e.style.opacity = 0; }
+  ['c1', 'c2', 'c3', 'f1', 'f2', 'f3', 'o1', 'o2', 'o3', 'xp', 'streak', 'lvl', 'sprint', 'btn'].forEach((id) => ($(id).style.opacity = 0));
+  $('logo').style.opacity = 0; $('cta').style.opacity = 0; $('url').style.opacity = 0;
+  $('tap').style.opacity = 0; $('sheet').style.opacity = 0; $('img2').style.opacity = 0;
+  place($('ringA'), 540, 1100, 0, 0, 0); place($('ringB'), 540, 1100, 0, 0, 0);
+
+  // ----- scenes
+  if (t < S[3]) {
+    // S1 and S2: congratulations, welcome
+    if (t < S[2] - .1) {
+      kinetic($('hl'), ['Congratulations!'], 0.25, 250, 104); $('hl').style.opacity = 1;
+      setText($('sb'), 'You got admitted.'); $('sb').style.top = '640px'; $('sb').style.opacity = eo(prog(t, 1.6, 2.2));
+      $('sb').style.transform = `translateY(${(1 - eo(prog(t, 1.6, 2.2))) * 40}px)`;
+      if (CFG.school) { setText($('url'), CFG.school); $('url').style.top = '760px'; $('url').style.opacity = eo(prog(t, 2.2, 2.8)); $('url').style.transform = ''; }
+    } else {
+      kinetic($('hl'), ['Welcome', 'to', 'the', 'next', 'chapter.'], 4.25, 300, 118);
+      // sunrise rings (borrowed from the pitch film's reveal)
+      const k = prog(t, 4.2, 6.6);
+      place($('ringA'), 540, 1130, 1 + k * 5, 0, (1 - k) * .8);
+      place($('ringB'), 540, 1130, 1 + prog(t, 4.6, 6.8) * 4, 0, (1 - prog(t, 4.6, 6.8)) * .6);
+    }
+  } else if (t < S[4]) {
+    // S3: meet Sprout
+    kinetic($('hl'), ['I’m', 'Sprout.'], 6.85, 200, 150);
+    setText($('sb'), 'Your brand new study buddy.'); $('sb').style.top = '400px'; $('sb').style.opacity = eo(prog(t, 7.5, 8.1));
+    $('sb').style.transform = `translateY(${(1 - eo(prog(t, 7.5, 8.1))) * 40}px)`;
+  } else if (t < S[5]) {
+    // S4: first year is a lot
+    kinetic($('hl'), ['First', 'year', 'is', 'a', 'lot.'], 9.9, 220, 118);
+    const defs = [['c1', 11.4, 270, 620, -6], ['c2', 12.4, 800, 800, 5], ['c3', 13.4, 360, 980, -3]];
+    defs.forEach(([id, t0, x, y, r]) => {
+      const k = prog(t, t0, t0 + .5); const fl = Math.sin(t * 2 + x) * 10;
+      place($(id), x, y + fl + (1 - back(k)) * 300, .6 + .4 * back(k), r + Math.sin(t * 1.5 + y) * 2, clamp(k * 3));
+    });
+    // stacking notes: more and more little sheets
+    for (let i = 0; i < 6; i++) {
+      let el = document.getElementById('pg' + i);
+      if (!el) { el = document.createElement('div'); el.id = 'pg' + i; el.className = 'abs'; el.style.cssText = 'width:130px;height:170px;border-radius:14px;background:#fff;box-shadow:0 10px 30px rgba(5,15,70,.35)'; $('stage').insertBefore(el, $('sprout')); }
+      const k = prog(t, 13.0 + i * .22, 13.5 + i * .22);
+      place(el, 140 + i * 160, 1230 + (i % 2) * 60 + (1 - back(k)) * -500, .8, (i - 2.5) * 9, k > 0 ? 1 : 0);
+    }
+  } else if (t < S[7]) {
+    // S5 to S6 on the phone, S7 focus
+    const cap = t < S[6] ? 'Notes in. Lessons out.' : t < S[7] ? 'Tap any word.' : '';
+    kinetic($('hl'), cap.split(' '), t < S[6] ? 15.15 : 22.25, 20, 76);
+    $('hl').style.top = '60px';
+    // phone motion
+    let px = 540, py = 850, ps = .82;
+    if (t < S[6]) {
+      const k = eo(prog(t, 15.3, 16.1)); px = 700; py = lerp(2300, 1000, k); ps = .62;
+    } else { const k = eio(prog(t, 22.2, 23.0)); px = lerp(700, 540, k); py = lerp(1000, 850, k); ps = lerp(.62, .82, k); }
+    place($('phone'), px, py, ps, 0, 1);
+    // S5: files fly into the phone, outputs pop out
+    if (t < S[6]) {
+      const src = [['f1', 15.9, 120, 600], ['f2', 16.9, 120, 780], ['f3', 17.9, 120, 960]];
+      src.forEach(([id, t0, x, y]) => {
+        const k = prog(t, t0, t0 + .8);
+        const tx = 700, ty = 1000; // swallowed by the phone
+        const kk = eio(k);
+        place($(id), lerp(x, tx, kk), lerp(y, ty, kk), lerp(1, .3, kk), lerp(-8, 6, kk), k > 0 && k < 1 ? 1 : 0);
+      });
+      const outs = [['o1', 18.9, 880, 420], ['o2', 19.7, 880, 560], ['o3', 20.5, 880, 700]];
+      outs.forEach(([id, t0, x, y]) => {
+        const k = prog(t, t0, t0 + .55);
+        place($(id), x, y + (1 - back(k)) * 260, .6 + .4 * back(k), (id === 'o2' ? 3 : -3), clamp(k * 3));
+      });
+    } else if (t < S[7]) {
+      // S6: tap the word, Sprout runs over with the lens, card rises
+      const wx = 540 + (480 - 380) * .82 + 0, wy = 850 + (404 - 822) * .82; // word position on screen
+      const tk = prog(t, 23.35, 23.95);
+      const tp = $('tap'); place(tp, 0, 0, 1, 0, 0);
+      tp.style.left = (480) + 'px'; tp.style.top = (404) + 'px';
+      tp.style.transform = `translate(-50%,-50%) scale(${.4 + 1.3 * tk})`; tp.style.opacity = tk > 0 && tk < 1 ? (1 - tk) : 0;
+      // the real word highlight is already in the screenshot (atria / ventricles underlined)
+      const sk = prog(t, 24.3, 25.2);
+      const sheetOn = t > 24.3;
+      const rise = eo(prog(t, 24.4, 25.3));
+      const sh = $('sheet'); sh.style.opacity = sheetOn ? 1 : 0; sh.style.transform = `translateY(${(1 - rise) * 900}px)`;
+    }
+  } else if (t < S[8]) {
+    // S7 focus sprint (phone shows the real focus screen, then slides away)
+    kinetic($('hl'), ['Stay', 'focused.'], 26.95, 60, 90);
+    const k = eio(prog(t, 26.9, 27.5));
+    $('img1').style.opacity = 0; $('img2').style.opacity = 1; $('sheet').style.opacity = 0;
+    place($('phone'), 540, 850, .82, 0, 1);
+    const k2 = back(prog(t, 27.9, 28.5));
+    place($('sprint'), 540, 1450, .6 + .4 * k2, 0, clamp(k2 * 2));
+  } else {
+    // S8, S9
+  }
+  // phone only on the S5 to S7 range
+  const phoneOn = t >= S[5] && t < S[8] + .0;
+  if (!phoneOn) $('phone').style.opacity = 0;
+  if (t >= S[5] && t < S[7]) { $('img1').style.opacity = 1; $('img2').style.opacity = 0; }
+  if (t >= S[7] && t < S[8]) { const fade = 1 - prog(t, 30.6, 31.1); $('phone').style.opacity = fade; }
+
+  // S8: rewards (gold only here)
+  if (t >= S[8] && t < S[9]) {
+    kinetic($('hl'), ['Earn', 'XP.', 'Keep', 'your', 'streak.'], 31.15, 180, 108);
+    const xk = back(prog(t, 32.2, 32.7)), sk = back(prog(t, 33.0, 33.5)), lk = back(prog(t, 34.2, 34.7));
+    place($('xp'), 250, 620, .6 + .4 * xk, -5, clamp(xk * 2));
+    place($('streak'), 830, 760, .6 + .4 * sk, 5, clamp(sk * 2));
+    place($('lvl'), 540, 1560 - 20 * Math.sin(t * 4), .6 + .4 * lk, 0, clamp(lk * 2));
+    setText($('sb'), 'And yes, you can dress me up!'); $('sb').style.top = '420px'; $('sb').style.opacity = eo(prog(t, 33.9, 34.4));
+    $('sb').style.transform = '';
+  }
+  // S9: end card
+  if (t >= S[9]) {
+    const lk = back(prog(t, 36.0, 36.6));
+    place($('logo'), 540, 900, .6 + .4 * lk, 0, clamp(lk * 2));
+    
+    kinetic($('cta'), ['Congratulations', 'again!'], 36.6, 1070, 88);
+    const bk = back(prog(t, 38.0, 38.6)); place($('btn'), 540, 1330 + 6 * Math.sin(t * 3), .8 + .2 * bk, 0, clamp(bk * 2));
+    setText($('url'), CFG.school ? CFG.school : CFG.url); $('url').style.top = '1470px'; $('url').style.opacity = eo(prog(t, 38.8, 39.4)); $('url').style.transform = '';
+  }
+
+  // ----- Sprout
+  const p = kf(t);
+  const m = voiceMouth(t);
+  const bob = Math.sin(t * 5) * 8;
+  let st = { mood: 'calm', hat: 'grad', armL: 20, armR: -20, mouth: m, blink: blink(t), shadow: 0, eyesX: Math.sin(t * 1.3), eyesY: 0 };
+  let ox = 0, oy = bob, rot = 0, sc2 = 1;
+  if (t < 1.1) { const u = prog(t, .45, 1.1); st.armL = -150; st.armR = -150; oy = 0; st.mood = 'happy'; st.sparkles = 1; rot = Math.sin(t * 20) * 3 * (1 - u); }
+  else if (t < S[2]) { st.armL = -150 + 20 * Math.sin(t * 10); st.armR = -150 - 20 * Math.sin(t * 10); st.mood = 'happy'; st.sparkles = .8; oy = -Math.abs(Math.sin(t * 6)) * 40; }
+  else if (t < S[3]) { st.armL = -40 + 10 * Math.sin(t * 6); st.armR = -150 + 25 * Math.sin(t * 9); st.mood = 'happy'; st.sparkles = .6; }
+  else if (t < S[4]) { st.armL = -40; st.armR = -140 + 30 * Math.sin(t * 10); st.mood = 'happy'; st.sparkles = prog(t, 6.9, 7.4) * .8; oy = -Math.abs(Math.sin(t * 5)) * 36; st.hat = t < 7.3 ? 'grad' : 'grad'; }
+  else if (t < S[5]) {
+    // overwhelmed: looks around, then relieved
+    st.mood = t < 13.5 ? 'calm' : 'happy'; st.armL = 40 + 20 * Math.sin(t * 8); st.armR = -40 - 20 * Math.sin(t * 8.5);
+    st.eyesX = Math.sin(t * 2.2); st.eyesY = -.4; oy = bob; rot = Math.sin(t * 3) * 3;
+  }
+  else if (t < S[6]) { st.mood = 'happy'; st.armR = -60 + 15 * Math.sin(t * 5); st.armL = 30; st.eyesX = 1; st.sparkles = .5 * (1 + Math.sin(t * 4)) / 2; }
+  else if (t < S[7]) {
+    st.mood = 'happy'; st.lens = 0;
+    if (t < 24.3) { // running in with the magnifier
+      const run = prog(t, 22.2, 23.6); st.lens = 1; st.armR = -50; st.armL = 40; st.footL = 7 * Math.max(0, Math.sin(t * 22)); st.footR = 7 * Math.max(0, -Math.sin(t * 22));
+      oy = -Math.abs(Math.sin(t * 11)) * 26 * (run < 1 ? 1 : 0); st.eyesX = 1; st.shadow = 1;
+    } else if (t < 25.4) { // pulling the card up: launcher arm up
+      st.lens = prog(t, 24.0, 24.4) < 1 ? 1 : 0; st.launcher = prog(t, 24.3, 24.7); st.armR = -110; st.armL = 40; rot = -6; st.eyesY = -.6;
+    } else { st.launcher = 0; st.armL = -30; st.armR = -140 + 20 * Math.sin(t * 9); st.mouth = m; st.sparkles = .8; oy = t < 26.5 ? -Math.abs(Math.sin((t - 25.4) * 6)) * 24 : bob; }
+  } else if (t < S[8]) { st.mood = 'genius'; st.armR = -60; st.armL = 40; st.eyesY = -.3; oy = bob; st.hat = 'headphones'; st.sparkles = .4; }
+  else if (t < S[9]) {
+    st.mood = 'fired'; st.sparkles = 1; st.armL = -140 + 20 * Math.sin(t * 8); st.armR = -140 - 20 * Math.sin(t * 8);
+    // dress-up reveal: one piece at a time
+    st.hat = t > 32.0 ? (t > 33.6 ? 'crown' : 'cap') : 'grad'; if (t > 33.6) st.face = t > 34.4 ? 'shades' : ''; if (t > 34.4) { st.shoes = 'sneakers'; st.back = 'cape'; }
+    st.mood = 'calm'; oy = -Math.abs(Math.sin(t * 5)) * 30;
+    const flip = prog(t, 34.8, 35.5); if (flip > 0 && flip < 1) { rot = 360 * eio(flip); oy -= Math.sin(flip * Math.PI) * 220; }
+  } else {
+    st.mood = 'happy'; st.sparkles = .7; st.armL = -30; st.armR = -140 + 25 * Math.sin(t * 8); oy = t < 37 ? -Math.abs(Math.sin(t * 7)) * 28 : bob;
+    if (t > 40.8) st.mouth = 0;
+  }
+  spr.set(st);
+  sprEl.style.width = p.s + 'px'; sprEl.style.height = p.s * 1.08 + 'px';
+  place(sprEl, p.x + ox, p.y + oy, 1, rot, 1);
+
+  drawConfetti(t);
+
+  // captions
+  const cap = $('caps').firstChild; let shown = '';
+  for (const l of TL.lines) {
+    if (t >= l.start - .05 && t < l.start + l.dur + .35) {
+      const words = l.text.split(' '); const f = clamp((t - l.start) / l.dur);
+      const cur = Math.min(words.length - 1, Math.floor(f * words.length));
+      const per = 6, ch = Math.floor(cur / Math.ceil(words.length / Math.ceil(words.length / per)));
+      const size = Math.ceil(words.length / Math.ceil(words.length / per));
+      shown = words.slice(ch * size, ch * size + size).map((w, i) => `<b class="${ch * size + i <= cur ? 'on' : ''}">${w}</b>`).join(' ');
+    }
+  }
+  if (cap._s !== shown) { cap._s = shown; cap.innerHTML = shown || ''; }
+  $('caps').style.opacity = shown ? 1 : 0;
+  $('caps').style.top = (t >= S[9] ? 1620 : 1600) + 'px';
+};
+window.TOTAL = TOTAL;
+</script>
+</body></html>
