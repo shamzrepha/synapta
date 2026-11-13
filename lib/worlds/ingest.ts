@@ -11,6 +11,8 @@ const ocrSchema = z.object({ lines: z.array(z.object({ text: z.string(), confide
 export interface IngestInput {
   ownerUid: string;
   classId?: string | null;
+  /** the class library material this note was taken from (so it is never read twice) */
+  materialId?: string | null;
   title: string;
   kind: "docx" | "pdf" | "image" | "text";
   /** one string per page when the browser could tell pages apart, else a single string */
@@ -52,6 +54,6 @@ export async function ingestDocument(input: IngestInput): Promise<IngestResult> 
   const ref = col.sourceDocs().doc();
   const flagged = pages.flatMap((p) => p.lines.filter((l) => l.flagged).map((l) => ({ pageNo: p.pageNo, lineNo: l.lineNo, text: l.text, reason: l.flagReason ?? "Please check this line." })));
   await saveDocPages(ref.id, pages);
-  await ref.set({ ownerUid: input.ownerUid, classId: input.classId ?? null, title: input.title.slice(0, 120), kind: input.kind, status: flagged.length ? "cleaned" : "reviewed", pageCount: pages.length, flaggedCount: flagged.length, repairCount: repairs, createdAt: now() });
+  await ref.set({ ownerUid: input.ownerUid, classId: input.classId ?? null, materialId: input.materialId ?? null, title: input.title.slice(0, 120), kind: input.kind, status: flagged.length ? "cleaned" : "reviewed", pageCount: pages.length, flaggedCount: flagged.length, repairCount: repairs, createdAt: now() });
   return { docId: ref.id, pageCount: pages.length, flagged, repairs };
 }
