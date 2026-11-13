@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LAB_CLEAN_TEXT_JS, SIM_HEAD_INJECT, withDisplayPatch } from "./inject";
+import { LAB_CLEAN_TEXT_JS, LAB_VIEW_JS, SIM_HEAD_INJECT, withDisplayPatch } from "./inject";
 import { readableText } from "@/lib/text/readable";
 
 const clean = new Function(`${LAB_CLEAN_TEXT_JS}; return sunrootClean;`)() as (s: string) => string;
@@ -25,5 +25,20 @@ describe("lab display patch", () => {
     const once = withDisplayPatch(html);
     expect(once.indexOf("sunroot-fit")).toBeGreaterThan(once.indexOf(SIM_HEAD_INJECT));
     expect(withDisplayPatch(once)).toBe(once);
+  });
+});
+
+describe("look-around tools for 2D labs (zoom, move, fit)", () => {
+  it("is valid script that does nothing outside a browser page it can use", () => {
+    expect(() => new Function(LAB_VIEW_JS)).not.toThrow();
+  });
+  it("is part of the patch every lab gets, once, and lets the page scroll", () => {
+    const patched = withDisplayPatch(`<!DOCTYPE html><html><head>${SIM_HEAD_INJECT}</head><body><svg></svg></body></html>`);
+    expect(patched.split('id="sunroot-view"').length - 1).toBe(1);
+    expect(patched).toContain("overflow-y:auto!important");
+    expect(patched).toContain("Zoom in");
+  });
+  it("leaves 3D labs alone (they have their own orbit and zoom)", () => {
+    expect(LAB_VIEW_JS).toContain("window.SimKit3D");
   });
 });
