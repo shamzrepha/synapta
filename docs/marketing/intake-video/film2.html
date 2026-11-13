@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SunrootLearn 2-Minute Intake Film (1080x1920)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow: hidden;
+    }
+    #viewport {
+      width: 1080px;
+      height: 1920px;
+      background: #0B132B;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 0 80px rgba(0,0,0,0.8);
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    /* Safe zone overlay (for debugging) */
+    .safe-zone {
+      position: absolute;
+      top: 8%;
+      bottom: 12%;
+      left: 5%;
+      right: 5%;
+      pointer-events: none;
+      border: 1px dashed rgba(255,255,255,0.05);
+    }
+    .caption-box {
+      position: absolute;
+      bottom: 14%;
+      left: 8%;
+      right: 8%;
+      background: rgba(11, 19, 43, 0.88);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 24px;
+      padding: 24px 32px;
+      color: #FFF;
+      font-size: 44px;
+      font-weight: 700;
+      line-height: 1.35;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewport">
+    <canvas id="c" width="1080" height="1920"></canvas>
+    <div class="safe-zone"></div>
+    <div id="caption" class="caption-box">Loading film...</div>
+  </div>
+
+  <script type="module">
+    import { SproutRenderer, POSES } from "./sprout.js";
+
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const captionEl = document.getElementById("caption");
+
+    const sprout = new SproutRenderer(canvas, "./assets");
+    let timeline = null;
+
+    async function init() {
+      await sprout.preload();
+      const res = await fetch("./timeline.json");
+      const data = await res.json();
+      timeline = data.scenes;
+      window.seek = seek;
+      console.log("Film ready. Use seek(timeSeconds)");
+    }
+
+    function seek(time) {
+      if (!timeline) return;
+      const scene = timeline.find(s => time >= s.start && time < s.end) || timeline[timeline.length - 1];
+      
+      // Update Sprout & Caption
+      sprout.setPose(scene.pose);
+      const isSpeaking = time >= scene.voice_start && time <= (scene.voice_start + scene.voice_duration);
+      sprout.update(time, isSpeaking);
+      captionEl.innerText = scene.caption;
+
+      // Render Scene
+      drawScene(ctx, scene, time);
+      sprout.draw();
+    }
+
+    function drawScene(ctx, sc, time) {
+      const w = 1080, h = 1920;
+      ctx.clearRect(0, 0, w, h);
+
+      // Background Gradients
+      if (sc.act === 0) {
+        // Warm Midnight Opening
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, "#081024");
+        g.addColorStop(1, "#122548");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      } else if (sc.act === 1) {
+        // Tense Problem Dark Blue
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, "#060A17");
+        g.addColorStop(1, "#0A1428");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      } else if (sc.act === 2) {
+        // Bright Solution Royal Blue
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, "#0B1D4F");
+        g.addColorStop(1, "#1D4ED8");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      } else {
+        // Inspiring Contrast
+        const g = ctx.createLinearGradient(0, 0, 0, h);
+        g.addColorStop(0, "#09122C");
+        g.addColorStop(1, "#1E3A8A");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -43,3 +43,10 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# marketing render artifacts and temporary files
+/docs/marketing/intake-video/output/
+/docs/marketing/intake-video/audio/
+/docs/marketing/intake-video/sfx/
+/temp-ad-kit/
+
