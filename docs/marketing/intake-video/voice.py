@@ -5,14 +5,14 @@ small, bright robot-pet voice. Change the numbers in ROBOT to taste:
   pitch   1.0 = the original voice; 1.25 is about 4 semitones higher (smaller, cuter)
   buzz    0..1 strength of the robotic wobble (tremolo)
   grit    0..1 strength of the digital crunch
-Usage: python3 voice.py <work-dir> <path-to-piper-voice.onnx>
+Usage: python3 voice.py <work-dir> <path-to-piper-voice.onnx> [lines.json]
 Writes <work-dir>/voice/<id>.wav (robot) and <id>.plain.wav (the natural voice, no effects) and <work-dir>/durs.json.
 """
 import json, subprocess, sys, wave, pathlib
 
 work = pathlib.Path(sys.argv[1]); model = sys.argv[2]
 ROBOT = {"pitch": 1.22, "buzz": 0.35, "grit": 0.25, "speed": 1.0}
-lines = json.loads((pathlib.Path(__file__).parent / "lines.json").read_text())
+lines = json.loads((pathlib.Path(sys.argv[3]) if len(sys.argv) > 3 else pathlib.Path(__file__).parent / "lines.json").read_text())
 (work / "voice").mkdir(parents=True, exist_ok=True)
 
 def seconds(p):
