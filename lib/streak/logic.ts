@@ -1,11 +1,14 @@
 const DAY = 86400000;
 
 export function dayDiff(a: string, b: string): number {
-  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / DAY);
+  const cleanA = a.slice(0, 10);
+  const cleanB = b.slice(0, 10);
+  return Math.round((Date.parse(`${cleanB}T00:00:00Z`) - Date.parse(`${cleanA}T00:00:00Z`)) / DAY);
 }
 
 export function addDays(day: string, n: number): string {
-  return new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
+  const clean = day.slice(0, 10);
+  return new Date(Date.parse(`${clean}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
 }
 
 /** XP price to restore a just-broken streak: longer streaks cost more, within sane bounds. */
@@ -109,9 +112,10 @@ export function currentStreakDays(p: {
 }): number {
   const { streakDays, lastActiveDate } = p;
   if (!lastActiveDate || streakDays <= 0) return 0;
-  const today = p.today || new Date().toISOString().slice(0, 10);
-  if (lastActiveDate === today) return streakDays;
-  const diff = dayDiff(lastActiveDate, today);
+  const today = (p.today || new Date().toISOString()).slice(0, 10);
+  const cleanLast = lastActiveDate.slice(0, 10);
+  if (cleanLast === today) return streakDays;
+  const diff = dayDiff(cleanLast, today);
   if (diff <= 1) return streakDays;
   const freezes = p.freezes || 0;
   if (freezes >= diff - 1) return streakDays;

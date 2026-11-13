@@ -4,6 +4,7 @@ import { bumpChannels, bumpUserSignal } from "@/lib/live/server";
 import { shareAchievement } from "@/lib/social/feed";
 import { addWeeklyXp } from "@/lib/weekly/server";
 import { onProgressEvent } from "@/lib/quests/hook";
+import { touchUserStreak } from "@/lib/streak/server";
 import { levelFromXp } from "./levels";
 import { newlyEarnedBadges, normalizeStats, type PlayerStats } from "./badges";
 import { questsForDay, dayIdFor, type QuestDef } from "./quests";
@@ -73,6 +74,9 @@ async function trackProgressInner(ev: ProgressEvent): Promise<void> {
     };
   });
   if (!snapshot) return;
+
+  // Touch/maintain streak for any learning action
+  await touchUserStreak(ev.uid, { xp: totalXpDelta, source: ev.reason }).catch(() => {});
 
   // 2. Level up
   const before = levelFromXp(snapshot.oldXp);

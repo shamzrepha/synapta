@@ -7,6 +7,7 @@ import { readActivityDays } from "@/lib/activity/server";
 import { getShopState } from "@/lib/shop/server";
 import { SHOP_ITEMS } from "@/lib/shop/catalog";
 import { buildCalendar, currentStreakDays, daysToNextFreeze, inferFrozenDays } from "@/lib/streak/logic";
+import { touchUserStreak } from "@/lib/streak/server";
 
 export const runtime = "nodejs";
 
@@ -23,8 +24,18 @@ export async function GET(req: NextRequest) {
     const active = new Set(Object.keys(activity.counts).filter((d) => activity.counts[d] > 0));
     // Frozen days can only be inferred where we have activity data; use the earliest recorded day
     const since = [...active].sort()[0] || null;
-    const lastActiveDate: string | null = u.lastActiveDate || null;
-    const streakDays: number = currentStreakDays({ streakDays: u.streakDays || 0, lastActiveDate, freezes: u.streakFreezes || 0, today });
+    let lastActiveDate: string | null = u.lastActiveDate ? String(u.lastActiveDate).slice(0, 10) : null;
+    let streakDays: number = typeof u.streakDays === "number" ? u.streakDays : 0;
+    let freezes: number = typeof u.streakFreezes === "number" ? u.streakFreezes : 0;
+
+    if (lastActiveDate !== today) {
+      const touched = await touchUserStreak(caller.uid);
+      streakDays = touched.streakDays;
+      lastActiveDate = touched.lastActiveDate;
+      freezes = touched.freezes;
+    } else {
+      streakDays = Math.max(1, currentStreakDays({ streakDays, lastActiveDate, freezes, today }));
+    }
     const frozen = inferFrozenDays({ active, lastActiveDate, streakDays, since });
     const calendar = buildCalendar({ today, active, frozen });
 

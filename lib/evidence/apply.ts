@@ -147,8 +147,8 @@ export async function applyEvidence({
     const userData = userDoc.exists ? userDoc.data() : null;
 
     const currentXp = (userData?.xp ?? 0) + xpEarned;
-    const currentStreak = userData?.streakDays ?? 1;
-    const lastActiveDate = userData?.lastActiveDate ?? null;
+    const currentStreak = Math.max(1, userData?.streakDays || 1);
+    const lastActiveDate = userData?.lastActiveDate ? String(userData.lastActiveDate).slice(0, 10) : null;
 
     const todayStr = new Date().toISOString().split("T")[0];
     const streakResult = nextStreak({

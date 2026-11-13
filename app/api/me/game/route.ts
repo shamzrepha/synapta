@@ -6,6 +6,7 @@ import { BADGES, normalizeStats } from "@/lib/game/badges";
 import { getDailyQuests } from "@/lib/game/progress";
 import { tierInfo, weekEndsAt, weekIdFor } from "@/lib/game/leagues";
 import { currentStreakDays } from "@/lib/streak/logic";
+import { touchUserStreak } from "@/lib/streak/server";
 
 export const runtime = "nodejs";
 
@@ -35,13 +36,22 @@ export async function GET(req: NextRequest) {
     const tier = typeof u.leagueTier === "number" ? u.leagueTier : 0;
     const owned = (u.badges || {}) as Record<string, { toDate?: () => Date }>;
     const todayStr = new Date().toISOString().slice(0, 10);
-    const lastActiveDate = u.lastActiveDate || null;
-    const streakDays = currentStreakDays({
-      streakDays: typeof u.streakDays === "number" ? u.streakDays : 0,
-      lastActiveDate,
-      freezes: typeof u.streakFreezes === "number" ? u.streakFreezes : 0,
-      today: todayStr,
-    });
+    const lastActiveDate = u.lastActiveDate ? String(u.lastActiveDate).slice(0, 10) : null;
+    let streakDays = typeof u.streakDays === "number" ? u.streakDays : 0;
+    let streakFreezes = typeof u.streakFreezes === "number" ? u.streakFreezes : 0;
+
+    if (lastActiveDate !== todayStr) {
+      const touched = await touchUserStreak(caller.uid);
+      streakDays = touched.streakDays;
+      streakFreezes = touched.freezes;
+    } else {
+      streakDays = Math.max(1, currentStreakDays({
+        streakDays,
+        lastActiveDate,
+        freezes: streakFreezes,
+        today: todayStr,
+      }));
+    }
     return NextResponse.json({
       ok: true,
       data: {

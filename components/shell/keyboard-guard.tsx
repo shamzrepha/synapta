@@ -23,6 +23,9 @@ export function KeyboardGuard() {
 
     const reveal = (el: Element | null) => {
       if (!el || !(el as HTMLElement).matches?.(TEXT_FIELD)) return;
+      // Fixed modals like the tutor already track the visible viewport (--vvh).
+      // Calling scrollIntoView on their inputs would scroll the window behind them.
+      if ((el as HTMLElement).closest("[data-tutor-open], [data-no-scroll]")) return;
       clearTimeout(timer);
       // wait for the keyboard animation, then bring the field into view
       timer = setTimeout(() => {

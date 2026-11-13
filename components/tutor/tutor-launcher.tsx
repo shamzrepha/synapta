@@ -44,9 +44,14 @@ export function TutorLauncher() {
 
   useEffect(() => {
     if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open]);
 
   if (hiddenHere) return null;
@@ -66,7 +71,7 @@ export function TutorLauncher() {
         </button>
       )}
       {open && (
-        <div data-tutor-open className="fixed z-50 inset-0 md:inset-auto md:right-6 md:bottom-6 md:w-[420px] md:h-[min(640px,calc(100dvh-6rem))] flex flex-col bg-white dark:bg-slate-950 md:rounded-2xl md:border border-slate-200 dark:border-slate-800 shadow-2xl">
+        <div data-tutor-open className="fixed z-50 inset-x-0 top-0 h-[var(--vvh,100dvh)] max-h-[var(--vvh,100dvh)] md:inset-auto md:right-6 md:bottom-6 md:w-[420px] md:h-[min(640px,calc(100dvh-6rem))] flex flex-col bg-white dark:bg-slate-950 md:rounded-2xl md:border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden overscroll-contain">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <Sparkles className="h-4 w-4 text-brand-600" />
             <p className="font-bold flex-1">Ask {bot.enabled ? bot.pet.name : "the tutor"}</p>
@@ -83,7 +88,7 @@ export function TutorLauncher() {
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="flex-1 min-h-0 pb-[env(safe-area-inset-bottom)]">
+          <div className="flex-1 min-h-0 flex flex-col">
             <TutorChat
               key={`${ctx.classId}:${ctx.kcId}:${initialPrompt ? "with-prompt" : "default"}`}
               initialClassId={ctx.classId}

@@ -4,6 +4,8 @@ import { getServerEnv } from "@/lib/env";
 import { UserRole } from "@/lib/store/use-user-store";
 import { z } from "zod";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { touchUserStreak } from "@/lib/streak/server";
+import { recordActivityDay } from "@/lib/activity/server";
 
 export const runtime = "nodejs";
 
@@ -135,6 +137,7 @@ export async function POST(req: NextRequest) {
       };
 
       await userRef.set(userData);
+      await recordActivityDay(uid).catch(() => {});
     } else {
       // Existing user
       const existing = userDoc.data()!;
@@ -188,6 +191,9 @@ export async function POST(req: NextRequest) {
         await userRef.update(updates);
       }
 
+      // Atomically touch daily presence and keep streak alive/incrementing
+      const streakInfo = await touchUserStreak(uid);
+
       const effectiveTokenLimit =
         role === "admin"
           ? 1_000_000
@@ -204,8 +210,8 @@ export async function POST(req: NextRequest) {
         role,
         roleRequest: existing.roleRequest || "none",
         xp: existing.xp || 0,
-        streakDays: existing.streakDays || 1,
-        lastActiveDate: existing.lastActiveDate || null,
+        streakDays: streakInfo.streakDays,
+        lastActiveDate: streakInfo.lastActiveDate,
         monthlyTokenLimit: effectiveTokenLimit,
         monthlyTokensUsed: existing.monthlyTokensUsed || 0,
         disabled: !!existing.disabled,

@@ -445,6 +445,8 @@ h1, h2, h3 { text-wrap: balance; }
 html[data-keyboard="open"] [data-mobile-nav],
 html[data-typing="true"] [data-mobile-nav] { display: none !important; }
 html[data-keyboard="open"] body { padding-bottom: 0; }
+html[data-keyboard="open"] [data-tutor-open] form,
+html[data-typing="true"] [data-tutor-open] form { padding-bottom: 0.75rem !important; }
 html[data-keyboard="open"] [data-floating],
 html[data-typing="true"] [data-floating],
 html[data-keyboard="open"] .sunroot-bot,
@@ -847,6 +849,7 @@ body:has([aria-modal="true"]:not([data-sprout-ok])) .sunroot-bot,
 body:has([aria-modal="true"]:not([data-sprout-ok])) .sunroot-jarvis-hud,
 body:has([data-tutor-open]) .sunroot-bot,
 body:has([data-tutor-open]) .sunroot-jarvis-hud { display: none !important; }
+[data-tutor-open] { overscroll-behavior: contain; }
 
 /* hanging from the rope hooked to the top of the screen: the free arm is up holding it, and Sprout sways gently instead of running */
 .sprout[data-pose="pull"] [data-arm="left"] { transform: rotate(100deg); }

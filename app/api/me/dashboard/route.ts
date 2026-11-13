@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb } from "@/lib/firebase/admin";
 import { currentStreakDays } from "@/lib/streak/logic";
+import { touchUserStreak } from "@/lib/streak/server";
+import { dayIdFor } from "@/lib/game/quests";
 
 export const runtime = "nodejs";
 
@@ -13,12 +15,21 @@ export async function GET(req: NextRequest) {
     const userDoc = await adminDb().collection("users").doc(caller.uid).get();
     const userData = userDoc.exists ? userDoc.data()! : {};
 
-    const lastActiveDate = userData.lastActiveDate || null;
-    const streakDays = currentStreakDays({
-      streakDays: typeof userData.streakDays === "number" ? userData.streakDays : 0,
-      lastActiveDate,
-      freezes: typeof userData.streakFreezes === "number" ? userData.streakFreezes : 0,
-    });
+    const today = dayIdFor();
+    const lastActiveDate = userData.lastActiveDate ? String(userData.lastActiveDate).slice(0, 10) : null;
+    let streakDays = typeof userData.streakDays === "number" ? userData.streakDays : 0;
+
+    if (lastActiveDate !== today) {
+      const touched = await touchUserStreak(caller.uid);
+      streakDays = touched.streakDays;
+    } else {
+      streakDays = Math.max(1, currentStreakDays({
+        streakDays,
+        lastActiveDate,
+        freezes: typeof userData.streakFreezes === "number" ? userData.streakFreezes : 0,
+        today,
+      }));
+    }
 
     const profile = {
       uid: caller.uid,

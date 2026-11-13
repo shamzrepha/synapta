@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { recoveryCost, recoveryState, inferFrozenDays, buildCalendar, daysToNextFreeze, addDays, currentStreakDays } from "./logic";
+import { recoveryCost, recoveryState, inferFrozenDays, buildCalendar, daysToNextFreeze, addDays, currentStreakDays, dayDiff } from "./logic";
 
 describe("recovery", () => {
   it("is available only after exactly one missed day with no freezes", () => {
@@ -62,5 +62,10 @@ describe("currentStreakDays", () => {
 
   it("returns 0 for users with no activity", () => {
     expect(currentStreakDays({ streakDays: 0, lastActiveDate: null, today: "2026-10-15" })).toBe(0);
+  });
+
+  it("handles ISO timestamps with time components in dayDiff and currentStreakDays", () => {
+    expect(dayDiff("2026-10-14T23:59:00.000Z", "2026-10-15T08:00:00.000Z")).toBe(1);
+    expect(currentStreakDays({ streakDays: 3, lastActiveDate: "2026-10-14T22:30:00.000Z", today: "2026-10-15T09:00:00.000Z" })).toBe(3);
   });
 });

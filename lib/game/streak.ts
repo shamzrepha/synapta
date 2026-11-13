@@ -17,17 +17,21 @@ export function nextStreak(params: {
   const { current, lastActiveDate, today } = params;
   let freezes = Math.max(0, Math.min(MAX_STREAK_FREEZES, params.freezes || 0));
   if (!lastActiveDate) return { streak: Math.max(1, current || 1), freezes, freezesUsed: 0, freezeEarned: false };
-  if (lastActiveDate === today) return { streak: Math.max(1, current), freezes, freezesUsed: 0, freezeEarned: false };
+  const cleanToday = today.slice(0, 10);
+  const cleanLast = lastActiveDate.slice(0, 10);
+  if (cleanLast === cleanToday) return { streak: Math.max(1, current), freezes, freezesUsed: 0, freezeEarned: false };
 
-  const diffDays = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${lastActiveDate}T00:00:00Z`)) / 86400000);
+  const diffDays = Math.round((Date.parse(`${cleanToday}T00:00:00Z`) - Date.parse(`${cleanLast}T00:00:00Z`)) / 86400000);
   let streak: number;
   let freezesUsed = 0;
-  if (diffDays === 1) {
-    streak = current + 1;
+  if (diffDays <= 0) {
+    streak = Math.max(1, current);
+  } else if (diffDays === 1) {
+    streak = Math.max(1, current) + 1;
   } else if (diffDays > 1 && freezes >= diffDays - 1) {
     freezesUsed = diffDays - 1;
     freezes -= freezesUsed;
-    streak = current + 1;
+    streak = Math.max(1, current) + 1;
   } else {
     streak = 1;
   }

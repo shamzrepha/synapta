@@ -196,7 +196,7 @@ export function TutorChat({
   const contextLabel = kcId ? topics.find((t) => t.id === kcId)?.title : classId ? classes.find((c) => c.id === classId)?.title : null;
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0 bg-white dark:bg-slate-950">
       <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-slate-100 dark:border-slate-800">
         <GraduationCap className="h-4 w-4 text-brand-600 shrink-0" />
         <select
@@ -297,7 +297,7 @@ export function TutorChat({
           e.preventDefault();
           send(input);
         }}
-        className="flex gap-2 p-3 border-t border-slate-100 dark:border-slate-800"
+        className="flex gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0"
       >
         <textarea
           value={input}
