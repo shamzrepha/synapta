@@ -114,3 +114,11 @@ export const OR_TTS = {
     "mistralai/voxtral-mini-tts-2603": { female: "gb_jane_neutral", male: "en_paul_neutral" },
   } as Record<string, { female: string; male: string }>,
 };
+
+/** Voices the admin can pick for podcasts and the tutor. Prices are per million characters (a 10 minute podcast is about 9,000 characters). */
+export const OR_TTS_CHOICES: { model: string; label: string; price: number; female: string; male: string }[] = [
+  { model: "hexgrad/kokoro-82m", label: "Kokoro: clear, very cheap", price: 0.62, female: "af_heart", male: "am_michael" },
+  { model: "canopylabs/orpheus-3b-0.1-ft", label: "Orpheus: warm and expressive", price: 7, female: "tara", male: "leo" },
+  { model: "mistralai/voxtral-mini-tts-2603", label: "Voxtral: natural, British-leaning", price: 16, female: "gb_jane_neutral", male: "en_paul_neutral" },
+  { model: "elevenlabs/eleven-flash-v2.5", label: "ElevenLabs Flash: the most lifelike", price: 40, female: "sarah", male: "adam" },
+];

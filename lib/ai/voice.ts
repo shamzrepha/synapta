@@ -5,7 +5,8 @@ import { modelFor } from "@/lib/ai/router";
 import { Communicate } from "edge-tts-universal";
 import { boundariesToTimings, estimateWordTimings, mp3DurationMs, type WordTiming } from "@/lib/voice/word-timing";
 import { activeOpenRouterKey, refreshOpenRouterKey, synthesizeOpenRouterSpeech } from "@/lib/ai/openrouter";
-import { OR_TTS } from "@/lib/ai/openrouter-models";
+import { OR_TTS, OR_TTS_CHOICES } from "@/lib/ai/openrouter-models";
+import { getVoicePref } from "@/lib/ai/voice-config";
 
 /**
  * Prepend a standard 44-byte RIFF/WAVE header to raw PCM audio bytes.
@@ -179,7 +180,16 @@ export async function generateGeminiVoice({
     if (Date.now() - startedAt < 24_000) geminiTtsState.downUntil = Date.now() + 2 * 60_000;
   }
 
-  // Tier 1: Default to Free Studio Edge Neural Voice
+  const orGender = hostFor(speaker).gender === "female" ? "female" : "male";
+  // Tier 0: the admin's OpenRouter voice, ahead of the free one (English only; other languages have their own voices)
+  let triedOr = false;
+  if (!languageVoice(text, orGender, lang) && (await openRouterFirst())) {
+    triedOr = true;
+    const first = await openRouterVoice(text, orGender, 25_000);
+    if (first) return { audioBase64: first.audio.toString("base64"), mimeType: "audio/mpeg", voiceName: first.voiceName };
+  }
+
+  // Tier 1: Free Studio Edge Neural Voice
   const edgeResult = await generateEdgeVoice({ text, speaker, lang });
   if (edgeResult) {
     return edgeResult;
@@ -189,7 +199,7 @@ export async function generateGeminiVoice({
   const voiceName: string = host.gemini;
 
   // Tier 1b: OpenRouter (cheap open voice) when the free voice is unavailable, English only
-  if (!languageVoice(text, host.gender === "female" ? "female" : "male", lang)) {
+  if (!triedOr && !languageVoice(text, host.gender === "female" ? "female" : "male", lang)) {
     const orv = await openRouterVoice(text, host.gender === "female" ? "female" : "male", 25_000);
     if (orv) return { audioBase64: orv.audio.toString("base64"), mimeType: "audio/mpeg", voiceName: orv.voiceName };
   }
@@ -338,13 +348,24 @@ export const EDGE_VOICES = {
 export async function openRouterVoice(text: string, gender: "female" | "male", timeoutMs = 20_000): Promise<{ audio: Buffer; voiceName: string } | null> {
   await refreshOpenRouterKey();
   if (!activeOpenRouterKey()) return null;
+  const pref = await getVoicePref();
+  // the admin's chosen voice first, then the cheap open ones as a safety net
+  const tries: { model: string; voice: string }[] = [{ model: pref.model, voice: pref[gender] }];
   for (const model of OR_TTS.models.slice(0, 2)) {
-    const voice = model === OR_TTS.models[0] ? OR_TTS.voices[gender] : OR_TTS.otherVoices[model]?.[gender];
-    if (!voice) continue;
-    const audio = await synthesizeOpenRouterSpeech(text, { model, voice }, timeoutMs);
-    if (audio) return { audio, voiceName: `${model.split("/")[1]} (OpenRouter)` };
+    const c = OR_TTS_CHOICES.find((x) => x.model === model);
+    if (c && model !== pref.model) tries.push({ model, voice: c[gender] });
+  }
+  for (const t of tries) {
+    const audio = await synthesizeOpenRouterSpeech(text, t, timeoutMs);
+    if (audio) return { audio, voiceName: `${t.model.split("/")[1]} (OpenRouter)` };
   }
   return null;
+}
+
+/** True when the admin wants the OpenRouter voice ahead of the free Edge voice and a key is set. */
+export async function openRouterFirst(): Promise<boolean> {
+  await refreshOpenRouterKey();
+  return !!activeOpenRouterKey() && (await getVoicePref()).engine === "openrouter-first";
 }
 
 export interface SpeechClip {
@@ -372,6 +393,12 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
   const voices = EDGE_VOICES[gender];
   // Live requests answer fast or give up. Recording a podcast line is not time-critical, and a long lecture turn needs
   // longer than a quick reply, so the time allowed grows with the length of the line.
+  let triedOr = false;
+  if (!opts.edgeOnly && !langVoice && (await openRouterFirst())) {
+    triedOr = true;
+    const first = await openRouterVoice(clean, gender, opts.patient ? 30_000 : 8_000);
+    if (first) return { audio: first.audio, mimeType: "audio/mpeg", engine: "openrouter" };
+  }
   const edgeMs = opts.patient ? Math.min(45_000, 8_000 + clean.length * 25) : 5_000;
   const primary = edgeVoice || voices[0];
   const edge = await synthesizeEdgeVoice(clean, primary, edgeMs);
@@ -385,7 +412,7 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
   // a retry of the free voice must not fall through to the paid engines
   if (opts.edgeOnly) return null;
   // OpenRouter's cheap open voice next (English only)
-  if (!langVoice) {
+  if (!langVoice && !triedOr) {
     const orv = await openRouterVoice(clean, gender, opts.patient ? 30_000 : 8_000);
     if (orv) return { audio: orv.audio, mimeType: "audio/mpeg", engine: "openrouter" };
   }
