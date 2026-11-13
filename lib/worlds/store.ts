@@ -15,6 +15,7 @@ export const col = {
 export interface SourceDocMeta {
   ownerUid: string;
   classId?: string | null;
+  materialId?: string | null;
   title: string;
   kind: "docx" | "pdf" | "image" | "text";
   status: "uploaded" | "cleaned" | "reviewed";

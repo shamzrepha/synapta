@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, FileText, Image as ImageIcon, Loader2, Sparkles, Trash2, UploadCloud } from "lucide-react";
+import { BookOpen, CheckCircle2, FileText, Image as ImageIcon, Loader2, Sparkles, Trash2, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +24,15 @@ interface Item {
   message?: string;
   docId?: string;
   flagged?: Array<{ pageNo: number; lineNo: number; text: string; reason: string }>;
+}
+
+interface LibRow {
+  id: string;
+  title: string;
+  pages: number;
+  chars: number;
+  problem: string | null;
+  docId: string | null;
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -51,11 +60,63 @@ export function WorldUploader({ worldId, classId }: { worldId?: string; classId?
   const [reading, setReading] = useState<string | null>(null);
   const [phase, setPhase] = useState<"add" | "check" | "build">("add");
   const [target, setTarget] = useState<string | undefined>(worldId);
+  // the class's subject library: the notes are already there, so nobody uploads them again
+  const [libClass, setLibClass] = useState<string | undefined>(classId);
+  const [library, setLibrary] = useState<LibRow[] | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const { progress, run } = useBuild(() => {
     if (target) router.replace(`/worlds/${target}`);
   });
+
+  useEffect(() => {
+    if (libClass || !worldId) return;
+    let off = false;
+    fetch(`/api/worlds/${worldId}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (!off && j.ok && j.data?.world?.classId) setLibClass(j.data.world.classId);
+      })
+      .catch(() => {});
+    return () => {
+      off = true;
+    };
+  }, [libClass, worldId]);
+
+  useEffect(() => {
+    if (!libClass) return;
+    let off = false;
+    fetch(`/api/worlds/from-library?classId=${encodeURIComponent(libClass)}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (off) return;
+        const rows = j.ok ? asArray<LibRow>(j.data.materials) : [];
+        setLibrary(rows);
+        setPicked(new Set(rows.filter((r) => !r.problem).map((r) => r.id)));
+      })
+      .catch(() => !off && setLibrary([]));
+    return () => {
+      off = true;
+    };
+  }, [libClass]);
+
+  const importFromLibrary = async () => {
+    if (!libClass || picked.size === 0) return;
+    setPhase("check");
+    setReading("your subject library");
+    const r = await post<{ docs: Array<{ materialId: string; docId: string; title: string; flagged: Item["flagged"] }>; skipped: Array<{ title: string; reason: string }> }>("/api/worlds/from-library", { classId: libClass, materialIds: [...picked] });
+    setReading(null);
+    if (!r.ok) {
+      toast({ title: "Couldn't read those notes", description: r.message, variant: "destructive" });
+      return setPhase("add");
+    }
+    for (const sk of r.data.skipped) toast({ title: `Skipped ${sk.title}`, description: sk.reason, variant: "amber" });
+    const list: Item[] = r.data.docs.map((d) => ({ id: d.materialId, name: d.title, kind: "text", state: "sent", docId: d.docId, flagged: asArray(d.flagged) }));
+    setItems(list);
+    // nothing unclear: go straight on
+    if (!list.some((i) => (i.flagged?.length ?? 0) > 0)) void create(list);
+  };
 
   const addFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -170,8 +231,58 @@ export function WorldUploader({ worldId, classId }: { worldId?: string; classId?
     );
   }
 
+  const usable = library?.filter((r) => !r.problem) ?? [];
+  const hasLibrary = !!libClass && library !== null && library.length > 0;
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
+      {libClass && library === null && <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1.5" role="status"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Opening your subject library…</p>}
+      {hasLibrary && (
+        <Card className="p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-brand-600" />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold">From your subject library</p>
+              <p className="text-xs text-muted-foreground">These notes are already uploaded. Pick the ones for this world: nothing to upload again.</p>
+            </div>
+            {usable.length > 1 && (
+              <button type="button" className="text-xs text-brand-600 hover:underline" onClick={() => setPicked(picked.size === usable.length ? new Set() : new Set(usable.map((r) => r.id)))}>
+                {picked.size === usable.length ? "Clear" : "Select all"}
+              </button>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            {library!.map((r) => (
+              <label key={r.id} className={cn("flex items-start gap-2 rounded-md border border-border px-2.5 py-2 text-sm", r.problem ? "opacity-60" : "cursor-pointer hover:border-brand-500/60")}>
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  disabled={!!r.problem}
+                  checked={picked.has(r.id)}
+                  onChange={(e) =>
+                    setPicked((p) => {
+                      const n = new Set(p);
+                      if (e.target.checked) n.add(r.id);
+                      else n.delete(r.id);
+                      return n;
+                    })
+                  }
+                />
+                <span className="flex-1 min-w-0">
+                  <span className="font-medium block truncate">{r.title}</span>
+                  <span className="text-xs text-muted-foreground">{r.problem ? r.problem : `${r.pages} page${r.pages === 1 ? "" : "s"}, ${Math.max(1, Math.round(r.chars / 1000))}k characters${r.docId ? ", already read before" : ""}`}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          <Button size="lg" className="w-full" onClick={importFromLibrary} disabled={picked.size === 0 || reading !== null} isLoading={phase === "check"}>
+            <Sparkles className="h-4 w-4 mr-2" /> {target ? `Add ${picked.size} note${picked.size === 1 ? "" : "s"} to this world` : `Build my world from ${picked.size} note${picked.size === 1 ? "" : "s"}`}
+          </Button>
+        </Card>
+      )}
+      {libClass && library !== null && library.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center">Your subject library has no notes yet. Add them in the class Materials, or upload them here.</p>
+      )}
+      {hasLibrary && <p className="text-xs text-muted-foreground text-center">Have other notes too? Add them below.</p>}
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
