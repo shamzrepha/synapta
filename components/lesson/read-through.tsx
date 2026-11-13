@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, Pause, Play, SkipBack, SkipForward, Square } from "lucide-react";
 import { buildReadQueue, type ReadChunk } from "@/lib/study/read-queue";
 import { readPrefs } from "@/components/settings/use-prefs";
+import { useBot } from "@/components/bot/bot-provider";
+import { robotAudio } from "@/lib/audio/robot-voice";
+import { clearReadingHighlights, followReading, type Follower } from "./reading-follow";
+import type { WordTiming } from "@/lib/voice/word-timing";
 import { cn } from "@/lib/utils";
 
 export interface ReadSection {
@@ -12,6 +16,18 @@ export interface ReadSection {
   markdown: string;
 }
 type State = "idle" | "loading" | "playing" | "paused";
+interface Clip {
+  url: string;
+  /** when each word is said (only for Sprout's reading voice) */
+  words: WordTiming[] | null;
+}
+
+function base64ToUrl(b64: string, mime: string): string {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return URL.createObjectURL(new Blob([bytes], { type: mime }));
+}
 const RATES = [1, 1.25, 1.5, 0.85];
 
 /**
@@ -30,6 +46,15 @@ export function useReadThrough(opts: {
   const [rate, setRateState] = useState(1);
   const [autoNext, setAutoNextState] = useState(true);
   const [failed, setFailed] = useState(false);
+  // Sprout reads along: it lights the word being said and stands on it
+  const bot = useBot();
+  const botRef = useRef(bot);
+  useEffect(() => {
+    botRef.current = bot;
+  });
+  const follower = useRef<Follower | null>(null);
+  const cursor = useRef<{ el: HTMLElement | null; next: number }>({ el: null, next: 0 });
+  const active = useRef(false);
 
   const optsRef = useRef(opts);
   useEffect(() => {
@@ -53,6 +78,13 @@ export function useReadThrough(opts: {
 
   const stop = useCallback(() => {
     token.current++;
+    follower.current?.stop();
+    follower.current = null;
+    clearReadingHighlights();
+    if (active.current) {
+      active.current = false;
+      void botRef.current.rest();
+    }
     const a = audio.current;
     if (a) {
       a.onended = null;
@@ -91,20 +123,38 @@ export function useReadThrough(opts: {
       setFailed(false);
       optsRef.current.onSection(sec.id);
 
-      const clips = new Map<number, Promise<string | null>>();
+      const clips = new Map<number, Promise<Clip | null>>();
       const clip = (k: number) => {
         if (k >= queue.length) return Promise.resolve(null);
         if (!clips.has(k)) {
           clips.set(
             k,
-            fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: queue[k].text, voice: "female", lang: readPrefs().language }) })
-              .then(async (r) => {
+            (async (): Promise<Clip | null> => {
+              const lang = readPrefs().language;
+              // Sprout's own reading voice (small, bright, with word timings) for English; other languages use the regular reader
+              if (!lang || lang === "en") {
+                try {
+                  const r = await fetch("/api/tts/read", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: queue[k].text }) });
+                  const j = r.ok ? await r.json() : null;
+                  if (j?.ok && typeof j.data?.audioBase64 === "string") {
+                    const url = base64ToUrl(j.data.audioBase64, j.data.mimeType || "audio/mpeg");
+                    urls.current.push(url);
+                    return { url, words: Array.isArray(j.data.words) ? (j.data.words as WordTiming[]) : null };
+                  }
+                } catch {
+                  /* fall back below */
+                }
+              }
+              try {
+                const r = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: queue[k].text, voice: "female", lang }) });
                 if (!r.ok) return null;
                 const u = URL.createObjectURL(await r.blob());
                 urls.current.push(u);
-                return u;
-              })
-              .catch(() => null)
+                return { url: u, words: null };
+              } catch {
+                return null;
+              }
+            })()
           );
         }
         return clips.get(k)!;
@@ -121,14 +171,20 @@ export function useReadThrough(opts: {
         setState("loading");
         void clip(k + 1);
         void clip(k + 2);
-        const url = await clip(k);
+        const got = await clip(k);
         if (mine !== token.current) return;
-        if (!url) {
+        const url = got?.url;
+        if (!got || !url) {
           setFailed(true);
           stop();
           return;
         }
-        const a = (audio.current ||= new Audio());
+        // every voice goes through the same small robot effect, so it sounds like the app's AI reading to you
+        const ra = robotAudio();
+        ra.wake();
+        const a = (audio.current = ra.el);
+        follower.current?.stop();
+        follower.current = null;
         a.onended = null;
         a.onerror = null;
         a.src = url;
@@ -158,6 +214,19 @@ export function useReadThrough(opts: {
             el.classList.add("note-reading");
             lit.current = el;
             el.scrollIntoView({ block: "center", behavior: "smooth" });
+          }
+          // word by word: light the word, stand Sprout on it, hop to the next (waits a moment for the scroll to settle)
+          if (el && got.words?.length) {
+            if (cursor.current.el !== el) cursor.current = { el, next: 0 };
+            active.current = true;
+            const words = got.words;
+            window.setTimeout(() => {
+              if (mine !== token.current || a.ended) return;
+              follower.current?.stop();
+              const f = followReading({ audio: a, words, root: el, from: cursor.current.next, bot: botRef.current });
+              cursor.current = { el, next: f.next };
+              follower.current = f;
+            }, k === 0 || cursor.current.next === 0 ? 450 : 0);
           }
         }
       };

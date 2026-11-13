@@ -3,6 +3,7 @@ import { refreshGeminiKey } from "@/lib/ai/api-key";
 import { guessSpeechLanguage, languageInfo, speaksWithGemini, type LanguageCode } from "@/lib/i18n/languages";
 import { modelFor } from "@/lib/ai/router";
 import { Communicate } from "edge-tts-universal";
+import { boundariesToTimings, estimateWordTimings, mp3DurationMs, type WordTiming } from "@/lib/voice/word-timing";
 
 /**
  * Prepend a standard 44-byte RIFF/WAVE header to raw PCM audio bytes.
@@ -406,6 +407,42 @@ export async function synthesizeEdgeVoice(text: string, voice: string, timeoutMs
   if (!edgeAvailable()) return null;
   // The Edge websocket can stall without erroring (blocked egress, throttling); never wait forever.
   const out = await withVoiceTimeout(edgeStream(text, voice), timeoutMs);
+  if (out) edgeState.failures = 0;
+  else if (++edgeState.failures >= 2) edgeState.downUntil = Date.now() + 15_000;
+  return out;
+}
+
+/**
+ * The reading voice ("Sprout"): a small, bright Edge neural voice with the audio and when each word is said. Falls back to estimated word
+ * timings if the service sends no boundaries. Uses the same breaker and time limit as the other Edge voices.
+ */
+export async function synthesizeEdgeWithWords(
+  text: string,
+  voice: string,
+  prosody: { rate?: string; pitch?: string; volume?: string } = {},
+  timeoutMs = 9_000
+): Promise<{ audio: Buffer; words: WordTiming[]; estimated: boolean } | null> {
+  const clean = text.trim();
+  if (!clean || !edgeAvailable()) return null;
+  const run = async () => {
+    try {
+      const communicate = new Communicate(clean, { voice, connectionTimeout: 8_000, ...prosody });
+      const chunks: Buffer[] = [];
+      const marks: Array<{ text?: string; offset?: number; duration?: number }> = [];
+      for await (const chunk of communicate.stream()) {
+        if (chunk.type === "audio" && chunk.data) chunks.push(chunk.data);
+        else if (chunk.type === "WordBoundary") marks.push({ text: chunk.text, offset: chunk.offset, duration: chunk.duration });
+      }
+      if (!chunks.length) return null;
+      const audio = Buffer.concat(chunks);
+      const real = boundariesToTimings(marks);
+      return { audio, words: real.length ? real : estimateWordTimings(clean, mp3DurationMs(audio.length)), estimated: !real.length };
+    } catch (err) {
+      console.warn(`[voice] Edge TTS (with words) failed for "${voice}":`, err instanceof Error ? err.message : err);
+      return null;
+    }
+  };
+  const out = await withVoiceTimeout(run(), timeoutMs);
   if (out) edgeState.failures = 0;
   else if (++edgeState.failures >= 2) edgeState.downUntil = Date.now() + 15_000;
   return out;

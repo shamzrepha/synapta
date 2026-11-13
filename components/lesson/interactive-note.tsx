@@ -300,6 +300,19 @@ interface Origin {
   bottom: number;
 }
 
+/** Downloads a picture in the background so it shows at once; gives up quietly after `ms`. */
+function preloadImage(url: string, ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    const done = () => resolve();
+    img.onload = done;
+    img.onerror = done;
+    window.setTimeout(done, ms);
+    img.referrerPolicy = "no-referrer";
+    img.src = url;
+  });
+}
+
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 const sleep = (ms: number) => new Promise<void>((res) => window.setTimeout(res, ms));
 const easeIn = (t: number) => t * t;
@@ -382,8 +395,22 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
     let pull: Animation | null = null;
     void (async () => {
       if (!readyRef.current) {
-        b.say("Hmm, let me dig through my notes...", 3200);
-        await waitFor(() => readyRef.current, 7000, stop);
+        // the pop-up is not ready until its text AND its picture have arrived: Sprout ponders (head tilting, eyes wandering,
+        // a bubble with moving dots) and only starts the rope work when there is something to haul up
+        b.setPose("think");
+        const lines = ["Thinking", "Checking my notes", "Looking for a good picture", "Almost there"];
+        let n = 0;
+        const tick = () => b.say(`${lines[Math.min(lines.length - 1, Math.floor(n / 6))]}${".".repeat((n % 3) + 1)}`, 900);
+        tick();
+        const iv = window.setInterval(() => {
+          n++;
+          tick();
+        }, 420);
+        try {
+          await waitFor(() => readyRef.current, 14000, stop);
+        } finally {
+          window.clearInterval(iv);
+        }
         b.say("");
       }
       if (off) return;
@@ -469,6 +496,8 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
   const [picIdx, setPicIdx] = useState(0);
   const [imgFilter, setImgFilter] = useState<ImageFilter>(preset?.visual === "photo" ? "photo" : preset?.visual === "diagram" ? "diagram" : "all");
   const [imgBusy, setImgBusy] = useState(false);
+  /** the picture search has finished and the first picture is in the browser, so the pop-up can come up complete */
+  const [picsSettled, setPicsSettled] = useState(false);
   const [busy, setBusy] = useState(!preset);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("define");
@@ -486,12 +515,15 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
         const r = await fetch(`/api/images/search?${params.toString()}`);
         const p = await r.json();
         const list = Array.isArray(p?.data?.images) ? (p.data.images as Pic[]) : [];
+        // have the first picture downloaded before showing it (a hidden image off-screen would never load by itself)
+        if (list[0]) await preloadImage(list[0].url, 5000);
         setPics(list.slice(0, 6));
         setPicIdx(0);
       } catch {
         /* ignore image failure */
       } finally {
         setImgBusy(false);
+        setPicsSettled(true);
       }
     },
     [term, topic]
@@ -566,9 +598,21 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
   };
 
   const pic = pics[picIdx];
+  // what to show above the text: older saved cards have no decision, so a card that already carries pictures keeps them
+  const wantsPics = (card?.visual ?? preset?.visual) === "photo" || (card?.visual ?? preset?.visual) === "diagram";
+  const hasPicSource = !!(card?.imageQuery || card?.wikipediaTitle || preset?.imageQuery || preset?.wikipediaTitle);
   useEffect(() => {
-    readyRef.current = !!card && !busy;
-  }, [card, busy]);
+    // a card that arrives with pictures already attached only needs the first one downloaded
+    if (!preset?.images?.length || picsSettled) return;
+    let off = false;
+    void preloadImage((preset.images as Pic[])[0].url, 5000).then(() => !off && setPicsSettled(true));
+    return () => {
+      off = true;
+    };
+  }, [preset, picsSettled]);
+  useEffect(() => {
+    readyRef.current = !!card && !busy && (!(wantsPics && hasPicSource) || picsSettled || (pics.length > 0 && !imgBusy));
+  }, [card, busy, wantsPics, hasPicSource, picsSettled, pics.length, imgBusy]);
   useEffect(() => {
     // perched on the pop-up Sprout watches you; while a new answer is on its way it thinks
     if (theatrical && settled) botRef.current.setPose(busy ? "think" : "idle");
@@ -648,7 +692,7 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
               {!imgBusy && pic && (
                 <figure className="note-explode space-y-1.5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={pic.url} alt={pic.title || term} loading="lazy" className="w-full max-h-64 object-contain rounded-2xl bg-white border border-border" />
+                  <img src={pic.url} alt={pic.title || term} loading="eager" decoding="async" referrerPolicy="no-referrer" className="w-full max-h-64 object-contain rounded-2xl bg-white border border-border" />
                   <figcaption className="text-[11px] text-muted-foreground flex items-center justify-between gap-2">
                     <span className="truncate">
                       <a href={pic.page} target="_blank" rel="noreferrer noopener" className="underline">{pic.author || "Wikimedia Commons"}</a>

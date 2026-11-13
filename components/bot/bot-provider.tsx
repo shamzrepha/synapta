@@ -690,7 +690,15 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     return { x: r.left + r.width * (facingRef.current === -1 ? 1 - ANCHOR_HAND.x : ANCHOR_HAND.x), y: r.top + r.height * ANCHOR_HAND.y };
   }, []);
 
-  const where = useCallback(() => ({ ...at.current }), []);
+  // where Sprout is right now, even in the middle of a hop (so a new hop starts from where it really is, never from a stale spot)
+  const where = useCallback(() => {
+    const el = layer.current;
+    if (el && anim.current) {
+      const r = el.getBoundingClientRect();
+      return { x: r.left, y: r.top };
+    }
+    return { ...at.current };
+  }, []);
 
   const api = useMemo<BotApi>(
     () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduced: reduce, handPoint, anchorPoint, where, path }),
