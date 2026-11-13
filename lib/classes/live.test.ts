@@ -1,11 +1,28 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/firebase/admin", () => ({ adminDb: () => ({}), Timestamp: { now: () => ({}) } }));
+const h = vi.hoisted(() => ({
+  pieces: new Map<number, unknown>(),
+  quests: new Map<number, unknown>(),
+  writes: [] as Array<{ kind: string; data: unknown }>,
+  kc: {} as Record<string, unknown>,
+}));
+vi.mock("@/lib/firebase/admin", () => {
+  const ref: Record<string, unknown> = {
+    get: async () => ({ exists: true, data: () => h.kc }),
+    set: async (data: unknown) => h.writes.push({ kind: "set", data }),
+    update: async (data: unknown) => h.writes.push({ kind: "update", data }),
+    collection: () => ref,
+    doc: () => ref,
+  };
+  return { adminDb: () => ref, Timestamp: { now: () => "now" } };
+});
 vi.mock("@/lib/lesson/audio", () => ({ getAudioLesson: async () => null }));
-vi.mock("@/lib/sim/store", () => ({ getStoredSimulation: async () => null, simulationRef: () => ({}) }));
+vi.mock("@/lib/sim/store", () => ({ getStoredSimulation: async () => null, simulationRef: () => ({ get: async () => ({ data: () => undefined }) }) }));
+vi.mock("@/lib/sim/pieces", () => ({ getStoredPieces: async () => h.pieces }));
+vi.mock("@/lib/quest/store", () => ({ getStoredQuests: async () => h.quests, questStatus: (q: { status: string }) => q.status }));
 vi.mock("@/lib/practice/bank", () => ({ readQuizBank: async () => [], readFlashcardBank: async () => [], stableId: (s: string) => s }));
 
-import { lessonForStudents, liveMode } from "./live";
+import { lessonForStudents, liveMode, liveStatus, pushToStudents } from "./live";
 import { publishMapOf } from "./published";
 
 describe("push to students", () => {
@@ -27,5 +44,32 @@ describe("push to students", () => {
 
   it("counts a snapshot as published", () => {
     expect(publishMapOf({ contentPublished: { lesson: { fp: "a" }, audio: false } })).toMatchObject({ lesson: true, audio: false });
+  });
+
+  it("a topic with only piece labs or quests can still be published (otherwise students see 'Not published yet')", async () => {
+    h.pieces = new Map([[0, { index: 0, status: "ready", html: "<html></html>", version: 1 }]]);
+    h.quests = new Map();
+    const kc = { contentPublished: { lesson: false, audio: false, simulation: false, practice: false } };
+    const sim = (await liveStatus("c", "k", kc)).find((s) => s.key === "simulation")!;
+    expect(sim.hasDraft).toBe(true);
+    expect(sim.mode).toBe("off");
+
+    h.pieces = new Map();
+    h.quests = new Map([[1, { index: 1, status: "ready", challenges: [{}], version: 1 }]]);
+    expect((await liveStatus("c", "k", kc)).find((s) => s.key === "simulation")!.hasDraft).toBe(true);
+
+    h.quests = new Map([[1, { index: 1, status: "generating", challenges: [], version: 1 }]]);
+    expect((await liveStatus("c", "k", kc)).find((s) => s.key === "simulation")!.hasDraft).toBe(false);
+  });
+
+  it("pushing the simulation key with no main simulation stores null, never undefined (Firestore rejects undefined)", async () => {
+    h.pieces = new Map([[0, { index: 0, status: "ready", html: "<html></html>", version: 1 }]]);
+    h.kc = { contentPublished: { lesson: false, audio: false, simulation: false, practice: false } };
+    h.writes.length = 0;
+    await pushToStudents("c", "k", ["simulation"]);
+    const live = h.writes.find((w) => w.kind === "set")!.data as { sim: unknown };
+    expect(live.sim).toBeNull();
+    const upd = h.writes.find((w) => w.kind === "update")!.data as { contentPublished: Record<string, unknown> };
+    expect(typeof upd.contentPublished.simulation).toBe("object");
   });
 });

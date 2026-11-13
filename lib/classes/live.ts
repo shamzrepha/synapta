@@ -2,6 +2,8 @@ import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { getAudioLesson, type AudioLessonMeta } from "@/lib/lesson/audio";
 import { getStoredSimulation, simulationRef, type StoredSimulation } from "@/lib/sim/store";
+import { getStoredPieces } from "@/lib/sim/pieces";
+import { getStoredQuests, questStatus } from "@/lib/quest/store";
 import { readFlashcardBank, readQuizBank, stableId, type BankCard, type BankQuestion } from "@/lib/practice/bank";
 import { PUBLISH_KEYS, type PublishKey } from "./published";
 
@@ -92,8 +94,18 @@ async function draftOf(classId: string, kcId: string, kc: Record<string, unknown
       return { exists: a?.status === "ready" && a.turns.length > 0, fp: `v${a?.version || 0}` };
     }
     case "simulation": {
-      const sim = await getStoredSimulation(classId, kcId);
-      return { exists: !!sim?.html && sim.status === "ready", fp: `v${sim?.version || 0}-${stableId(sim?.html || "")}` };
+      // "Simulation" also carries the topic's piece labs and quests: they share this one switch for students. A teacher who built
+      // only those (no single main simulation) must still be able to publish them, or students see "Not published yet".
+      const [sim, pieces, quests] = await Promise.all([
+        getStoredSimulation(classId, kcId),
+        getStoredPieces(classId, kcId).catch(() => new Map()),
+        getStoredQuests(classId, kcId).catch(() => new Map()),
+      ]);
+      const readyPieces = [...pieces.values()].filter((p) => p.status === "ready" && !!p.html);
+      const readyQuests = [...quests.values()].filter((q) => questStatus(q) === "ready" && !!q.challenges?.length);
+      const main = !!sim?.html && sim.status === "ready";
+      const fp = `v${sim?.version || 0}-${stableId(sim?.html || "")}-p${readyPieces.map((p) => `${p.index}.${p.version || 0}`).join(",")}-q${readyQuests.map((q) => `${q.index}.${q.version || 0}`).join(",")}`;
+      return { exists: main || readyPieces.length > 0 || readyQuests.length > 0, fp };
     }
     case "practice": {
       const [q, c] = await Promise.all([readQuizBank(classId, kcId), readFlashcardBank(classId, kcId)]);
@@ -150,7 +162,8 @@ export async function pushToStudents(classId: string, kcId: string, keys: Publis
       if (meta.turns.some((t) => !t.hasAudio)) throw new ApiError(400, "AUDIO_INCOMPLETE", "Some lines of the podcast aren't recorded yet. Record the missing clips first, so students never hear the robot voice.");
       await liveDoc(classId, kcId, "audio").set({ meta, version: meta.version, at });
     } else if (key === "simulation") {
-      const sim = (await simulationRef(classId, kcId).get()).data();
+      // null (not undefined, which Firestore rejects) when only piece labs or quests exist
+      const sim = (await simulationRef(classId, kcId).get()).data() ?? null;
       await liveDoc(classId, kcId, "simulation").set({ sim, at });
     } else {
       const [q, c] = await Promise.all([readQuizBank(classId, kcId), readFlashcardBank(classId, kcId)]);
