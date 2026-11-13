@@ -13,14 +13,14 @@ Android does not let an app install itself silently outside Google Play, so the 
 ## Shipping a new APK
 1. Raise `versionCode` (a whole number, always higher) and `versionName` in `android/app/build.gradle`. Sign with the same key as the installed app.
 2. Upload the APK to a **GitHub Release** (not to `public/`): `https://github.com/shamzrepha/synapta/releases/download/<tag>/<file>.apk`.
-3. `npm run release:app -- --code 9 --name 2.7 --url <that link> --notes "one short line about what is new" [--min 8]`
+3. `npm run release:app -- --code 10 --name 3.0 --url <that link> --notes "one short line about what is new" [--min 9]`
    It refuses a version that does not go up, a download link that is not ours, and a required-update floor above the release.
 4. Merge the change to `main`. Phones see it within 6 hours or at their next launch.
 5. Test on a real phone: install the previous build, open it, you should see the banner with your notes, press **Update**, tap **Install**, reopen: the build number in Settings is the new one.
 
 ## `public/app-version.json`
 ```json
-{ "versionCode": 9, "versionName": "2.7", "url": "https://github.com/shamzrepha/synapta/releases/download/v2.7/sunroot-2.7.apk", "minVersionCode": 8, "notes": "Focus sprints and faster lessons" }
+{ "versionCode": 10, "versionName": "3.0", "url": "https://sunrootlearn.vercel.app/sunroot-3.0.apk", "notes": "Sprout everywhere, live 3D labs, smoother keyboard and one-tap updates." }
 ```
 - `versionCode`: what the app compares with its installed build. Must go up with every APK.
 - `minVersionCode` (optional): installed builds below this get a **required** update (no "later"). Use it for a breaking server change or a security fix. Leave it out for a normal update.

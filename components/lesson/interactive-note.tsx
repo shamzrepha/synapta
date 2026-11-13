@@ -12,7 +12,6 @@ import { normalizeMath } from "@/lib/text/readable";
 import { readMinutes, splitAtomicBlocks, splitTextbookPages, type TextbookPage, type TextbookSectionKind } from "@/lib/study/note-sections";
 import type { PageBudget } from "@/lib/study/page-fit";
 import { Rope, type RopeHandle } from "@/components/bot/rope";
-import { ANCHOR_HAND, SPROUT_H, SPROUT_W, climbMs, planSwing, smoothstep } from "@/lib/pet/swing";
 import { hashText, splitByTerms, termRegex } from "@/lib/study/terms";
 import { getGlossary, preloadImages, type GlossaryCard } from "@/lib/study/glossary-client";
 import { cn } from "@/lib/utils";
@@ -302,7 +301,6 @@ interface Origin {
 }
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
-const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const sleep = (ms: number) => new Promise<void>((res) => window.setTimeout(res, ms));
 const easeIn = (t: number) => t * t;
 /** Runs `fn(0..1)` once per frame for `ms`; stops early when `stop()` says so. */
@@ -391,62 +389,33 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
       if (off) return;
       const r = el.getBoundingClientRect();
       const finalTop = Math.max(8, r.top - drop.current);
-      const vw = window.innerWidth;
-      // where Sprout will land (the pop-up's top border, on its left side) and the pendulum swing that brings it there
-      const landX = Math.min(Math.max(r.left + 14, 6), vw - SPROUT_W - 6);
-      const landY = finalTop - SPROUT_H + 16;
-      const from = b.where();
-      const startHand = { x: from.x + SPROUT_W * ANCHOR_HAND.x, y: from.y + SPROUT_H * ANCHOR_HAND.y };
-      const plan = planSwing({
-        start: startHand,
-        land: { x: landX + SPROUT_W * ANCHOR_HAND.x, y: landY + SPROUT_H * ANCHOR_HAND.y },
-        viewportWidth: vw,
-        minHandX: 6 + SPROUT_W * ANCHOR_HAND.x,
-        maxHandX: vw - 6 - SPROUT_W * (1 - ANCHOR_HAND.x),
-      });
-      const hangAt = { x: plan.hang.x - SPROUT_W * ANCHOR_HAND.x, y: plan.hang.y - SPROUT_H * ANCHOR_HAND.y };
-      const hook = plan.hook;
+      // Sprout hops to an elevated pull position directly above where the card will emerge
+      const pullSpot = {
+        left: r.left,
+        top: Math.max(8, finalTop - 56),
+        width: r.width,
+        height: r.height,
+        right: r.left + r.width,
+        bottom: Math.max(8, finalTop - 56) + r.height,
+      };
+      await b.hopTo(pullSpot as unknown as DOMRect, { anchor: "perch", pose: "pull", duration: 750, say: "Found it! Hauling it up..." });
+      if (off) return;
+      b.setPose("pull");
       const hand = () => b.handPoint();
       const edge = () => {
         const q = el.getBoundingClientRect();
         return { x: q.left + q.width / 2, y: Math.min(q.top + 5, window.innerHeight - 2) };
       };
-      const anchorRope = (grow: number) => {
-        const a = b.anchorPoint();
-        if (a) rope.setAnchor(a, hook, grow);
-      };
-      b.say("Found it! Hang on...", 2400);
-      b.setPose("pull");
 
-      // 1. fire the first rope: it flies from Sprout's hand up to the hook, and you watch it go
+      // 1. fire: the rope grapple shoots down to the pop-up waiting at the bottom of the screen
       playRopeSwingSound();
-      await tween(520, (t) => anchorRope(easeOut(t)), stop);
+      await tween(600, (t) => {
+        const h = hand();
+        if (h) rope.set(h, edge(), easeOut(t), 0.25);
+      }, stop);
       if (off) return;
 
-      // 2. hooked: Sprout reels itself up the rope to its hanging spot, smoothly, the rope tight all the way.
-      //    3. Halfway up, the second rope shoots down to the pop-up waiting at the bottom of the screen.
-      const climb = climbMs(Math.hypot(hangAt.x - from.x, hangAt.y - from.y));
-      const fireAfter = climb * 0.4;
-      const haulSpan = Math.max(660, climb - fireAfter + 40);
-      playPopSound();
-      await Promise.all([
-        b.path((u) => ({ x: lerp(from.x, hangAt.x, smoothstep(u)), y: lerp(from.y, hangAt.y, smoothstep(u)) }), { duration: climb, pose: "pull", glide: true }),
-        tween(climb + 40, () => anchorRope(1), stop),
-        (async () => {
-          await sleep(fireAfter);
-          if (off) return;
-          playRopeSwingSound();
-          await tween(haulSpan, (t) => {
-            const h = hand();
-            const fly = Math.min(1, (t * haulSpan) / 660);
-            if (h) rope.set(h, edge(), easeOut(fly), 0.2 + 0.7 * fly);
-          }, stop);
-        })(),
-      ]);
-      if (off) return;
-      b.setPose("pull");
-
-      // 4. haul: the pop-up rises from the ground on the rope, pulled tight, while Sprout hangs from the first rope
+      // 2. haul: the pop-up rises from the ground on the rope, pulled tight with ratchet sounds
       playPopUpHaulSound();
       const dur = 1850;
       pull = el.animate([{ transform: `translateY(${drop.current}px)` }, { transform: "translateY(0px)" }], { duration: dur, easing: "cubic-bezier(0.25, 0.9, 0.3, 1)", fill: "forwards" });
@@ -466,33 +435,23 @@ function TermSheet({ term, context, topic, preset, origin, onClose }: { term: st
       el.style.transform = "";
       pull.cancel();
 
-      // 5. let go of the haul rope: the hook comes loose and the rope whips back
+      // 3. let go: the hook comes loose and the rope whips back
       playPopSound();
       await tween(380, (t) => {
         const h = hand();
         if (h) rope.set(h, edge(), 1 - easeIn(t), 0.1);
       }, stop);
+      rope.hide();
       if (off) return;
 
-      // 6. the swing: Sprout pushes off and swings across on the first rope, a true pendulum (the rope keeps its length), lets go of the
-      //    hook near the bottom of the arc and lands on the pop-up's top border
-      const swingMs = 1000;
-      const release = 0.78;
-      playRopeSwingSound();
-      await Promise.all([
-        b.path((u) => {
-          const p = plan.handAt(u);
-          return { x: p.x - SPROUT_W * ANCHOR_HAND.x, y: p.y - SPROUT_H * ANCHOR_HAND.y };
-        }, { duration: swingMs, pose: "pull", glide: true }),
-        tween(swingMs + 40, (t) => anchorRope(t < release ? 1 : 1 - easeOut((t - release) / (1 - release))), stop),
-      ]);
+      // 4. Sprout leaps down with an arc jump and lands squarely on the pop-up's top border header!
+      await b.hopTo(el, { anchor: "perch", pose: "jump", duration: 460 });
       if (off) return;
 
-      // 7. landed: a little giggle on the pop-up's top border
+      // 5. landed: victory giggle on top of the header border
       b.setPose("giggle");
       playCuteVoice("cheer");
       b.say("Here it is!", 1800);
-      rope.hide();
       await sleep(650);
       if (off) return;
       b.setPose("idle");

@@ -1,8 +1,8 @@
 /**
  * Publishes a new Android app version to the phones: writes public/app-version.json after checking it can't strand anyone.
  *
- *   npm run release:app -- --code 9 --name 2.7 --url https://github.com/shamzrepha/synapta/releases/download/v2.7/sunroot-2.7.apk \
- *     --notes "Focus sprints and faster lessons" [--min 8] [--dry]
+ *   npm run release:app -- --code 10 --name 3.0 --url https://sunrootlearn.vercel.app/sunroot-3.0.apk \
+ *     --notes "Sprout everywhere, live 3D labs, smoother keyboard and one-tap updates." [--min 9] [--dry]
  *
  * --min makes every installed build below that number update (a required update). Leave it out for an optional one.
  * Do this only AFTER the APK is uploaded to the release (or to the site) and android/app/build.gradle has the same versionCode.
