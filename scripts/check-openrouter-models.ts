@@ -4,7 +4,7 @@
  * voices we ask for. Prints prices. Run it before a release and whenever you change lib/ai/openrouter-models.ts:
  *   npm run check:openrouter
  */
-import { OR_CLASSES, OR_CLASS_INFO, OR_TTS } from "../lib/ai/openrouter-models";
+import { OR_CLASSES, OR_CLASS_INFO, OR_TTS, OR_TTS_CHOICES } from "../lib/ai/openrouter-models";
 
 interface Entry {
   id: string;
@@ -50,6 +50,13 @@ async function main() {
     const lack = want.filter((v) => !(m.supported_voices ?? []).includes(v));
     if (lack.length) bad++;
     console.log(`  ${lack.length ? "PROBLEM " : "ok      "} ${id}  ${per(m.pricing.prompt)}/M chars${lack.length ? `  <- no voice ${lack.join(", ")}` : ""}`);
+  }
+  console.log("\nAdmin voice choices");
+  for (const c of OR_TTS_CHOICES) {
+    const m = byId.get(c.model);
+    const lack = m ? [c.female, c.male].filter((v) => !(m.supported_voices ?? []).includes(v)) : [c.female, c.male];
+    if (!m || lack.length) bad++;
+    console.log(`  ${!m ? "MISSING " : lack.length ? "PROBLEM " : "ok      "} ${c.model}  ${m ? per(m.pricing.prompt) : "?"}/M chars${lack.length && m ? `  <- no voice ${lack.join(", ")}` : ""}`);
   }
   if (bad) {
     console.log(`\n${bad} problem(s): update lib/ai/openrouter-models.ts`);

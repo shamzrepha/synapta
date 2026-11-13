@@ -21,6 +21,20 @@ interface ClassRow {
   pick: string;
 }
 
+interface VoiceChoice {
+  model: string;
+  label: string;
+  price: number;
+  female: string;
+  male: string;
+}
+interface VoicePrefRow {
+  engine: "openrouter-first" | "edge-first";
+  model: string;
+  female: string;
+  male: string;
+}
+
 /**
  * Admin: OpenRouter. One key reaches many model makers; each kind of work gets the cheapest model that is good at it (the recommended
  * chains), and any of them can be changed here. Voice: when the free voice is unavailable, an open voice model speaks through the same key.
@@ -32,6 +46,8 @@ export function OpenRouterSettings({ onChanged }: { onChanged?: () => void }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [voice, setVoice] = useState<VoicePrefRow | null>(null);
+  const [choices, setChoices] = useState<VoiceChoice[]>([]);
 
   const load = useCallback(() => {
     fetch("/api/admin/system/openrouter-key").then((r) => r.json()).then((j) => j.ok && setInfo(j.data)).catch(() => null);
@@ -41,6 +57,14 @@ export function OpenRouterSettings({ onChanged }: { onChanged?: () => void }) {
         if (!j.ok) return;
         setClasses(j.data.classes);
         setDrafts(Object.fromEntries((j.data.classes as ClassRow[]).map((c) => [c.id, c.pick])));
+      })
+      .catch(() => null);
+    fetch("/api/admin/system/voice")
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j.ok) return;
+        setVoice(j.data.pref);
+        setChoices(j.data.choices);
       })
       .catch(() => null);
   }, []);
@@ -87,6 +111,13 @@ export function OpenRouterSettings({ onChanged }: { onChanged?: () => void }) {
     if (j?.ok) load();
   };
 
+  const saveVoice = async (next: VoicePrefRow) => {
+    setVoice(next);
+    const j = await fetch("/api/admin/system/voice", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) }).then((r) => r.json()).catch(() => null);
+    setMsg(j?.ok ? { ok: true, text: "Voice saved. New podcasts and tutor replies use it." } : { ok: false, text: j?.error?.message || "Couldn't save the voice." });
+    if (j?.ok) setVoice(j.data.pref);
+  };
+
   return (
     <Card className="p-5 space-y-4 border-violet-500/20">
       <div className="flex items-center gap-3">
@@ -125,6 +156,31 @@ export function OpenRouterSettings({ onChanged }: { onChanged?: () => void }) {
       )}
       {info?.source === "admin" && (
         <button type="button" onClick={remove} disabled={busy} className="text-xs font-semibold text-muted-foreground underline hover:text-foreground">Remove this OpenRouter key</button>
+      )}
+
+      {voice && (
+        <div className="pt-3 border-t border-border space-y-2">
+          <p className="font-bold text-sm text-foreground">Podcast and tutor voice</p>
+          <p className="text-xs text-muted-foreground">Paid voices have no tight request limit: the 20 per minute cap applies to free models only. A 10 minute podcast is about 9,000 characters, so even the dearest choice here costs about 36 cents. If it fails, the free voice takes over. Sprout&apos;s word-by-word reader stays on the robot voice because it needs word timings.</p>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={voice.engine === "openrouter-first"} onChange={(e) => void saveVoice({ ...voice, engine: e.target.checked ? "openrouter-first" : "edge-first" })} disabled={info?.source === "none"} />
+            Use the OpenRouter voice first (needs a key)
+          </label>
+          <select
+            className="w-full rounded-md border border-border bg-background px-2 py-2 text-sm"
+            aria-label="Voice model"
+            value={voice.model}
+            onChange={(e) => {
+              const c = asArray<VoiceChoice>(choices).find((x) => x.model === e.target.value);
+              if (c) void saveVoice({ ...voice, model: c.model, female: c.female, male: c.male });
+            }}
+          >
+            {asArray<VoiceChoice>(choices).map((c) => (
+              <option key={c.model} value={c.model}>{c.label} (${c.price}/M characters)</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-muted-foreground font-mono" translate="no">Voices: {voice.female} (female), {voice.male} (male)</p>
+        </div>
       )}
 
       <div className="pt-3 border-t border-border space-y-3">
