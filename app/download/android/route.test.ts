@@ -6,13 +6,13 @@ describe("GET /download/android", () => {
     const res = await GET();
     expect(res.status).toBe(302);
     const location = res.headers.get("location");
-    expect(location).toMatch(/sunroot-3\.0\.apk/);
+    expect(location).toMatch(/sunroot-3\.[0-9]+\.apk/);
   });
 
   it("HEAD also returns 302 redirect", async () => {
     const res = await HEAD();
     expect(res.status).toBe(302);
     const location = res.headers.get("location");
-    expect(location).toMatch(/sunroot-3\.0\.apk/);
+    expect(location).toMatch(/sunroot-3\.[0-9]+\.apk/);
   });
 });

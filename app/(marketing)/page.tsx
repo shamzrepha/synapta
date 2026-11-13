@@ -314,7 +314,7 @@ export default function LandingPage() {
                   Start free <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </Link>
                 <a href="/download/android" download className="inline-flex h-12 items-center gap-2 rounded-md border border-border bg-card/80 px-6 text-sm font-medium transition-colors hover:border-muted-foreground/60">
-                  <Download className="h-4 w-4" /> Download for Android (v3.0) <span className="text-xs text-muted-foreground">8.5 MB</span>
+                  <Download className="h-4 w-4" /> Download for Android (v3.1) <span className="text-xs text-muted-foreground">8.5 MB</span>
                 </a>
               </div>
             </Reveal>

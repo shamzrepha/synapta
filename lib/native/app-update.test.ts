@@ -71,23 +71,23 @@ describe("required updates, notes and re-checks", () => {
 });
 
 describe("buildManifest (the release script)", () => {
-  const next = { versionCode: 11, versionName: "3.0", url: "https://sunrootlearn.vercel.app/sunroot-3.0.apk" };
+  const next = { versionCode: 12, versionName: "3.1", url: "https://sunrootlearn.vercel.app/sunroot-3.1.apk" };
   it("builds a valid manifest", () => {
-    expect(buildManifest({ ...next, notes: "New focus sprints", minVersionCode: 10 }, { versionCode: 10 })).toEqual({ ...next, notes: "New focus sprints", minVersionCode: 10 });
-    expect(buildManifest(next, { versionCode: 10 })).toEqual(next);
+    expect(buildManifest({ ...next, notes: "New focus sprints", minVersionCode: 11 }, { versionCode: 11 })).toEqual({ ...next, notes: "New focus sprints", minVersionCode: 11 });
+    expect(buildManifest(next, { versionCode: 11 })).toEqual(next);
   });
   it("refuses a version that does not go up, so phones never miss an update", () => {
-    expect(() => buildManifest(next, { versionCode: 11 })).toThrow(/higher/);
-    expect(() => buildManifest({ ...next, versionCode: 3 }, { versionCode: 10 })).toThrow(/higher/);
+    expect(() => buildManifest(next, { versionCode: 12 })).toThrow(/higher/);
+    expect(() => buildManifest({ ...next, versionCode: 3 }, { versionCode: 11 })).toThrow(/higher/);
   });
   it("refuses links that are not ours, bad names and an impossible floor", () => {
     expect(() => buildManifest({ ...next, url: "https://evil.example/a.apk" }, null)).toThrow(/url/);
     expect(() => buildManifest({ ...next, versionName: "<script>" }, null)).toThrow(/versionName/);
-    expect(() => buildManifest({ ...next, minVersionCode: 12 }, null)).toThrow(/minVersionCode/);
+    expect(() => buildManifest({ ...next, minVersionCode: 13 }, null)).toThrow(/minVersionCode/);
     expect(() => buildManifest({ ...next, versionCode: 0 }, null)).toThrow(/versionCode/);
   });
   it("what it builds is accepted by the app's own reader", () => {
-    const m = buildManifest({ ...next, minVersionCode: 10, notes: "ok" }, { versionCode: 10 });
-    expect(parseLatest(m)).toMatchObject({ versionCode: 11, minVersionCode: 10, notes: "ok" });
+    const m = buildManifest({ ...next, minVersionCode: 11, notes: "ok" }, { versionCode: 11 });
+    expect(parseLatest(m)).toMatchObject({ versionCode: 12, minVersionCode: 11, notes: "ok" });
   });
 });
