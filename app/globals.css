@@ -700,6 +700,18 @@ html[data-typing="true"] .sunroot-bot { display: none; }
 @keyframes sprout-twinkle { from { transform: scale(0.8); opacity: 0.6; } to { transform: scale(1.15); opacity: 1; } }
 .sprout[data-pose="think"] [data-arm="right"] { transform: rotate(-120deg) translateY(-6px); }
 .sprout[data-pose="think"] .sprout-eyes { transform: translateX(3px); }
+/* pondering while an answer is on its way: the whole body tilts side to side, the eyes wander up and across */
+.sprout[data-pose="think"] { animation: sprout-ponder 1.9s ease-in-out infinite; }
+@keyframes sprout-ponder {
+  0%, 100% { transform: scaleX(var(--sx, 1)) rotate(-5deg) translateY(0); }
+  50% { transform: scaleX(var(--sx, 1)) rotate(5deg) translateY(-3px); }
+}
+.sprout[data-pose="think"] .sprout-look { animation: sprout-wander 2.4s ease-in-out infinite; }
+@keyframes sprout-wander {
+  0%, 100% { transform: translate(-2px, -2px); }
+  35% { transform: translate(3px, -3px); }
+  70% { transform: translate(2px, 1px); }
+}
 /* hopping between places */
 .sunroot-bot[data-moving="true"] .sprout-foot { animation: sprout-step 0.18s ease-in-out infinite alternate; }
 @keyframes sprout-step { from { transform: translateY(0); } to { transform: translateY(-4px); } }
@@ -860,4 +872,12 @@ body:has([data-tutor-open]) .sunroot-jarvis-hud { display: none !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .sunroot-bot[data-glide="true"] .sprout { animation: none !important; }
+}
+
+/* Sprout reads along: the word being said glows and its line is tinted, using the browser's text highlights (the page's text is not touched) */
+::highlight(sprout-line) { background-color: color-mix(in srgb, var(--color-brand-500, #3b6df6) 13%, transparent); }
+::highlight(sprout-word) {
+  background-color: color-mix(in srgb, var(--color-brand-500, #3b6df6) 42%, transparent);
+  color: inherit;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--color-brand-400, #6b93ff) 85%, transparent);
 }
