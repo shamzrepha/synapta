@@ -6,6 +6,7 @@ import { useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { usePrefs } from "@/components/settings/use-prefs";
 import { Sprout, type BotPose } from "@/components/bot/sprout";
+import { ANCHOR_HAND, HAUL_HAND, type Pt } from "@/lib/pet/swing";
 import type { Gear } from "@/components/bot/sprout-gear";
 import { PALETTES, type PetMood } from "@/lib/pet/mood";
 import { playCuteVoice, playPageFlipSound } from "@/lib/audio/sfx";
@@ -88,6 +89,13 @@ export interface BotApi {
   handPoint: () => { x: number; y: number } | null;
   /** where Sprout's other raised hand is (the rope it hangs from starts there) */
   anchorPoint: () => { x: number; y: number } | null;
+  /** where Sprout stands now (the top-left of its box) */
+  where: () => { x: number; y: number };
+  /**
+   * Moves Sprout along any path you give (a swing on a rope, a climb): `at(u)` is where its box is at progress 0..1, with
+   * the timing already in it. Smooth, straight from the compositor; resolves when it has arrived.
+   */
+  path: (at: (u: number) => Pt, o: { duration: number; pose?: BotPose; glide?: boolean; face?: 1 | -1 }) => Promise<void>;
 }
 
 const DEFAULT_PET: PetInfo = { name: "Sprout", mood: "calm", gear: {}, stats: { streakDays: 0, daysAway: 0, avgMastery: null, xp: 0 } };
@@ -112,6 +120,8 @@ const NOOP: BotApi = {
   reduced: true,
   handPoint: () => null,
   anchorPoint: () => null,
+  where: () => ({ x: 0, y: 0 }),
+  path: async () => {},
 };
 const BotCtx = createContext<BotApi>(NOOP);
 export const useBot = () => useContext(BotCtx);
@@ -147,7 +157,12 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<BotMode>("lively");
   const enabled = mode !== "off";
   const [pose, setPoseState] = useState<BotPose>("idle");
-  const [facing, setFacing] = useState<1 | -1>(1);
+  const [facing, setFacingState] = useState<1 | -1>(1);
+  const facingRef = useRef<1 | -1>(1);
+  const setFacing = useCallback((f: 1 | -1) => {
+    facingRef.current = f;
+    setFacingState(f);
+  }, []);
   const [bubble, setBubble] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
   const [landed, setLanded] = useState(false);
@@ -332,6 +347,55 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
       await move(x, y, o.duration ?? 900, o.pose ?? "idle", { arc: o.arc, easing: o.easing, glide: o.glide });
     },
     [enabled, mounted, move, say],
+  );
+
+  const path = useCallback<BotApi["path"]>(
+    async (at, o) => {
+      if (!enabled || !mounted) return;
+      const el = layer.current;
+      if (!el) return;
+      const mine = ++moveId.current;
+      const fit = (p: Pt): Pt => ({ x: clamp(p.x, 6, window.innerWidth - W - 6), y: clamp(p.y, 2, window.innerHeight - H - 6) });
+      const end = fit(at(1));
+      homed.current = false;
+      setAtHome(false);
+      setPose(o.pose ?? poseRef.current);
+      setFacing(o.face ?? 1);
+      if (reduce || o.duration <= 0) {
+        place(end.x, end.y);
+        return;
+      }
+      anim.current?.cancel();
+      setMoving(true);
+      setLanded(false);
+      setGliding(!!o.glide);
+      // many short straight pieces make a smooth curve, and the compositor runs it, so the page's own work never makes it stutter
+      const steps = Math.max(12, Math.round(o.duration / 16));
+      const frames: Keyframe[] = Array.from({ length: steps + 1 }, (_, i) => {
+        const p = fit(at(i / steps));
+        return { transform: `translate3d(${p.x}px, ${p.y}px, 0)` };
+      });
+      const a = el.animate(frames, { duration: o.duration, easing: "linear", fill: "forwards" });
+      anim.current = a;
+      try {
+        await a.finished;
+        place(end.x, end.y);
+      } catch {
+        /* a newer move took over */
+      } finally {
+        if (anim.current === a) {
+          a.cancel();
+          anim.current = null;
+          setMoving(false);
+          setGliding(false);
+        }
+      }
+      if (moveId.current !== mine) return;
+      setFacing(1);
+      setLanded(true);
+      window.setTimeout(() => setLanded(false), 360);
+    },
+    [enabled, mounted, place, reduce, setFacing, setPose],
   );
 
   const rest = useCallback<BotApi["rest"]>(
@@ -615,7 +679,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     if (!el) return null;
     const r = el.getBoundingClientRect();
     // the raised hand with the launcher, as a share of the 100 x 112 drawing
-    return { x: r.left + r.width * 0.8, y: r.top + r.height * 0.43 };
+    return { x: r.left + r.width * (facingRef.current === -1 ? 1 - HAUL_HAND.x : HAUL_HAND.x), y: r.top + r.height * HAUL_HAND.y };
   }, []);
 
   const anchorPoint = useCallback(() => {
@@ -623,12 +687,14 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     if (!el) return null;
     const r = el.getBoundingClientRect();
     // the left hand, raised: a share of the 100 x 112 drawing
-    return { x: r.left + r.width * 0.28, y: r.top + r.height * 0.42 };
+    return { x: r.left + r.width * (facingRef.current === -1 ? 1 - ANCHOR_HAND.x : ANCHOR_HAND.x), y: r.top + r.height * ANCHOR_HAND.y };
   }, []);
 
+  const where = useCallback(() => ({ ...at.current }), []);
+
   const api = useMemo<BotApi>(
-    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduced: reduce, handPoint, anchorPoint }),
-    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduce, handPoint, anchorPoint],
+    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduced: reduce, handPoint, anchorPoint, where, path }),
+    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduce, handPoint, anchorPoint, where, path],
   );
 
   // the speech bubble always stays fully on screen: Sprout can stand at either edge, and the bubble slides in to fit
@@ -638,22 +704,28 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     if (first) first.style.translate = "";
     let raf = 0;
     let shift = 0;
-    const loop = () => {
-      const el = layer.current?.querySelector<HTMLElement>(".sunroot-bot-bubble");
-      if (el) {
-        const r = el.getBoundingClientRect();
-        const left = r.left - shift;
-        const right = r.right - shift;
-        const margin = 8;
-        let want = 0;
-        if (left < margin) want = margin - left;
-        else if (right > window.innerWidth - margin) want = window.innerWidth - margin - right;
-        if (Math.abs(want - shift) > 0.5) {
-          shift = want;
-          el.style.translate = `${shift}px 0`;
-        }
-      }
+    let last = 0;
+    // Sprout moves on the compositor, so measuring it every frame and nudging the bubble by a fraction of a pixel makes the
+    // words shimmer (the nudge always lags one frame behind). Instead: look a few times a second, move in whole pixels, and let
+    // CSS ease the change.
+    const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
+      if (now - last < 100) return;
+      last = now;
+      const el = layer.current?.querySelector<HTMLElement>(".sunroot-bot-bubble");
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const left = r.left - shift;
+      const right = r.right - shift;
+      const margin = 8;
+      let want = 0;
+      if (left < margin) want = margin - left;
+      else if (right > window.innerWidth - margin) want = window.innerWidth - margin - right;
+      want = Math.round(want);
+      if (Math.abs(want - shift) >= 2) {
+        shift = want;
+        el.style.translate = `${shift}px 0`;
+      }
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
