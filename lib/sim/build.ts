@@ -3,6 +3,8 @@ import { z } from "zod";
 import { designSpec } from "@/lib/ai/design-spec";
 import { readableText } from "@/lib/text/readable";
 import { normalizeQuizQuestions, type NormalizedQuizQuestion } from "@/lib/quiz/normalize";
+import { SIM_MODEL_GUIDE } from "./guide";
+import { SIM_REFERENCE_HTML } from "./reference";
 
 /**
  * AI-generated HTML5 simulations.
@@ -98,7 +100,14 @@ LEARNING & GAME DESIGN RULES:
 10. When the learner achieves the main goal, call window.sunroot.complete({ score: <number>, level: <number> }) or window.synapta.complete({ score: <number>, level: <number> }) once per level (the function is provided by the host page; guard with "if (window.sunroot || window.synapta)").
 11. Include a short "What to notice" hint panel that explains the cause→effect relationship the learner should discover.
 12. Visual style: modern, clean, high-contrast, dark-friendly (background #0b0f14 or similar with blue #4A6CF7 and gold #F5B83A accents), large readable text (>=14px), rounded controls.
-13. If the topic is not naturally physical (e.g. history, biology processes, algorithms, economics), build an interactive model, sorting/matching game, timeline, step-through visualiser or "what-if" explorer instead — still with a goal and feedback.`;
+13. If the topic is not naturally physical (e.g. history, biology processes, algorithms, economics), build an interactive model, sorting/matching game, timeline, step-through visualiser or "what-if" explorer instead — still with a goal and feedback.
+
+${SIM_MODEL_GUIDE}
+
+REFERENCE EXAMPLE (a complete, working simulation of a different topic). Copy its STRUCTURE, its quality bar and its use of SimKit3D, the bridge, pointer events, ResizeObserver and sim-meta. Do NOT copy its topic, wording or numbers:
+<REFERENCE_EXAMPLE>
+${SIM_REFERENCE_HTML}
+</REFERENCE_EXAMPLE>`;
 
   const userPrompt = `Build the simulation for this topic.
 
@@ -245,6 +254,19 @@ export function interactionIssues(html: string): string[] {
   }
   if (!/ResizeObserver|addEventListener\(\s*["']resize["']|onresize/.test(html)) {
     issues.push("the layout does not adapt to the screen: size the scene from its container with a ResizeObserver and compute every coordinate from the current width and height");
+  }
+  const uses3d = /\bSimKit3D\b/.test(html);
+  if (uses3d && !/\.onFrame\s*\(/.test(html)) {
+    issues.push("the 3D scene never moves: animate inside kit.onFrame((dt, t) => { ... }) using the physics of the topic");
+  }
+  if (uses3d && /new\s+THREE\.(?:WebGLRenderer|PerspectiveCamera|(?:Ambient|Directional|Point|Spot|Hemisphere)Light)\b/.test(html)) {
+    issues.push("you created your own renderer, camera or lights: remove them and use SimKit3D.create(stage), which already provides them");
+  }
+  if (!/\b(?:sunroot|synapta)\.complete\s*\(/.test(html)) {
+    issues.push("there is no way to win: call window.sunroot.complete({ score, level }) once when the learner reaches the goal");
+  }
+  if (!/reset/i.test(html)) {
+    issues.push("there is no Reset button: add Pause/Play and Reset buttons that restore the starting state");
   }
   if (!/\b(?:sunroot|synapta)\.say\s*\(/.test(html)) {
     issues.push("the tutor never speaks: call window.sunroot.say(text, {tone}) to ask the prediction, react to the learner's actions, give hints and praise");
