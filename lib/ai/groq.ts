@@ -1,6 +1,7 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { cleanApiKey } from "@/lib/ai/api-key";
 import { isHeavyModelName, isModelUnavailable, parseModelList, pickGroqModels } from "@/lib/ai/groq-models";
+import { activeOpenRouterKey, refreshOpenRouterKey } from "@/lib/ai/openrouter";
 
 /**
  * Groq AI Engine Integration:
@@ -9,7 +10,7 @@ import { isHeavyModelName, isModelUnavailable, parseModelList, pickGroqModels } 
  * Stored securely in Firestore `secrets/groq` and `secrets/ai_provider`.
  */
 
-export type AiProvider = "gemini" | "groq";
+export type AiProvider = "gemini" | "groq" | "openrouter";
 
 const GROQ_SECRET_DOC = () => adminDb().collection("secrets").doc("groq");
 const PROVIDER_DOC = () => adminDb().collection("secrets").doc("ai_provider");
@@ -34,6 +35,7 @@ export interface ProviderInfo {
   provider: AiProvider;
   geminiConfigured: boolean;
   groqConfigured: boolean;
+  openrouterConfigured: boolean;
   updatedAt: string | null;
   updatedBy: string | null;
 }
@@ -77,7 +79,7 @@ export function refreshAiProvider(force = false): Promise<void> {
     try {
       const snap = await PROVIDER_DOC().get();
       const p = snap.data()?.provider;
-      cachedProvider = p === "groq" ? "groq" : "gemini";
+      cachedProvider = p === "groq" ? "groq" : p === "openrouter" ? "openrouter" : "gemini";
     } catch {
       /* default to gemini */
     } finally {
@@ -145,10 +147,10 @@ export async function groqKeyInfo(): Promise<GroqKeyInfo> {
 
 /** Returns metadata about the current active provider setting. */
 export async function aiProviderInfo(): Promise<ProviderInfo> {
-  await Promise.all([refreshAiProvider(), refreshGroqKey()]);
+  await Promise.all([refreshAiProvider(), refreshGroqKey(), refreshOpenRouterKey()]);
   const snap = await PROVIDER_DOC().get().catch(() => null);
   const d = snap?.data();
-  const provider: AiProvider = d?.provider === "groq" ? "groq" : "gemini";
+  const provider: AiProvider = d?.provider === "groq" ? "groq" : d?.provider === "openrouter" ? "openrouter" : "gemini";
   const { activeGeminiKey } = await import("@/lib/ai/api-key");
   const geminiKey = activeGeminiKey();
   const groqKey = activeGroqKey();
@@ -157,6 +159,7 @@ export async function aiProviderInfo(): Promise<ProviderInfo> {
     provider,
     geminiConfigured: Boolean(geminiKey),
     groqConfigured: Boolean(groqKey),
+    openrouterConfigured: Boolean(activeOpenRouterKey()),
     updatedAt: d?.updatedAt?.toDate?.().toISOString?.() ?? null,
     updatedBy: d?.updatedBy ?? null,
   };

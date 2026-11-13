@@ -7,6 +7,8 @@ import {
   callGroqChat,
 } from "@/lib/ai/groq";
 import { groqModelFor } from "@/lib/ai/groq-assign";
+import { activeOpenRouterKey, callOpenRouterChat, OpenRouterError, refreshOpenRouterKey } from "@/lib/ai/openrouter";
+import { openRouterChainFor } from "@/lib/ai/openrouter-assign";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { languageDirective, type LanguageCode } from "@/lib/i18n/languages";
 import { getGeminiClient } from "@/lib/gemini/client";
@@ -501,6 +503,47 @@ export async function generateWithFallback<T>(opts: GenerateWithFallbackOptions<
   return result;
 }
 
+/**
+ * Answers a task through OpenRouter: the recommended models for that kind of work (or the admin's pick), in order. Each answer is checked
+ * against the expected shape; a model that fails or answers badly passes the job to the next one.
+ */
+async function viaOpenRouter<T>(a: {
+  task: AiTask;
+  systemInstruction?: string;
+  userPrompt?: string;
+  contents?: unknown;
+  schema?: GenerateWithFallbackOptions<T>["schema"];
+  temperature?: number;
+  maxOutputTokens?: number;
+  cacheKey?: string;
+  startTime: number;
+  fallbackTriggered: boolean;
+}): Promise<GenerateWithFallbackResult<T>> {
+  const chain = (await openRouterChainFor(String(a.task))).slice(0, 4);
+  let lastErr: unknown = null;
+  for (const model of chain) {
+    try {
+      const res = await callOpenRouterChat({ model, systemInstruction: a.systemInstruction, userPrompt: a.userPrompt, contents: a.contents, json: Boolean(a.schema), temperature: a.temperature, maxTokens: a.maxOutputTokens });
+      let parsedData: T | undefined = undefined;
+      if (a.schema) {
+        const parsed = a.schema.safeParse(extractJsonPayload(res.text));
+        if (!parsed.success) throw new AiGenerationError(`${model} answered in the wrong shape: ${parsed.error.message}`);
+        parsedData = parsed.data;
+      }
+      if (a.cacheKey) {
+        adminDb().collection("aiCache").doc(a.cacheKey).set({ text: res.text, data: parsedData ?? null, modelUsed: res.model, createdAt: new Date().toISOString() }).catch(() => {});
+      }
+      return { text: res.text, data: parsedData, modelUsed: res.model, tokensIn: res.tokensIn, tokensOut: res.tokensOut, latencyMs: Date.now() - a.startTime, fallbackTriggered: a.fallbackTriggered || model !== chain[0] };
+    } catch (err) {
+      lastErr = err;
+      // a bad key or no credit will not be better on the next model
+      if (err instanceof OpenRouterError && (err.status === 401 || err.status === 402)) break;
+      console.warn(`[ai-router] OpenRouter model ${model} failed for "${String(a.task)}":`, err instanceof Error ? err.message : err);
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new AiGenerationError();
+}
+
 async function generateWithFallbackInner<T>({
   task,
   userPrompt,
@@ -520,7 +563,7 @@ async function generateWithFallbackInner<T>({
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }: GenerateWithFallbackOptions<T>, _reserved: boolean): Promise<GenerateWithFallbackResult<T>> {
   // the admin may have just set a new API key: make sure this call uses it, not a used-up one
-  await Promise.all([refreshGeminiKey(), refreshGroqKey()]);
+  await Promise.all([refreshGeminiKey(), refreshGroqKey(), refreshOpenRouterKey()]);
   const startTime = Date.now();
 
   // 1. Budget Guard Check
@@ -554,6 +597,19 @@ async function generateWithFallbackInner<T>({
   // 3. Provider check: Groq vs Gemini
   const activeProvider = await getActiveAiProvider();
   const groqKey = activeGroqKey();
+  const openRouterKey = activeOpenRouterKey();
+
+  if (activeProvider === "openrouter") {
+    if (openRouterKey) {
+      try {
+        return await viaOpenRouter<T>({ task, systemInstruction, userPrompt, contents, schema, temperature, maxOutputTokens, cacheKey, startTime, fallbackTriggered: false });
+      } catch (orErr) {
+        console.warn("[ai-router] Active OpenRouter provider failed, falling back to the Gemini chain:", orErr);
+      }
+    } else {
+      console.warn("[ai-router] Provider is set to OpenRouter, but no OpenRouter key is configured. Falling back to the Gemini chain.");
+    }
+  }
 
   if (activeProvider === "groq") {
     if (groqKey) {
@@ -609,6 +665,10 @@ async function generateWithFallbackInner<T>({
   try {
     ai = getGeminiClient();
   } catch (geminiInitErr) {
+    if (openRouterKey) {
+      console.warn("[ai-router] Gemini not initialized, routing to OpenRouter:", geminiInitErr);
+      return viaOpenRouter<T>({ task, systemInstruction, userPrompt, contents, schema, temperature, maxOutputTokens, cacheKey, startTime, fallbackTriggered: true });
+    }
     if (groqKey) {
       console.warn("[ai-router] Gemini not initialized, routing to Groq:", geminiInitErr);
       const groqModel = await groqModelFor(task);
@@ -918,7 +978,15 @@ async function generateWithFallbackInner<T>({
     console.warn(`[lib/ai/router] All models failed for task "${task}". Last error:`, lastError instanceof Error ? lastError.message : String(lastError));
   }
 
-  // Emergency safety net: If Gemini exhausted quota or failed, and a Groq key is configured, invoke Groq!
+  // Emergency safety net: if Gemini ran out or failed, OpenRouter (when its key is set) answers with the recommended models for the task, then Groq.
+  if (openRouterKey && activeProvider !== "openrouter") {
+    try {
+      console.warn(`[lib/ai/router] All Gemini models exhausted for task "${task}". Activating OpenRouter emergency fallback.`);
+      return await viaOpenRouter<T>({ task, systemInstruction, userPrompt, contents, schema, temperature, maxOutputTokens, cacheKey, startTime, fallbackTriggered: true });
+    } catch (orEmergencyErr) {
+      console.warn("[lib/ai/router] OpenRouter emergency fallback also failed:", orEmergencyErr);
+    }
+  }
   if (groqKey) {
     try {
       console.warn(`[lib/ai/router] All Gemini models exhausted for task "${task}". Activating Groq emergency fallback.`);

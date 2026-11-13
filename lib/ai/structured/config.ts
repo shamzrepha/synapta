@@ -3,6 +3,9 @@ import { activeGeminiKey, refreshGeminiKey } from "@/lib/ai/api-key";
 import { activeGroqKey, listGroqModels, refreshGroqKey } from "@/lib/ai/groq";
 import { aiConfigSchema, EMPTY_AI_CONFIG, PROVIDER_PRESETS, AiRouteMissingError, type AiConfig, type ModelProfile, type ProviderAdapter, type ProviderKind, type ProviderMeta, type TaskName } from "./types";
 import { geminiAdapter, openAiCompatibleAdapter } from "./adapters";
+import { activeOpenRouterKey, refreshOpenRouterKey } from "@/lib/ai/openrouter";
+import { OR_CLASS_INFO, worldOrClassFor } from "@/lib/ai/openrouter-models";
+import { TASKS } from "./types";
 
 const CONFIG_DOC = () => adminDb().collection("config").doc("ai");
 const PROVIDERS_DOC = () => adminDb().collection("secrets").doc("aiProviders");
@@ -86,6 +89,11 @@ export async function providerKey(id: string): Promise<{ meta: StoredProvider | 
     const k = activeGroqKey();
     if (k) return { meta, key: k };
   }
+  if (id === "openrouter") {
+    await refreshOpenRouterKey().catch(() => null);
+    const k = activeOpenRouterKey();
+    if (k) return { meta, key: k };
+  }
   return null;
 }
 
@@ -149,6 +157,32 @@ export async function autoSetupFromExistingKeys(by: { uid: string; email: string
 
   const routes = suggestRoutes(guesses);
   for (const t of Object.keys(routes) as Array<keyof typeof routes>) if (config.routes[t].length === 0) config.routes[t] = routes[t];
+
+  // OpenRouter: each job gets the recommended cheap model for that kind of work first, with the other models behind it
+  await refreshOpenRouterKey().catch(() => null);
+  if (activeOpenRouterKey()) {
+    for (const task of TASKS) {
+      const cls = worldOrClassFor(task);
+      const info = OR_CLASS_INFO[cls];
+      const keys: string[] = [];
+      for (const id of info.chain) {
+        const key = `openrouter:${id}`;
+        if (!config.models[key]) {
+          config.models[key] = {
+            id,
+            provider: "openrouter",
+            capabilities: info.needsImages ? ["json_mode", "json_schema", "vision", "long_context"] : ["json_mode", "json_schema", "long_context"],
+            contextTokens: 262_000,
+            maxOutputTokens: 16_000,
+            tier: cls === "heavy" || cls === "grading" || cls === "code" ? "strong" : "standard",
+          };
+        }
+        keys.push(key);
+      }
+      config.routes[task] = [...keys, ...config.routes[task].filter((k) => !keys.includes(k))].slice(0, 8);
+    }
+    notes.push("OpenRouter key found: every job now starts with its recommended model.");
+  } else notes.push("No OpenRouter key yet.");
   const saved = await saveAiConfig(config, by);
   return { config: saved, added: Object.keys(guesses).length, notes };
 }

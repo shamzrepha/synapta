@@ -4,6 +4,8 @@ import { guessSpeechLanguage, languageInfo, speaksWithGemini, type LanguageCode 
 import { modelFor } from "@/lib/ai/router";
 import { Communicate } from "edge-tts-universal";
 import { boundariesToTimings, estimateWordTimings, mp3DurationMs, type WordTiming } from "@/lib/voice/word-timing";
+import { activeOpenRouterKey, refreshOpenRouterKey, synthesizeOpenRouterSpeech } from "@/lib/ai/openrouter";
+import { OR_TTS } from "@/lib/ai/openrouter-models";
 
 /**
  * Prepend a standard 44-byte RIFF/WAVE header to raw PCM audio bytes.
@@ -186,6 +188,12 @@ export async function generateGeminiVoice({
   const host = hostFor(speaker);
   const voiceName: string = host.gemini;
 
+  // Tier 1b: OpenRouter (cheap open voice) when the free voice is unavailable, English only
+  if (!languageVoice(text, host.gender === "female" ? "female" : "male", lang)) {
+    const orv = await openRouterVoice(text, host.gender === "female" ? "female" : "male", 25_000);
+    if (orv) return { audioBase64: orv.audio.toString("base64"), mimeType: "audio/mpeg", voiceName: orv.voiceName };
+  }
+
   // Tier 2: ElevenLabs API (if ELEVENLABS_API_KEY configured)
   const elevenLabsKey = process.env.ELEVENLABS_API_KEY;
   if (elevenLabsKey) {
@@ -323,10 +331,26 @@ export const EDGE_VOICES = {
   male: ["en-US-AndrewMultilingualNeural", "en-US-BrianMultilingualNeural", "en-US-GuyNeural", "en-GB-RyanNeural"],
 } as const;
 
+/**
+ * A voice through OpenRouter (an open model such as Kokoro costs a fraction of a cent for a whole podcast line). Used after the free Edge voice
+ * and before the dearer ones, for English only: the other languages have their own voices. Null when there is no key or it could not speak.
+ */
+export async function openRouterVoice(text: string, gender: "female" | "male", timeoutMs = 20_000): Promise<{ audio: Buffer; voiceName: string } | null> {
+  await refreshOpenRouterKey();
+  if (!activeOpenRouterKey()) return null;
+  for (const model of OR_TTS.models.slice(0, 2)) {
+    const voice = model === OR_TTS.models[0] ? OR_TTS.voices[gender] : OR_TTS.otherVoices[model]?.[gender];
+    if (!voice) continue;
+    const audio = await synthesizeOpenRouterSpeech(text, { model, voice }, timeoutMs);
+    if (audio) return { audio, voiceName: `${model.split("/")[1]} (OpenRouter)` };
+  }
+  return null;
+}
+
 export interface SpeechClip {
   audio: Buffer;
   mimeType: string;
-  engine: "edge" | "elevenlabs" | "gemini";
+  engine: "edge" | "openrouter" | "elevenlabs" | "gemini";
 }
 
 /**
@@ -360,6 +384,11 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
   }
   // a retry of the free voice must not fall through to the paid engines
   if (opts.edgeOnly) return null;
+  // OpenRouter's cheap open voice next (English only)
+  if (!langVoice) {
+    const orv = await openRouterVoice(clean, gender, opts.patient ? 30_000 : 8_000);
+    if (orv) return { audio: orv.audio, mimeType: "audio/mpeg", engine: "openrouter" };
+  }
   const key = process.env.ELEVENLABS_API_KEY;
   if (key) {
     try {
