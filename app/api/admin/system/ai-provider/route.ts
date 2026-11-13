@@ -7,7 +7,7 @@ import { aiProviderInfo, setAiProvider, type AiProvider } from "@/lib/ai/groq";
 export const runtime = "nodejs";
 
 const providerSchema = z.object({
-  provider: z.enum(["gemini", "groq"]),
+  provider: z.enum(["gemini", "groq", "openrouter"]),
 });
 
 /** Returns the active AI provider and key configuration statuses. */
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/** Toggles the active AI engine between "gemini" and "groq". */
+/** Toggles the active AI engine between "gemini", "groq" and "openrouter". */
 export async function PUT(req: NextRequest) {
   try {
     const admin = await requireUser(req, ["admin"]);

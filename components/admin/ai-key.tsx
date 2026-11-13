@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { KeyRound, CheckCircle2, Zap, Cpu, AlertCircle, ArrowRightLeft } from "lucide-react";
+import { KeyRound, CheckCircle2, Zap, Cpu, AlertCircle, ArrowRightLeft, Network } from "lucide-react";
+import { OpenRouterSettings } from "@/components/admin/openrouter-settings";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +15,10 @@ interface KeyInfo {
 }
 
 interface ProviderInfo {
-  provider: "gemini" | "groq";
+  provider: "gemini" | "groq" | "openrouter";
   geminiConfigured: boolean;
   groqConfigured: boolean;
+  openrouterConfigured: boolean;
   updatedAt: string | null;
   updatedBy: string | null;
 }
@@ -64,7 +66,7 @@ export function AiKeySettings() {
   }, [loadAll]);
 
   // 1-Click Engine Flick Switch
-  const toggleProvider = async (targetProvider: "gemini" | "groq") => {
+  const toggleProvider = async (targetProvider: "gemini" | "groq" | "openrouter") => {
     if (providerInfo?.provider === targetProvider || busyProvider) return;
     setBusyProvider(true);
     setProviderMessage(null);
@@ -79,7 +81,7 @@ export function AiKeySettings() {
         setProviderInfo(data.data);
         setProviderMessage({
           ok: true,
-          text: `Switched active engine to ${targetProvider === "groq" ? "Groq AI (Llama 3.3 70B)" : "Google Gemini"}. All AI requests now route through ${targetProvider === "groq" ? "Groq" : "Gemini"}.`,
+          text: `Switched active engine to ${targetProvider === "groq" ? "Groq AI" : targetProvider === "openrouter" ? "OpenRouter" : "Google Gemini"}. All AI requests now route through it${targetProvider === "openrouter" ? ", each job to its recommended model" : ""}.`,
         });
       } else {
         setProviderMessage({
@@ -194,18 +196,18 @@ export function AiKeySettings() {
                 <h3 className="font-bold text-base text-foreground">Active AI Engine</h3>
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-500/30">
                   <span className="h-1.5 w-1.5 rounded-full bg-brand-500 mr-1.5 animate-pulse" />
-                  {currentProvider === "groq" ? "Groq (Active)" : "Gemini (Active)"}
+                  {currentProvider === "groq" ? "Groq (Active)" : currentProvider === "openrouter" ? "OpenRouter (Active)" : "Gemini (Active)"}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Flick between Google Gemini and Groq AI with a single click. When your Gemini quota runs out, switch to Groq to keep all tutors and class builders online.
+                Flick between Google Gemini, Groq and OpenRouter with a single click. OpenRouter sends each job to the cheapest model that is good at it. If the active engine fails, the others with a key step in.
               </p>
             </div>
           </div>
         </div>
 
         {/* Engine Toggle Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
           {/* Gemini Option */}
           <button
             type="button"
@@ -271,6 +273,33 @@ export function AiKeySettings() {
               </span>
             </div>
           </button>
+
+          {/* OpenRouter Option */}
+          <button
+            type="button"
+            disabled={busyProvider}
+            onClick={() => toggleProvider("openrouter")}
+            className={`text-left p-4 rounded-xl border-2 transition-all relative ${
+              currentProvider === "openrouter"
+                ? "border-violet-500 bg-violet-500/10 shadow-sm"
+                : "border-border hover:border-slate-300 dark:hover:border-slate-700 bg-card/50"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Network className={`h-5 w-5 ${currentProvider === "openrouter" ? "text-violet-500" : "text-muted-foreground"}`} />
+                <span className="font-bold text-sm text-foreground">OpenRouter</span>
+              </div>
+              {currentProvider === "openrouter" && (
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-violet-500 text-white font-black">Active</span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mb-2">DeepSeek, Claude, Qwen, GPT and more: the best cheap model for each job.</p>
+            <div className="flex items-center gap-2 text-[11px]">
+              <span className={`inline-block h-2 w-2 rounded-full ${providerInfo?.openrouterConfigured ? "bg-emerald-500" : "bg-rose-500"}`} />
+              <span className="text-muted-foreground">{providerInfo?.openrouterConfigured ? "Key set" : "Key not set (paste below)"}</span>
+            </div>
+          </button>
         </div>
 
         {providerMessage && (
@@ -285,6 +314,8 @@ export function AiKeySettings() {
           </p>
         )}
       </Card>
+
+      <OpenRouterSettings onChanged={loadAll} />
 
       {/* GROQ KEY CONFIGURATION */}
       <Card className="p-5 space-y-3 border-amber-500/20">
