@@ -276,6 +276,9 @@ export function interactionIssues(html: string): string[] {
   if (!/\b(?:sunroot|synapta)\.complete\s*\(/.test(html)) {
     issues.push("there is no way to win: call window.sunroot.complete({ score, level }) once when the learner reaches the goal");
   }
+  if (!/tone\s*:\s*["']warn["']/.test(html)) {
+    issues.push("a wrong connection or step is never called out: compute whether it is physically good or bad (real equations, units, safe limits), show the consequence on screen, and call window.sunroot.say(text, {tone: \"warn\"}) with the reason");
+  }
   if (!/reset/i.test(html)) {
     issues.push("there is no Reset button: add Pause/Play and Reset buttons that restore the starting state");
   }

@@ -31,7 +31,7 @@ button{min-height:44px;padding:0 18px;border:0;border-radius:10px;background:#4A
 <div id="note">What to notice: a longer rod swings more slowly. The bob's mass never changes the period.</div>
 <script>
 (function () {
-  var G = 9.81, L = 1.6, theta = 0.5, omega = 0, running = true, held = 0, done = false, touched = false;
+  var G = 9.81, L = 1.6, theta = 0.5, omega = 0, running = true, held = 0, done = false, touched = false, warned = false;
   var kit = SimKit3D.create(document.getElementById("stage"));
   kit.lookAt(0, 1.9, 0, 7.5);
   var frame = kit.roundedBox(2.4, 0.12, 0.5, 0x64748b, 0.04, { metalness: 0.6 });
@@ -58,12 +58,13 @@ button{min-height:44px;padding:0 18px;border:0;border-radius:10px;background:#4A
     if (!done && Math.abs(T - 2) < 0.06) { held += dt; if (held > 1) { done = true; window.sunroot.say("Exactly 2 seconds. You tuned it!", { tone: "praise" }); window.sunroot.complete({ score: 100, level: 1 }); } } else held = 0;
   });
   var pull = document.getElementById("pull"), knob = document.getElementById("knob"), drag = false;
-  function setFrom(e) { var r = pull.getBoundingClientRect(); var k = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); theta = (k - 0.5) * 2 * 1.2; omega = 0; knob.style.left = k * 100 + "%"; }
+  function setFrom(e) { var r = pull.getBoundingClientRect(); var k = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); theta = (k - 0.5) * 2 * 1.2; omega = 0; knob.style.left = k * 100 + "%";
+    if (!warned && Math.abs(theta) > 0.5) { warned = true; window.sunroot.say("That is a big swing: past about 15° the period grows, so T = 2π√(L/g) is no longer exact. Watch the readout.", { tone: "warn" }); } }
   pull.addEventListener("pointerdown", function (e) { drag = true; pull.setPointerCapture(e.pointerId); setFrom(e); });
   pull.addEventListener("pointermove", function (e) { if (drag) setFrom(e); });
   pull.addEventListener("pointerup", function () { drag = false; });
   document.getElementById("pp").addEventListener("click", function () { running = !running; this.textContent = running ? "Pause" : "Play"; });
-  document.getElementById("rs").addEventListener("click", function () { theta = 0.5; omega = 0; L = 1.6; len.value = L; layout(); running = true; held = 0; done = false; });
+  document.getElementById("rs").addEventListener("click", function () { theta = 0.5; omega = 0; L = 1.6; len.value = L; layout(); running = true; held = 0; done = false; warned = false; });
   new ResizeObserver(function () { window.dispatchEvent(new Event("resize")); }).observe(document.getElementById("stage"));
   window.sunroot.say("Predict first: will a longer rod swing faster or slower?", { tone: "ask" });
 })();
