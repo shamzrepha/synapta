@@ -40,6 +40,7 @@ import { fireCelebration } from "@/components/game/confetti";
 import { asArray } from "@/lib/api/client";
 import { rankBlocks } from "@/lib/study/locate";
 import { ReadPlayer, useReadThrough } from "@/components/lesson/read-through";
+import { findBlockElement, pageHolding } from "@/components/lesson/find-block";
 import { peekClass, rememberClass } from "@/lib/client/class-cache";
 import { prefetchGlossaries } from "@/lib/study/glossary-client";
 import { cn } from "@/lib/utils";
@@ -84,13 +85,11 @@ function buildSections(kcs: Kc[]): Section[] {
 
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
-/** The paragraph element inside a topic that begins like the given block text. */
+/** The block element inside a topic that holds the given paragraph (a paragraph, list item, table cell, quote or callout box). */
 function findBlockEl(kcId: string, blockText: string): HTMLElement | null {
   const root = document.querySelector(`[data-kc="${kcId}"]`);
   if (!root) return null;
-  const want = norm(blockText).slice(0, 50);
-  const els = Array.from(root.querySelectorAll("p, li, td"));
-  return (els.find((e) => norm(e.textContent || "").includes(want)) as HTMLElement | undefined) ?? null;
+  return findBlockElement(root, blockText);
 }
 
 /** Scrolls to the paragraph (inside a topic) whose text begins like the given block text, and flashes it. */
@@ -649,10 +648,9 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     async (kcId: string, blockText: string): Promise<HTMLElement | null> => {
       const direct = findBlockEl(kcId, blockText);
       if (direct || viewMode !== "flip") return direct;
-      const plain = (t: string) => t.toLowerCase().replace(/[*_`#>$\\[\]()|]/g, "").replace(/\s+/g, " ").trim();
-      const needle = plain(blockText).slice(0, 40);
-      if (needle.length < 6) return null;
-      const idx = flipPages.findIndex((p) => p.section.id === kcId && plain(p.pageTitle + " " + (p.subtopic || "") + " " + p.pageBody).includes(needle));
+      const mine = flipPages.map((p, i) => ({ p, i })).filter(({ p }) => p.section.id === kcId);
+      const at = pageHolding(mine.map(({ p }) => `${p.pageTitle}\n${p.subtopic || ""}\n${p.pageBody}`), blockText);
+      const idx = at >= 0 ? mine[at].i : -1;
       if (idx < 0) return null;
       goToPage(idx);
       for (let i = 0; i < 20; i++) {
@@ -664,7 +662,15 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     },
     [viewMode, flipPages, goToPage]
   );
-  const voice = useReadThrough({ sections: readable, onSection: (id) => goTo(id), findEl: findElFlip });
+  const voice = useReadThrough({
+    sections: readable,
+    onSection: (id) => {
+      // already on a page of this topic (reading from the page in front of you): stay there, the reader turns pages as it goes
+      if (viewMode === "flip" && currentFlip?.section.id === id) return;
+      goTo(id);
+    },
+    findEl: findElFlip,
+  });
   const listeningTitle = sections.find((s) => s.id === voice.currentId)?.title || "";
 
   // Sprout's "Listen to this chapter": read the chapter on screen with the app's real voice

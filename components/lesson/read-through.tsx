@@ -7,6 +7,7 @@ import { readPrefs } from "@/components/settings/use-prefs";
 import { useBot } from "@/components/bot/bot-provider";
 import { robotAudio } from "@/lib/audio/robot-voice";
 import { clearReadingHighlights, followReading, type Follower } from "./reading-follow";
+import { textHasBlock } from "./find-block";
 import { estimateWordTimings, type WordTiming } from "@/lib/voice/word-timing";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,8 @@ interface Clip {
   url: string;
   /** when each word is said (only for Sprout's reading voice) */
   words: WordTiming[] | null;
+  /** the times were worked out from the text, not measured: they are re-spread over the clip's real length before use */
+  estimated?: boolean;
 }
 
 function base64ToUrl(b64: string, mime: string): string {
@@ -116,12 +119,7 @@ export function useReadThrough(opts: {
       }
       // started from a page in the middle of a topic: begin at the first paragraph on that page, not at the top of the topic
       if (fromPage && i === index) {
-        const plain = (t: string) => t.toLowerCase().replace(/[*_`#>$\\[\]()|]/g, "").replace(/\s+/g, " ").trim();
-        const page = plain(fromPage);
-        const at = queue.findIndex((c) => {
-          const w = plain(c.block).slice(0, 40);
-          return w.length >= 6 && page.includes(w);
-        });
+        const at = queue.findIndex((c) => !!c.block && textHasBlock(fromPage, c.block));
         if (at > 0) queue = queue.slice(at);
       }
       const sec = secs[i];
@@ -149,7 +147,7 @@ export function useReadThrough(opts: {
                   if (j?.ok && typeof j.data?.audioBase64 === "string") {
                     const url = base64ToUrl(j.data.audioBase64, j.data.mimeType || "audio/mpeg");
                     urls.current.push(url);
-                    return { url, words: Array.isArray(j.data.words) ? (j.data.words as WordTiming[]) : null };
+                    return { url, words: Array.isArray(j.data.words) ? (j.data.words as WordTiming[]) : null, estimated: j.data.estimated === true };
                   }
                 } catch {
                   /* fall back below */
@@ -217,16 +215,64 @@ export function useReadThrough(opts: {
           setFailed(true);
           stop();
         };
-        // a voice with no word timings (the fallback reader) still gets Sprout walking along: the words are spread over the clip's length
-        if (!got.words && el && Number.isNaN(a.duration)) {
-          await new Promise<void>((res) => {
-            const t = window.setTimeout(res, 1500);
-            a.onloadedmetadata = () => {
-              window.clearTimeout(t);
-              res();
-            };
-          });
+        // word times: the voice's own when it measured them. Otherwise (a fallback voice, or times worked out from the text) the words are
+        // spread over the clip's real length, which is known as soon as the file's header has loaded
+        let words: WordTiming[] | null = got.words?.length && !got.estimated ? got.words : null;
+        if (!words && el) {
+          if (!Number.isFinite(a.duration) || a.duration <= 0) {
+            await new Promise<void>((res) => {
+              const t = window.setTimeout(res, 1500);
+              a.onloadedmetadata = () => {
+                window.clearTimeout(t);
+                res();
+              };
+            });
+            if (mine !== token.current) return;
+          }
+          words = Number.isFinite(a.duration) && a.duration > 0 ? estimateWordTimings(queue[k].text, a.duration * 1000) : got.words ?? null;
+        }
+        // get ready BEFORE speaking: light the paragraph, find its words and stand Sprout on the first one, then start the voice
+        if (block && el && words?.length) {
+          const target = el;
+          const sameParagraph = cursor.current.el === target;
+          if (!sameParagraph) cursor.current = { el: target, next: 0 };
+          if (target !== lit.current) {
+            unlight();
+            target.classList.add("note-reading");
+            lit.current = target;
+            target.scrollIntoView({ block: "center", behavior: "smooth" });
+          }
+          active.current = true;
+          const timings = words;
+          const startFollow = (root: HTMLElement) => {
+            follower.current?.stop();
+            const f = followReading({
+              audio: a,
+              words: timings,
+              root,
+              from: cursor.current.el === root ? cursor.current.next : 0,
+              bot: botRef.current,
+              // the page redrew this paragraph: find it again and carry on from where the voice is
+              onLost: () => {
+                void Promise.resolve(optsRef.current.findEl(sec.id, block)).then((again) => {
+                  if (mine !== token.current || !again) return;
+                  cursor.current = { el: again, next: 0 };
+                  startFollow(again);
+                });
+              },
+            });
+            cursor.current = { el: root, next: f.next };
+            follower.current = f;
+          };
+          startFollow(target);
+          // Sprout is on the first word before the voice starts: a longer wait for the very first piece (the page may still be settling)
+          await new Promise((r) => window.setTimeout(r, k === 0 ? 750 : sameParagraph ? 0 : 250));
           if (mine !== token.current) return;
+        } else if (block && el && el !== lit.current) {
+          unlight();
+          el.classList.add("note-reading");
+          lit.current = el;
+          el.scrollIntoView({ block: "center", behavior: "smooth" });
         }
         try {
           await a.play();
@@ -239,27 +285,6 @@ export function useReadThrough(opts: {
         }
         if (mine !== token.current) return;
         setState("playing");
-        if (block && el) {
-          if (el !== lit.current) {
-            unlight();
-            el.classList.add("note-reading");
-            lit.current = el;
-            el.scrollIntoView({ block: "center", behavior: "smooth" });
-          }
-          // word by word: light the word, stand Sprout on it, hop to the next (waits a moment for the scroll to settle)
-          const words = got.words?.length ? got.words : Number.isFinite(a.duration) && a.duration > 0 ? estimateWordTimings(queue[k].text, a.duration * 1000) : [];
-          if (words.length) {
-            if (cursor.current.el !== el) cursor.current = { el, next: 0 };
-            active.current = true;
-            window.setTimeout(() => {
-              if (mine !== token.current || a.ended) return;
-              follower.current?.stop();
-              const f = followReading({ audio: a, words, root: el, from: cursor.current.next, bot: botRef.current });
-              cursor.current = { el, next: f.next };
-              follower.current = f;
-            }, k === 0 || cursor.current.next === 0 ? 450 : 0);
-          }
-        }
       };
       void play(0);
     },

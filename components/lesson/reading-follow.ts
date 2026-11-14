@@ -48,18 +48,31 @@ export interface Follower {
 
 /**
  * While a passage is read: lights the word being said (and, softly, its line) and walks Sprout along the words, standing on the one
- * being said and hopping on to the next. Every hop starts where Sprout really is, so it never snaps.
+ * being said and hopping on to the next. Every hop starts where Sprout really is, so it never snaps, and between hops Sprout stays on
+ * its word while the page scrolls. If the page redraws its text (the old words are gone), the words are found again and it carries on.
  */
-export function followReading(opts: { audio: HTMLAudioElement; words: WordTiming[]; root: HTMLElement; from: number; bot: BotApi }): Follower {
+export function followReading(opts: {
+  audio: HTMLAudioElement;
+  words: WordTiming[];
+  root: HTMLElement;
+  from: number;
+  bot: BotApi;
+  /** called once when the paragraph is no longer on the page, so the caller can find it again and start a new follower */
+  onLost?: () => void;
+}): Follower {
   const { audio, words, root, bot } = opts;
-  const dom = pageWords(root);
-  const { map, next } = alignSpoken(words.map((w) => w.t), dom.map((d) => d.word), opts.from);
+  let dom = pageWords(root);
+  let { map, next } = alignSpoken(words.map((w) => w.t), dom.map((d) => d.word), opts.from);
   const follower: Follower = { stop: () => {}, next };
   let raf = 0;
   let last = -2;
   let lastLineTop = -1;
   let lastScroll = 0;
   let off = false;
+  let lost = false;
+  /** the page word Sprout is standing on, and when its current hop ends (until then the hop itself moves it) */
+  let perch = -1;
+  let hopEnds = 0;
 
   const boxOf = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height });
 
@@ -68,25 +81,24 @@ export function followReading(opts: { audio: HTMLAudioElement; words: WordTiming
     if (off) return;
     const from = bot.where();
     const path = hopPath(from, to);
+    hopEnds = performance.now() + ms;
     // never wait on a hop that cannot finish (a hidden tab pauses animations): give it its time plus a little, then let the next one run
     void Promise.race([bot.path(path, { duration: ms, pose: "idle" }), new Promise<void>((r) => window.setTimeout(r, ms + 400))]).catch(() => {});
   };
 
-  const lineOf = (j: number): Range | null => {
-    const top = (() => {
-      const r = document.createRange();
-      r.setStart(dom[j].node, dom[j].start);
-      r.setEnd(dom[j].node, dom[j].end);
-      return r.getBoundingClientRect().top;
-    })();
+  const rangeOf = (j: number): Range => {
+    const r = document.createRange();
+    r.setStart(dom[j].node, dom[j].start);
+    r.setEnd(dom[j].node, dom[j].end);
+    return r;
+  };
+  const rectOfWord = (j: number): DOMRect => rangeOf(j).getBoundingClientRect();
+
+  const lineOf = (j: number): Range => {
+    const top = rectOfWord(j).top;
+    const topOf = (k: number) => rectOfWord(k).top;
     let a = j;
     let b = j;
-    const topOf = (k: number) => {
-      const r = document.createRange();
-      r.setStart(dom[k].node, dom[k].start);
-      r.setEnd(dom[k].node, dom[k].end);
-      return r.getBoundingClientRect().top;
-    };
     while (a > 0 && Math.abs(topOf(a - 1) - top) < 4) a--;
     while (b < dom.length - 1 && Math.abs(topOf(b + 1) - top) < 4) b++;
     const range = document.createRange();
@@ -96,60 +108,91 @@ export function followReading(opts: { audio: HTMLAudioElement; words: WordTiming
     return range;
   };
 
-  const rectOfWord = (j: number): DOMRect => {
-    const r = document.createRange();
-    r.setStart(dom[j].node, dom[j].start);
-    r.setEnd(dom[j].node, dom[j].end);
-    return r.getBoundingClientRect();
-  };
-  /** the page word for spoken word `idx`, or the next one that lines up (a spelled-out symbol has none of its own) */
+  /**
+   * The page word for spoken word `idx`. A spoken word with no match of its own (a spelled-out symbol, a number said in words) takes the
+   * next one that lines up, or else a place just after the last word that did, so Sprout keeps walking instead of freezing.
+   */
   const pageIndex = (idx: number): number => {
     for (let i = idx; i < Math.min(words.length, idx + 4); i++) if (map[i] >= 0 && dom[map[i]]) return map[i];
+    for (let i = idx - 1; i >= Math.max(0, idx - 12); i--) {
+      if (map[i] >= 0 && dom[map[i]]) return Math.min(dom.length - 1, map[i] + (idx - i));
+    }
     return -1;
+  };
+
+  /** the words on the page were redrawn: find them again, or tell the caller if the paragraph itself is gone */
+  const recover = (): boolean => {
+    if (!root.isConnected) {
+      if (!lost) {
+        lost = true;
+        opts.onLost?.();
+      }
+      return false;
+    }
+    dom = pageWords(root);
+    const again = alignSpoken(words.map((w) => w.t), dom.map((d) => d.word), 0);
+    map = again.map;
+    next = again.next;
+    follower.next = next;
+    last = -2;
+    perch = -1;
+    return dom.length > 0;
   };
 
   let lastLead = -2;
   const step = () => {
     if (off) return;
     raf = requestAnimationFrame(step);
-    const ms = audio.currentTime * 1000;
+    try {
+      if (dom.length === 0 || !dom[0].node.isConnected) {
+        if (!recover()) return;
+        lastLead = -2;
+      }
+      const ms = audio.currentTime * 1000;
 
-    // the word being said glows
-    const idx = wordAt(words, ms);
-    if (idx !== last && idx >= 0) {
-      last = idx;
-      const j = map[idx];
-      if (j >= 0 && dom[j]) {
-        const range = document.createRange();
-        range.setStart(dom[j].node, dom[j].start);
-        range.setEnd(dom[j].node, dom[j].end);
-        const rect = range.getBoundingClientRect();
-        if (rect.width > 0 || rect.height > 0) {
-          setHighlight("sprout-word", range);
-          if (Math.abs(rect.top - lastLineTop) > 4) setHighlight("sprout-line", lineOf(j));
-          // keep the line being read comfortably in view
-          const now = performance.now();
-          if (now - lastScroll > 700 && (rect.top < 110 || rect.bottom > window.innerHeight - 150)) {
-            lastScroll = now;
-            window.scrollBy({ top: rect.top - window.innerHeight * 0.4, behavior: "smooth" });
+      // the word being said glows
+      const idx = wordAt(words, ms);
+      if (idx !== last && idx >= 0) {
+        last = idx;
+        const j = pageIndex(idx);
+        if (j >= 0 && dom[j]) {
+          const range = rangeOf(j);
+          const rect = range.getBoundingClientRect();
+          if (rect.width > 0 || rect.height > 0) {
+            setHighlight("sprout-word", range);
+            if (Math.abs(rect.top - lastLineTop) > 4) setHighlight("sprout-line", lineOf(j));
+            // keep the line being read comfortably in view
+            const now = performance.now();
+            if (now - lastScroll > 700 && (rect.top < 110 || rect.bottom > window.innerHeight - 150)) {
+              lastScroll = now;
+              window.scrollBy({ top: rect.top - window.innerHeight * 0.4, behavior: "smooth" });
+            }
           }
         }
       }
-    }
 
-    // Sprout is a little ahead of the voice, so it has landed on a word by the time it is said (even at the start of a new line)
-    const lead = wordAt(words, ms + 190);
-    if (lead !== lastLead && lead >= 0) {
-      lastLead = lead;
-      const j = pageIndex(lead);
-      if (j >= 0) {
-        const to = perchOnWord(boxOf(rectOfWord(j)), { width: window.innerWidth, height: window.innerHeight });
-        const from = bot.where();
-        if (Math.hypot(to.x - from.x, to.y - from.y) > 1.5) {
-          // the voice may be sped up, so a word takes less real time than its length in the clip
-          hopTo(to, Math.max(90, hopMs(from, to, Math.max(120, words[lead].e - words[lead].s)) / Math.max(0.5, audio.playbackRate)));
+      // Sprout is a little ahead of the voice, so it has landed on a word by the time it is said (even at the start of a new line)
+      const lead = wordAt(words, ms + 190);
+      if (lead !== lastLead && lead >= 0) {
+        lastLead = lead;
+        const j = pageIndex(lead);
+        if (j >= 0 && dom[j]) {
+          perch = j;
+          const to = perchOnWord(boxOf(rectOfWord(j)), { width: window.innerWidth, height: window.innerHeight });
+          const from = bot.where();
+          if (Math.hypot(to.x - from.x, to.y - from.y) > 1.5) {
+            // the voice may be sped up, so a word takes less real time than its length in the clip
+            hopTo(to, Math.max(90, hopMs(from, to, Math.max(120, words[lead].e - words[lead].s)) / Math.max(0.5, audio.playbackRate)));
+          }
         }
+      } else if (perch >= 0 && dom[perch] && performance.now() > hopEnds) {
+        // between hops Sprout stays on its word while the page scrolls under it
+        const to = perchOnWord(boxOf(rectOfWord(perch)), { width: window.innerWidth, height: window.innerHeight });
+        bot.stick(to.x, to.y);
       }
+    } catch {
+      // a word that vanished mid-frame: the next frame looks again
+      dom = [];
     }
   };
   raf = requestAnimationFrame(step);
