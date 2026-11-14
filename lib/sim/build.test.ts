@@ -85,3 +85,16 @@ describe("AI simulation pipeline", () => {
     expect(userPrompt).toContain('"answer":"b"');
   });
 });
+
+import { diagnoseSimulation as diagnoseForTest } from "@/lib/sim/build";
+describe("diagnoseSimulation", () => {
+  it("names a cut-off answer", () => {
+    expect(diagnoseForTest("<!DOCTYPE html><html><body><canvas></canvas><script>" + "var a=1;".repeat(80))).toMatch(/cut off/);
+  });
+  it("names an empty answer", () => {
+    expect(diagnoseForTest("")).toMatch(/empty/);
+  });
+  it("names a page with nothing to draw on", () => {
+    expect(diagnoseForTest("<html><body><script>" + "var a=1;".repeat(80) + "</script></body></html>")).toMatch(/canvas|svg/);
+  });
+});

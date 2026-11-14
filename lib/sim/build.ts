@@ -246,6 +246,17 @@ export function looksLikeRunnableSimulation(html: string): boolean {
   return /<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]{200,}?<\/script>/i.test(html) && (/<(canvas|svg)\b/i.test(html) || /\bSimKit3D\b|\bTHREE\./.test(html));
 }
 
+/** Why a model answer could not be used as a simulation, in words the model can act on (and a log line can show). */
+export function diagnoseSimulation(raw: string): string {
+  const text = stripFences(raw || "").trim();
+  if (!text) return "the answer was empty";
+  const bytes = Buffer.byteLength(text, "utf8");
+  if (bytes > MAX_SIM_HTML_BYTES) return `the page was too large (${Math.round(bytes / 1000)} KB; the limit is ${Math.round(MAX_SIM_HTML_BYTES / 1000)} KB): write much more compact code`;
+  if (!/<\/html>/i.test(text)) return "the answer was cut off before </html>: write shorter, tighter code (no long comments, no repeated blocks) so the whole document fits";
+  if (!/<script\b(?![^>]*\bsrc=)[^>]*>[\s\S]{200,}?<\/script>/i.test(text)) return "there was no inline <script> with the simulation code";
+  return "the page has no <canvas>, <svg> or SimKit3D scene to draw into";
+}
+
 /** Things a lab must have to feel like a game on a phone; used to ask the model to try again once. */
 export function interactionIssues(html: string): string[] {
   const issues: string[] = [];
