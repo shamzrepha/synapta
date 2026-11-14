@@ -31,17 +31,17 @@ export function robotAudio(): RobotAudio {
       low.frequency.value = 7200;
       // the buzz: the volume wobbles about 36 times a second
       const buzz = ctx.createGain();
-      buzz.gain.value = 0.74;
+      buzz.gain.value = 0.66;
       const osc = ctx.createOscillator();
       osc.type = "sine";
-      osc.frequency.value = 36;
+      osc.frequency.value = 44;
       const depth = ctx.createGain();
-      depth.gain.value = 0.24;
+      depth.gain.value = 0.34;
       osc.connect(depth).connect(buzz.gain);
       osc.start();
       // light bit-crush: the signal is rounded to a few dozen steps
       const crush = ctx.createWaveShaper();
-      const steps = 28;
+      const steps = 18;
       const curve = new Float32Array(2048);
       for (let i = 0; i < curve.length; i++) {
         const x = (i / (curve.length - 1)) * 2 - 1;
@@ -49,7 +49,32 @@ export function robotAudio(): RobotAudio {
       }
       crush.curve = curve;
       const lift = ctx.createDynamicsCompressor();
-      src.connect(high).connect(low).connect(crush).connect(buzz).connect(lift).connect(ctx.destination);
+      // a short feedback delay gives the tinny, metallic ring of a speaker grille
+      const mix = ctx.createGain();
+      const comb = ctx.createDelay(0.05);
+      comb.delayTime.value = 0.0042;
+      const feedback = ctx.createGain();
+      feedback.gain.value = 0.38;
+      comb.connect(feedback).connect(comb);
+      comb.connect(mix);
+      src.connect(high).connect(low).connect(crush).connect(buzz);
+      // ring modulation: the voice is multiplied by a 62 Hz tone, the classic robot sound that no ear can miss
+      const ring = ctx.createGain();
+      ring.gain.value = 0;
+      const ringOsc = ctx.createOscillator();
+      ringOsc.type = "sine";
+      ringOsc.frequency.value = 62;
+      ringOsc.connect(ring.gain);
+      ringOsc.start();
+      const wet = ctx.createGain();
+      wet.gain.value = 1.15;
+      const dry = ctx.createGain();
+      dry.gain.value = 0.5;
+      crush.connect(ring).connect(wet);
+      wet.connect(mix);
+      wet.connect(comb);
+      buzz.connect(dry).connect(mix);
+      mix.connect(lift).connect(ctx.destination);
     }
   } catch {
     ctx = null; // no effect: the plain voice still plays

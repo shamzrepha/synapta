@@ -7,7 +7,7 @@ import { readPrefs } from "@/components/settings/use-prefs";
 import { useBot } from "@/components/bot/bot-provider";
 import { robotAudio } from "@/lib/audio/robot-voice";
 import { clearReadingHighlights, followReading, type Follower } from "./reading-follow";
-import type { WordTiming } from "@/lib/voice/word-timing";
+import { estimateWordTimings, type WordTiming } from "@/lib/voice/word-timing";
 import { cn } from "@/lib/utils";
 
 export interface ReadSection {
@@ -38,8 +38,8 @@ export function useReadThrough(opts: {
   sections: ReadSection[];
   /** scroll the reader to a topic (called when reading moves to it) */
   onSection: (id: string) => void;
-  /** find the paragraph element on the page */
-  findEl: (sectionId: string, blockText: string) => HTMLElement | null;
+  /** find the paragraph element on the page (may turn the page first when the paragraph is on another page) */
+  findEl: (sectionId: string, blockText: string) => HTMLElement | null | Promise<HTMLElement | null>;
 }) {
   const [state, setState] = useState<State>("idle");
   const [currentId, setCurrentId] = useState<string | null>(null);
@@ -146,7 +146,7 @@ export function useReadThrough(opts: {
                 }
               }
               try {
-                const r = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: queue[k].text, voice: "female", lang }) });
+                const r = await fetch("/api/tts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: queue[k].text, voice: "female", lang, reader: true }) });
                 if (!r.ok) return null;
                 const u = URL.createObjectURL(await r.blob());
                 urls.current.push(u);
@@ -179,6 +179,17 @@ export function useReadThrough(opts: {
           stop();
           return;
         }
+        // the paragraph being read: turn the page to it first when it is on another page, so the reader never reads off-screen
+        const block = queue[k].block;
+        let el: HTMLElement | null = null;
+        if (block) {
+          try {
+            el = await Promise.resolve(optsRef.current.findEl(sec.id, block));
+          } catch {
+            el = null;
+          }
+          if (mine !== token.current) return;
+        }
         // every voice goes through the same small robot effect, so it sounds like the app's AI reading to you
         const ra = robotAudio();
         ra.wake();
@@ -187,6 +198,7 @@ export function useReadThrough(opts: {
         follower.current = null;
         a.onended = null;
         a.onerror = null;
+        a.onloadedmetadata = null;
         a.src = url;
         a.playbackRate = rateRef.current;
         a.onended = () => void play(k + 1);
@@ -195,6 +207,17 @@ export function useReadThrough(opts: {
           setFailed(true);
           stop();
         };
+        // a voice with no word timings (the fallback reader) still gets Sprout walking along: the words are spread over the clip's length
+        if (!got.words && el && Number.isNaN(a.duration)) {
+          await new Promise<void>((res) => {
+            const t = window.setTimeout(res, 1500);
+            a.onloadedmetadata = () => {
+              window.clearTimeout(t);
+              res();
+            };
+          });
+          if (mine !== token.current) return;
+        }
         try {
           await a.play();
         } catch {
@@ -206,20 +229,18 @@ export function useReadThrough(opts: {
         }
         if (mine !== token.current) return;
         setState("playing");
-        const block = queue[k].block;
-        if (block) {
-          const el = optsRef.current.findEl(sec.id, block);
-          if (el && el !== lit.current) {
+        if (block && el) {
+          if (el !== lit.current) {
             unlight();
             el.classList.add("note-reading");
             lit.current = el;
             el.scrollIntoView({ block: "center", behavior: "smooth" });
           }
           // word by word: light the word, stand Sprout on it, hop to the next (waits a moment for the scroll to settle)
-          if (el && got.words?.length) {
+          const words = got.words?.length ? got.words : Number.isFinite(a.duration) && a.duration > 0 ? estimateWordTimings(queue[k].text, a.duration * 1000) : [];
+          if (words.length) {
             if (cursor.current.el !== el) cursor.current = { el, next: 0 };
             active.current = true;
-            const words = got.words;
             window.setTimeout(() => {
               if (mine !== token.current || a.ended) return;
               follower.current?.stop();
