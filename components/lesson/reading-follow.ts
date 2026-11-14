@@ -59,22 +59,17 @@ export function followReading(opts: { audio: HTMLAudioElement; words: WordTiming
   let last = -2;
   let lastLineTop = -1;
   let lastScroll = 0;
-  let want: { x: number; y: number; ms: number } | null = null;
-  let hopping = false;
   let off = false;
 
   const boxOf = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height });
 
-  const runHops = async () => {
-    hopping = true;
-    while (want && !off) {
-      const t = want;
-      want = null;
-      const from = bot.where();
-      const path = hopPath(from, { x: t.x, y: t.y });
-      await bot.path(path, { duration: t.ms, pose: "idle" });
-    }
-    hopping = false;
+  /** Hop to the word. A new hop takes over from where Sprout really is, so it never queues up behind the voice or gets stuck on a hop that was left behind. */
+  const hopTo = (to: { x: number; y: number }, ms: number) => {
+    if (off) return;
+    const from = bot.where();
+    const path = hopPath(from, to);
+    // never wait on a hop that cannot finish (a hidden tab pauses animations): give it its time plus a little, then let the next one run
+    void Promise.race([bot.path(path, { duration: ms, pose: "idle" }), new Promise<void>((r) => window.setTimeout(r, ms + 400))]).catch(() => {});
   };
 
   const lineOf = (j: number): Range | null => {
@@ -151,8 +146,8 @@ export function followReading(opts: { audio: HTMLAudioElement; words: WordTiming
         const to = perchOnWord(boxOf(rectOfWord(j)), { width: window.innerWidth, height: window.innerHeight });
         const from = bot.where();
         if (Math.hypot(to.x - from.x, to.y - from.y) > 1.5) {
-          want = { x: to.x, y: to.y, ms: hopMs(from, to, Math.max(120, words[lead].e - words[lead].s)) };
-          if (!hopping) void runHops();
+          // the voice may be sped up, so a word takes less real time than its length in the clip
+          hopTo(to, Math.max(90, hopMs(from, to, Math.max(120, words[lead].e - words[lead].s)) / Math.max(0.5, audio.playbackRate)));
         }
       }
     }
@@ -161,7 +156,6 @@ export function followReading(opts: { audio: HTMLAudioElement; words: WordTiming
 
   follower.stop = () => {
     off = true;
-    want = null;
     cancelAnimationFrame(raf);
     clearReadingHighlights();
   };

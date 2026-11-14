@@ -677,7 +677,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       const id = (viewMode === "flip" ? currentFlip?.section.id : active) || readable[0]?.id;
       if (!id || !readable.some((r) => r.id === id)) return; // nothing readable here: Sprout says so
       (e as CustomEvent<{ handled: boolean }>).detail.handled = true;
-      voiceRef.current.start(id);
+      voiceRef.current.start(id, viewMode === "flip" ? currentFlip?.pageBody : undefined);
     };
     window.addEventListener(LISTEN_EVENT, onListen);
     return () => window.removeEventListener(LISTEN_EVENT, onListen);
