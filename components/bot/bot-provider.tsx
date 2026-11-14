@@ -96,6 +96,8 @@ export interface BotApi {
    * the timing already in it. Smooth, straight from the compositor; resolves when it has arrived.
    */
   path: (at: (u: number) => Pt, o: { duration: number; pose?: BotPose; glide?: boolean; face?: 1 | -1 }) => Promise<void>;
+  /** keeps Sprout standing on a spot that moves (a word while the page scrolls): sets its position at once, and does nothing while it is mid-hop */
+  stick: (x: number, y: number) => void;
 }
 
 const DEFAULT_PET: PetInfo = { name: "Sprout", mood: "calm", gear: {}, stats: { streakDays: 0, daysAway: 0, avgMastery: null, xp: 0 } };
@@ -122,6 +124,7 @@ const NOOP: BotApi = {
   anchorPoint: () => null,
   where: () => ({ x: 0, y: 0 }),
   path: async () => {},
+  stick: () => {},
 };
 const BotCtx = createContext<BotApi>(NOOP);
 export const useBot = () => useContext(BotCtx);
@@ -700,9 +703,20 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
     return { ...at.current };
   }, []);
 
+  const stick = useCallback<BotApi["stick"]>(
+    (x, y) => {
+      if (!enabled || !mounted || anim.current) return;
+      const p = { x: clamp(x, 4, window.innerWidth - W - 4), y: clamp(y, 2, window.innerHeight - H - 6) };
+      if (Math.abs(p.x - at.current.x) < 0.5 && Math.abs(p.y - at.current.y) < 0.5) return;
+      homed.current = false;
+      place(p.x, p.y);
+    },
+    [enabled, mounted, place],
+  );
+
   const api = useMemo<BotApi>(
-    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduced: reduce, handPoint, anchorPoint, where, path }),
-    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduce, handPoint, anchorPoint, where, path],
+    () => ({ enabled, setEnabled, mode, setMode, pet, reloadPet: loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduced: reduce, handPoint, anchorPoint, where, path, stick }),
+    [enabled, setEnabled, mode, setMode, pet, loadPet, hopTo, rest, setPose, say, cheer, cheerAt, openAt, scanPage, flip, quick, countLookup, reduce, handPoint, anchorPoint, where, path, stick],
   );
 
   // the speech bubble always stays fully on screen: Sprout can stand at either edge, and the bubble slides in to fit
