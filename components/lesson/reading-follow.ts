@@ -62,7 +62,16 @@ export function followReading(opts: {
 }): Follower {
   const { audio, words, root, bot } = opts;
   let dom = pageWords(root);
-  let { map, next } = alignSpoken(words.map((w) => w.t), dom.map((d) => d.word), opts.from);
+  /** matches the spoken words to page words; when too few line up (the voice reads very differently from the page) the words are spread evenly instead */
+  const align = (from: number) => {
+    const r = alignSpoken(words.map((w) => w.t), dom.map((d) => d.word), from);
+    const hits = r.map.filter((m) => m >= 0).length;
+    if (dom.length > 0 && words.length > 0 && hits < words.length * 0.5) {
+      r.map = words.map((_, i) => Math.min(dom.length - 1, Math.floor((i * dom.length) / words.length)));
+    }
+    return r;
+  };
+  let { map, next } = align(opts.from);
   const follower: Follower = { stop: () => {}, next };
   let raf = 0;
   let last = -2;
@@ -130,7 +139,7 @@ export function followReading(opts: {
       return false;
     }
     dom = pageWords(root);
-    const again = alignSpoken(words.map((w) => w.t), dom.map((d) => d.word), 0);
+    const again = align(0);
     map = again.map;
     next = again.next;
     follower.next = next;
@@ -172,7 +181,8 @@ export function followReading(opts: {
       }
 
       // Sprout is a little ahead of the voice, so it has landed on a word by the time it is said (even at the start of a new line)
-      const lead = wordAt(words, ms + 190);
+      // before the voice has started (Sprout gets there first) it stands on the very first word, not on one a little way in
+      const lead = ms < 40 ? 0 : wordAt(words, ms + 190);
       if (lead !== lastLead && lead >= 0) {
         lastLead = lead;
         const j = pageIndex(lead);

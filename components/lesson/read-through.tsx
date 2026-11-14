@@ -236,7 +236,8 @@ export function useReadThrough(opts: {
           const target = el;
           const sameParagraph = cursor.current.el === target;
           if (!sameParagraph) cursor.current = { el: target, next: 0 };
-          if (target !== lit.current) {
+          // the whole topic stands in when a paragraph has no element of its own: it is not framed or scrolled to
+          if (target !== lit.current && !target.hasAttribute("data-kc")) {
             unlight();
             target.classList.add("note-reading");
             lit.current = target;
@@ -268,7 +269,7 @@ export function useReadThrough(opts: {
           // Sprout is on the first word before the voice starts: a longer wait for the very first piece (the page may still be settling)
           await new Promise((r) => window.setTimeout(r, k === 0 ? 750 : sameParagraph ? 0 : 250));
           if (mine !== token.current) return;
-        } else if (block && el && el !== lit.current) {
+        } else if (block && el && el !== lit.current && !el.hasAttribute("data-kc")) {
           unlight();
           el.classList.add("note-reading");
           lit.current = el;

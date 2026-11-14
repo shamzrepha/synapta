@@ -15,7 +15,8 @@ const same = (a: string, b: string): boolean => {
 /** Words (runs of letters and digits) in a piece of text, with where each starts and ends. */
 export function splitDomWords(text: string): Array<{ word: string; start: number; end: number }> {
   const out: Array<{ word: string; start: number; end: number }> = [];
-  const re = /[\p{L}\p{N}][\p{L}\p{N}'’\-]*/gu;
+  // hyphens split a word in two ("chest-tightness" is two spoken words); an apostrophe stays inside ("heart's")
+  const re = /[\p{L}\p{N}]+(?:['’][\p{L}]+)?/gu;
   let m: RegExpExecArray | null;
   while ((m = re.exec(text))) out.push({ word: m[0], start: m.index, end: m.index + m[0].length });
   return out;
@@ -28,26 +29,49 @@ export function splitDomWords(text: string): Array<{ word: string; start: number
  */
 export function alignSpoken(spoken: string[], dom: string[], from = 0, reach = 8): { map: number[]; next: number } {
   const d = dom.map(normWord);
+  const sp = spoken.map(normWord);
   const map: number[] = [];
   let j = Math.max(0, from);
   let first = true;
-  for (const w of spoken) {
-    const s = normWord(w);
+  // Where the passage starts on the page: the first place where its first few spoken words follow one another. One word is not enough,
+  // because the first word often appears earlier on the page too (a heading, a term), and the voice must not be matched to that one.
+  const firstAt = sp.findIndex(Boolean);
+  let anchor = -1;
+  if (firstAt >= 0) {
+    const run: string[] = [];
+    for (let i = firstAt; i < sp.length && run.length < 3 && sp[i]; i++) run.push(sp[i]);
+    for (let k = j; k + run.length <= d.length && anchor < 0; k++) {
+      if (run.every((w, t) => same(d[k + t], w))) anchor = k;
+    }
+  }
+  for (let i = 0; i < sp.length; i++) {
+    const s = sp[i];
     if (!s) {
       map.push(-1);
       continue;
     }
-    const limit = first ? d.length : Math.min(d.length, j + reach);
     let hit = -1;
-    for (let k = j; k < limit; k++) {
-      if (same(d[k], s)) {
-        hit = k;
-        break;
+    let span = 1;
+    if (first && i === firstAt && anchor >= 0) {
+      hit = anchor;
+    } else {
+      const limit = first ? d.length : Math.min(d.length, j + reach);
+      for (let k = j; k < limit; k++) {
+        if (same(d[k], s)) {
+          hit = k;
+          break;
+        }
+        // one spoken word that is two on the page ("chest-tightness" said as one word)
+        if (k + 1 < d.length && s.length > 5 && s === d[k] + d[k + 1]) {
+          hit = k;
+          span = 2;
+          break;
+        }
       }
     }
     map.push(hit);
     if (hit >= 0) {
-      j = hit + 1;
+      j = hit + span;
       first = false;
     }
   }
