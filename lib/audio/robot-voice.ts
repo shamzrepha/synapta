@@ -58,8 +58,22 @@ export function robotAudio(): RobotAudio {
       comb.connect(feedback).connect(comb);
       comb.connect(mix);
       src.connect(high).connect(low).connect(crush).connect(buzz);
-      buzz.connect(mix);
-      buzz.connect(comb);
+      // ring modulation: the voice is multiplied by a 62 Hz tone, the classic robot sound that no ear can miss
+      const ring = ctx.createGain();
+      ring.gain.value = 0;
+      const ringOsc = ctx.createOscillator();
+      ringOsc.type = "sine";
+      ringOsc.frequency.value = 62;
+      ringOsc.connect(ring.gain);
+      ringOsc.start();
+      const wet = ctx.createGain();
+      wet.gain.value = 1.15;
+      const dry = ctx.createGain();
+      dry.gain.value = 0.5;
+      crush.connect(ring).connect(wet);
+      wet.connect(mix);
+      wet.connect(comb);
+      buzz.connect(dry).connect(mix);
       mix.connect(lift).connect(ctx.destination);
     }
   } catch {
