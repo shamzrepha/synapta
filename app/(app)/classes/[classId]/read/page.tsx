@@ -646,19 +646,21 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
   // the voice reads on past the page on screen: turn to the page that holds the paragraph, wait for it to draw, then hand it over
   const findElFlip = useCallback(
     async (kcId: string, blockText: string): Promise<HTMLElement | null> => {
+      // a paragraph drawn as bare text (no element of its own): the whole topic stands in, and the words are found by their order
+      const topic = () => document.querySelector<HTMLElement>(`[data-kc="${kcId}"]`);
       const direct = findBlockEl(kcId, blockText);
-      if (direct || viewMode !== "flip") return direct;
+      if (direct || viewMode !== "flip") return direct ?? topic();
       const mine = flipPages.map((p, i) => ({ p, i })).filter(({ p }) => p.section.id === kcId);
       const at = pageHolding(mine.map(({ p }) => `${p.pageTitle}\n${p.subtopic || ""}\n${p.pageBody}`), blockText);
       const idx = at >= 0 ? mine[at].i : -1;
-      if (idx < 0) return null;
+      if (idx < 0) return topic();
       goToPage(idx);
       for (let i = 0; i < 20; i++) {
         await new Promise((r) => window.setTimeout(r, 80));
         const el = findBlockEl(kcId, blockText);
         if (el) return el;
       }
-      return null;
+      return topic();
     },
     [viewMode, flipPages, goToPage]
   );

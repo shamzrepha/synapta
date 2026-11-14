@@ -35,4 +35,16 @@ describe("word sync", () => {
     // "banana" is nowhere: no match, and "next" is still found right after
     expect(alignSpoken(["The", "banana", "Next"], dom).map).toEqual([0, -1, 5]);
   });
+
+  it("starts at the first place the opening words follow one another, not at an earlier lone match", () => {
+    // "definition" is also a heading earlier on the page; the passage really starts at the second one
+    const dom = ["Definition", "and", "assessment", "Clinicians", "must", "therefore", "Definition", "Dyspnoea", "is", "a", "feeling"];
+    expect(alignSpoken(["Definition", "Dyspnoea", "is", "a", "feeling"], dom).map).toEqual([6, 7, 8, 9, 10]);
+    expect(alignSpoken(["Clinicians", "must", "therefore"], dom).map).toEqual([3, 4, 5]);
+  });
+
+  it("splits hyphenated words and maps a hyphenated word said as one", () => {
+    expect(splitDomWords("a chest-tightness feeling").map((x) => x.word)).toEqual(["a", "chest", "tightness", "feeling"]);
+    expect(alignSpoken(["a", "chesttightness", "feeling"], ["a", "chest", "tightness", "feeling"]).map).toEqual([0, 1, 3]);
+  });
 });
