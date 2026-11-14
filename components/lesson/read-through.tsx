@@ -66,7 +66,7 @@ export function useReadThrough(opts: {
   const autoRef = useRef(true);
   const urls = useRef<string[]>([]);
   const lit = useRef<HTMLElement | null>(null);
-  const startRef = useRef<(index: number) => void>(() => {});
+  const startRef = useRef<(index: number, fromPage?: string) => void>(() => {});
 
   const unlight = () => {
     lit.current?.classList.remove("note-reading");
@@ -100,7 +100,7 @@ export function useReadThrough(opts: {
   useEffect(() => () => stop(), [stop]);
 
   const startSection = useCallback(
-    (index: number) => {
+    (index: number, fromPage?: string) => {
       const secs = optsRef.current.sections;
       // skip topics with nothing to read
       let i = index;
@@ -113,6 +113,16 @@ export function useReadThrough(opts: {
       if (i < 0 || i >= secs.length || queue.length === 0) {
         stop();
         return;
+      }
+      // started from a page in the middle of a topic: begin at the first paragraph on that page, not at the top of the topic
+      if (fromPage && i === index) {
+        const plain = (t: string) => t.toLowerCase().replace(/[*_`#>$\\[\]()|]/g, "").replace(/\s+/g, " ").trim();
+        const page = plain(fromPage);
+        const at = queue.findIndex((c) => {
+          const w = plain(c.block).slice(0, 40);
+          return w.length >= 6 && page.includes(w);
+        });
+        if (at > 0) queue = queue.slice(at);
       }
       const sec = secs[i];
       token.current++;
@@ -261,9 +271,9 @@ export function useReadThrough(opts: {
   }, [startSection]);
 
   const start = useCallback(
-    (id: string) => {
+    (id: string, fromPage?: string) => {
       const i = optsRef.current.sections.findIndex((s) => s.id === id);
-      if (i >= 0) startSection(i);
+      if (i >= 0) startSection(i, fromPage);
     },
     [startSection]
   );
