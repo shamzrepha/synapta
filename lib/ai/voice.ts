@@ -378,7 +378,7 @@ export interface SpeechClip {
  * One line of speech as a real audio file. Fast free neural voice first (4 s), then ElevenLabs when a key is
  * set, then Gemini TTS as the last resort. Never the browser's robot voice. Returns null when every engine failed.
  */
-export async function synthesizeSpeech(text: string, gender: "female" | "male", edgeVoice?: string, opts: { patient?: boolean; edgeOnly?: boolean; lang?: LanguageCode | null } = {}): Promise<SpeechClip | null> {
+export async function synthesizeSpeech(text: string, gender: "female" | "male", edgeVoice?: string, opts: { patient?: boolean; edgeOnly?: boolean; edgeFirst?: boolean; lang?: LanguageCode | null } = {}): Promise<SpeechClip | null> {
   const clean = text.trim();
   if (!clean) return null;
   // Igbo and Hausa: Gemini speaks them natively, the free voices would read them with an English accent
@@ -394,7 +394,7 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
   // Live requests answer fast or give up. Recording a podcast line is not time-critical, and a long lecture turn needs
   // longer than a quick reply, so the time allowed grows with the length of the line.
   let triedOr = false;
-  if (!opts.edgeOnly && !langVoice && (await openRouterFirst())) {
+  if (!opts.edgeOnly && !opts.edgeFirst && !langVoice && (await openRouterFirst())) {
     triedOr = true;
     const first = await openRouterVoice(clean, gender, opts.patient ? 30_000 : 8_000);
     if (first) return { audio: first.audio, mimeType: "audio/mpeg", engine: "openrouter" };

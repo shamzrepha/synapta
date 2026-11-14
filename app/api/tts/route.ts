@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
     const caller = await requireUser(req);
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tts", limit: 40, windowMs: 60_000 });
     if (limited) return limited;
-    const { text, voice, lang } = await parseJson(
+    const { text, voice, lang, reader } = await parseJson(
       req,
-      z.object({ text: z.string().trim().min(1).max(1200), voice: z.enum(["female", "male"]).optional(), lang: z.string().optional() })
+      z.object({ text: z.string().trim().min(1).max(1200), voice: z.enum(["female", "male"]).optional(), lang: z.string().optional(), reader: z.boolean().optional() })
     );
     const targetLang = isLanguageCode(lang) ? lang : await getUserLanguage(caller.uid);
     // text from the app is usually already in the listener's language (the tutor answers in it); only English
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       if (translated) spokenText = translated;
       else voiceLang = "en";
     }
-    const clip = await synthesizeSpeech(spokenText, voice ?? "female", undefined, { lang: voiceLang });
+    const clip = await synthesizeSpeech(spokenText, voice ?? "female", undefined, { lang: voiceLang, edgeFirst: reader === true });
     if (!clip) return NextResponse.json({ ok: false, error: { code: "TTS_UNAVAILABLE", message: "The voice is busy right now. Try again in a moment." } }, { status: 503 });
     return new NextResponse(new Uint8Array(clip.audio), {
       headers: { "Content-Type": clip.mimeType, "Content-Length": String(clip.audio.length), "Cache-Control": "private, max-age=3600" },

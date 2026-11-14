@@ -644,7 +644,27 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     },
     [doneKey, sendSignal, sections]
   );
-  const voice = useReadThrough({ sections: readable, onSection: (id) => goTo(id), findEl: findBlockEl });
+  // the voice reads on past the page on screen: turn to the page that holds the paragraph, wait for it to draw, then hand it over
+  const findElFlip = useCallback(
+    async (kcId: string, blockText: string): Promise<HTMLElement | null> => {
+      const direct = findBlockEl(kcId, blockText);
+      if (direct || viewMode !== "flip") return direct;
+      const plain = (t: string) => t.toLowerCase().replace(/[*_`#>$\\[\]()|]/g, "").replace(/\s+/g, " ").trim();
+      const needle = plain(blockText).slice(0, 40);
+      if (needle.length < 6) return null;
+      const idx = flipPages.findIndex((p) => p.section.id === kcId && plain(p.pageTitle + " " + (p.subtopic || "") + " " + p.pageBody).includes(needle));
+      if (idx < 0) return null;
+      goToPage(idx);
+      for (let i = 0; i < 20; i++) {
+        await new Promise((r) => window.setTimeout(r, 80));
+        const el = findBlockEl(kcId, blockText);
+        if (el) return el;
+      }
+      return null;
+    },
+    [viewMode, flipPages, goToPage]
+  );
+  const voice = useReadThrough({ sections: readable, onSection: (id) => goTo(id), findEl: findElFlip });
   const listeningTitle = sections.find((s) => s.id === voice.currentId)?.title || "";
 
   // Sprout's "Listen to this chapter": read the chapter on screen with the app's real voice
