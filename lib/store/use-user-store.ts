@@ -16,6 +16,8 @@ export interface UserProfile {
   monthlyTokenLimit: number;
   monthlyTokensUsed: number;
   disabled: boolean;
+  /** false for a new account that has not yet picked its handle and picture */
+  profileSetup?: boolean;
 }
 
 interface UserState {

@@ -17,6 +17,7 @@ import { NewVersionWatcher } from "@/components/shell/new-version-watcher";
 import { DeviceReporter } from "@/components/shell/device-reporter";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { BotProvider } from "@/components/bot/bot-provider";
+import { ProfileSetup } from "@/components/profile/profile-setup";
 
 export default function AppLayout({
   children,
@@ -54,6 +55,7 @@ export default function AppLayout({
       <ThemeApplier />
       <AccessibilityApplier />
       <DeviceReporter />
+      <ProfileSetup />
     </div>
     </BotProvider>
   );

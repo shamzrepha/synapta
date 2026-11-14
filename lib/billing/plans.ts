@@ -30,9 +30,11 @@ export interface Plan {
   blurb: string;
   /** shown as a ribbon on the card */
   badge?: string;
+  /** no longer sold or shown, but people who already hold it keep it until it expires */
+  retired?: boolean;
   /** prices in naira; 0 = free. Edit these once real AI costs are known. */
   priceMonthNgn: number;
-  /** price for one semester (120 days) */
+  /** price for one semester: 4 months (120 days), a Nigerian university semester, at about 3 months' price */
   priceTermNgn: number;
   /** School only: naira per student per semester, billed by invoice */
   perSeatTermNgn?: number;
@@ -71,8 +73,8 @@ export const PLANS: Record<PlanId, Plan> = {
     label: "Plus",
     codename: "Sprout",
     blurb: "For students revising from their own handouts, scans and textbooks.",
-    priceMonthNgn: 2_500,
-    priceTermNgn: 6_000,
+    priceMonthNgn: 3_500,
+    priceTermNgn: 11_000,
     monthlyTokens: 1_200_000,
     perMinute: 20,
     limits: { notes: 50, scan_pages: 400, lessons: 80, practice: 80, studio_ai: 40, class_build: NONE },
@@ -85,8 +87,8 @@ export const PLANS: Record<PlanId, Plan> = {
     codename: "Sapling",
     blurb: "For serious exam seasons: three times the room of Plus.",
     badge: "Most popular",
-    priceMonthNgn: 5_000,
-    priceTermNgn: 12_000,
+    priceMonthNgn: 6_000,
+    priceTermNgn: 19_000,
     monthlyTokens: 3_000_000,
     perMinute: 30,
     limits: { notes: 150, scan_pages: 1_000, lessons: 250, practice: 250, studio_ai: 120, class_build: NONE },
@@ -94,6 +96,7 @@ export const PLANS: Record<PlanId, Plan> = {
   },
   promax: {
     id: "promax",
+    retired: true,
     audience: "student",
     label: "Pro Max",
     codename: "Canopy",
@@ -107,6 +110,7 @@ export const PLANS: Record<PlanId, Plan> = {
   },
   ultra: {
     id: "ultra",
+    retired: true,
     audience: "student",
     label: "Ultra",
     codename: "Grove",
@@ -189,7 +193,7 @@ export const MONTH_DAYS = 30;
 
 /** The plans to show someone: students see the student ladder; teachers and admins see both ladders. */
 export function plansForRole(role: unknown): Plan[] {
-  const student = PLAN_IDS.filter((id) => PLANS[id].audience === "student").map((id) => PLANS[id]);
+  const student = PLAN_IDS.filter((id) => PLANS[id].audience === "student" && !PLANS[id].retired).map((id) => PLANS[id]);
   if (role === "teacher" || role === "admin") return [...student, ...PLAN_IDS.filter((id) => PLANS[id].audience !== "student").map((id) => PLANS[id])];
   return student;
 }
@@ -241,7 +245,7 @@ export function allowance(plan: Plan, usage: Partial<Record<FeatureKey, number>>
 /** The next plan up on the same ladder (Free to Plus to Pro...), or null at the top. A teacher's trial moves up to Teacher. */
 export function nextTier(plan: Plan): Plan | null {
   if (plan.id === TEACHER_TRIAL.id && plan.label === TEACHER_TRIAL.label) return PLANS.teacher;
-  const ladder = PLAN_IDS.filter((id) => PLANS[id].audience === plan.audience && (PLANS[id].priceMonthNgn > 0 || id === "free")).sort((a, b) => PLANS[a].priceMonthNgn - PLANS[b].priceMonthNgn);
+  const ladder = PLAN_IDS.filter((id) => PLANS[id].audience === plan.audience && !PLANS[id].retired && (PLANS[id].priceMonthNgn > 0 || id === "free")).sort((a, b) => PLANS[a].priceMonthNgn - PLANS[b].priceMonthNgn);
   const i = ladder.indexOf(plan.id);
   return i >= 0 && i < ladder.length - 1 && PLANS[ladder[i + 1]].audience !== "school" ? PLANS[ladder[i + 1]] : null;
 }

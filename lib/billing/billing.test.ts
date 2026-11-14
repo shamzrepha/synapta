@@ -53,7 +53,7 @@ describe("paying", () => {
   });
   const ok = (over: Record<string, unknown> = {}) => ({ event: "charge.success", data: { status: "success", reference: "r1", amount: priceFor("plus", "month") * 100, currency: "NGN", metadata: { uid: "u1", plan: "plus", term: "month" }, ...over } });
   it("reads a good payment", () => {
-    expect(readCharge(ok({ channel: "bank_transfer", customer: { email: "a@b.com" } }))).toEqual({ reference: "r1", uid: "u1", plan: "plus", term: "month", amountKobo: 250_000, channel: "bank_transfer", email: "a@b.com" });
+    expect(readCharge(ok({ channel: "bank_transfer", customer: { email: "a@b.com" } }))).toEqual({ reference: "r1", uid: "u1", plan: "plus", term: "month", amountKobo: 350_000, channel: "bank_transfer", email: "a@b.com" });
   });
   it("rejects underpaying, wrong currency, unknown plan, wrong event", () => {
     expect(readCharge(ok({ amount: 100 }))).toBeNull();
@@ -72,7 +72,7 @@ describe("paying", () => {
 
 describe("Paystack verify and channels", () => {
   it("reads a verified transaction the same way as a webhook, and refuses an unsuccessful one", () => {
-    const tx = { status: "success", reference: "r9", amount: 650_000, currency: "NGN", channel: "card", customer: { email: "x@y.z" }, metadata: { uid: "u2", plan: "plus", term: "term" } };
+    const tx = { status: "success", reference: "r9", amount: 1_150_000, currency: "NGN", channel: "card", customer: { email: "x@y.z" }, metadata: { uid: "u2", plan: "plus", term: "term" } };
     expect(readTransaction(tx)).toMatchObject({ reference: "r9", uid: "u2", term: "term", channel: "card" });
     expect(readTransaction({ ...tx, status: "abandoned" })).toBeNull();
     expect(readTransaction({ ...tx, amount: 1000 })).toBeNull();
@@ -89,10 +89,10 @@ describe("the agreed prices and limits", () => {
     expect(PLANS.free.limits).toEqual({ notes: 3, scan_pages: 15, lessons: 5, practice: 5, studio_ai: 3, class_build: 0 });
   });
   it("student plus", () => {
-    expect(PLANS.plus).toMatchObject({ priceMonthNgn: 2_500, priceTermNgn: 6_000, monthlyTokens: 1_200_000 });
+    expect(PLANS.plus).toMatchObject({ priceMonthNgn: 3_500, priceTermNgn: 11_000, monthlyTokens: 1_200_000 });
     expect(PLANS.plus.limits).toEqual({ notes: 50, scan_pages: 400, lessons: 80, practice: 80, studio_ai: 40, class_build: 0 });
-    expect(priceFor("plus", "month") * 100).toBe(250_000);
-    expect(priceFor("plus", "term") * 100).toBe(600_000);
+    expect(priceFor("plus", "month") * 100).toBe(350_000);
+    expect(priceFor("plus", "term") * 100).toBe(1_100_000);
   });
   it("teacher", () => {
     expect(PLANS.teacher).toMatchObject({ priceMonthNgn: 7_500, priceTermNgn: 20_000, monthlyTokens: 15_000_000 });
@@ -110,12 +110,12 @@ describe("the agreed prices and limits", () => {
     expect(MONTH_DAYS).toBe(30);
   });
   it("shows the real saving for paying by the semester", () => {
-    expect(termSavingsPercent(PLANS.plus)).toBe(40);
+    expect(termSavingsPercent(PLANS.plus)).toBe(21);
     expect(termSavingsPercent(PLANS.teacher)).toBe(33);
     expect(termSavingsPercent(PLANS.free)).toBe(0);
   });
   it("won't accept a student plus payment of the old price", () => {
-    const old = { event: "charge.success", data: { status: "success", reference: "r2", amount: 200_000, currency: "NGN", metadata: { uid: "u", plan: "plus", term: "month" } } };
+    const old = { event: "charge.success", data: { status: "success", reference: "r2", amount: 250_000, currency: "NGN", metadata: { uid: "u", plan: "plus", term: "month" } } };
     expect(readCharge(old)).toBeNull();
   });
 });
@@ -148,7 +148,8 @@ describe("the plan ladder", () => {
   it("shows students the student ladder only, and teachers and admins both", () => {
     expect(plansForRole("student").every((p) => p.audience === "student")).toBe(true);
     expect(plansForRole("teacher").some((p) => p.id === "teacherpro")).toBe(true);
-    expect(plansForRole("admin").length).toBe(PLAN_IDS.length);
+    expect(plansForRole("admin").length).toBe(PLAN_IDS.filter((id) => !PLANS[id].retired).length);
+    expect(plansForRole("student").some((p) => p.id === "promax" || p.id === "ultra")).toBe(false);
   });
   it("only teacher and admin accounts can buy teacher plans", () => {
     expect(canBuy("teacher", "student")).toBe(false);
@@ -159,7 +160,7 @@ describe("the plan ladder", () => {
   });
   it("points to the next plan up, and says class building is for teachers when no student plan has it", () => {
     expect(nextTier(PLANS.free)?.id).toBe("plus");
-    expect(nextTier(PLANS.pro)?.id).toBe("promax");
+    expect(nextTier(PLANS.pro)).toBeNull(); // Pro Max and Ultra are retired: still honoured, no longer offered
     expect(nextTier(PLANS.ultra)).toBeNull();
     expect(nextTier(PLANS.teacher)?.id).toBe("teacherpro");
     expect(limitMessage(PLANS.free, "class_build", allowance(PLANS.free, {}, "class_build"))).toContain("teacher accounts");
