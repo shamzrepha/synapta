@@ -190,7 +190,7 @@ export function useReadThrough(opts: {
           }
           if (mine !== token.current) return;
         }
-        // every voice goes through the same small robot effect, so it sounds like the app's AI reading to you
+        // one shared audio element, played as it is (no sound effect)
         const ra = robotAudio();
         ra.wake();
         const a = (audio.current = ra.el);
