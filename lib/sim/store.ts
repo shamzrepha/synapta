@@ -7,6 +7,7 @@ import {
   buildSimulationPrompt,
   buildSimulationEditPrompt,
   parseGeneratedSimulation,
+  diagnoseSimulation,
   interactionIssues,
   stripHostInjection,
   type ParsedSimulation,
@@ -199,12 +200,13 @@ export async function generateAndStoreSimulation(params: {
     const restartNote = existingBefore?.html && mode === "create"
       ? `A previous lab exists for this topic ("${existingBefore.title || "untitled"}": ${existingBefore.goal || "no goal"}). The learner found it static, hard to use on a phone and poorly drawn. Do NOT reuse its layout, drawing or idea. Pick a different experiment and visual metaphor, and make it far more hands-on: the learner drags and taps things in the scene itself.`
       : "";
-    for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
+    let lastWhy = "";
+    for (let attempt = 0; attempt < 3 && !parsed; attempt++) {
       const retryNote =
         attempt > 0
           ? weakIssues.length
             ? `Your last version was rejected because: ${weakIssues.join("; ")}. Fix every one of these.`
-            : "Your last answer was not a complete runnable HTML document with an inline <script> and a <canvas> or <svg>."
+            : `Your last answer was not a complete runnable HTML document: ${lastWhy || "it had no inline <script> with a <canvas>, <svg> or SimKit3D scene"}.`
           : undefined;
 
       const prompt =
@@ -250,9 +252,15 @@ export async function generateAndStoreSimulation(params: {
         // Edits should stay close to the original code
         temperature: mode === "edit" ? 0.2 : restartNote ? 0.9 : 0.6,
         isPrivileged: true,
+        // a whole page with a 3D scene is long; without this some providers stop early (or reserve too little) and the page is cut off
+        maxOutputTokens: 24_000,
       });
       modelUsed = result.modelUsed;
       const candidate = parseGeneratedSimulation(result.text, ctx.kcTitle);
+      if (!candidate) {
+        lastWhy = diagnoseSimulation(result.text);
+        console.warn(`[sim] attempt ${attempt + 1} with ${modelUsed} was unusable: ${lastWhy} (${result.text?.length ?? 0} chars)`);
+      }
       if (candidate) {
         const issues = mode === "edit" ? [] : interactionIssues(candidate.html);
         if (issues.length && attempt === 0) {
@@ -260,6 +268,9 @@ export async function generateAndStoreSimulation(params: {
           weakIssues = issues;
         } else parsed = candidate;
       }
+    }
+    if (!parsed && !weak && lastWhy) {
+      throw new AiGenerationError(`The AI couldn't build a working simulation: ${lastWhy.split(":")[0]}. Try again, or pick a different model in Admin.`);
     }
     // a second attempt that failed outright still leaves the first, usable one
     if (!parsed && weak) parsed = weak;
