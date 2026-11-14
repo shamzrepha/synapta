@@ -24,7 +24,7 @@ vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: async () => null }));
 import { NextRequest } from "next/server";
 import { GET } from "./route";
 
-const tx = (over: Record<string, unknown> = {}) => ({ status: true, data: { status: "success", reference: "ref_abc123", amount: 250_000, currency: "NGN", channel: "card", customer: { email: "a@b.com" }, metadata: { uid: "u1", plan: "plus", term: "month" }, ...over } });
+const tx = (over: Record<string, unknown> = {}) => ({ status: true, data: { status: "success", reference: "ref_abc123", amount: 350_000, currency: "NGN", channel: "card", customer: { email: "a@b.com" }, metadata: { uid: "u1", plan: "plus", term: "month" }, ...over } });
 const paystack = (body: unknown) => vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(body)));
 const call = (ref = "ref_abc123") => GET(new NextRequest(`http://x/api/billing/verify?reference=${ref}`));
 

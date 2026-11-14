@@ -132,6 +132,8 @@ export async function POST(req: NextRequest) {
         monthlyTokensUsed: 0,
         usagePeriod: currentPeriod,
         disabled: false,
+        // someone who typed their own handle (email sign-up) has already done it; Google sign-ups are asked for a handle and a picture
+        profileSetup: !!username,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -215,6 +217,7 @@ export async function POST(req: NextRequest) {
         monthlyTokenLimit: effectiveTokenLimit,
         monthlyTokensUsed: existing.monthlyTokensUsed || 0,
         disabled: !!existing.disabled,
+        profileSetup: existing.profileSetup !== false,
       };
     }
 
