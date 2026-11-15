@@ -11,6 +11,11 @@ import { MIC_HELP, checkMic, problemFromRecognitionError, type MicHelp } from "@
 import { cn } from "@/lib/utils";
 import { usePrefs } from "@/components/settings/use-prefs";
 import { languageInfo } from "@/lib/i18n/languages";
+import {
+  dispatchCalculatorEvent,
+  extractTutorCalculatorDirective,
+  parseCalculatorRequest,
+} from "@/lib/pet/calc-intent";
 
 interface Msg {
   id: string;
@@ -184,6 +189,25 @@ export function VoiceTutor() {
   const send = async (raw: string) => {
     const text = raw.trim();
     if (!text) return;
+    const calcReq = parseCalculatorRequest(text);
+    if (calcReq.shouldOpen) {
+      dispatchCalculatorEvent({
+        open: true,
+        expr: calcReq.expr ?? undefined,
+        label: "Requested in Voice Tutor",
+        source: "voice",
+      });
+      if (calcReq.calculatorOnly) {
+        const ack = "I opened the Sprout calculator for you! Go ahead and punch in your expression or tell me what to calculate.";
+        setMessages((p) => [
+          ...p,
+          { id: crypto.randomUUID(), role: "user", text },
+          { id: crypto.randomUUID(), role: "model", text: ack },
+        ]);
+        speak(ack, () => handsFreeRef.current && fns.current.listen());
+        return;
+      }
+    }
     const prior = messagesRef.current.filter((m) => !m.isError && m.text).slice(-12).map((m) => ({ role: m.role, parts: m.text }));
     const replyId = crypto.randomUUID();
     setMessages((p) => [...p, { id: crypto.randomUUID(), role: "user", text }, { id: replyId, role: "model", text: "" }]);
@@ -202,8 +226,19 @@ export function VoiceTutor() {
         const err = await res.json().catch(() => null);
         throw new Error(err?.error?.message || "The tutor is unavailable right now. Please try again.");
       }
-      reply = await res.text();
+      const rawReply = await res.text();
+      const directive = extractTutorCalculatorDirective(rawReply, text);
+      reply = directive.cleanText;
       setMessages((p) => p.map((m) => (m.id === replyId ? { ...m, text: reply } : m)));
+      if (directive.autoOpen || (directive.shouldSuggest && directive.expr && !calcReq.shouldOpen)) {
+        dispatchCalculatorEvent({
+          open: true,
+          expr: directive.expr ?? undefined,
+          label: "Loaded from Voice Tutor",
+          auto: true,
+          source: "voice-ai",
+        });
+      }
     } catch (e) {
       const timedOut = e instanceof DOMException && (e.name === "TimeoutError" || e.name === "AbortError");
       setMessages((p) => p.map((m) => (m.id === replyId ? { ...m, isError: true, text: timedOut ? "The tutor took too long to answer. The AI may be busy or at its limit. Try again in a minute." : e instanceof Error ? e.message : "The tutor is unavailable." } : m)));

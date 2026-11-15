@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api/errors";
 import { quizBankForStudents } from "@/lib/classes/live";
 import { classOwner, ensureQuizBank, pickForLearner, readQuizBank, reshuffleOptions } from "@/lib/practice/bank";
 import { getSeen, setSeen } from "@/lib/practice/history";
+import { loadLearnerDna, pickAdaptiveQuizFocus } from "@/lib/adaptive/learner-dna";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -51,7 +52,15 @@ export async function POST(req: NextRequest) {
       if (!bank.length) throw new ApiError(404, "NOT_READY", "This topic's questions aren't ready yet. Try again in a minute.");
     }
     const seen = await getSeen(caller.uid, kcId, "quiz");
-    const { picked, seen: nextSeen } = pickForLearner(bank, seen, count, Math.random, focus === "mixed" ? undefined : (q) => q.focus === focus);
+    const dna = focus === "mixed" ? await loadLearnerDna(caller.uid).catch(() => null) : null;
+    const adaptiveFocus = dna ? pickAdaptiveQuizFocus(dna) : null;
+    const activeFilter =
+      focus !== "mixed"
+        ? (q: { focus: string }) => q.focus === focus
+        : adaptiveFocus
+        ? (q: { focus: string }) => q.focus === adaptiveFocus
+        : undefined;
+    const { picked, seen: nextSeen } = pickForLearner(bank, seen, count, Math.random, activeFilter);
     await setSeen(caller.uid, kcId, "quiz", nextSeen);
 
     const questions = picked.map((q) => reshuffleOptions(q));
@@ -73,6 +82,7 @@ export async function POST(req: NextRequest) {
         questions: await localizeFor(req, caller, access.canMutate, questions.map((q, idx) => ({ id: idx, question: q.question, options: q.options, difficulty: q.difficulty })), await classSourceLanguage(access.classData)),
         bankSize: bank.length,
         freshCount: Math.max(0, bank.length - seen.length),
+        adaptiveFocus: adaptiveFocus || focus,
       },
     });
   } catch (error) {

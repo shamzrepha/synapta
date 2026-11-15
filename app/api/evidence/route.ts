@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { applyEvidence } from "@/lib/evidence/apply";
+import { recordAdaptiveSignal } from "@/lib/adaptive/learner-dna";
 import { parseJson } from "@/lib/api/errors";
 import { z } from "zod";
 
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
       activity,
       correct,
     });
+    void recordAdaptiveSignal({ uid: caller.uid, classId, kcId, activity, correct });
 
     return NextResponse.json({
       ok: true,

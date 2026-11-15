@@ -15,6 +15,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { BrainCircuit, CheckCircle2, AlertTriangle, Sparkles, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AdaptiveDnaStrip } from "@/components/dashboard/adaptive-dna-strip";
 
 export interface RadarDataPoint {
   id?: string;
@@ -251,6 +252,8 @@ export function MasteryRadar({
             })}
           </div>
         </div>
+
+        <AdaptiveDnaStrip />
 
         <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-3 text-xs text-slate-500">
           <span className="flex items-center gap-1.5">

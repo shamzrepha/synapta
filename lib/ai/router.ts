@@ -33,6 +33,20 @@ import {
   isWithinModelReserve,
 } from "./health";
 import { adminDb } from "@/lib/firebase/admin";
+import { withModelMasterSkill } from "./master-skills";
+import { buildLearnerPromptInjection } from "@/lib/adaptive/learner-dna";
+
+const PERSONALIZED_AI_TASKS = new Set<string>([
+  "tutor_chat",
+  "explain_selection",
+  "notebook_chat",
+  "student_evaluation",
+  "paper_analysis",
+  "research_answer",
+  "study_guide",
+  "lesson_notes",
+  "assignment_reviewer",
+]);
 import { ApiError } from "@/lib/api/errors";
 import { getSiteConfig } from "@/lib/config/site";
 
@@ -431,6 +445,11 @@ export interface GenerateWithFallbackOptions<T> {
    * class's source language (English) and every reader gets their own translation of it.
    */
   learnerLanguage?: boolean;
+  /**
+   * Inject the learner's live Adaptive DNA telemetry & misconceptions into the prompt (default: true for personalized
+   * learner-facing tasks without a shared cacheKey).
+   */
+  personalize?: boolean;
 }
 
 /** Heavy generation tasks reserve more of the budget than a short chat reply. */
@@ -481,6 +500,22 @@ export async function generateWithFallback<T>(opts: GenerateWithFallbackOptions<
   // Answer in the learner's language; cached answers are kept per language so nobody gets another language's copy
   if (opts.learnerLanguage !== false) opts = withLearnerLanguage(opts, await getUserLanguage(userId));
 
+  // Inject real-time personal Learner DNA into individualized user-facing tasks (never polluting shared caches)
+  const shouldPersonalize =
+    !opts.cacheKey &&
+    opts.learnerLanguage !== false &&
+    opts.personalize !== false &&
+    (opts.personalize === true || PERSONALIZED_AI_TASKS.has(String(opts.task)));
+  if (shouldPersonalize) {
+    const dnaPrompt = await buildLearnerPromptInjection(userId).catch(() => null);
+    if (dnaPrompt) {
+      opts = {
+        ...opts,
+        systemInstruction: opts.systemInstruction ? `${opts.systemInstruction}\n\n${dnaPrompt}` : dnaPrompt,
+      };
+    }
+  }
+
   // Reserve the estimate before spending anything (rejects with QUOTA_EXCEEDED when the budget can't cover it),
   // then settle against real usage, or release if the call fails, so retries and failures are never charged twice.
   const reservation = await reserveQuota(userId, opts.estimatedTokens ?? defaultEstimate(opts.task));
@@ -523,7 +558,19 @@ async function viaOpenRouter<T>(a: {
   let lastErr: unknown = null;
   for (const model of chain) {
     try {
-      const res = await callOpenRouterChat({ model, systemInstruction: a.systemInstruction, userPrompt: a.userPrompt, contents: a.contents, json: Boolean(a.schema), temperature: a.temperature, maxTokens: a.maxOutputTokens });
+      const res = await callOpenRouterChat({
+        model,
+        systemInstruction: withModelMasterSkill(a.systemInstruction, {
+          task: String(a.task),
+          model,
+          jsonMode: Boolean(a.schema),
+        }),
+        userPrompt: a.userPrompt,
+        contents: a.contents,
+        json: Boolean(a.schema),
+        temperature: a.temperature,
+        maxTokens: a.maxOutputTokens,
+      });
       let parsedData: T | undefined = undefined;
       if (a.schema) {
         const parsed = a.schema.safeParse(extractJsonPayload(res.text));
@@ -617,7 +664,11 @@ async function generateWithFallbackInner<T>({
         const groqModel = await groqModelFor(task);
         const groqRes = await callGroqChat({
           model: groqModel,
-          systemInstruction,
+          systemInstruction: withModelMasterSkill(systemInstruction, {
+            task: String(task),
+            model: groqModel,
+            jsonMode: Boolean(schema),
+          }),
           userPrompt,
           contents,
           schema: Boolean(schema),
@@ -674,7 +725,11 @@ async function generateWithFallbackInner<T>({
       const groqModel = await groqModelFor(task);
       const groqRes = await callGroqChat({
         model: groqModel,
-        systemInstruction,
+        systemInstruction: withModelMasterSkill(systemInstruction, {
+          task: String(task),
+          model: groqModel,
+          jsonMode: Boolean(schema),
+        }),
         userPrompt,
         contents,
         schema: Boolean(schema),
@@ -759,7 +814,11 @@ async function generateWithFallbackInner<T>({
         await acquireModelSlot(activeModel);
 
         const config: Record<string, unknown> = {
-          systemInstruction,
+          systemInstruction: withModelMasterSkill(systemInstruction, {
+            task: String(task),
+            model: activeModel,
+            jsonMode: Boolean(schema),
+          }),
         };
         if (typeof temperature === "number") {
           config.temperature = temperature;
@@ -914,7 +973,13 @@ async function generateWithFallbackInner<T>({
     const probeModel = primaryModel;
     try {
       await acquireModelSlot(probeModel);
-      const config: Record<string, unknown> = { systemInstruction };
+      const config: Record<string, unknown> = {
+        systemInstruction: withModelMasterSkill(systemInstruction, {
+          task: String(task),
+          model: probeModel,
+          jsonMode: Boolean(schema),
+        }),
+      };
       if (schema) config.responseMimeType = "application/json";
 
       const callContents = contents !== undefined ? contents : (userPrompt || "");
@@ -993,7 +1058,11 @@ async function generateWithFallbackInner<T>({
       const groqModel = await groqModelFor(task);
       const groqRes = await callGroqChat({
         model: groqModel,
-        systemInstruction,
+        systemInstruction: withModelMasterSkill(systemInstruction, {
+          task: String(task),
+          model: groqModel,
+          jsonMode: Boolean(schema),
+        }),
         userPrompt,
         contents,
         schema: Boolean(schema),

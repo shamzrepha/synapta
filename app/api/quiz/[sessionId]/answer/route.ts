@@ -4,6 +4,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { applyEvidenceIfEnrolled } from "@/lib/evidence/apply";
 import { trackMisconception } from "@/lib/teacher/misconceptions";
+import { recordAdaptiveSignal } from "@/lib/adaptive/learner-dna";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { recordMistake } from "@/lib/mistakes/store";
 import { z } from "zod";
@@ -144,6 +145,20 @@ export async function POST(
         isCorrect: true,
       }).catch(() => {});
     }
+
+    const formulaHint =
+      typeof targetQuestion.question === "string" && /[=^/*]|sin|cos|tan|sqrt|log/i.test(targetQuestion.question)
+        ? [targetQuestion.question.slice(0, 75)]
+        : undefined;
+    void recordAdaptiveSignal({
+      uid: caller.uid,
+      classId: sessionData.classId,
+      kcId: sessionData.kcId,
+      questionId: targetQuestion.id || `${sessionId}:${questionIndex}`,
+      correct: isCorrect,
+      activity: "quiz",
+      formulas: formulaHint,
+    });
 
     return NextResponse.json({
       ok: true,

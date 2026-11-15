@@ -283,7 +283,19 @@ export async function applyEvidence({
  */
 export async function applyEvidenceIfEnrolled(params: Parameters<typeof applyEvidence>[0]): Promise<Awaited<ReturnType<typeof applyEvidence>> | null> {
   try {
-    return await applyEvidence(params);
+    const res = await applyEvidence(params);
+    import("@/lib/adaptive/learner-dna")
+      .then(({ recordAdaptiveSignal }) =>
+        recordAdaptiveSignal({
+          uid: params.uid,
+          classId: params.classId,
+          kcId: params.kcId,
+          activity: params.activity,
+          correct: params.correct,
+        })
+      )
+      .catch(() => {});
+    return res;
   } catch (e) {
     if (e instanceof ApiError && e.code === "NOT_ENROLLED") return null;
     throw e;

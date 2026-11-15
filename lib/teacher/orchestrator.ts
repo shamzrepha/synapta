@@ -120,6 +120,7 @@ LEARNER STATE (already loaded; you have no tools — use this directly):
 
 FORMAT:
 - Use Markdown; maths in LaTeX ($...$ inline, $$...$$ display).
+- When the student needs numerical calculation, unit conversion, formula evaluation, or asks for/could benefit from a calculator, append one final tag on a new line: [[tool:calculator|expr=<plain math expression using +, -, *, /, ^, sqrt(), sin(), cos(), log(), pi, e or empty if interactive>]] (add |auto=1 ONLY if the student explicitly asked to open a calculator or compute something right now).
 - If the student's message reveals a NEW specific misconception, add one final line exactly like: [[misconception: short label]]. Otherwise don't add it.`;
   } else {
     let classTitle: string | undefined;
@@ -136,6 +137,9 @@ FORMAT:
   }
 
   systemInstruction += levelInstruction(level);
+  if (!systemInstruction.includes("[[tool:calculator")) {
+    systemInstruction += "\n\nTOOLS:\n- When computation, units, solving equations, or asking for a calculator helps the learner, end with: [[tool:calculator|expr=<math expression like 9.8*5^2/2 or empty>]] (add |auto=1 ONLY if explicitly asked to open/calculate now).";
+  }
 
   if (mergedTags.length > 0) {
     const isKids = mergedTags.includes("kids") || mergedTags.includes("teach_the_bot");
@@ -170,6 +174,19 @@ FORMAT:
     if (classId && kcId) {
       await trackMisconception({ uid, classId, kcId, label: tag[1].trim(), description: "Diagnosed in tutor chat", isCorrect: false }).catch(() => {});
     }
+    import("@/lib/adaptive/learner-dna")
+      .then(({ invalidateLearnerDnaCache, recordAdaptiveSignal }) => {
+        invalidateLearnerDnaCache(uid);
+        return recordAdaptiveSignal({
+          uid,
+          classId: classId || undefined,
+          kcId: kcId || undefined,
+          correct: false,
+          hintsUsed: 1,
+          activity: "tutor_chat",
+        });
+      })
+      .catch(() => {});
   }
   if (!reply) reply = "Sorry, I couldn't come up with an answer. Could you rephrase the question?";
 

@@ -2,6 +2,7 @@ import type { ZodType, ZodTypeDef } from "zod";
 import { adapterFor, getAiConfig, resolveChain } from "./config";
 import { buildRepairPrompt, describeZodError, parseJsonLoose } from "./json";
 import { loadPrompt, UNIVERSAL_PREAMBLE } from "./prompts";
+import { withModelMasterSkill } from "@/lib/ai/master-skills";
 import { AiChainExhaustedError, ProviderError, type AiConfig, type ModelProfile, type ProviderAdapter, type TaskName, type Tier } from "./types";
 
 export interface GenerateStructuredOptions<T> {
@@ -88,7 +89,15 @@ async function runOnModel<T>(model: ModelProfile, adapter: ProviderAdapter, user
     // one short, jittered retry for rate limits and temporary provider errors, then give up on this model so the chain can take over
     for (let attempt = 0; ; attempt++) {
       try {
-        const res = await adapter.call({ model, system: UNIVERSAL_PREAMBLE, user: prompt, images: repairs === 0 ? opts.images : undefined, jsonSchema: opts.jsonSchema, temperature, maxTokens });
+        const res = await adapter.call({
+          model,
+          system: withModelMasterSkill(UNIVERSAL_PREAMBLE, { task: opts.task, model: model.id, jsonMode: true }),
+          user: prompt,
+          images: repairs === 0 ? opts.images : undefined,
+          jsonSchema: opts.jsonSchema,
+          temperature,
+          maxTokens,
+        });
         text = res.text;
         usage.in += res.usage?.in ?? 0;
         usage.out += res.usage?.out ?? 0;

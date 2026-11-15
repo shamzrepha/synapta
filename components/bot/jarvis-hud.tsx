@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Sparkles, Search, Lightbulb, Target, Volume2, MessageSquare, X, RotateCw, Timer, Trophy } from "lucide-react";
+import { Sparkles, Search, Lightbulb, Target, Volume2, MessageSquare, X, RotateCw, Timer, Trophy, Calculator } from "lucide-react";
 import type { PetInfo } from "@/components/bot/bot-provider";
 import type { HudPlacement } from "@/lib/pet/placement";
 
@@ -15,6 +15,7 @@ export function JarvisHud({
   onReadAloud,
   onFlip,
   onAskTutor,
+  onOpenCalculator,
   placement,
   focusLabel,
   onFocus,
@@ -29,6 +30,7 @@ export function JarvisHud({
   onReadAloud: () => void;
   onFlip: () => void;
   onAskTutor: () => void;
+  onOpenCalculator?: () => void;
   /** where to open, worked out from where Sprout stands, so it never sits on Sprout or a bar */
   placement: HudPlacement | null;
   /** time left in a running focus sprint, or null when none is running */
@@ -192,6 +194,25 @@ export function JarvisHud({
             <div className="text-[10px] text-muted-foreground">Watch Sprout do an acrobatic trick</div>
           </div>
         </button>
+
+        {onOpenCalculator && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenCalculator();
+            }}
+            className="flex w-full items-center gap-3 rounded-xl p-2.5 text-left text-xs font-medium hover:bg-emerald-500/15 active:bg-emerald-500/25 cursor-pointer transition-colors group border border-emerald-500/20 bg-emerald-500/5 touch-manipulation"
+          >
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white group-hover:scale-105 transition-transform">
+              <Calculator className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-foreground">Sprout Calculator</div>
+              <div className="text-[10px] text-muted-foreground">Floating scientific & graphing overlay</div>
+            </div>
+          </button>
+        )}
 
         <button
           type="button"

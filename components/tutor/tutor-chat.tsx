@@ -1,18 +1,25 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Send, Sparkles, Volume2, Square, Trash2, Loader2, GraduationCap } from "lucide-react";
+import { Send, Sparkles, Volume2, Square, Trash2, Loader2, GraduationCap, Calculator } from "lucide-react";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { asArray } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 import { createSpeaker, type Speaker } from "@/lib/audio/speak";
 import { ExplainLevelToggle, useExplainLevel } from "@/components/study/explain-level-toggle";
+import {
+  dispatchCalculatorEvent,
+  extractTutorCalculatorDirective,
+  parseCalculatorRequest,
+} from "@/lib/pet/calc-intent";
 
 interface Msg {
   id: string;
   role: "user" | "model";
   text: string;
   isError?: boolean;
+  calcExpr?: string | null;
+  calcSuggest?: boolean;
 }
 
 interface ClassLite {
@@ -131,6 +138,33 @@ export function TutorChat({
     const text = raw.trim();
     if (!text || busy) return;
     setInput("");
+
+    const calcReq = parseCalculatorRequest(text);
+    if (calcReq.shouldOpen) {
+      dispatchCalculatorEvent({
+        open: true,
+        expr: calcReq.expr ?? undefined,
+        label: contextLabel ? `Calculator · ${contextLabel}` : "Requested for Sprout",
+        source: "tutor-request",
+      });
+      if (calcReq.calculatorOnly) {
+        const userMsg: Msg = { id: crypto.randomUUID(), role: "user", text };
+        const botMsg: Msg = {
+          id: crypto.randomUUID(),
+          role: "model",
+          text: "I opened the **Sprout Overlay Calculator** for you! You can type equations, plot `f(x)`, or tap **Ask Sprout to explain this step** anytime.",
+          calcSuggest: true,
+          calcExpr: calcReq.expr,
+        };
+        setMessages((prev) => {
+          const next = [...prev, userMsg, botMsg];
+          save(key, next);
+          return next;
+        });
+        return;
+      }
+    }
+
     const history = messages.filter((m) => !m.isError && m.text).slice(-12).map((m) => ({ role: m.role, parts: m.text }));
     const userMsg: Msg = { id: crypto.randomUUID(), role: "user", text };
     const replyId = crypto.randomUUID();
@@ -146,9 +180,28 @@ export function TutorChat({
         const err = await res.json().catch(() => null);
         throw new Error(err?.error?.message || "The tutor is unavailable right now. Please try again.");
       }
-      const reply = await res.text();
+      const rawReply = await res.text();
+      const directive = extractTutorCalculatorDirective(rawReply, text);
+      if (directive.autoOpen && !calcReq.shouldOpen) {
+        dispatchCalculatorEvent({
+          open: true,
+          expr: directive.expr ?? undefined,
+          label: contextLabel ? `Sprout Tool · ${contextLabel}` : "Sprout Calculator Tool",
+          auto: true,
+          source: "tutor-auto",
+        });
+      }
       setMessages((prev) => {
-        const next = prev.map((m) => (m.id === replyId ? { ...m, text: reply } : m));
+        const next = prev.map((m) =>
+          m.id === replyId
+            ? {
+                ...m,
+                text: directive.cleanText,
+                calcSuggest: directive.shouldSuggest,
+                calcExpr: directive.expr,
+              }
+            : m
+        );
         save(key, next);
         return next;
       });
@@ -282,10 +335,29 @@ export function TutorChat({
               )}
             </div>
             {m.role === "model" && m.text && !m.isError && (
-              <button type="button" onClick={() => speak(m)} className="mt-1 flex items-center gap-1 text-[11px] text-slate-400 hover:text-brand-600">
-                {speakingId === m.id ? <Square className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
-                {speakingId === m.id ? "Stop" : "Read aloud"}
-              </button>
+              <div className="mt-1 flex flex-wrap items-center gap-3">
+                <button type="button" onClick={() => speak(m)} className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-brand-600">
+                  {speakingId === m.id ? <Square className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                  {speakingId === m.id ? "Stop" : "Read aloud"}
+                </button>
+                {m.calcSuggest && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      dispatchCalculatorEvent({
+                        open: true,
+                        expr: m.calcExpr ?? undefined,
+                        label: contextLabel ? `Sprout · ${contextLabel}` : "From Tutor",
+                        source: "tutor-chip",
+                      })
+                    }
+                    className="inline-flex items-center gap-1 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition"
+                  >
+                    <Calculator className="h-3 w-3" />
+                    {m.calcExpr ? `Open Calculator (${m.calcExpr.slice(0, 22)})` : "Open Sprout Calculator"}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         ))}

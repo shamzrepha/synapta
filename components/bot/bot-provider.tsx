@@ -13,6 +13,7 @@ import { JarvisHud } from "@/components/bot/jarvis-hud";
 import { homeFor, hudPlacement, type Box } from "@/lib/pet/placement";
 import { formatClock, IDLE, remainingMs, startFocus, tick, type FocusState } from "@/lib/pet/focus";
 import { dayHello } from "@/lib/pet/encourage";
+import { CALC_EVENT, dispatchCalculatorEvent } from "@/lib/pet/calc-intent";
 
 const W = 72;
 const H = 81;
@@ -22,6 +23,7 @@ export const PET_EVENT = "sunroot:pet";
 export const ASK_EVENT = "sunroot:ask-ai";
 /** "Read this aloud": the reader answers it with the app's real (neural) voice. Nothing uses the robotic device voice. */
 export const LISTEN_EVENT = "sunroot:listen";
+export { CALC_EVENT };
 
 /** Bars fixed to the screen (the phone menu, the read-aloud player) that Sprout must not stand on. */
 function readDocks(): Box[] {
@@ -880,6 +882,12 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
               focusLabel={focusLabel}
               onFocus={() => toggleSprint(10)}
               onShowOff={showOff}
+              onOpenCalculator={() => {
+                setMenuOpen(false);
+                wake();
+                say("Pulling up your scientific & graphing calculator!", 2400);
+                dispatchCalculatorEvent({ open: true, label: "Opened by Sprout", source: "jarvis-hud" });
+              }}
               onAskTutor={() => {
                 setMenuOpen(false);
                 wake();

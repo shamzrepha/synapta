@@ -4,6 +4,7 @@ import { Topbar } from "@/components/shell/topbar";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { OfflineManager } from "@/components/offline/offline-manager";
 import { TutorLauncher } from "@/components/tutor/tutor-launcher";
+import { OverlayCalculator } from "@/components/bot/overlay-calculator";
 import { HubTabs } from "@/components/shell/hub-tabs";
 import { ThemeApplier } from "@/components/shop/theme-applier";
 import { AccessibilityApplier } from "@/components/settings/accessibility-applier";
@@ -51,6 +52,7 @@ export default function AppLayout({
       <AddMaterialSheet />
       <CommandPalette />
       <TutorLauncher />
+      <OverlayCalculator />
       <OfflineManager />
       <ThemeApplier />
       <AccessibilityApplier />

@@ -45,6 +45,7 @@ Rules:
 - severity 3 = most urgent. At most 5 gaps, worst first.
 - The plan has 3 to 6 steps in the order to do them. Each step names a topic from the evidence and one tool: retest (redo their wrong answers), flashcards, notes (make notes from their own material), lesson (an interactive lesson on the topic), quiz, or tutor (ask the AI tutor). Make each action specific and doable in the minutes given.
 - Strengths must be real: topics with high mastery or mistakes they have already fixed.
+- If a <PERSONAL_LEARNER_DNA> block is provided, tailor the plan's tool choices, pace, and framing to their cohort style, weak formulas, and open misconceptions.
 - Warm and direct, no flattery, no generic advice like "study more".`;
 
 export function evaluationPrompt(s: EvidenceSummary): string {
