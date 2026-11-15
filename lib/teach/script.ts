@@ -8,9 +8,39 @@ import { parseFormula } from "./chem";
  * draws those blocks, so no AI-written code runs. Anything that fails validation is dropped or turned into plain text.
  */
 const str = (max: number) => z.string().trim().max(max);
-const num = (lo: number, hi: number) => z.number().finite().min(lo).max(hi);
+const num = (lo: number, hi: number) => z.coerce.number().finite().min(lo).max(hi);
+const exprOrNum = z.union([z.coerce.number().finite(), str(80)]);
+const vec3 = z.tuple([exprOrNum, exprOrNum, exprOrNum]);
 
-const slider = z.object({ key: z.string().regex(/^[a-z][a-z0-9_]{0,7}$/), label: str(30).optional(), min: num(-1000, 1000), max: num(-1000, 1000), value: num(-1000, 1000) });
+const slider = z.object({
+  key: z.string().trim().regex(/^[A-Za-z][A-Za-z0-9_]{0,15}$/),
+  label: str(40).optional(),
+  unit: str(16).optional(),
+  min: num(-10000, 10000),
+  max: num(-10000, 10000),
+  value: num(-10000, 10000),
+});
+
+const part3dSchema = z.object({
+  shape: z.enum(["box", "sphere", "cylinder", "cone", "torus", "arrow", "ring"]).default("box"),
+  label: str(30).optional(),
+  color: str(24).default("#4f6df5"),
+  emissive: str(24).optional(),
+  opacity: z.coerce.number().finite().min(0.1).max(1).default(1),
+  metalness: z.coerce.number().finite().min(0).max(1).default(0.25),
+  roughness: z.coerce.number().finite().min(0.05).max(1).default(0.45),
+  size: z.array(exprOrNum).min(1).max(3).default([1, 1, 1]),
+  pos: vec3.default([0, 0, 0]),
+  rot: vec3.default([0, 0, 0]),
+  spinY: exprOrNum.optional(),
+  bobY: exprOrNum.optional(),
+});
+
+const readout3dSchema = z.object({
+  label: str(36),
+  expr: str(100),
+  unit: str(16).default(""),
+});
 
 export const blockSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("text"), heading: str(80).optional(), bullets: z.array(str(200)).max(6).default([]) }),
@@ -19,10 +49,19 @@ export const blockSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("grapher"),
     expr: str(120),
-    xMin: num(-1000, 1000).default(-10),
-    xMax: num(-1000, 1000).default(10),
-    sliders: z.array(slider).max(3).default([]),
+    xMin: num(-10000, 10000).default(-10),
+    xMax: num(-10000, 10000).default(10),
+    sliders: z.array(slider).max(4).default([]),
     caption: str(160).optional(),
+  }),
+  z.object({
+    type: z.literal("artifact3d"),
+    title: str(80).default("Interactive 3D Model"),
+    preset: z.enum(["custom", "orbit", "pendulum", "wave", "atom", "circuit", "optics", "spring", "lever", "field"]).default("custom"),
+    caption: str(160).optional(),
+    sliders: z.array(slider).max(4).default([]),
+    parts: z.array(part3dSchema).max(16).default([]),
+    readouts: z.array(readout3dSchema).max(4).default([]),
   }),
   z.object({ type: z.literal("motion"), v0: num(1, 100).default(20), angle: num(5, 85).default(45), g: num(1, 25).default(9.81) }),
   z.object({ type: z.literal("fraction"), num: num(0, 40).default(3), den: num(1, 40).default(4) }),
@@ -37,7 +76,7 @@ export const blockSchema = z.discriminatedUnion("type", [
     /** filled in by the server after the AI writes the script; under the key "src" so translation leaves it alone */
     src: z.object({ url: z.string(), page: z.string(), author: z.string(), license: z.string() }).optional(),
   }),
-  z.object({ type: z.literal("check"), question: str(240), options: z.array(str(120)).min(2).max(4), answer: z.number().int().min(0).max(3), explain: str(240).default("") }),
+  z.object({ type: z.literal("check"), question: str(240), options: z.array(str(120)).min(2).max(4), answer: z.coerce.number().int().min(0).max(3), explain: str(240).default("") }),
   z.object({ type: z.literal("flow"), steps: z.array(z.object({ label: str(40), detail: str(160).default("") })).min(2).max(7) }),
   z.object({
     type: z.literal("balance"),
@@ -71,6 +110,14 @@ export function parseScript(raw: unknown): LessonScript | null {
   return scenes.length ? { title: top.data.title, scenes } : null;
 }
 
+function sanitizeSliders<T extends { key: string; label?: string; unit?: string; min: number; max: number; value: number }>(sliders: T[]): T[] {
+  return sliders.map((s) => {
+    const lo = Math.min(s.min, s.max);
+    const hi = Math.max(s.min, s.max, lo + 1);
+    return { ...s, min: lo, max: hi, value: clamp(s.value, lo, hi) };
+  });
+}
+
 function sanitizeBlock(b: Block): Block | null {
   switch (b.type) {
     case "grapher": {
@@ -78,12 +125,12 @@ function sanitizeBlock(b: Block): Block | null {
       if (!isValidExpression(b.expr, names)) return null;
       let { xMin, xMax } = b;
       if (xMax <= xMin) [xMin, xMax] = [xMin, xMin + 20];
-      const sliders = b.sliders.map((s) => {
-        const lo = Math.min(s.min, s.max);
-        const hi = Math.max(s.min, s.max, lo + 1);
-        return { ...s, min: lo, max: hi, value: clamp(s.value, lo, hi) };
-      });
-      return { ...b, xMin, xMax, sliders };
+      return { ...b, xMin, xMax, sliders: sanitizeSliders(b.sliders) };
+    }
+    case "artifact3d": {
+      const sliders = sanitizeSliders(b.sliders);
+      if (b.preset === "custom" && b.parts.length === 0 && sliders.length === 0) return null;
+      return { ...b, sliders };
     }
     case "equation_steps":
       return b.steps.every((s) => s.expr) ? b : null;
@@ -126,13 +173,14 @@ Write 5 to 10 scenes in teaching order: hook, build the idea, let the learner tr
 - {"type":"text","heading":"...","bullets":["..."]} for introductions, definitions and recaps.
 - {"type":"equation_steps","steps":[{"expr":"LaTeX only, no $ signs","note":"what we did"}]} reveals a worked solution one line at a time. Use for any step-by-step algebra, arithmetic or derivation.
 - {"type":"triangle","a":3,"b":4} an interactive right triangle with squares on its sides (Pythagoras).
-- {"type":"grapher","expr":"m*x + c","xMin":-10,"xMax":10,"sliders":[{"key":"m","label":"gradient","min":-5,"max":5,"value":1}]} an interactive graph. expr uses x, slider keys, + - * / ^, parentheses, sqrt abs sin cos tan (degrees), pi.
-- {"type":"motion","v0":20,"angle":45,"g":9.81} an animated projectile.
+- {"type":"artifact3d","title":"...","preset":"custom|pendulum|spring|optics|atom|circuit|lever|orbit|wave|field","sliders":[{"key":"l","label":"length","unit":"m","min":1,"max":5,"value":2}],"parts":[{"shape":"cylinder","color":"#4f6df5","size":[0.15,"l",0.15],"pos":[0,0,0],"rot":[0,0,"0.4*sin(t)"]}],"readouts":[{"label":"Period","expr":"2*pi*sqrt(l/9.81)","unit":"s"}],"caption":"..."} builds an interactive orbitable 3D model! Use it whenever the topic involves physical objects, forces, motion, optics, circuits, atoms/molecules, waves, geometry, levers, orbits, or fields. Part formulas (size, pos, rot, spinY, bobY) and readouts can use slider keys + t (seconds) + sin/cos/sqrt/abs/pi.
+- {"type":"grapher","expr":"m*x + c","xMin":-10,"xMax":10,"sliders":[{"key":"m","label":"gradient","min":-5,"max":5,"value":1}]} an interactive 2D graph when a curve or plot is best. expr uses x, slider keys, + - * / ^, parentheses, sqrt abs sin cos tan, pi.
+- {"type":"motion","v0":20,"angle":45,"g":9.81} an animated 2D projectile.
 - {"type":"fraction","num":3,"den":4} an interactive fraction bar.
 - {"type":"timeline","items":[{"label":"1884","detail":"..."}]} for history, processes and sequences.
-- {"type":"figure","query":"Arduino Uno board","caption":"...","parts":[{"name":"USB port","detail":"powers and programs the board"}]} a real picture from the internet with its named parts. Use it whenever the learner needs to SEE a real object, equipment, organ, map or diagram. "query" must be a short, specific search phrase in English.
+- {"type":"figure","query":"Arduino Uno board","caption":"...","parts":[{"name":"USB port","detail":"powers and programs the board"}]} a real picture from the internet with its named parts. Use it whenever the learner needs to SEE a real photo, organ, map or diagram. "query" must be a short, specific search phrase in English.
 - {"type":"flow","steps":[{"label":"Collect","detail":"..."}]} a process or procedure shown step by step.
 - {"type":"balance","reactants":[{"formula":"H2","coef":2},{"formula":"O2","coef":1}],"products":[{"formula":"H2O","coef":2}]} a chemical equation the learner balances; coef is the correct answer. Formulas like Ca(OH)2.
 - {"type":"check","question":"...","options":["...","..."],"answer":0,"explain":"..."} one quick question with instant feedback. End every lesson with one.
 - {"type":"compare","left":{"title":"...","points":["..."]},"right":{"title":"...","points":["..."]}} for contrasts.
-Pick the block that makes the idea visible and let the learner play with it. Use only facts from the notes provided; do not invent figures. Plain text only inside strings (no markdown).`;
+Pick the block that makes the idea visible (preferring "artifact3d" when a 3D model fits best, or 2D interactive blocks like "grapher"/"motion"/"triangle"/"fraction"/"balance" when 2D fits best) so every slider directly moves the visual. Use only facts from the notes provided; do not invent figures. Plain text only inside strings (no markdown).`;

@@ -5,6 +5,7 @@ import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { clamp, fractionFacts, projectileAt, projectileSummary, round, sampleFunction, triangleSquares } from "@/lib/teach/math";
 import { isBalanced, countSide, subscripts } from "@/lib/teach/chem";
 import type { Block } from "@/lib/teach/script";
+import { Artifact3DBlock } from "./artifact3d-block";
 import { fireCelebration } from "@/components/game/confetti";
 import { usePrefs } from "@/components/settings/use-prefs";
 
@@ -112,15 +113,13 @@ export function GrapherBlock({ b }: { b: Of<"grapher"> }) {
   const [vals, setVals] = useState<Record<string, number>>(() => Object.fromEntries(b.sliders.map((s) => [s.key, s.value])));
   const pts = useMemo(() => sampleFunction(b.expr, vals, b.xMin, b.xMax), [b.expr, b.xMin, b.xMax, vals]);
   const ys = pts.map((p) => p.y).filter((y): y is number => y !== null);
-  let yMin = ys.length ? Math.min(...ys) : -1;
-  let yMax = ys.length ? Math.max(...ys) : 1;
-  yMin = Math.max(yMin, -200);
-  yMax = Math.min(yMax, 200);
-  if (yMin === yMax) {
+  let yMin = ys.length ? Math.max(-10000, Math.min(...ys)) : -1;
+  let yMax = ys.length ? Math.min(10000, Math.max(...ys)) : 1;
+  if (Math.abs(yMax - yMin) < 1e-6) {
     yMin -= 1;
     yMax += 1;
   }
-  const pad = (yMax - yMin) * 0.1;
+  const pad = (yMax - yMin) * 0.12;
   yMin -= pad;
   yMax += pad;
   const W = 360;
@@ -136,20 +135,50 @@ export function GrapherBlock({ b }: { b: Of<"grapher"> }) {
     } else cur.push(`${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`);
   }
   if (cur.length > 1) segments.push(cur.join(" "));
+  const midPt = pts.find((p, idx) => idx >= Math.floor(pts.length / 2) && p.y !== null) ?? pts.find((p) => p.y !== null);
   return (
     <div className="space-y-3">
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Graph of y = ${b.expr}`} className="w-full max-w-md mx-auto rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Graph of y = ${b.expr}`} className="w-full max-w-md mx-auto rounded-xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800">
+        {[1, 2, 3].map((n) => (
+          <g key={n} className="stroke-slate-200/70 dark:stroke-slate-800" strokeDasharray="3 3">
+            <line x1={(W * n) / 4} x2={(W * n) / 4} y1={0} y2={H} />
+            <line x1={0} x2={W} y1={(H * n) / 4} y2={(H * n) / 4} />
+          </g>
+        ))}
         {b.xMin <= 0 && b.xMax >= 0 && <line x1={sx(0)} x2={sx(0)} y1={0} y2={H} className="stroke-slate-400" />}
         {yMin <= 0 && yMax >= 0 && <line x1={0} x2={W} y1={sy(0)} y2={sy(0)} className="stroke-slate-400" />}
         {segments.map((s, i) => (
-          <polyline key={i} points={s} fill="none" className="stroke-brand-600" strokeWidth={2.5} strokeLinejoin="round" />
+          <polyline key={i} points={s} fill="none" className="stroke-brand-600 dark:stroke-brand-400" strokeWidth={2.75} strokeLinejoin="round" />
         ))}
+        {midPt && midPt.y !== null && (
+          <circle cx={sx(midPt.x)} cy={sy(midPt.y)} r={4.5} className="fill-amber-400 stroke-slate-950" strokeWidth={1.5} />
+        )}
+        {segments.length === 0 && (
+          <text x={W / 2} y={H / 2} textAnchor="middle" className="fill-slate-400 text-xs">
+            Adjust slider values to see the curve
+          </text>
+        )}
       </svg>
-      <p className="text-center font-mono text-sm">y = {b.expr}</p>
+      <div className="flex flex-wrap items-center justify-center gap-3 font-mono text-xs sm:text-sm">
+        <span>y = {b.expr}</span>
+        {midPt && midPt.y !== null && (
+          <span className="rounded-lg bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-xs text-brand-600 dark:text-brand-300">
+            at x={round(midPt.x, 1)}, y={round(midPt.y, 2)}
+          </span>
+        )}
+      </div>
       {b.caption && <p className="text-center text-xs text-slate-500">{b.caption}</p>}
       <div className="space-y-1">
         {b.sliders.map((s) => (
-          <Range key={s.key} label={s.label || s.key} min={s.min} max={s.max} step={(s.max - s.min) / 100} value={vals[s.key]} onChange={(v) => setVals((o) => ({ ...o, [s.key]: v }))} />
+          <Range
+            key={s.key}
+            label={s.label || s.key}
+            min={s.min}
+            max={s.max}
+            step={Math.max((s.max - s.min) / 100, 0.01)}
+            value={vals[s.key] ?? s.value}
+            onChange={(v) => setVals((o) => ({ ...o, [s.key]: v }))}
+          />
         ))}
       </div>
     </div>
@@ -497,6 +526,8 @@ export function BlockView({ block, ms }: { block: Block; ms: number }) {
       return <TriangleBlock b={block} />;
     case "grapher":
       return <GrapherBlock b={block} />;
+    case "artifact3d":
+      return <Artifact3DBlock b={block} />;
     case "motion":
       return <MotionBlock b={block} />;
     case "fraction":

@@ -114,6 +114,7 @@ export const simIdeasSchema = z.object({
         howItWorks: z.string().default(""),
         challenge: z.string().default(""),
         learningGoal: z.string().default(""),
+        visualMode: z.enum(["3d", "2d"]).default("3d"),
       })
     )
     .min(1)
@@ -134,10 +135,14 @@ export async function recommendSimulation(params: {
   const scope = scopeRule({ kcTitle: ctx.kcTitle, objectives: ctx.objectives, otherTopics: ctx.otherTopics });
   const systemInstruction = `You design interactive HTML5 learning simulations and games for ONE specific subtopic of a class.
 ${scope}
-Read the subtopic's lesson and propose 4 DIFFERENT simulation concepts that would make exactly this subtopic click — vary the format (lab bench, game with levels, step-through visualiser, design/build challenge, prediction game…).
-Each idea: a catchy title, a one-sentence pitch, how it works (what the learner manipulates and sees), the challenge/goal that makes it a game, and the learning goal it targets. Be concrete and accurate for level ${ctx.level}.
-${params.current ? `There is an existing simulation ("${params.current.title}", goal: "${params.current.goal}"). Also give 4-6 specific, small "improvements" phrased as change requests a teacher could apply to it (e.g. "Add a wind slider to level 2", "Show the formula with live values").` : `Return "improvements": [].`}
-Return JSON only: {"ideas":[{"title":"","pitch":"","howItWorks":"","challenge":"","learningGoal":""}],"improvements":["..."]}`;
+STRICT TOPIC LOCK:
+- Every single idea (title, pitch, howItWorks, challenge, learningGoal) MUST directly teach "${ctx.kcTitle}" and match its lesson objectives.
+- Never propose generic "explore a ball" or unrelated topics from other chapters (${ctx.otherTopics.slice(0, 6).join(", ") || "none"}).
+Read the subtopic's lesson and propose 4 DIFFERENT simulation concepts that make "${ctx.kcTitle}" visual and interactive — vary the format (3D lab bench, challenge game with levels, step-through visualiser, design/build experiment…).
+For each idea set "visualMode": use "3d" whenever the subject has real 3D objects, equipment, circuits, anatomy, geometry, fields, molecules, forces, or spatial apparatus; use "2d" ONLY when a 2D plot, graph, diagram, logic table, or timeline is genuinely clearer for that exact concept.
+Each idea: a catchy title tied to "${ctx.kcTitle}", a one-sentence pitch, how it works (what sliders/controls change and what 3D/2D artifact responds in real time), the challenge/goal that makes it a game, and the learning goal it targets. Be concrete and accurate for level ${ctx.level}.
+${params.current ? `There is an existing simulation ("${params.current.title}", goal: "${params.current.goal}"). Also give 4-6 specific, small "improvements" phrased as direct change requests a teacher can apply with one click (e.g. "Add a wind speed slider that tilts the projectile arc", "Show live formula values beside the 3D artifact").` : `Return "improvements": [].`}
+Return JSON only: {"ideas":[{"title":"","pitch":"","howItWorks":"","challenge":"","learningGoal":"","visualMode":"3d"}],"improvements":["..."]}`;
 
   const r = await executeStructuredAiTask({
     // shared class content is written in the source language; each reader gets a translation

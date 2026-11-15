@@ -49,7 +49,14 @@ interface ClientSimulation {
 type BuildMode = "create" | "edit";
 
 interface SimIdeas {
-  ideas: Array<{ title: string; pitch: string; howItWorks: string; challenge: string; learningGoal: string }>;
+  ideas: Array<{
+    title: string;
+    pitch: string;
+    howItWorks: string;
+    challenge: string;
+    learningGoal: string;
+    visualMode?: "3d" | "2d";
+  }>;
   improvements: string[];
 }
 
@@ -238,8 +245,10 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
    * mode "create": build from scratch (first build or "start over").
    * mode "edit":   send the current code + a change request (or a runtime error) and change only that.
    */
-  const build = async (opts: { mode?: BuildMode; previousError?: string } = {}) => {
+  const build = async (opts: { mode?: BuildMode; previousError?: string; instructionsOverride?: string; changeRequestOverride?: string } = {}) => {
     const mode = opts.mode || "create";
+    const nextInstructions = opts.instructionsOverride !== undefined ? opts.instructionsOverride : instructions;
+    const nextChangeRequest = opts.changeRequestOverride !== undefined ? opts.changeRequestOverride : changeRequest;
     setBuildMode(mode);
     setBuildStep(0);
     setBuilding(true);
@@ -250,8 +259,8 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode,
-          instructions: canManage && mode === "create" ? instructions : undefined,
-          changeRequest: canManage && mode === "edit" ? changeRequest : undefined,
+          instructions: canManage && mode === "create" ? nextInstructions : undefined,
+          changeRequest: canManage && mode === "edit" ? nextChangeRequest : undefined,
           previousError: opts.previousError,
         }),
       });
@@ -306,25 +315,41 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
     </Button>
   );
 
+  const buildFromIdea = (idea: SimIdeas["ideas"][number]) => {
+    if (building) return;
+    const spec = [
+      `${idea.title} — ${idea.pitch}`,
+      idea.visualMode && `Visual format: ${idea.visualMode === "2d" ? "2D interactive canvas visual (best fit for this topic)" : "3D SimKit3D interactive artifact"}`,
+      idea.howItWorks && `How it works: ${idea.howItWorks}`,
+      idea.challenge && `Challenge: ${idea.challenge}`,
+      idea.learningGoal && `Learning goal: ${idea.learningGoal}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    void build({ mode: "create", instructionsOverride: spec });
+  };
+
   const ideaCards = ideas && ideas.ideas.length > 0 && (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       {ideas.ideas.map((idea, i) => (
         <button
           key={i}
           type="button"
-          onClick={() =>
-            setInstructions(
-              [`${idea.title} — ${idea.pitch}`, idea.howItWorks && `How it works: ${idea.howItWorks}`, idea.challenge && `Challenge: ${idea.challenge}`, idea.learningGoal && `Learning goal: ${idea.learningGoal}`]
-                .filter(Boolean)
-                .join("\n")
-            )
-          }
-          className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-3 hover:border-indigo-500 transition-colors space-y-1"
+          disabled={building}
+          onClick={() => buildFromIdea(idea)}
+          className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-3 hover:border-indigo-500 transition-colors space-y-1 disabled:opacity-50"
         >
-          <p className="text-sm font-semibold">{idea.title}</p>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-semibold">{idea.title}</p>
+            {idea.visualMode && (
+              <span className="shrink-0 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 text-[10px] font-bold uppercase">
+                {idea.visualMode}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-600 dark:text-slate-400">{idea.pitch}</p>
           {idea.challenge && <p className="text-[11px] text-amber-700 dark:text-amber-300">🎯 {idea.challenge}</p>}
-          <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">Use this idea →</p>
+          <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">Build this idea now →</p>
         </button>
       ))}
     </div>
@@ -448,7 +473,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
   const createPanel = (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-600 dark:text-slate-400">Describe it yourself, or let the AI suggest concepts from the topic and your uploaded documents.</p>
+        <p className="text-xs text-slate-600 dark:text-slate-400">Describe it yourself, or generate topic ideas and click any card to build immediately.</p>
         {canManage && ideaButton}
       </div>
       {ideaCards}
@@ -527,10 +552,11 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
                   <button
                     key={q}
                     type="button"
-                    onClick={() => setChangeRequest((prev) => (prev.trim() ? `${prev.trim()}\n${q}` : q))}
-                    className="px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] hover:border-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-300"
+                    disabled={building}
+                    onClick={() => void build({ mode: "edit", changeRequestOverride: q })}
+                    className="px-2.5 py-1 rounded-full border border-slate-200 dark:border-slate-700 text-[11px] hover:border-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:opacity-50"
                   >
-                    + {q}
+                    ⚡ {q}
                   </button>
                 ))}
               </div>

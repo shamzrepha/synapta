@@ -3,57 +3,104 @@
  * No property access, no calls except a fixed math whitelist — shared designs can't run code here.
  */
 
-const FUNCS: Record<string, (...a: number[]) => number> = {
+const DEG_FUNCS: Record<string, (...a: number[]) => number> = {
   min: Math.min,
   max: Math.max,
   abs: Math.abs,
   sqrt: Math.sqrt,
+  cbrt: Math.cbrt,
+  exp: Math.exp,
+  ln: Math.log,
+  log: Math.log,
+  log10: Math.log10,
+  pow: Math.pow,
+  sign: Math.sign,
   round: Math.round,
   floor: Math.floor,
   ceil: Math.ceil,
   sin: (d) => Math.sin((d * Math.PI) / 180),
   cos: (d) => Math.cos((d * Math.PI) / 180),
   tan: (d) => Math.tan((d * Math.PI) / 180),
+  asin: (x) => (Math.asin(x) * 180) / Math.PI,
+  acos: (x) => (Math.acos(x) * 180) / Math.PI,
+  atan: (x) => (Math.atan(x) * 180) / Math.PI,
 };
-const CONSTS: Record<string, number> = { pi: Math.PI, g: 9.81 };
+const RAD_FUNCS: Record<string, (...a: number[]) => number> = {
+  ...DEG_FUNCS,
+  sin: Math.sin,
+  cos: Math.cos,
+  tan: Math.tan,
+  asin: Math.asin,
+  acos: Math.acos,
+  atan: Math.atan,
+};
+const CONSTS: Record<string, number> = { pi: Math.PI, e: Math.E, tau: Math.PI * 2, g: 9.81 };
 
 type Tok = { t: "num"; v: number } | { t: "id"; v: string } | { t: "op"; v: string };
 
-function tokenize(src: string): Tok[] {
-  const out: Tok[] = [];
+function tokenize(rawSrc: string): Tok[] {
+  const src = rawSrc.replace(/\bMath\.(sin|cos|tan|asin|acos|atan|sqrt|cbrt|abs|min|max|round|floor|ceil|exp|log|log10|pow|sign|PI|E)\b/g, "$1");
+  const raw: Tok[] = [];
   let i = 0;
   while (i < src.length) {
     const c = src[i];
-    if (c === " " || c === "\t") {
+    if (c === " " || c === "\t" || c === "\n" || c === "\r") {
       i++;
       continue;
     }
     if (/[0-9.]/.test(c)) {
       const m = /^(\d+\.?\d*|\.\d+)(e[+-]?\d+)?/i.exec(src.slice(i));
       if (!m) throw new Error(`Bad number at ${i}`);
-      out.push({ t: "num", v: parseFloat(m[0]) });
+      raw.push({ t: "num", v: parseFloat(m[0]) });
       i += m[0].length;
       continue;
     }
     if (/[A-Za-z_]/.test(c)) {
       const m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i))!;
-      out.push({ t: "id", v: m[0] });
+      raw.push({ t: "id", v: m[0] });
       i += m[0].length;
       continue;
     }
+    if (c === "*" && src[i + 1] === "*") {
+      raw.push({ t: "op", v: "^" });
+      i += 2;
+      continue;
+    }
     if ("+-*/^(),%".includes(c)) {
-      out.push({ t: "op", v: c });
+      raw.push({ t: "op", v: c });
       i++;
       continue;
     }
     throw new Error(`Unexpected "${c}"`);
   }
+  // Support implicit multiplication: 2x -> 2*x, 2(x+1) -> 2*(x+1), (x+1)(x-1) -> (x+1)*(x-1)
+  const out: Tok[] = [];
+  for (let k = 0; k < raw.length; k++) {
+    const cur = raw[k];
+    out.push(cur);
+    const nxt = raw[k + 1];
+    if (!nxt) continue;
+    const curIsVal = cur.t === "num" || (cur.t === "op" && cur.v === ")");
+    const nxtStartsVal = nxt.t === "id" || nxt.t === "num" || (nxt.t === "op" && nxt.v === "(");
+    if (curIsVal && nxtStartsVal) {
+      out.push({ t: "op", v: "*" });
+    } else if (cur.t === "id" && nxt.t === "id") {
+      out.push({ t: "op", v: "*" });
+    }
+  }
   return out;
 }
 
 /** Evaluates `expr` with the given variables. Throws on unknown names or bad syntax. */
-export function evaluate(expr: string, vars: Record<string, number> = {}): number {
+export function evaluate(expr: string, vars: Record<string, number> = {}, opts?: { radians?: boolean }): number {
   if (expr.length > 300) throw new Error("Expression too long");
+  const funcs = opts?.radians ? RAD_FUNCS : DEG_FUNCS;
+  const lowerVars = new Map<string, number>();
+  for (const key of Object.keys(vars)) {
+    if (Object.prototype.hasOwnProperty.call(vars, key)) {
+      lowerVars.set(key.toLowerCase(), vars[key]);
+    }
+  }
   const toks = tokenize(expr);
   let p = 0;
   const peek = () => toks[p];
@@ -117,7 +164,7 @@ export function evaluate(expr: string, vars: Record<string, number> = {}): numbe
     if (tk.t === "id") {
       p++;
       if (peek()?.t === "op" && peek()!.v === "(") {
-        const fn = FUNCS[tk.v.toLowerCase()];
+        const fn = funcs[tk.v.toLowerCase()];
         if (!fn) throw new Error(`Unknown function ${tk.v}`);
         take("(");
         const args: number[] = [];
@@ -133,6 +180,7 @@ export function evaluate(expr: string, vars: Record<string, number> = {}): numbe
       }
       if (Object.prototype.hasOwnProperty.call(vars, tk.v)) return vars[tk.v];
       const k = tk.v.toLowerCase();
+      if (lowerVars.has(k)) return lowerVars.get(k)!;
       if (Object.prototype.hasOwnProperty.call(CONSTS, k)) return CONSTS[k];
       throw new Error(`Unknown name ${tk.v}`);
     }

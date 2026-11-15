@@ -43,6 +43,43 @@ describe("lesson maths", () => {
     const s = projectileSummary(20, 45, 9.81);
     expect(Math.round(s.range * 10) / 10).toBe(40.8);
   });
+  it("parses artifact3d blocks and OpenRouter-style coerced numbers and expressions", () => {
+    const s = parseScript({
+      title: "Pendulum & Linear",
+      scenes: [
+        {
+          narration: "Orbit the 3D pendulum.",
+          caption: "Pendulum 3D",
+          block: {
+            type: "artifact3d",
+            title: "Simple Pendulum",
+            preset: "pendulum",
+            sliders: [{ key: "L", label: "Length", unit: "m", min: "1", max: "5", value: "9" }],
+            parts: [],
+            readouts: [{ label: "Period", expr: "2*pi*sqrt(L/9.81)", unit: "s" }],
+          },
+        },
+        {
+          narration: "Explore slope.",
+          block: {
+            type: "grapher",
+            expr: "y = 2x + C",
+            sliders: [{ key: "C", min: "-4", max: "4", value: "1" }],
+          },
+        },
+        {
+          narration: "Empty custom 3D without sliders should drop.",
+          block: { type: "artifact3d", preset: "custom", sliders: [], parts: [] },
+        },
+      ],
+    });
+    expect(s?.scenes.map((x) => x.block.type)).toEqual(["artifact3d", "grapher"]);
+    const art = s!.scenes[0].block as { sliders: Array<{ value: number }> };
+    expect(art.sliders[0].value).toBe(5);
+  });
+  it("evaluates y= prefix, implicit multiplication, and case-insensitive variables", () => {
+    expect(sampleFunction("y = 2x + C", { C: 3 }, 0, 2, 2).map((p) => p.y)).toEqual([3, 5, 7]);
+  });
   it("reduces fractions", () => {
     expect(fractionFacts(6, 8)).toEqual({ reduced: "3/4", decimal: 0.75, percent: 75 });
   });

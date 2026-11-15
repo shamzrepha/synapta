@@ -80,18 +80,21 @@ OUTPUT FORMAT (strict):
 
 HARD TECHNICAL RULES:
 1. Everything inline: one <style> and one or more inline <script> blocks. NO external URLs of any kind (no CDNs, fonts, images, fetch, XHR, WebSocket, no <script src>). Images only as data: URIs if truly needed.
-1b. LOOK: for anything physical or spatial (circuits, machines, forces, motion, optics, geometry, anatomy, structures) build a SOLID, LIT 3D scene, the same look as our Maker Studio, using the pre-loaded globals (do not import or load them):
-   - \`THREE\` (three.js) and \`SimKit3D\`. Start with: const kit = SimKit3D.create(document.getElementById("stage")); // "stage" is a div you size with CSS (e.g. height: 60vh). It gives you studio lighting, soft shadows, a grid floor and drag-to-orbit/zoom for free.
-   - kit.box(w,h,d,color), kit.cylinder(r,h,color), kit.sphere(r,color), kit.tube([[x,y,z],...], radius, color) add lit, shadow-casting parts (1 unit = 1 metre or 1 cm, your choice, keep objects 1-10 units so the default camera frames them). kit.roundedBox(w,h,d,color) for moulded-looking bodies (prefer it to kit.box for cases, chips, housings), kit.material(color,{emissive,emissiveIntensity,metalness,roughness,opacity}) for glowing, metallic or glass parts (all kit.* shapes accept the same options as a last argument). Lighting, reflections, tone mapping and orbit inertia are already set up: do not add your own lights. kit.lookAt(x,y,z,distance) frames the scene.
-   - Animate inside kit.onFrame((dt, t) => { ... }) using real physics; never a second requestAnimationFrame loop for the 3D scene.
-   - Parts must look like the real thing (a resistor with colour bands, a lens, a spring coil, a pendulum bob on a rod), not plain blocks. Never use wireframes or transparent boxes.
-   - Put sliders, buttons, readouts and the goal as normal HTML overlaid on or beside the stage. Do NOT use <canvas> 2D for physical scenes.
-   For abstract topics (algorithms, economics, timelines, graphs, plots) use <canvas> 2D or inline SVG instead; you can also add a small 2D graph beside a 3D scene.
+1b. LOOK — ALWAYS VISIBLE & INTERACTIVE (3D OR 2D):
+   - Default to a SOLID, LIT 3D ARTIFACT using the pre-loaded globals \`THREE\` (with \`THREE.OrbitControls\`) and \`SimKit3D\` for anything spatial, physical, mechanical, electrical, optical, molecular, biological, architectural, or geometric:
+     * Container: give \`<div id="stage"></div>\` explicit CSS height (e.g. \`height: 58vh; min-height: 360px; width: 100%;\`). Start with: \`const kit = SimKit3D.create(document.getElementById("stage"));\`
+     * Available primitives & helpers on \`kit\` (keep parts within 1–10 units centered near origin):
+       - Shapes: \`kit.box(w,h,d,color,opts)\`, \`kit.roundedBox(w,h,d,color,opts)\`, \`kit.cylinder(r,h,color,opts)\`, \`kit.sphere(r,color,opts)\`, \`kit.cone(r,h,color,opts)\`, \`kit.torus(R,r,color,opts)\`, \`kit.capsule(r,len,color,opts)\`, \`kit.plane(w,h,color,opts)\`, \`kit.ring(innerR,outerR,color,opts)\`, \`kit.disc(r,color,opts)\`
+       - Dynamic connectors & vectors: \`kit.rod(from,to,radius,color,opts)\`, \`kit.spring(from,to,turns,radius,color,opts)\`, \`kit.arrow(from,to,color,opts)\`, \`kit.line(points,color)\`, \`kit.tube(points,radius,color,opts)\`
+       - Helpers: \`kit.group()\`, \`kit.label(text,pos,opts)\`, \`kit.material(color,{emissive,emissiveIntensity,metalness,roughness,opacity})\`, \`kit.lookAt(x,y,z,distance)\`, \`kit.resetCamera()\`, \`kit.clear()\`
+     * Do NOT add duplicate lights or duplicate \`OrbitControls\` when using \`SimKit3D\`; animate inside \`kit.onFrame((dt, t) => { ... })\` using real physics and make every slider/control mutate mesh positions, scales, rotations, emissive glow, vectors, or labels + update live numeric readouts.
+   - Choose a clean 2D visual (\`<canvas>\` or inline \`<svg>\`, sized at least 340px tall with DPI scaling) ONLY when 2D is genuinely better for the topic (e.g. function plots, circuit schematics/graphs, waves/spectra over time, algorithms, tables, timelines, economics curves). Even in 2D, draw immediately on initial load AND redraw inside both slider \`input\` listeners AND the animation loop.
+   - Every single slider MUST have a visible numeric readout span beside it AND immediately transform what the learner sees on the stage. Never leave placeholder or dead sliders.
 2. Do NOT use localStorage, sessionStorage, cookies, alert(), confirm(), prompt(), window.open or forms that submit.
 3. Responsive: the page fills 100% of the frame width; the main stage keeps a sensible aspect ratio and re-renders on window resize. Must work at 360px wide (phones) and on wide screens. Support mouse AND touch (pointer events).
 4. Smooth animation with requestAnimationFrame and a real time step (dt). Pause/Play and Reset buttons.
-5. Vanilla JavaScript only, no frameworks. Code must run without errors — double-check every variable is defined and every element ID you query exists.
-6. Keep the whole document under ~1,200 lines.
+5. Vanilla JavaScript only, no frameworks. Write concise, complete, bug-free JS — NEVER leave unfinished functions, missing closing braces, or truncated code. Double-check every variable is defined and every element ID you query exists.
+6. Keep the whole document compact and self-contained (~350–900 lines) so it never hits output truncation.
 
 LEARNING & GAME DESIGN RULES:
 7. Scientifically/mathematically CORRECT model. Use real equations and units; show live numeric readouts with units and the governing formula as text (e.g. "I = V / R").

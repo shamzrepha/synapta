@@ -7,6 +7,7 @@ import { runAllTests } from "./verify";
 import { libraryDigest } from "./parts/library";
 import { ALWAYS_ALLOWED, promptPack, shopIndex, shopItem } from "./parts/shop";
 import { TEMPLATES } from "./templates";
+import { scopeRule, dropOffTopicIdeas } from "@/lib/kc/context";
 import type { DesignSpec } from "./spec";
 
 /**
@@ -227,17 +228,37 @@ Return ONLY JSON: {"ideas":[{"title":"…","pitch":"…","kind":"circuit","level
 THE SHOP
 ${shopIndex()}`;
 
-export async function suggestLabIdeas(params: { topic: string; description?: string; level?: string; userId: string }): Promise<LabIdeas["ideas"]> {
+export async function suggestLabIdeas(params: {
+  topic: string;
+  description?: string;
+  level?: string;
+  objectives?: string[];
+  lessonExcerpt?: string;
+  otherTopics?: string[];
+  userId: string;
+}): Promise<LabIdeas["ideas"]> {
+  const scope = scopeRule({
+    kcTitle: params.topic,
+    objectives: params.objectives || [],
+    otherTopics: params.otherTopics || [],
+  });
+  const systemInstruction = `${IDEAS_SYSTEM}
+
+${scope}
+STRICT TOPIC LOCK:
+- Every idea MUST directly teach "${params.topic}" and stay inside this single lesson topic. Never suggest builds from sibling topics.`;
+
   const res = await generateWithFallback({
     task: "studio_build",
-    systemInstruction: IDEAS_SYSTEM,
-    userPrompt: `Class topic: ${params.topic.slice(0, 120)}\n${params.description ? `About it: ${params.description.slice(0, 400)}\n` : ""}Learner level: ${params.level || "beginner"}. Suggest 4 builds.`,
+    systemInstruction,
+    userPrompt: `Lesson topic (ONLY build for this topic): ${params.topic.slice(0, 120)}
+${params.description ? `Description: ${params.description.slice(0, 400)}\n` : ""}${params.lessonExcerpt ? `Lesson excerpt:\n${params.lessonExcerpt.slice(0, 2000)}\n` : ""}Learner level: ${params.level || "beginner"}. Suggest 4 practical builds tightly focused on "${params.topic}".`,
     schema: ideasSchema,
-    temperature: 0.6,
+    temperature: 0.5,
     userId: params.userId,
   });
-  return res.data!.ideas
+  const valid = res.data!.ideas
     .map((i) => ({ ...i, parts: i.parts.filter((t) => !!CATALOG_BY_TYPE[t]) }))
-    .filter((i) => i.title.trim() && i.buildPrompt.trim().length >= 4)
-    .slice(0, 5);
+    .filter((i) => i.title.trim() && i.buildPrompt.trim().length >= 4);
+  return dropOffTopicIdeas(valid, params.topic, params.otherTopics || []).slice(0, 5);
 }

@@ -20,14 +20,22 @@ export interface Pt {
   y: number | null;
 }
 
+function cleanFormula(expr: string): string {
+  return String(expr || "")
+    .trim()
+    .replace(/^[A-Za-z_][A-Za-z0-9_]*\s*(?:\(\s*[A-Za-z_][A-Za-z0-9_]*\s*\))?\s*=\s*/, "");
+}
+
 /** Samples y = f(x) with a safe expression; points where it is undefined (1/0, sqrt of a negative) are null, so the line breaks. */
 export function sampleFunction(expr: string, vars: Record<string, number>, xMin: number, xMax: number, n = 160): Pt[] {
+  const cleaned = cleanFormula(expr);
+  const radians = Math.max(Math.abs(xMin), Math.abs(xMax)) <= 90;
   const out: Pt[] = [];
   for (let i = 0; i <= n; i++) {
     const x = xMin + ((xMax - xMin) * i) / n;
     let y: number | null = null;
     try {
-      const v = evaluate(expr, { ...vars, x });
+      const v = evaluate(cleaned, { ...vars, x, t: x }, { radians });
       y = Number.isFinite(v) ? v : null;
     } catch {
       y = null;
@@ -38,13 +46,18 @@ export function sampleFunction(expr: string, vars: Record<string, number>, xMin:
 }
 
 export function isValidExpression(expr: string, names: string[] = []): boolean {
-  try {
-    const vars = Object.fromEntries(["x", ...names].map((k) => [k, 1]));
-    evaluate(expr, vars);
-    return true;
-  } catch {
-    return false;
+  const cleaned = cleanFormula(expr);
+  if (!cleaned) return false;
+  for (const xSample of [1, 2, 0.5, -1]) {
+    try {
+      const vars = Object.fromEntries(["x", "t", ...names].map((k) => [k, xSample === 1 ? 1.5 : xSample]));
+      const v = evaluate(cleaned, vars, { radians: true });
+      if (Number.isFinite(v)) return true;
+    } catch {
+      // try next sample point
+    }
   }
+  return false;
 }
 
 /** Position of a projectile `t` seconds after launch (angle in degrees, no air resistance). */

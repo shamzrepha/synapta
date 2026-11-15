@@ -72,14 +72,15 @@ export async function POST(req: NextRequest) {
 
     if (source.type === "note") {
       const { ref, data } = await loadOwnNote(source.id, caller.uid);
-      if (data.teachScript && !regenerate) return NextResponse.json({ ok: true, data: { script: data.teachScript as LessonScript } });
+      const cached = !regenerate && data.teachScript ? parseScript(data.teachScript) : null;
+      if (cached) return NextResponse.json({ ok: true, data: { script: cached } });
       const versions = await readVersions(source.id);
       const notes = (versions.find((v) => v.n === data.head) ?? versions[0])?.markdown || "";
       if (!notes) throw new ApiError(404, "NOT_FOUND", "Notes not found");
       await checkFeature(caller.uid, "lessons");
       await checkRateLimitAndQuota(caller.uid, 7000);
-      const { script } = await writeScript(String(data.title || "Lesson"), notes, caller.uid, true);
-      await ref.update({ teachScript: script, teachAt: Timestamp.now() });
+      const { script, fromAi } = await writeScript(String(data.title || "Lesson"), notes, caller.uid, true);
+      if (fromAi) await ref.update({ teachScript: script, teachAt: Timestamp.now() });
       await recordFeature(caller.uid, "lessons");
       return NextResponse.json({ ok: true, data: { script } });
     }
@@ -90,14 +91,15 @@ export async function POST(req: NextRequest) {
     if (!snap.exists) throw new ApiError(404, "NOT_FOUND", "Topic not found");
     const kc = snap.data()!;
     const lang = await classSourceLanguage(access.classData);
-    let script = kc.teachScript as LessonScript | undefined;
-    if (!script || (regenerate && access.canMutate)) {
+    let script = !(regenerate && access.canMutate) && kc.teachScript ? parseScript(kc.teachScript) ?? undefined : undefined;
+    if (!script) {
       const lesson = access.canMutate ? String(kc.liveLessonMarkdown || kc.lessonMarkdown || "") : lessonForStudents(kc);
       const material = [kc.description, ...(Array.isArray(kc.objectives) ? kc.objectives : []), lesson].filter(Boolean).join("\n\n");
       if (!material.trim()) throw new ApiError(409, "NOT_READY", "This topic has no lesson yet.");
       await checkRateLimitAndQuota(caller.uid, 7000);
-      ({ script } = await writeScript(String(kc.title || "Lesson"), material, caller.uid, false));
-      await ref.set({ teachScript: script, teachAt: Timestamp.now() }, { merge: true });
+      const written = await writeScript(String(kc.title || "Lesson"), material, caller.uid, false);
+      script = written.script;
+      if (written.fromAi) await ref.set({ teachScript: script, teachAt: Timestamp.now() }, { merge: true });
     }
     // each learner gets the lesson in their own language (translated once, then stored)
     const shown = await localizeFor(req, caller, access.canMutate, script as LessonScript, lang);

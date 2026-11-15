@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it, expect } from "vitest";
 import { LAB_CLEAN_TEXT_JS, LAB_VIEW_JS, SIM_HEAD_INJECT, withDisplayPatch } from "./inject";
 import { readableText } from "@/lib/text/readable";
@@ -40,5 +42,16 @@ describe("look-around tools for 2D labs (zoom, move, fit)", () => {
   });
   it("leaves 3D labs alone (they have their own orbit and zoom)", () => {
     expect(LAB_VIEW_JS).toContain("window.SimKit3D");
+    expect(LAB_VIEW_JS).toContain("heal2D");
+  });
+});
+
+describe("SimKit3D runtime helpers and self-healing", () => {
+  it("parses cleanly and provides all primitives, OrbitControls polyfill, and empty-stage recovery", () => {
+    const code = fs.readFileSync(path.join(process.cwd(), "public/sim/simkit3d.js"), "utf8");
+    expect(() => new Function(code)).not.toThrow();
+    for (const sym of ["OrbitControls", "cone", "torus", "capsule", "plane", "ring", "disc", "rod", "spring", "arrow", "line", "label", "group", "ensureLivingLab", "bindOrphanSlidersToScene"]) {
+      expect(code).toContain(sym);
+    }
   });
 });

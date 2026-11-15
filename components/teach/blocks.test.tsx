@@ -23,12 +23,23 @@ const script = parseScript({
     { narration: "bal", block: { type: "balance", reactants: [{ formula: "H2", coef: 2 }, { formula: "O2", coef: 1 }], products: [{ formula: "H2O", coef: 2 }] } },
     { narration: "bad bal", block: { type: "balance", reactants: [{ formula: "zz", coef: 1 }], products: [{ formula: "H2O", coef: 1 }] } },
     { narration: "c", block: { type: "compare", left: { title: "A", points: ["a"] }, right: { title: "B", points: ["b"] } } },
+    {
+      narration: "3d",
+      block: {
+        type: "artifact3d",
+        title: "Pendulum Rig",
+        preset: "pendulum",
+        sliders: [{ key: "l", label: "Length", unit: "m", min: 1, max: 4, value: 2 }],
+        parts: [{ shape: "sphere", color: "#f59e0b", size: [0.5, 0.5, 0.5], pos: [0, "l", 0], rot: [0, 0, 0] }],
+        readouts: [{ label: "Double", expr: "2*l", unit: "m" }],
+      },
+    },
   ],
 });
 
 describe("lesson blocks", () => {
   it("parses every sample scene", () => {
-    expect(script?.scenes).toHaveLength(14);
+    expect(script?.scenes).toHaveLength(15);
   });
   it("draws every block without crashing", () => {
     for (const s of script!.scenes) {
@@ -40,6 +51,14 @@ describe("lesson blocks", () => {
     const html = renderToString(<BlockView block={script!.scenes[2].block} ms={1000} />);
     expect(html).toContain("9");
     expect(html).toContain("25");
+  });
+  it("renders artifact3d safely during SSR with title, sliders and computed readout", () => {
+    const art = script!.scenes.find((s) => s.block.type === "artifact3d")!;
+    const html = renderToString(<BlockView block={art.block} ms={1000} />);
+    expect(html).toContain("Pendulum Rig");
+    expect(html).toContain("Double:");
+    expect(html).toContain("4 m");
+    expect(html).toContain('type="range"');
   });
 });
 

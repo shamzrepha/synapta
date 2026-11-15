@@ -76,7 +76,11 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
   const suggest = async () => {
     setIdeasBusy(true);
     try {
-      const j = await fetch("/api/studio/ideas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic: topicTitle }) }).then((r) => r.json());
+      const j = await fetch("/api/studio/ideas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic: topicTitle, classId, kcId }),
+      }).then((r) => r.json());
       if (j.ok) setIdeas(asArray<Idea>(j.data.ideas));
       else toast({ title: "Couldn't think of ideas just now", description: j.error?.message, variant: "destructive" });
     } catch {
@@ -146,11 +150,35 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
       {adding && data.canManage && (
         <Card className="p-4 space-y-3">
           <div className="space-y-2">
-            <p className="text-sm font-bold flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-violet-500" /> Let AI design a lab for this topic</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-bold flex items-center gap-1.5"><Sparkles className="h-4 w-4 text-violet-500" /> Let AI design a lab for this topic</p>
+              <Button type="button" size="sm" variant="outline" onClick={suggest} isLoading={ideasBusy}>
+                {ideas ? "More ideas" : "Suggest ideas"}
+              </Button>
+            </div>
             <div className="flex gap-2">
               <input value={focus} onChange={(e) => setFocus(e.target.value)} maxLength={500} placeholder="Optional focus, e.g. “show why the resistor matters”" className="flex-1 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-sm" />
               <Button onClick={() => post({ action: "generate", focus }, "gen")} isLoading={busy === "gen"} className="bg-violet-600 hover:bg-violet-700">Generate</Button>
             </div>
+            {ideas && ideas.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2 pt-1">
+                {ideas.map((idea) => (
+                  <button
+                    key={idea.title}
+                    type="button"
+                    disabled={busy !== null}
+                    onClick={() => post({ action: "generate", focus: idea.buildPrompt }, `idea-${idea.title}`)}
+                    className="text-left rounded-xl border border-slate-200 dark:border-slate-800 p-2.5 space-y-1 hover:border-violet-500 transition-colors disabled:opacity-50"
+                  >
+                    <p className="font-bold text-xs flex items-center gap-1.5">{ICON[idea.kind] || ICON.circuit} {idea.title}</p>
+                    <p className="text-[11px] text-slate-500 line-clamp-2">{idea.pitch}</p>
+                    <p className="text-[11px] font-semibold text-violet-600 dark:text-violet-400">
+                      {busy === `idea-${idea.title}` ? "Building draft lab…" : "Build this idea now →"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-2">
             <p className="text-sm font-bold">…or add one yourself</p>
@@ -291,14 +319,20 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
         {ideas && ideas.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2">
             {ideas.map((idea) => (
-              <div key={idea.title} className="rounded-2xl border border-slate-200 dark:border-slate-800 p-3 space-y-1.5 flex flex-col">
+              <button
+                key={idea.title}
+                type="button"
+                disabled={busy !== null}
+                onClick={() => post({ action: "generate", focus: idea.buildPrompt }, `idea-${idea.title}`)}
+                className="text-left rounded-2xl border border-slate-200 dark:border-slate-800 p-3 space-y-1.5 flex flex-col hover:border-violet-500 transition-colors disabled:opacity-50"
+              >
                 <p className="font-bold text-sm flex items-center gap-1.5">{ICON[idea.kind] || ICON.circuit} {idea.title}</p>
                 <p className="text-xs text-slate-500 flex-1">{idea.pitch}</p>
                 {idea.parts.length > 0 && <p className="text-[10px] text-slate-400">Parts: {idea.parts.join(", ")}</p>}
-                <Button size="sm" variant="outline" isLoading={busy === `idea-${idea.title}`} onClick={() => post({ action: "generate", focus: idea.buildPrompt }, `idea-${idea.title}`)}>
-                  Add as a draft lab
-                </Button>
-              </div>
+                <span className="text-xs font-semibold text-violet-600 dark:text-violet-400">
+                  {busy === `idea-${idea.title}` ? "Building draft lab…" : "Build as a draft lab →"}
+                </span>
+              </button>
             ))}
           </div>
         )}

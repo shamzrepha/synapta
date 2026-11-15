@@ -10,6 +10,9 @@ describe("studio expressions", () => {
     expect(evaluate("2 ^ 3 ^ 2")).toBe(512);
     expect(evaluate("max(3, sqrt(16), 1)")).toBe(4);
     expect(evaluate("pi * r ^ 2", { r: 1 })).toBeCloseTo(Math.PI);
+    expect(evaluate("2x + Math.pow(y, 2)", { x: 3, Y: 4 })).toBe(22);
+    expect(evaluate("3**2 + ln(e) + log10(100)")).toBeCloseTo(12);
+    expect(evaluate("sin(pi / 2)", {}, { radians: true })).toBeCloseTo(1);
   });
 
   it("rejects anything that isn't arithmetic", () => {
