@@ -35,6 +35,12 @@ const postSchema = z.discriminatedUnion("action", [
     seatLimit: z.number().int().min(10).max(50_000),
     days: z.number().int().min(7).max(365).default(TERM_DAYS),
   }),
+  z.object({
+    action: z.literal("school_announce"),
+    schoolId: z.string().trim().min(2).max(120),
+    title: z.string().trim().min(2).max(120),
+    body: z.string().trim().min(2).max(500),
+  }),
 ]);
 
 function makeSchoolCode(name: string): string {
@@ -542,6 +548,63 @@ export async function POST(req: NextRequest) {
           seatLimit: body.seatLimit,
           seatExpiresAt: newExpiry.toDate().toISOString(),
           upgradedMembers: membersSnap.size,
+        },
+      });
+    }
+
+    if (body.action === "school_announce") {
+      const schoolRef = db.collection("schools").doc(body.schoolId);
+      const schoolSnap = await schoolRef.get();
+      if (!schoolSnap.exists) {
+        throw new ApiError(404, "NOT_FOUND", "School not found.");
+      }
+      const sd = schoolSnap.data()!;
+      const isAllowed =
+        caller.role === "admin" ||
+        sd.principalUid === caller.uid ||
+        (Array.isArray(sd.teacherUids) && sd.teacherUids.includes(caller.uid));
+
+      if (!isAllowed) {
+        throw new ApiError(403, "FORBIDDEN", "Only the School Principal, Teachers, or Admin can send school-wide announcements.");
+      }
+
+      const schoolNameLower = String(sd.name || "").toLowerCase();
+      const usersSnap = await db.collection("users").limit(600).get();
+      const recipients = usersSnap.docs.filter((uDoc) => {
+        const u = uDoc.data() || {};
+        if (u.schoolId === body.schoolId) return true;
+        if (schoolNameLower && String(u.institution || "").toLowerCase() === schoolNameLower) return true;
+        return false;
+      });
+
+      const now = Timestamp.now();
+      let sent = 0;
+      for (let i = 0; i < recipients.length; i += 400) {
+        const chunk = recipients.slice(i, i + 400);
+        const batch = db.batch();
+        for (const rDoc of chunk) {
+          const nRef = rDoc.ref.collection("notifications").doc();
+          batch.set(nRef, {
+            type: "school_announcement",
+            title: `[${sd.name}] ${body.title}`,
+            body: body.body,
+            href: "/schools",
+            icon: "school",
+            sproutMood: "wave",
+            read: false,
+            senderUid: caller.uid,
+            createdAt: now,
+          });
+          sent++;
+        }
+        await batch.commit();
+      }
+
+      return NextResponse.json({
+        ok: true,
+        data: {
+          deliveredCount: sent,
+          message: `Announcement delivered to ${sent} member${sent === 1 ? "" : "s"} in ${sd.name}.`,
         },
       });
     }

@@ -19,6 +19,8 @@ import {
   Flame,
   GraduationCap,
   Newspaper,
+  Megaphone,
+  Download,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,6 +96,12 @@ export default function SchoolsPortalPage() {
   const [regLevel, setRegLevel] = useState("100L");
   const [regDept, setRegDept] = useState("");
   const [registering, setRegistering] = useState(false);
+
+  // School-wide Principal Announcement state
+  const [showAnnouncePanel, setShowAnnouncePanel] = useState(false);
+  const [announceTitle, setAnnounceTitle] = useState("");
+  const [announceBody, setAnnounceBody] = useState("");
+  const [sendingAnnounce, setSendingAnnounce] = useState(false);
 
   // Roster filter & search
   const [rosterFilter, setRosterFilter] = useState<"all" | "at_risk" | "teachers">("all");
@@ -279,6 +287,97 @@ export default function SchoolsPortalPage() {
     }
   };
 
+  const handleSchoolAnnounce = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mySchool || !announceTitle.trim() || !announceBody.trim()) return;
+    setSendingAnnounce(true);
+    try {
+      const res = await fetch("/api/schools", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "school_announce",
+          schoolId: mySchool.id,
+          title: announceTitle.trim(),
+          body: announceBody.trim(),
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.ok) {
+        toast({
+          title: "Could not send alert",
+          description: j?.error?.message || "Try again shortly",
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "School Alert Dispatched!",
+        description: j.data.message,
+        variant: "success",
+      });
+      setAnnounceTitle("");
+      setAnnounceBody("");
+      setShowAnnouncePanel(false);
+    } finally {
+      setSendingAnnounce(false);
+    }
+  };
+
+  const exportRosterCsv = () => {
+    if (!mySchool || mySchool.roster.length === 0) return;
+    const headers = [
+      "Full Name",
+      "Username",
+      "Email",
+      "Role",
+      "Level/Grade",
+      "Department",
+      "Predicted Exam Readiness (%)",
+      "Weekly Gain (%)",
+      "Learning Style Cohort",
+      "Questions Attempted",
+      "Study Time (Minutes)",
+      "Streak Days",
+      "Total XP",
+      "Weak Topics",
+    ];
+    const escapeCsv = (val: string | number | null | undefined) => {
+      const s = String(val ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [
+      headers.join(","),
+      ...mySchool.roster.map((r) =>
+        [
+          r.displayName,
+          r.username ? `@${r.username}` : "",
+          r.email || "",
+          r.role,
+          r.level,
+          r.department,
+          r.predictedReadiness,
+          r.weeklyGain,
+          r.cohortLabel,
+          r.totalQuestionsAttempted,
+          r.totalStudyMinutes,
+          r.streakDays,
+          r.xp,
+          r.weakTopics.join("; "),
+        ]
+          .map(escapeCsv)
+          .join(",")
+      ),
+    ];
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${mySchool.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-student-progress.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="space-y-4 max-w-6xl mx-auto">
@@ -458,16 +557,72 @@ export default function SchoolsPortalPage() {
                     </Link>
 
                     {mySchool.isManager && (
-                      <Button
-                        size="sm"
-                        onClick={() => setShowRegisterPanel((v) => !v)}
-                        className="h-9 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold"
-                      >
-                        <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Register Students / Teachers
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowAnnouncePanel((v) => !v)}
+                          className="h-9 text-xs font-semibold"
+                        >
+                          <Megaphone className="mr-1.5 h-3.5 w-3.5 text-amber-500" /> Principal Alert
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => setShowRegisterPanel((v) => !v)}
+                          className="h-9 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold"
+                        >
+                          <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Register Students / Teachers
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>
+
+                {/* Principal School-Wide Alert Drawer */}
+                {mySchool.isManager && showAnnouncePanel && (
+                  <form
+                    onSubmit={handleSchoolAnnounce}
+                    className="p-4 rounded-xl border border-amber-500/35 bg-card space-y-3 animate-in fade-in duration-150"
+                  >
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                        <Megaphone className="h-4 w-4 text-amber-500" />
+                        Broadcast Principal / HOD Alert to All {mySchool.name} Members
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        Send an instant notification to every student and teacher in your school (e.g., exam schedules, lab venues, or assembly notices).
+                      </p>
+                    </div>
+                    <Input
+                      required
+                      value={announceTitle}
+                      onChange={(e) => setAnnounceTitle(e.target.value)}
+                      placeholder="Headline, e.g. Mid-Semester CBT Mock Exam Starts Monday at 9 AM"
+                      className="text-xs"
+                    />
+                    <textarea
+                      required
+                      rows={2}
+                      value={announceBody}
+                      onChange={(e) => setAnnounceBody(e.target.value)}
+                      placeholder="Write the announcement details for your students and teachers..."
+                      className="w-full rounded-xl border border-border bg-background p-3 text-xs focus:outline-none focus:ring-2 focus:ring-brand-600"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setShowAnnouncePanel(false)}>
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        size="sm"
+                        isLoading={sendingAnnounce}
+                        className="bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-extrabold"
+                      >
+                        Send School Alert
+                      </Button>
+                    </div>
+                  </form>
+                )}
 
                 {/* Bulk Student & Teacher Registration Drawer (School Pays for Usage) */}
                 {mySchool.isManager && showRegisterPanel && (
@@ -626,6 +781,15 @@ export default function SchoolsPortalPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={exportRosterCsv}
+                      className="h-8 text-xs font-semibold"
+                    >
+                      <Download className="mr-1.5 h-3.5 w-3.5 text-brand-600" /> Export CSV Report
+                    </Button>
                     <div className="relative">
                       <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
                       <Input
