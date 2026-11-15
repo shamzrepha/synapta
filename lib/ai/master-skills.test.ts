@@ -29,7 +29,10 @@ describe("AI model master skills", () => {
       jsonMode: true,
     });
     expect(skill).toContain("[MODEL MASTER SKILL · DEEPSEEK V3/CODER · CREATING]");
-    expect(skill).toContain("CREATING LABS & 3D/2D ARTIFACTS");
+    expect(skill).toContain("CREATING LABS, WORKBENCHES & INTERACTIVE ARTIFACTS (MASTER STRUCTURE SKILL):");
+    expect(skill).toContain("MEDIUM SELECTION:");
+    expect(skill).toContain("SPATIAL ARRANGEMENT & PROPORTIONS:");
+    expect(skill).toContain("COCKPIT LAYOUT (ZERO LONG SCROLL):");
     expect(skill).toContain("JSON LOCK:");
 
     const r1Skill = getModelMasterSkill({

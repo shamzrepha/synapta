@@ -237,7 +237,7 @@ export const LAB_VIEW_JS = `(function(){
   if(document.readyState==="complete")setTimeout(start,300);else window.addEventListener("load",function(){setTimeout(start,300)});
 })();`;
 
-export const LAB_DISPLAY_PATCH = `<style id="sunroot-fit">*,*::before,*::after{box-sizing:border-box}html,body{max-width:100vw;overflow-x:hidden;overflow-y:auto!important;-webkit-text-size-adjust:100%}canvas,svg,img,video{max-width:100%}body{overscroll-behavior:contain}button,input,select,[role=button]{min-height:36px}</style><script id="sunroot-clean">(function(){${LAB_CLEAN_TEXT_JS}
+export const LAB_DISPLAY_PATCH = `<style id="sunroot-fit">*,*::before,*::after{box-sizing:border-box}html,body{max-width:100vw;overflow-x:hidden;overflow-y:auto!important;-webkit-text-size-adjust:100%}canvas,svg,img,video{max-width:100%}canvas[data-simkit3d]{max-height:430px!important}#stage{max-height:430px}body{overscroll-behavior:contain}button,input,select,[role=button]{min-height:36px}</style><script id="sunroot-clean">(function(){${LAB_CLEAN_TEXT_JS}
   function walk(root){
     if(!root)return;
     var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null),n,list=[];

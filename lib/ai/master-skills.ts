@@ -232,10 +232,11 @@ function specialtyPlaybook(mode: SkillMode, specialty: SkillSpecialty): string {
   switch (specialty) {
     case "simulation_and_interactive_lab":
       return [
-        "CREATING LABS & 3D/2D ARTIFACTS:",
-        "- Render something alive on frame 1 (zero blank/black screens, zero waiting before first draw).",
-        "- Every slider/toggle/control MUST visibly mutate geometry, vectors, particles, readouts, or chemical/physical state.",
-        "- Encode true domain laws (units, equilibria,conservation, boundaries) and readable annotations so learners verify cause-and-effect.",
+        "CREATING LABS, WORKBENCHES & INTERACTIVE ARTIFACTS (MASTER STRUCTURE SKILL):",
+        "- MEDIUM SELECTION: Default to a RICH REALISTIC 2D WORKBENCH (<canvas>/<svg>) for circuits/Ohm's Law (realistic filament bulb glow, banded resistor, battery, multimeter readout, flowing electrons), optics rays, wet chemistry glass/burners, plots & algorithms. Reserve 3D (SimKit3D) strictly for genuine 3D spatial engineering (linkages, trusses, 3D trajectories, orbits, 3D fields, molecules).",
+        "- SPATIAL ARRANGEMENT & PROPORTIONS: In 3D keep every object bounded inside [-3.5..3.5] on X/Z and [0..3.5] on Y, pass { color, pos: [x,y,z] } inside opts cleanly, separate sub-parts in space so nothing overlaps at (0,0,0), and call kit.fitCamera() so nothing zooms huge into the viewport. In 2D draw layered multi-part hardware with clear labels and zero text overlap.",
+        "- COCKPIT LAYOUT (ZERO LONG SCROLL): Render a compact one-screen lab (grid with stage on left capped <= 420px high + sliders/multimeter/readouts docked cleanly alongside/below) visible at once without vertical scroll bloat.",
+        "- LIVE MODEL FIDELITY: Render frame 1 immediately, bind every slider/toggle to real domain equations (units, equilibria, conservation, burn-out/safety bounds), and animate cause-effect cleanly.",
       ].join("\n");
     case "assessment_design":
       return [

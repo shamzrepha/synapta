@@ -206,6 +206,30 @@
     }
   }
 
+  function isColorValue(v) {
+    if (typeof v === "string") return true;
+    return typeof v === "number" && Number.isFinite(v) && Number.isInteger(v) && v >= 0 && v > 64;
+  }
+
+  function mergeColorOpts(colorOrOpts, maybeOpts) {
+    if (maybeOpts && typeof maybeOpts === "object" && !Array.isArray(maybeOpts)) {
+      if (typeof colorOrOpts === "number" || typeof colorOrOpts === "string") {
+        return Object.assign({}, maybeOpts, { color: colorOrOpts });
+      }
+      return maybeOpts;
+    }
+    if ((typeof colorOrOpts === "number" || typeof colorOrOpts === "string") && maybeOpts === undefined) {
+      return { color: colorOrOpts };
+    }
+    return normOpts(colorOrOpts);
+  }
+
+  function clampDim(v, defVal) {
+    var n = Number(v);
+    if (!Number.isFinite(n) || n <= 0) return defVal;
+    return Math.min(80, Math.max(0.005, n));
+  }
+
   function toVec3(v, defX, defY, defZ) {
     if (v && v.isVector3) return v.clone();
     if (Array.isArray(v)) return new THREE.Vector3(Number(v[0]) || 0, Number(v[1]) || 0, Number(v[2]) || 0);
@@ -254,6 +278,18 @@
     if (opts.x !== undefined) m.position.x = Number(opts.x) || 0;
     if (opts.y !== undefined) m.position.y = Number(opts.y) || 0;
     if (opts.z !== undefined) m.position.z = Number(opts.z) || 0;
+    if (opts.rot) {
+      var rVec = toVec3(opts.rot);
+      m.rotation.set(rVec.x, rVec.y, rVec.z);
+    }
+    if (opts.scale !== undefined) {
+      if (typeof opts.scale === "number") {
+        m.scale.setScalar(clampDim(opts.scale, 1));
+      } else {
+        var sv = toVec3(opts.scale, 1, 1, 1);
+        m.scale.set(sv.x || 1, sv.y || 1, sv.z || 1);
+      }
+    }
     return m;
   }
 
@@ -538,18 +574,36 @@
       renderer: renderer,
       target: target,
       domElement: dom,
-      box: function (w, h, d2, o) {
-        return add(solid(new THREE.BoxGeometry(Number(w) || 1, Number(h) || 1, Number(d2) || 1), o));
+      box: function (w, h, d2, o, extraOpts) {
+        return add(
+          solid(
+            new THREE.BoxGeometry(clampDim(w, 1), clampDim(h, 1), clampDim(d2, 1)),
+            mergeColorOpts(o, extraOpts)
+          )
+        );
       },
-      roundedBox: function (w, h, d2, r, o) {
-        if (r && typeof r === "object") {
-          o = r;
-          r = undefined;
+      roundedBox: function (w, h, d2, a4, a5, a6) {
+        var r = 0.08;
+        var opts2 = {};
+        if (a4 && typeof a4 === "object") {
+          opts2 = a4;
+        } else if (isColorValue(a4)) {
+          if (typeof a5 === "number" && !isColorValue(a5)) {
+            r = a5;
+            opts2 = mergeColorOpts(a4, a6);
+          } else {
+            opts2 = mergeColorOpts(a4, a5 && typeof a5 === "object" ? a5 : a6);
+          }
+        } else if (typeof a4 === "number") {
+          r = a4;
+          opts2 = mergeColorOpts(a5, a6);
+        } else {
+          opts2 = mergeColorOpts(a4, a5);
         }
-        w = Number(w) || 1;
-        h = Number(h) || 1;
-        d2 = Number(d2) || 1;
-        r = Math.min(Number(r) || 0.08, w / 3, h / 3, d2 / 3);
+        w = clampDim(w, 1);
+        h = clampDim(h, 1);
+        d2 = clampDim(d2, 1);
+        r = Math.min(Math.max(0.01, Number(r) || 0.08), w / 3, h / 3, d2 / 3);
         var s = new THREE.Shape();
         var hw = w / 2 - r;
         var hh = h / 2 - r;
@@ -570,61 +624,68 @@
           bevelSegments: 3,
         });
         g.center();
-        return add(solid(g, o));
+        return add(solid(g, opts2));
       },
-      cylinder: function (rTop, rBotOrH, hOrOpts, o) {
-        var r1 = Number(rTop) || 0.4;
+      cylinder: function (rTop, rBotOrH, hOrOpts, o, extraOpts) {
+        var r1 = clampDim(rTop, 0.4);
         var r2 = r1;
         var h = 1;
-        var opts2 = o;
-        if (typeof hOrOpts === "number") {
-          r2 = Number(rBotOrH);
-          if (!Number.isFinite(r2)) r2 = r1;
-          h = Number(hOrOpts) || 1;
+        var opts2 = {};
+        if (typeof hOrOpts === "number" && !isColorValue(hOrOpts) && hOrOpts <= 48 && (!o || typeof o === "object" || isColorValue(o))) {
+          r2 = clampDim(rBotOrH, r1);
+          h = clampDim(hOrOpts, 1);
+          opts2 = mergeColorOpts(o, extraOpts);
         } else {
-          h = Number(rBotOrH) || 1;
-          opts2 = hOrOpts;
+          h = clampDim(rBotOrH, 1);
+          opts2 = mergeColorOpts(hOrOpts, o);
         }
         return add(solid(new THREE.CylinderGeometry(r1, r2, h, 36), opts2));
       },
-      sphere: function (r, o) {
-        return add(solid(new THREE.SphereGeometry(Number(r) || 0.5, 32, 20), o));
+      sphere: function (r, o, extraOpts) {
+        return add(solid(new THREE.SphereGeometry(clampDim(r, 0.5), 32, 20), mergeColorOpts(o, extraOpts)));
       },
-      cone: function (r, h, o) {
-        return add(solid(new THREE.ConeGeometry(Number(r) || 0.5, Number(h) || 1, 32), o));
+      cone: function (r, h, o, extraOpts) {
+        return add(solid(new THREE.ConeGeometry(clampDim(r, 0.5), clampDim(h, 1), 32), mergeColorOpts(o, extraOpts)));
       },
-      torus: function (r, tube, o) {
-        return add(solid(new THREE.TorusGeometry(Number(r) || 1, Number(tube) || 0.2, 20, 48), o));
+      torus: function (r, tube, o, extraOpts) {
+        return add(solid(new THREE.TorusGeometry(clampDim(r, 1), clampDim(tube, 0.2), 20, 48), mergeColorOpts(o, extraOpts)));
       },
-      capsule: function (r, len, o) {
+      capsule: function (r, len, o, extraOpts) {
+        var rad = clampDim(r, 0.3);
+        var length = clampDim(len, 1);
         var geo = THREE.CapsuleGeometry
-          ? new THREE.CapsuleGeometry(Number(r) || 0.3, Number(len) || 1, 8, 20)
-          : new THREE.CylinderGeometry(Number(r) || 0.3, Number(r) || 0.3, (Number(len) || 1) + (Number(r) || 0.3) * 2, 28);
-        return add(solid(geo, o));
+          ? new THREE.CapsuleGeometry(rad, length, 8, 20)
+          : new THREE.CylinderGeometry(rad, rad, length + rad * 2, 28);
+        return add(solid(geo, mergeColorOpts(o, extraOpts)));
       },
-      plane: function (w, d2, o) {
-        var opts2 = normOpts(o);
+      plane: function (w, d2, o, extraOpts) {
+        var opts2 = mergeColorOpts(o, extraOpts);
         opts2.doubleSided = true;
-        var m = solid(new THREE.PlaneGeometry(Number(w) || 4, Number(d2) || 4), opts2);
+        var m = solid(new THREE.PlaneGeometry(clampDim(w, 4), clampDim(d2, 4)), opts2);
         return add(m);
       },
-      ring: function (innerR, outerR, o) {
-        var opts2 = normOpts(o);
+      ring: function (innerR, outerR, o, extraOpts) {
+        var opts2 = mergeColorOpts(o, extraOpts);
         opts2.doubleSided = true;
-        return add(solid(new THREE.RingGeometry(Number(innerR) || 0.4, Number(outerR) || 0.8, 36), opts2));
+        return add(solid(new THREE.RingGeometry(clampDim(innerR, 0.4), clampDim(outerR, 0.8), 36), opts2));
       },
-      disc: function (r, o) {
-        var opts2 = normOpts(o);
+      disc: function (r, o, extraOpts) {
+        var opts2 = mergeColorOpts(o, extraOpts);
         opts2.doubleSided = true;
-        return add(solid(new THREE.CircleGeometry(Number(r) || 0.8, 36), opts2));
+        return add(solid(new THREE.CircleGeometry(clampDim(r, 0.8), 36), opts2));
       },
-      rod: function (from, to, r, o) {
+      rod: function (from, to, r, o, extraOpts) {
+        var rad = 0.06;
+        var opts2 = {};
         if (r && typeof r === "object") {
-          o = r;
-          r = 0.06;
+          opts2 = r;
+        } else if (isColorValue(r)) {
+          opts2 = mergeColorOpts(r, o);
+        } else {
+          rad = clampDim(r, 0.06);
+          opts2 = mergeColorOpts(o, extraOpts);
         }
-        var rad = Number(r) || 0.06;
-        var mesh = solid(new THREE.CylinderGeometry(rad, rad, 1, 20), o);
+        var mesh = solid(new THREE.CylinderGeometry(rad, rad, 1, 20), opts2);
         mesh.setEndpoints = function (a, b) {
           var va = toVec3(a, 0, 0, 0);
           var vb = toVec3(b, 0, 1, 0);
@@ -715,8 +776,8 @@
         grp.setPoints(from || [0, 0.5, 0], to || [1, 1.5, 0]);
         return add(grp);
       },
-      line: function (pts, o) {
-        var opts2 = normOpts(o, 0x38bdf8);
+      line: function (pts, o, extraOpts) {
+        var opts2 = mergeColorOpts(o, extraOpts);
         var vecs = (Array.isArray(pts) && pts.length >= 2 ? pts : [[0, 0, 0], [1, 1, 0]]).map(function (p) {
           return toVec3(p);
         });
@@ -741,18 +802,23 @@
         };
         return add(ln);
       },
-      tube: function (pts, r, o) {
+      tube: function (pts, r, o, extraOpts) {
+        var rad = 0.06;
+        var opts2 = {};
         if (r && typeof r === "object") {
-          o = r;
-          r = 0.06;
+          opts2 = r;
+        } else if (isColorValue(r)) {
+          opts2 = mergeColorOpts(r, o);
+        } else {
+          rad = clampDim(r, 0.06);
+          opts2 = mergeColorOpts(o, extraOpts);
         }
-        var rad = Number(r) || 0.06;
         var vecs = (Array.isArray(pts) && pts.length >= 2 ? pts : [[0, 0, 0], [1, 1, 0]]).map(function (p) {
           return toVec3(p);
         });
         var curve = new THREE.CatmullRomCurve3(vecs);
-        var segs = (o && o.segments) || 48;
-        var mesh = solid(new THREE.TubeGeometry(curve, segs, rad, 16, !!(o && o.closed)), o);
+        var segs = (opts2 && opts2.segments) || 48;
+        var mesh = solid(new THREE.TubeGeometry(curve, segs, rad, 16, !!(opts2 && opts2.closed)), opts2);
         mesh.setPoints = function (nextPts) {
           var nv = (nextPts || []).map(function (p) {
             return toVec3(p);
@@ -760,7 +826,7 @@
           if (nv.length >= 2) {
             var c2 = new THREE.CatmullRomCurve3(nv);
             mesh.geometry.dispose();
-            mesh.geometry = new THREE.TubeGeometry(c2, segs, rad, 16, !!(o && o.closed));
+            mesh.geometry = new THREE.TubeGeometry(c2, segs, rad, 16, !!(opts2 && opts2.closed));
           }
           return mesh;
         };
@@ -801,12 +867,38 @@
       },
       solid: solid,
       material: makeMaterial,
-      lookAt: function (x, y, z) {
+      lookAt: function (x, y, z, dist) {
         if (x && typeof x === "object") {
           target.copy(toVec3(x));
+          if (typeof y === "number" && Number.isFinite(y) && y > 0.8) {
+            radius = Math.min(40, y);
+          }
         } else {
           target.set(Number(x) || 0, Number(y) || 0, Number(z) || 0);
+          if (typeof dist === "number" && Number.isFinite(dist) && dist > 0.8) {
+            radius = Math.min(40, dist);
+          }
         }
+        placeCamera();
+      },
+      fitCamera: function (pad) {
+        var box = new THREE.Box3();
+        var hasAny = false;
+        scene.traverse(function (obj) {
+          if (obj.isMesh && !obj.userData.__simkitFloor) {
+            box.expandByObject(obj);
+            hasAny = true;
+          }
+        });
+        if (!hasAny || box.isEmpty()) return;
+        var center = new THREE.Vector3();
+        var size = new THREE.Vector3();
+        box.getCenter(center);
+        box.getSize(size);
+        var maxExtent = Math.max(size.x, size.y, size.z, 1);
+        var idealDist = Math.max(4.5, Math.min(34, maxExtent * (pad || 1.65)));
+        target.copy(center);
+        radius = idealDist;
         placeCamera();
       },
       resetCamera: function () {
@@ -1205,6 +1297,22 @@
         buildSelfHealingArtifact(primaryKit, sliders);
       } else {
         bindOrphanSlidersToScene(sliders, primaryKit.scene, primaryKit.renderer, primaryKit.camera);
+        // Auto-frame oversized or off-center models so nothing fills the viewport as a giant cropped mesh
+        try {
+          var box = new THREE.Box3();
+          primaryKit.scene.traverse(function (o) {
+            if (o.isMesh && !o.userData.__simkitFloor) box.expandByObject(o);
+          });
+          if (!box.isEmpty()) {
+            var sz = new THREE.Vector3();
+            box.getSize(sz);
+            var ext = Math.max(sz.x, sz.y, sz.z);
+            var camDist = primaryKit.camera ? primaryKit.camera.position.distanceTo(primaryKit.target || new THREE.Vector3()) : 7;
+            if (ext > 6 || camDist < ext * 1.1) {
+              primaryKit.fitCamera(1.65);
+            }
+          }
+        } catch (_) {}
       }
       return;
     }
