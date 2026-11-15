@@ -17,6 +17,7 @@ import {
   Cpu,
   FlaskConical,
   TrendingUp,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +116,7 @@ export function ProfileSetup() {
 
   const [step, setStep] = useState<Step>(1);
   const [forceOpen, setForceOpen] = useState(false);
+  const [dismissedForSession, setDismissedForSession] = useState(false);
 
   // Form states (null means use existing user profile field until edited)
   const [handleDraft, setHandleDraft] = useState<string | null>(null);
@@ -130,19 +132,28 @@ export function ProfileSetup() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const onOpen = () => setForceOpen(true);
+    const onOpen = () => {
+      setDismissedForSession(false);
+      setForceOpen(true);
+    };
     window.addEventListener("sunroot:open-academic-setup", onOpen);
     return () => window.removeEventListener("sunroot:open-academic-setup", onOpen);
   }, []);
 
-  const isOpen = Boolean(user && (user.profileSetup === false || forceOpen));
+  const isOpen = Boolean(user && !dismissedForSession && (user.profileSetup === false || forceOpen));
   if (!isOpen || !user) return null;
+
+  const closeOverlay = () => {
+    setForceOpen(false);
+    setDismissedForSession(true);
+  };
 
   const value = handleDraft ?? user.username ?? "";
   const institution = institutionDraft ?? user.institution ?? "";
   const department = departmentDraft ?? user.department ?? "";
   const level = levelDraft ?? user.level ?? "100L";
-  const interests = interestsDraft ?? (user.interests && user.interests.length > 0 ? user.interests : ["past_questions"]);
+  const interests =
+    interestsDraft ?? (user.interests && user.interests.length > 0 ? user.interests : ["past_questions"]);
 
   const choice: Pick = pick ?? (user.photoURL ? { kind: "keep" } : { kind: "preset", index: 0 });
   const preview =
@@ -202,6 +213,7 @@ export function ProfileSetup() {
         profileSetup: true,
       });
       setForceOpen(false);
+      setDismissedForSession(true);
       if (redirectToPlan) {
         router.push("/settings?tab=plan");
       }
@@ -218,17 +230,27 @@ export function ProfileSetup() {
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-3 transition-opacity"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="profile-setup-title"
     >
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-card text-foreground shadow-2xl p-6 space-y-5 max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-        {/* Progress bar */}
-        <div className="space-y-1">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card text-foreground shadow-2xl p-4 sm:p-6 space-y-4 max-h-[calc(100dvh-1.5rem)] overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-in fade-in zoom-in-95 duration-200 relative">
+        {/* Progress bar & Dismiss button */}
+        <div className="space-y-1.5">
           <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
             <span>Setup Quest — Step {step} of 5</span>
-            <span>{step * 20}%</span>
+            <div className="flex items-center gap-2">
+              <span>{step * 20}%</span>
+              <button
+                type="button"
+                onClick={closeOverlay}
+                aria-label="Skip setup for now"
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </div>
           <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
             <div
@@ -240,10 +262,10 @@ export function ProfileSetup() {
 
         {/* Sprout host dialogue card */}
         <div className="flex items-center gap-3 p-3 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-950 dark:text-brand-100">
-          <div className="relative w-12 h-14 shrink-0 flex items-center justify-center">
+          <div className="relative w-11 h-13 shrink-0 flex items-center justify-center">
             <Sprout pose={sproutPose} />
           </div>
-          <div className="text-xs sm:text-sm">
+          <div className="text-xs sm:text-sm min-w-0 break-words">
             {step === 1 && (
               <p>
                 <strong>Beep boop! I&apos;m Sprout.</strong> Let&apos;s get your profile set up so everyone knows who you are!
@@ -277,7 +299,7 @@ export function ProfileSetup() {
         {step === 1 && (
           <div className="space-y-4">
             <div>
-              <h2 id="profile-setup-title" className="text-lg font-bold">
+              <h2 id="profile-setup-title" className="text-base sm:text-lg font-bold">
                 Pick your call-sign & picture
               </h2>
               <p className="text-xs text-muted-foreground">
@@ -286,8 +308,8 @@ export function ProfileSetup() {
             </div>
 
             <div className="flex items-center gap-3">
-              <Avatar name={user.displayName || "?"} photoURL={preview} size={64} />
-              <div className="flex-1">
+              <Avatar name={user.displayName || "?"} photoURL={preview} size={56} />
+              <div className="flex-1 min-w-0">
                 <label htmlFor="setup-handle" className="text-xs font-semibold text-muted-foreground">
                   Username
                 </label>
@@ -311,7 +333,7 @@ export function ProfileSetup() {
 
             <div className="space-y-2">
               <p className="text-xs font-semibold text-muted-foreground">Starter Avatars</p>
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 justify-items-center">
                 {AVATAR_PRESETS.map((_, i) => {
                   const on = choice.kind === "preset" && choice.index === i;
                   return (
@@ -326,7 +348,7 @@ export function ProfileSetup() {
                         on ? "ring-brand-600" : "ring-transparent hover:ring-slate-300"
                       )}
                     >
-                      <Avatar name="" photoURL={presetAvatarUrl(i)} size={44} />
+                      <Avatar name="" photoURL={presetAvatarUrl(i)} size={42} />
                       {on && (
                         <Check className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-brand-600 p-0.5 text-white" />
                       )}
@@ -366,8 +388,8 @@ export function ProfileSetup() {
         {step === 2 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <School className="h-5 w-5 text-brand-600" /> Which school are you attending?
+              <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
+                <School className="h-5 w-5 text-brand-600 shrink-0" /> Which school are you attending?
               </h2>
               <p className="text-xs text-muted-foreground">
                 This helps Sprout connect you with syllabi and materials from your actual lecturers.
@@ -388,7 +410,7 @@ export function ProfileSetup() {
                     type="button"
                     onClick={() => setInstitutionDraft(sch)}
                     className={cn(
-                      "text-xs px-2.5 py-1.5 rounded-lg border transition",
+                      "text-xs px-2.5 py-1.5 rounded-lg border transition text-left",
                       institution === sch
                         ? "bg-brand-600 text-white border-brand-600 font-semibold"
                         : "bg-slate-50 dark:bg-slate-800 border-border hover:border-brand-500"
@@ -406,8 +428,8 @@ export function ProfileSetup() {
         {step === 3 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <GraduationCap className="h-5 w-5 text-brand-600" /> Department & Year Level
+              <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-brand-600 shrink-0" /> Department & Year Level
               </h2>
               <p className="text-xs text-muted-foreground">
                 We use this to rank course topics and past papers matching your curriculum.
@@ -443,14 +465,14 @@ export function ProfileSetup() {
 
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Current Study Level</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {STUDY_LEVELS.map((lvl) => (
                     <button
                       key={lvl.id}
                       type="button"
                       onClick={() => setLevelDraft(lvl.id)}
                       className={cn(
-                        "text-xs p-2 rounded-xl border text-left flex items-center justify-between transition",
+                        "text-xs p-2.5 rounded-xl border text-left flex items-center justify-between transition",
                         level === lvl.id
                           ? "bg-brand-50 dark:bg-brand-950/40 border-brand-600 text-brand-700 dark:text-brand-300 font-semibold ring-1 ring-brand-600"
                           : "bg-slate-50 dark:bg-slate-800 border-border hover:border-slate-300"
@@ -470,8 +492,8 @@ export function ProfileSetup() {
         {step === 4 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-brand-600" /> What do you want Sprout to help you master?
+              <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-brand-600 shrink-0" /> What do you want Sprout to help you master?
               </h2>
               <p className="text-xs text-muted-foreground">Select everything you are aiming to conquer this semester.</p>
             </div>
@@ -492,10 +514,10 @@ export function ProfileSetup() {
                         : "bg-slate-50 dark:bg-slate-800 border-border hover:border-slate-300"
                     )}
                   >
-                    <div className="flex items-center justify-between w-full">
-                      <span className="text-xs font-bold flex items-center gap-1.5">
+                    <div className="flex items-center justify-between w-full gap-1.5">
+                      <span className="text-xs font-bold flex items-center gap-1.5 min-w-0">
                         <Icon className="h-3.5 w-3.5 text-brand-600 shrink-0" />
-                        {tag.label}
+                        <span className="truncate">{tag.label}</span>
                       </span>
                       {active && <Check className="h-3.5 w-3.5 text-brand-600 shrink-0" />}
                     </div>
@@ -511,8 +533,8 @@ export function ProfileSetup() {
         {step === 5 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-amber-500" /> Recommended Study Pass
+              <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-amber-500 shrink-0" /> Recommended Study Pass
               </h2>
               <p className="text-xs text-muted-foreground">
                 Choose the pass that fits your study style. You can always start free and upgrade during exam season.
@@ -522,12 +544,12 @@ export function ProfileSetup() {
             <div className="space-y-3">
               {/* Option A: Plus Semester Pass */}
               <div className="p-3.5 rounded-xl border-2 border-brand-600 bg-brand-50/50 dark:bg-brand-950/20 relative space-y-1.5">
-                <span className="absolute -top-2.5 right-3 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-brand-600 text-white">
+                <span className=" inline-block sm:absolute sm:-top-2.5 sm:right-3 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-brand-600 text-white">
                   Best Value — 135 Days
                 </span>
-                <div className="flex justify-between items-baseline">
+                <div className="flex justify-between items-baseline gap-2">
                   <h3 className="text-sm font-bold text-brand-900 dark:text-brand-200">Plus Semester Pass</h3>
-                  <span className="text-base font-extrabold text-brand-600">₦11,000</span>
+                  <span className="text-base font-extrabold text-brand-600 shrink-0">₦11,000</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Covers full 4.5 months through final exams. Unlocks own PDF uploads, 3D Maker Studio labs, audio podcasts, and all past questions at no extra cost.
@@ -536,17 +558,17 @@ export function ProfileSetup() {
 
               {/* Option B: Exam Month Pass */}
               <div className="p-3 rounded-xl border border-border bg-slate-50 dark:bg-slate-800/50 space-y-1">
-                <div className="flex justify-between items-baseline">
+                <div className="flex justify-between items-baseline gap-2">
                   <h3 className="text-sm font-bold">Exam Month Pass</h3>
-                  <span className="text-sm font-bold text-foreground">₦1,500 / month</span>
+                  <span className="text-sm font-bold text-foreground shrink-0">₦1,500 / month</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Intensive 30-day exam access: Step-by-step Past Questions solver, examiner traps, and twin test quizzes.
+                  Intensive 30-day exam access: Step-by-step Past Questions solver, CBT simulator, and handwritten paper grading.
                 </p>
               </div>
 
               {/* Option C: Free Tier */}
-              <div className="p-2.5 rounded-xl border border-dashed border-border text-xs text-muted-foreground flex justify-between items-center">
+              <div className="p-2.5 rounded-xl border border-dashed border-border text-xs text-muted-foreground flex flex-wrap justify-between items-center gap-2">
                 <span>Free Seed Tier: Read class notes & 3 preview courses</span>
                 <span className="font-semibold text-foreground">₦0 Free</span>
               </div>
@@ -562,13 +584,15 @@ export function ProfileSetup() {
         )}
 
         {/* Navigation Buttons */}
-        <div className="flex items-center justify-between gap-3 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
           {step > 1 ? (
             <Button type="button" variant="outline" size="sm" onClick={() => setStep((s) => clampStep(s - 1))}>
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
             </Button>
           ) : (
-            <div />
+            <Button type="button" variant="ghost" size="sm" onClick={closeOverlay} className="text-xs text-muted-foreground">
+              Skip for now
+            </Button>
           )}
 
           {step < 5 ? (
@@ -588,7 +612,7 @@ export function ProfileSetup() {
               Continue <ArrowRight className="ml-1.5 h-4 w-4" />
             </Button>
           ) : (
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex flex-wrap items-center gap-2 ml-auto">
               <Button type="button" variant="outline" size="sm" onClick={() => void save(false)} isLoading={busy}>
                 Start Free
               </Button>

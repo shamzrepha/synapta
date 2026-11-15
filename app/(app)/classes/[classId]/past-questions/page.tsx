@@ -696,33 +696,35 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
 
       {/* Course Header & 3 Exam Practice Mode Switcher */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-1">
-            <span className="font-bold text-brand-600 uppercase tracking-wider">{classTitle}</span>
+            <span className="font-bold text-brand-600 uppercase tracking-wider truncate">{classTitle}</span>
             {classDepartment && <span>• {classDepartment}</span>}
             {classInstitution && <span>• {classInstitution}</span>}
           </div>
-          <h1 className="text-2xl font-extrabold tracking-tight flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-brand-600" /> Past Questions, CBT Simulator & Handwritten Grader
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight flex items-center gap-2">
+            <BookOpen className="h-6 w-6 text-brand-600 shrink-0" />
+            <span>Past Questions, CBT &amp; Handwritten Grader</span>
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Categorized by course topic. Practice step-by-step theory, timed CBT objectives, or snap your handwritten paper solution for AI marking.
           </p>
         </div>
 
-        {/* Mode Switcher Tabs */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl shrink-0">
+        {/* Mode Switcher Tabs — Responsive grid on mobile, inline pill bar on desktop */}
+        <div className="grid grid-cols-3 sm:inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl w-full md:w-auto shrink-0">
           <button
             type="button"
             onClick={() => setPracticeMode("study")}
             className={cn(
-              "text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5",
+              "text-[11px] sm:text-xs px-2 sm:px-3 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1",
               practiceMode === "study"
                 ? "bg-brand-600 text-white shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <FileText className="h-3.5 w-3.5" /> Step-by-Step Theory
+            <FileText className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Theory</span>
           </button>
           <button
             type="button"
@@ -731,25 +733,27 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
               setCbtSubmitted(false);
             }}
             className={cn(
-              "text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5",
+              "text-[11px] sm:text-xs px-2 sm:px-3 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1",
               practiceMode === "cbt"
                 ? "bg-brand-600 text-white shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <CheckSquare className="h-3.5 w-3.5" /> CBT Objective Mode
+            <CheckSquare className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">CBT Mode</span>
           </button>
           <button
             type="button"
             onClick={() => setPracticeMode("handwritten")}
             className={cn(
-              "text-xs px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5",
+              "text-[11px] sm:text-xs px-2 sm:px-3 py-1.5 rounded-lg font-bold transition flex items-center justify-center gap-1",
               practiceMode === "handwritten"
                 ? "bg-brand-600 text-white shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            <Camera className="h-3.5 w-3.5" /> Snap Handwritten Work
+            <Camera className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Snap Work</span>
           </button>
         </div>
       </div>
@@ -1352,7 +1356,7 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
                                 {displayedSolution.formulas.map((f, i) => (
                                   <span
                                     key={i}
-                                    className="font-mono text-[11px] px-2 py-0.5 rounded bg-white dark:bg-slate-900 border text-foreground"
+                                    className="font-mono text-[11px] px-2 py-0.5 rounded bg-white dark:bg-slate-900 border text-foreground break-all sm:break-words max-w-full"
                                   >
                                     {f}
                                   </span>
