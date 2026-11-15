@@ -406,6 +406,12 @@ export default function ClassOverviewPage({
                 </Button>
               </Link>
 
+              <Link href={`/classes/${classId}/past-questions`}>
+                <Button variant="outline" size="sm" className="text-xs border-brand-500/30 text-brand-600 dark:text-brand-400 hover:bg-brand-500/10">
+                  <BookOpen className="h-3.5 w-3.5 mr-1 text-brand-600 dark:text-brand-400" /> Past Questions
+                </Button>
+              </Link>
+
               {/* Teacher Studio management buttons */}
               {(isOwner || user?.role === "admin") && (
                 <>

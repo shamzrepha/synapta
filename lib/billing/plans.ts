@@ -3,7 +3,7 @@
  * it is made once. What costs money is AI that works for one person: their own notes, scans, lessons, practice sets.
  * Those are counted per month. Limits are only ENFORCED when BILLING_ENFORCED=1; until then usage is counted but nobody is blocked.
  */
-export type PlanId = "free" | "plus" | "pro" | "promax" | "ultra" | "teacher" | "teacherpro" | "school";
+export type PlanId = "free" | "exam" | "plus" | "pro" | "promax" | "ultra" | "teacher" | "teacherpro" | "school";
 
 /** Who a plan is for. A student's plans and a teacher's plans are separate ladders, like most subscription sites. */
 export type Audience = "student" | "teacher" | "school";
@@ -67,18 +67,44 @@ export const PLANS: Record<PlanId, Plan> = {
       "AI tutor with a monthly allowance, community, challenges and streaks",
     ],
   },
+  exam: {
+    id: "exam",
+    audience: "student",
+    label: "Exam Pass",
+    codename: "Revision",
+    blurb: "1-month intensive pass for past questions, step-by-step worked solutions, examiner traps and twin tests.",
+    badge: "Exam month",
+    priceMonthNgn: 1_500,
+    priceTermNgn: 5_000,
+    monthlyTokens: 600_000,
+    perMinute: 20,
+    limits: { notes: 3, scan_pages: 50, lessons: 20, practice: 100, studio_ai: 3, class_build: NONE },
+    perks: [
+      "Full Step-by-Step AI Past Question Solver",
+      "Worked solutions, examiner traps, tips and formula guides",
+      "Unlimited twin practice drills for exam month",
+      "30-day exam access",
+    ],
+  },
   plus: {
     id: "plus",
     audience: "student",
     label: "Plus",
     codename: "Sprout",
-    blurb: "For students revising from their own handouts, scans and textbooks.",
+    blurb: "For students revising from their own handouts, scans, 3D labs, and past questions.",
+    badge: "Most popular",
     priceMonthNgn: 3_500,
     priceTermNgn: 11_000,
     monthlyTokens: 1_200_000,
-    perMinute: 20,
-    limits: { notes: 50, scan_pages: 400, lessons: 80, practice: 80, studio_ai: 40, class_build: NONE },
-    perks: ["50 personal notes sets a month", "400 scanned or handwritten pages a month", "80 interactive lessons and 80 flashcard and quiz sets", "40 Maker Studio circuit and C++ builds", "A much bigger AI tutor allowance"],
+    perMinute: 25,
+    limits: { notes: 50, scan_pages: 400, lessons: 80, practice: 150, studio_ai: 40, class_build: NONE },
+    perks: [
+      "Upload personal notes, slides and scanned textbook pages",
+      "Full Step-by-Step AI Past Question Solver",
+      "40 Maker Studio circuit and 3D hardware builds",
+      "Sprout Audio Podcasts in local voices",
+      "4.5-month semester pass covers through final exams",
+    ],
   },
   pro: {
     id: "pro",
@@ -188,7 +214,7 @@ export const TEACHER_TRIAL: Plan = {
 export const PLAN_IDS = Object.keys(PLANS) as PlanId[];
 /** Plans that can be bought online. School is invoiced, Free is free. */
 export const PAYABLE: PlanId[] = PLAN_IDS.filter((id) => PLANS[id].audience !== "school" && PLANS[id].priceMonthNgn > 0);
-export const TERM_DAYS = 120;
+export const TERM_DAYS = 135;
 export const MONTH_DAYS = 30;
 
 /** The plans to show someone: students see the student ladder; teachers and admins see both ladders. */
@@ -259,7 +285,10 @@ export function limitMessage(plan: Plan, feature: FeatureKey, a: Allowance): str
     while (t && t.limits[feature] === 0) t = nextTier(t);
     return t ? `${plan.label} doesn't include ${name}. Upgrade to ${t.label} to use them.` : `${plan.label} doesn't include ${name}. They are for teacher accounts.`;
   }
-  return `You've used all ${a.limit} ${name} for this month on the ${plan.label} plan.${up ? ` Upgrade to ${up.label} for more.` : ""}`;
+  let t = up;
+  while (t && t.limits[feature] <= a.limit) t = nextTier(t);
+  const target = t || up;
+  return `You've used all ${a.limit} ${name} for this month on the ${plan.label} plan.${target ? ` Upgrade to ${target.label} for more.` : ""}`;
 }
 
 export const currentPeriod = (now = new Date()) => now.toISOString().slice(0, 7);

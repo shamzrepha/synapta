@@ -22,11 +22,16 @@ export async function POST(req: NextRequest) {
       recommendedPlan,
     } = await parseJson(req, createClassSchema);
 
-    // Fetch teacher display name
+    // Fetch teacher details
     let teacherName = "Teacher";
+    let teacherInstitution = "";
+    let teacherDepartment = "";
     const userDoc = await adminDb().collection("users").doc(caller.uid).get();
     if (userDoc.exists) {
-      teacherName = userDoc.data()?.displayName || caller.email?.split("@")[0] || "Teacher";
+      const uData = userDoc.data();
+      teacherName = uData?.displayName || caller.email?.split("@")[0] || "Teacher";
+      teacherInstitution = uData?.institution || "";
+      teacherDepartment = uData?.department || "";
     }
 
     const classRef = adminDb().collection("classes").doc();
@@ -37,6 +42,8 @@ export async function POST(req: NextRequest) {
       subject: subject.trim(),
       description: description.trim(),
       level: level || "undergrad",
+      institution: teacherInstitution,
+      department: teacherDepartment,
       audienceTags: audienceTags || [],
       durationWeeks: durationWeeks || 4,
       teacherId: caller.uid,
@@ -188,19 +195,31 @@ export async function GET(req: NextRequest) {
     // Default: explore scope (retrieves published classes with limit 50)
     const snap = await adminDb().collection("classes").limit(caller?.role === "admin" ? 500 : 50).get();
 
-    // Map user enrollment status if signed in
+    // Map user enrollment status and academic profile if signed in
     const userEnrollments: Record<string, string> = {};
+    let userInstitution = "";
+    let userDepartment = "";
+    let userLevel = "";
+    let userInterests: string[] = [];
+
     if (caller) {
-      const eSnap = await adminDb()
-        .collection("enrollments")
-        .where("uid", "==", caller.uid)
-        .get();
+      const [eSnap, uDoc] = await Promise.all([
+        adminDb().collection("enrollments").where("uid", "==", caller.uid).get(),
+        adminDb().collection("users").doc(caller.uid).get(),
+      ]);
       eSnap.forEach((d) => {
         const data = d.data();
         if (data.role !== "teacher") {
           userEnrollments[data.classId] = data.status;
         }
       });
+      if (uDoc.exists) {
+        const u = uDoc.data();
+        userInstitution = String(u?.institution || "").trim();
+        userDepartment = String(u?.department || "").trim();
+        userLevel = String(u?.level || "").trim();
+        userInterests = Array.isArray(u?.interests) ? u?.interests : [];
+      }
     }
 
     const classes = snap.docs
@@ -225,6 +244,33 @@ export async function GET(req: NextRequest) {
         return false;
       })
       .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
+        // AI Recommendation Algorithm based on academic profile
+        let scoreA = 0;
+        let scoreB = 0;
+
+        if (userInstitution) {
+          if (String(a.institution || "").toLowerCase() === userInstitution.toLowerCase()) scoreA += 100;
+          if (String(b.institution || "").toLowerCase() === userInstitution.toLowerCase()) scoreB += 100;
+        }
+        if (userDepartment) {
+          if (String(a.department || "").toLowerCase() === userDepartment.toLowerCase()) scoreA += 60;
+          if (String(b.department || "").toLowerCase() === userDepartment.toLowerCase()) scoreB += 60;
+        }
+        if (userLevel) {
+          if (String(a.level || "").toLowerCase() === userLevel.toLowerCase()) scoreA += 30;
+          if (String(b.level || "").toLowerCase() === userLevel.toLowerCase()) scoreB += 30;
+        }
+        if (userInterests.length > 0) {
+          const textA = `${a.title || ""} ${a.subject || ""} ${a.description || ""}`.toLowerCase();
+          const textB = `${b.title || ""} ${b.subject || ""} ${b.description || ""}`.toLowerCase();
+          for (const interest of userInterests) {
+            if (textA.includes(interest.toLowerCase())) scoreA += 20;
+            if (textB.includes(interest.toLowerCase())) scoreB += 20;
+          }
+        }
+
+        if (scoreA !== scoreB) return scoreB - scoreA;
+
         const tA = (a.createdAt as { toDate?: () => Date })?.toDate?.()?.getTime() || 0;
         const tB = (b.createdAt as { toDate?: () => Date })?.toDate?.()?.getTime() || 0;
         return tB - tA;

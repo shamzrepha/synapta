@@ -17,6 +17,10 @@ const body = z.object({
     z.object({ kind: z.literal("preset"), index: z.number().int().min(0).max(50) }),
     z.object({ kind: z.literal("upload"), dataUrl: z.string().max(140_000) }),
   ]),
+  institution: z.string().trim().max(100).optional(),
+  department: z.string().trim().max(100).optional(),
+  level: z.string().trim().max(40).optional(),
+  interests: z.array(z.string().trim().max(60)).max(15).optional(),
 });
 
 /** The first-time profile step: a handle and a picture (keep the Google one, pick a starter, or upload one). Marks the profile as set up. */
@@ -32,7 +36,15 @@ export async function POST(req: NextRequest) {
     const clash = await adminDb().collection("users").where("username", "==", name.username).limit(2).get();
     if (clash.docs.some((d) => d.id !== caller.uid)) throw new ApiError(409, "USERNAME_TAKEN", "Someone already uses that name. Try another.");
 
-    const updates: Record<string, unknown> = { username: name.username, profileSetup: true, updatedAt: Timestamp.now() };
+    const updates: Record<string, unknown> = {
+      username: name.username,
+      profileSetup: true,
+      institution: b.institution?.trim() || null,
+      department: b.department?.trim() || null,
+      level: b.level?.trim() || null,
+      interests: b.interests || [],
+      updatedAt: Timestamp.now(),
+    };
     if (b.avatar.kind === "preset") {
       const url = presetAvatarUrl(b.avatar.index);
       if (!url) throw new ApiError(400, "BAD_AVATAR", "Pick one of the starter pictures.");
@@ -46,7 +58,17 @@ export async function POST(req: NextRequest) {
       updates.photoURL = `/api/avatar/${caller.uid}?v=${Date.now()}`;
     }
     await adminDb().collection("users").doc(caller.uid).set(updates, { merge: true });
-    return NextResponse.json({ ok: true, data: { username: name.username, photoURL: (updates.photoURL as string | undefined) ?? null } });
+    return NextResponse.json({
+      ok: true,
+      data: {
+        username: name.username,
+        photoURL: (updates.photoURL as string | undefined) ?? null,
+        institution: updates.institution ?? null,
+        department: updates.department ?? null,
+        level: updates.level ?? null,
+        interests: updates.interests ?? [],
+      },
+    });
   } catch (error) {
     return handleAuthError(error);
   }

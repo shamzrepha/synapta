@@ -29,7 +29,7 @@ const ratio = (used: number, limit: number | null) => (limit === null ? 0 : limi
 export function pickNudge(me: NudgeInfo, uid: string): Nudge | null {
   if (!me.enforced) return null;
   const real = PLANS[me.plan.id as PlanId];
-  const up = real ? nextTier(me.plan.label === "Free (teacher trial)" ? { ...real, label: me.plan.label } : real) : null;
+  let up = real ? nextTier(me.plan.label === "Free (teacher trial)" ? { ...real, label: me.plan.label } : real) : null;
 
   let worst: { f: FeatureKey; r: number } | null = null;
   for (const f of FEATURES) {
@@ -40,20 +40,30 @@ export function pickNudge(me: NudgeInfo, uid: string): Nudge | null {
     const limit = me.plan.limits[worst.f] as number;
     const used = me.usage[worst.f] || 0;
     const left = Math.max(0, limit - used);
+    let target = up;
+    while (target && target.limits[worst.f] <= limit) {
+      const next = nextTier(target);
+      if (!next) break;
+      target = next;
+    }
     return {
       key: `warn:${me.resetAt}:${worst.f}`,
       title: left === 0 ? "You've used it all" : "Running low",
-      message: `You've used ${used} of ${limit} ${FEATURE_LABEL[worst.f].many} this month on ${me.plan.label}. Upgrade to ${up.label} for more.`,
+      message: `You've used ${used} of ${limit} ${FEATURE_LABEL[worst.f].many} this month on ${me.plan.label}. Upgrade to ${target.label} for more.`,
       everyDay: true,
     };
   }
-  if (!me.paid && up) {
-    return {
-      key: `welcome:${uid}:${me.resetAt}`,
-      title: `You're on the ${me.plan.label} plan`,
-      message: `Everything your teachers publish is free. For your own notes, scans, lessons and practice you get a monthly allowance. ${up.label} (${up.codename}) gives you much more.`,
-      everyDay: false,
-    };
+  if (!me.paid && real) {
+    const isTeacherTrial = me.plan.label === "Free (teacher trial)";
+    const target = isTeacherTrial ? PLANS.teacher : real.audience === "student" ? PLANS.plus : up;
+    if (target) {
+      return {
+        key: `welcome:${uid}:${me.resetAt}`,
+        title: `You're on the ${me.plan.label} plan`,
+        message: `Everything your teachers publish is free. For your own notes, scans, lessons and practice you get a monthly allowance. ${target.label} (${target.codename}) gives you much more.`,
+        everyDay: false,
+      };
+    }
   }
   return null;
 }

@@ -15,6 +15,7 @@ import { useGameState } from "@/components/game/use-game";
 import { LevelCard, QuestsCard } from "@/components/game/widgets";
 import { AchievementPrompts } from "@/components/feed/achievement-prompts";
 import { HomeHero } from "@/components/home/home-hero";
+import { CampusStreakBanner } from "@/components/dashboard/campus-streak-banner";
 import { summarizeProgress } from "@/lib/home/next-action";
 import { SessionsPanel } from "@/components/sessions/sessions-panel";
 import type { EventSummary } from "@/components/events/types";
@@ -118,6 +119,9 @@ export default function DashboardPage() {
           </div>
         )}
       </header>
+
+      {/* Campus Setup & Streak Urgency Banner */}
+      <CampusStreakBanner />
 
       {/* 2. What to do next */}
       <HomeHero

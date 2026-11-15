@@ -66,7 +66,7 @@ describe("paying", () => {
   it("extends from the current expiry when still running", () => {
     const now = 1_000 * DAY;
     expect(extendedExpiry(now + 10 * DAY, "month", now)).toBe(now + 40 * DAY);
-    expect(extendedExpiry(now - 10 * DAY, "term", now)).toBe(now + 120 * DAY);
+    expect(extendedExpiry(now - 10 * DAY, "term", now)).toBe(now + 135 * DAY);
   });
 });
 
@@ -90,9 +90,14 @@ describe("the agreed prices and limits", () => {
   });
   it("student plus", () => {
     expect(PLANS.plus).toMatchObject({ priceMonthNgn: 3_500, priceTermNgn: 11_000, monthlyTokens: 1_200_000 });
-    expect(PLANS.plus.limits).toEqual({ notes: 50, scan_pages: 400, lessons: 80, practice: 80, studio_ai: 40, class_build: 0 });
+    expect(PLANS.plus.limits).toEqual({ notes: 50, scan_pages: 400, lessons: 80, practice: 150, studio_ai: 40, class_build: 0 });
     expect(priceFor("plus", "month") * 100).toBe(350_000);
     expect(priceFor("plus", "term") * 100).toBe(1_100_000);
+  });
+  it("student exam pass", () => {
+    expect(PLANS.exam).toMatchObject({ priceMonthNgn: 1_500, priceTermNgn: 5_000, monthlyTokens: 600_000 });
+    expect(PLANS.exam.limits).toEqual({ notes: 3, scan_pages: 50, lessons: 20, practice: 100, studio_ai: 3, class_build: 0 });
+    expect(priceFor("exam", "month") * 100).toBe(150_000);
   });
   it("teacher", () => {
     expect(PLANS.teacher).toMatchObject({ priceMonthNgn: 7_500, priceTermNgn: 20_000, monthlyTokens: 15_000_000 });
@@ -102,11 +107,11 @@ describe("the agreed prices and limits", () => {
   });
   it("school is invoiced per student", () => {
     expect(PLANS.school.perSeatTermNgn).toBe(1_200);
-    expect(PAYABLE).toEqual(["plus", "pro", "promax", "ultra", "teacher", "teacherpro"]);
+    expect(PAYABLE).toEqual(["exam", "plus", "pro", "promax", "ultra", "teacher", "teacherpro"]);
     expect(PLANS.school.audience).toBe("school");
   });
-  it("a semester is 120 days and a month 30", () => {
-    expect(TERM_DAYS).toBe(120);
+  it("a semester is 135 days and a month 30", () => {
+    expect(TERM_DAYS).toBe(135);
     expect(MONTH_DAYS).toBe(30);
   });
   it("shows the real saving for paying by the semester", () => {
@@ -123,8 +128,8 @@ describe("the agreed prices and limits", () => {
 describe("the plan ladder", () => {
   const ladder = (a: "student" | "teacher") => PLAN_IDS.filter((id) => PLANS[id].audience === a).map((id) => PLANS[id]).sort((x, y) => x.priceMonthNgn - y.priceMonthNgn);
 
-  it("students have Free, Plus, Pro, Pro Max and Ultra; teachers have Teacher and Teacher Pro", () => {
-    expect(ladder("student").map((p) => p.label)).toEqual(["Free", "Plus", "Pro", "Pro Max", "Ultra"]);
+  it("students have Free, Exam Pass, Plus, Pro, Pro Max and Ultra; teachers have Teacher and Teacher Pro", () => {
+    expect(ladder("student").map((p) => p.label)).toEqual(["Free", "Exam Pass", "Plus", "Pro", "Pro Max", "Ultra"]);
     expect(ladder("teacher").map((p) => p.label)).toEqual(["Teacher", "Teacher Pro"]);
   });
   it("every step up costs more and never gives less of anything", () => {
@@ -159,7 +164,8 @@ describe("the plan ladder", () => {
     expect(canBuy("free", "student")).toBe(false);
   });
   it("points to the next plan up, and says class building is for teachers when no student plan has it", () => {
-    expect(nextTier(PLANS.free)?.id).toBe("plus");
+    expect(nextTier(PLANS.free)?.id).toBe("exam");
+    expect(nextTier(PLANS.exam)?.id).toBe("plus");
     expect(nextTier(PLANS.pro)).toBeNull(); // Pro Max and Ultra are retired: still honoured, no longer offered
     expect(nextTier(PLANS.ultra)).toBeNull();
     expect(nextTier(PLANS.teacher)?.id).toBe("teacherpro");

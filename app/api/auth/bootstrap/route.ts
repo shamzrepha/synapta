@@ -132,8 +132,12 @@ export async function POST(req: NextRequest) {
         monthlyTokensUsed: 0,
         usagePeriod: currentPeriod,
         disabled: false,
-        // someone who typed their own handle (email sign-up) has already done it; Google sign-ups are asked for a handle and a picture
-        profileSetup: !!username,
+        // Fresh users go through Sprout's 5-step animated setup quest
+        profileSetup: false,
+        institution: null,
+        department: null,
+        level: null,
+        interests: [],
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
@@ -218,6 +222,10 @@ export async function POST(req: NextRequest) {
         monthlyTokensUsed: existing.monthlyTokensUsed || 0,
         disabled: !!existing.disabled,
         profileSetup: existing.profileSetup !== false,
+        institution: existing.institution || null,
+        department: existing.department || null,
+        level: existing.level || null,
+        interests: existing.interests || [],
       };
     }
 

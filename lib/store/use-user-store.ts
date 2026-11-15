@@ -18,6 +18,11 @@ export interface UserProfile {
   disabled: boolean;
   /** false for a new account that has not yet picked its handle and picture */
   profileSetup?: boolean;
+  /** academic profile for class recommendations and campus discovery */
+  institution?: string | null;
+  department?: string | null;
+  level?: string | null;
+  interests?: string[];
 }
 
 interface UserState {

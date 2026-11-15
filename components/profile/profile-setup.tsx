@@ -1,17 +1,64 @@
 "use client";
 
-import React, { useRef, useState } from "react";
-import { Camera, Check } from "lucide-react";
+import React, { useRef, useState, useEffect } from "react";
+import { Camera, Check, Sparkles, School, GraduationCap, BookOpen, Compass, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { AVATAR_PRESETS, presetAvatarUrl, checkUsername } from "@/lib/profile/avatars";
+import { Sprout, type BotPose } from "@/components/bot/sprout";
 import { cn } from "@/lib/utils";
 
 type Pick = { kind: "keep" } | { kind: "preset"; index: number } | { kind: "upload"; dataUrl: string };
 
-/** Crops a chosen picture to a centred square and shrinks it so it stays small (about 20 to 40 KB). */
+const POPULAR_SCHOOLS = [
+  "University of Lagos (UNILAG)",
+  "University of Benin (UNIBEN)",
+  "Obafemi Awolowo University (OAU)",
+  "University of Nigeria, Nsukka (UNN)",
+  "Ahmadu Bello University (ABU)",
+  "University of Ibadan (UI)",
+  "Covenant University",
+  "Federal University of Technology, Owerri (FUTO)",
+  "Lagos State University (LASU)",
+  "Bayero University Kano (BUK)",
+];
+
+const POPULAR_DEPARTMENTS = [
+  "Computer Science",
+  "Mechanical Engineering",
+  "Electrical & Electronics Engineering",
+  "Medicine & Surgery",
+  "Accounting",
+  "Economics",
+  "Law",
+  "Biochemistry",
+  "Pharmacy",
+  "Civil Engineering",
+  "Mass Communication",
+  "Microbiology",
+];
+
+const STUDY_LEVELS = [
+  { id: "100L", label: "100 Level (Year 1)" },
+  { id: "200L", label: "200 Level (Year 2)" },
+  { id: "300L", label: "300 Level (Year 3)" },
+  { id: "400L", label: "400 Level (Year 4)" },
+  { id: "500L", label: "500 Level (Year 5)" },
+  { id: "Postgraduate", label: "Postgraduate / Master's" },
+];
+
+const INTEREST_TAGS = [
+  { id: "past_questions", label: "📝 Past Questions & Exam Drills", desc: "Step-by-step worked exam questions" },
+  { id: "programming", label: "💻 Programming & Algorithms", desc: "Python, C++, Data structures" },
+  { id: "math", label: "📐 Mathematics & Calculus", desc: "Step-by-step formulas & derivations" },
+  { id: "circuits", label: "⚡ 3D Circuits & Hardware Labs", desc: "Interactive breadboards and robotics" },
+  { id: "sciences", label: "🔬 Sciences & Chemistry", desc: "Reaction mechanics, biology, physics" },
+  { id: "business", label: "📊 Business & Economics", desc: "Financial models, accounting, commerce" },
+];
+
+/** Shrinks an uploaded picture to a centred square JPEG */
 async function shrink(file: File, size = 256): Promise<string> {
   const bmp = await createImageBitmap(file);
   const side = Math.min(bmp.width, bmp.height);
@@ -24,19 +71,58 @@ async function shrink(file: File, size = 256): Promise<string> {
   return canvas.toDataURL("image/jpeg", 0.82);
 }
 
-/** Shown once to a new account (for example after Google sign-in): choose a handle and a picture. */
+/** Global event listener to let banners open the academic setup */
+export function openAcademicSetup() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("sunroot:open-academic-setup"));
+  }
+}
+
+/**
+ * Sprout's 5-step animated onboarding questionnaire.
+ * Gathers handle, avatar, institution, department, level, and goals,
+ * calibrating course recommendations and walking the student through study plans.
+ */
 export function ProfileSetup() {
   const user = useUserStore((s) => s.user);
   const updateUser = useUserStore((s) => s.updateUser);
+
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [forceOpen, setForceOpen] = useState(false);
+
+  // Form states
   const [handle, setHandle] = useState("");
   const [touched, setTouched] = useState(false);
   const [pick, setPick] = useState<Pick | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [institution, setInstitution] = useState("");
+  const [department, setDepartment] = useState("");
+  const [level, setLevel] = useState("100L");
+  const [interests, setInterests] = useState<string[]>(["past_questions"]);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
-  if (!user || user.profileSetup !== false) return null;
+  useEffect(() => {
+    const onOpen = () => setForceOpen(true);
+    window.addEventListener("sunroot:open-academic-setup", onOpen);
+    return () => window.removeEventListener("sunroot:open-academic-setup", onOpen);
+  }, []);
+
+  // Initialize from existing user state
+  useEffect(() => {
+    if (user) {
+      if (user.username) setHandle(user.username);
+      if (user.institution) setInstitution(user.institution);
+      if (user.department) setDepartment(user.department);
+      if (user.level) setLevel(user.level);
+      if (user.interests && user.interests.length > 0) setInterests(user.interests);
+    }
+  }, [user]);
+
+  const isOpen = Boolean(user && (user.profileSetup === false || forceOpen));
+  if (!isOpen || !user) return null;
 
   const value = touched ? handle : user.username || "";
   const choice: Pick = pick ?? (user.photoURL ? { kind: "keep" } : { kind: "preset", index: 0 });
@@ -55,22 +141,50 @@ export function ProfileSetup() {
     }
   };
 
-  const save = async () => {
+  const toggleInterest = (id: string) => {
+    setInterests((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const save = async (redirectToPlan = false) => {
     setError("");
     const name = checkUsername(value);
     if (!name.ok) {
+      setStep(1);
       setError(name.message);
       return;
     }
     setBusy(true);
     try {
-      const res = await fetch("/api/profile/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: name.username, avatar: choice }) });
+      const res = await fetch("/api/profile/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: name.username,
+          avatar: choice,
+          institution: institution.trim() || undefined,
+          department: department.trim() || undefined,
+          level: level.trim() || undefined,
+          interests,
+        }),
+      });
       const j = await res.json().catch(() => null);
       if (!res.ok || !j?.ok) {
         setError(j?.error?.message || "Couldn't save that. Try again.");
         return;
       }
-      updateUser({ username: j.data.username, photoURL: j.data.photoURL ?? user.photoURL, profileSetup: true });
+      updateUser({
+        username: j.data.username,
+        photoURL: j.data.photoURL ?? user.photoURL,
+        institution: j.data.institution,
+        department: j.data.department,
+        level: j.data.level,
+        interests: j.data.interests,
+        profileSetup: true,
+      });
+      setForceOpen(false);
+      if (redirectToPlan && typeof window !== "undefined") {
+        window.location.href = "/settings?tab=plan";
+      }
     } catch {
       setError("No connection. Try again.");
     } finally {
@@ -78,53 +192,384 @@ export function ProfileSetup() {
     }
   };
 
+  // Sprout pose per step
+  const sproutPose: BotPose =
+    step === 1 ? "wave" : step === 2 ? "search" : step === 3 ? "jump" : step === 4 ? "think" : "dance";
+
   return (
-    <div className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/60 p-3" role="dialog" aria-modal="true" aria-labelledby="profile-setup-title">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card text-foreground shadow-xl p-5 space-y-4 max-h-[92vh] overflow-y-auto">
-        <div>
-          <h2 id="profile-setup-title" className="text-lg font-bold">Make it yours</h2>
-          <p className="text-sm text-muted-foreground">Pick a username and a picture. Other learners will see them in rooms and on leaderboards.</p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Avatar name={user.displayName || "?"} photoURL={preview} size={64} />
-          <div className="flex-1">
-            <label htmlFor="setup-handle" className="text-xs font-semibold text-muted-foreground">Username</label>
-            <div className="flex items-center gap-1">
-              <span className="text-muted-foreground">@</span>
-              <Input id="setup-handle" value={value} onChange={(e) => { setTouched(true); setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "")); }} maxLength={24} autoComplete="off" autoCapitalize="none" spellCheck={false} />
-            </div>
+    <div
+      className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-3 transition-opacity"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="profile-setup-title"
+    >
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card text-foreground shadow-2xl p-6 space-y-5 max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+        
+        {/* Progress bar */}
+        <div className="space-y-1">
+          <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
+            <span>Setup Quest — Step {step} of 5</span>
+            <span>{step * 20}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-brand-600 transition-all duration-300 ease-out"
+              style={{ width: `${step * 20}%` }}
+            />
           </div>
         </div>
 
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground">Picture</p>
-          <div className="grid grid-cols-6 gap-2">
-            {AVATAR_PRESETS.map((_, i) => {
-              const on = choice.kind === "preset" && choice.index === i;
-              return (
-                <button key={i} type="button" onClick={() => setPick({ kind: "preset", index: i })} aria-label={`Starter picture ${i + 1}`} aria-pressed={on} className={cn("relative rounded-full ring-2 ring-offset-2 ring-offset-card transition", on ? "ring-brand-600" : "ring-transparent")}>
-                  <Avatar name="" photoURL={presetAvatarUrl(i)} size={44} />
-                  {on && <Check className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-brand-600 p-0.5 text-white" />}
-                </button>
-              );
-            })}
+        {/* Sprout host dialogue card */}
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-brand-500/10 border border-brand-500/20 text-brand-950 dark:text-brand-100">
+          <div className="relative w-12 h-14 shrink-0 flex items-center justify-center">
+            <Sprout pose={sproutPose} />
           </div>
-          <div className="flex flex-wrap gap-2">
-            <input ref={fileRef} type="file" accept="image/*" className="sr-only" onChange={(e) => void onFile(e.target.files?.[0])} aria-label="Upload a picture" />
-            <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-              <Camera className="mr-1.5 h-4 w-4" /> Upload a picture
-            </Button>
-            {user.photoURL && (
-              <Button type="button" variant="ghost" size="sm" onClick={() => setPick({ kind: "keep" })} aria-pressed={choice.kind === "keep"}>
-                Keep my current photo
-              </Button>
+          <div className="text-xs sm:text-sm">
+            {step === 1 && (
+              <p>
+                <strong>Beep boop! I&apos;m Sprout.</strong> Let&apos;s get your profile set up so everyone knows who you are!
+              </p>
+            )}
+            {step === 2 && (
+              <p>
+                <strong>Which school are you attending?</strong> I&apos;ll link you to courses taught right on your campus.
+              </p>
+            )}
+            {step === 3 && (
+              <p>
+                <strong>What are you studying?</strong> Tell me your department and year so I can tailor the syllabus.
+              </p>
+            )}
+            {step === 4 && (
+              <p>
+                <strong>What&apos;s your focus this semester?</strong> Pick the areas you want me to help you master!
+              </p>
+            )}
+            {step === 5 && (
+              <p>
+                <strong>All set!</strong> We&apos;ve mapped courses for {department || "your department"} at{" "}
+                {institution || "your university"}. Choose how you&apos;d like to study!
+              </p>
             )}
           </div>
         </div>
 
-        {error && <p role="alert" className="text-sm font-semibold text-rose-600">{error}</p>}
-        <Button type="button" className="w-full" onClick={save} isLoading={busy} disabled={value.length < 3}>Continue</Button>
+        {/* STEP 1: Username & Avatar */}
+        {step === 1 && (
+          <div className="space-y-4">
+            <div>
+              <h2 id="profile-setup-title" className="text-lg font-bold">Pick your call-sign & picture</h2>
+              <p className="text-xs text-muted-foreground">Your friends and coursemates will see this on class leaderboards.</p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <Avatar name={user.displayName || "?"} photoURL={preview} size={64} />
+              <div className="flex-1">
+                <label htmlFor="setup-handle" className="text-xs font-semibold text-muted-foreground">
+                  Username
+                </label>
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground">@</span>
+                  <Input
+                    id="setup-handle"
+                    value={value}
+                    onChange={(e) => {
+                      setTouched(true);
+                      setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""));
+                    }}
+                    maxLength={24}
+                    placeholder="student_hero"
+                    autoComplete="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground">Starter Avatars</p>
+              <div className="grid grid-cols-6 gap-2">
+                {AVATAR_PRESETS.map((_, i) => {
+                  const on = choice.kind === "preset" && choice.index === i;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPick({ kind: "preset", index: i })}
+                      aria-label={`Starter picture ${i + 1}`}
+                      aria-pressed={on}
+                      className={cn(
+                        "relative rounded-full ring-2 ring-offset-2 ring-offset-card transition",
+                        on ? "ring-brand-600" : "ring-transparent hover:ring-slate-300"
+                      )}
+                    >
+                      <Avatar name="" photoURL={presetAvatarUrl(i)} size={44} />
+                      {on && <Check className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-brand-600 p-0.5 text-white" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => void onFile(e.target.files?.[0])}
+                  aria-label="Upload a picture"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                  <Camera className="mr-1.5 h-4 w-4" /> Upload picture
+                </Button>
+                {user.photoURL && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPick({ kind: "keep" })}
+                    aria-pressed={choice.kind === "keep"}
+                  >
+                    Keep Google photo
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: University / School */}
+        {step === 2 && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <School className="h-5 w-5 text-brand-600" /> Which school are you attending?
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                This helps Sprout connect you with syllabi and materials from your actual lecturers.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Input
+                placeholder="Type or search your institution..."
+                value={institution}
+                onChange={(e) => setInstitution(e.target.value)}
+              />
+              <p className="text-xs font-semibold text-muted-foreground pt-1">Popular Universities:</p>
+              <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1">
+                {POPULAR_SCHOOLS.map((sch) => (
+                  <button
+                    key={sch}
+                    type="button"
+                    onClick={() => setInstitution(sch)}
+                    className={cn(
+                      "text-xs px-2.5 py-1.5 rounded-lg border transition",
+                      institution === sch
+                        ? "bg-brand-600 text-white border-brand-600 font-semibold"
+                        : "bg-slate-50 dark:bg-slate-800 border-border hover:border-brand-500"
+                    )}
+                  >
+                    {sch}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Department & Level */}
+        {step === 3 && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-brand-600" /> Department & Year Level
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                We use this to rank course topics and past papers matching your curriculum.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Department / Major</label>
+                <Input
+                  placeholder="e.g. Computer Science, Accounting..."
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                />
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {POPULAR_DEPARTMENTS.slice(0, 6).map((dep) => (
+                    <button
+                      key={dep}
+                      type="button"
+                      onClick={() => setDepartment(dep)}
+                      className={cn(
+                        "text-[11px] px-2 py-1 rounded-md border transition",
+                        department === dep
+                          ? "bg-brand-600 text-white border-brand-600 font-semibold"
+                          : "bg-slate-50 dark:bg-slate-800 border-border hover:border-brand-500"
+                      )}
+                    >
+                      {dep}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Current Study Level</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {STUDY_LEVELS.map((lvl) => (
+                    <button
+                      key={lvl.id}
+                      type="button"
+                      onClick={() => setLevel(lvl.id)}
+                      className={cn(
+                        "text-xs p-2 rounded-xl border text-left flex items-center justify-between transition",
+                        level === lvl.id
+                          ? "bg-brand-50 dark:bg-brand-950/40 border-brand-600 text-brand-700 dark:text-brand-300 font-semibold ring-1 ring-brand-600"
+                          : "bg-slate-50 dark:bg-slate-800 border-border hover:border-slate-300"
+                      )}
+                    >
+                      <span>{lvl.label}</span>
+                      {level === lvl.id && <Check className="h-4 w-4 text-brand-600 shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: Goals & Interests */}
+        {step === 4 && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-brand-600" /> What do you want Sprout to help you master?
+              </h2>
+              <p className="text-xs text-muted-foreground">Select everything you are aiming to conquer this semester.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {INTEREST_TAGS.map((tag) => {
+                const active = interests.includes(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleInterest(tag.id)}
+                    className={cn(
+                      "p-3 rounded-xl border text-left transition flex flex-col justify-between",
+                      active
+                        ? "bg-brand-50 dark:bg-brand-950/40 border-brand-600 ring-1 ring-brand-600"
+                        : "bg-slate-50 dark:bg-slate-800 border-border hover:border-slate-300"
+                    )}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-xs font-bold">{tag.label}</span>
+                      {active && <Check className="h-3.5 w-3.5 text-brand-600 shrink-0" />}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1">{tag.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* STEP 5: Study Plan & Recommendation Guide */}
+        {step === 5 && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-amber-500" /> Recommended Study Pass
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Choose the pass that fits your study style. You can always start free and upgrade during exam season.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {/* Option A: Plus Semester Pass */}
+              <div className="p-3.5 rounded-xl border-2 border-brand-600 bg-brand-50/50 dark:bg-brand-950/20 relative space-y-1.5">
+                <span className="absolute -top-2.5 right-3 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-brand-600 text-white">
+                  Best Value — 135 Days
+                </span>
+                <div className="flex justify-between items-baseline">
+                  <h3 className="text-sm font-bold text-brand-900 dark:text-brand-200">Plus Semester Pass</h3>
+                  <span className="text-base font-extrabold text-brand-600">₦11,000</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Covers full 4.5 months through final exams. Unlocks own PDF uploads, 3D Maker Studio labs, audio podcasts, and all past questions.
+                </p>
+              </div>
+
+              {/* Option B: Exam Month Pass */}
+              <div className="p-3 rounded-xl border border-border bg-slate-50 dark:bg-slate-800/50 space-y-1">
+                <div className="flex justify-between items-baseline">
+                  <h3 className="text-sm font-bold">Exam Month Pass</h3>
+                  <span className="text-sm font-bold text-foreground">₦1,500 / month</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Intensive 30-day exam access: Step-by-step Past Questions solver, examiner traps, and twin test quizzes.
+                </p>
+              </div>
+
+              {/* Option C: Free Tier */}
+              <div className="p-2.5 rounded-xl border border-dashed border-border text-xs text-muted-foreground flex justify-between items-center">
+                <span>Free Seed Tier: Read class notes & 3 preview courses</span>
+                <span className="font-semibold text-foreground">₦0 Free</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error message */}
+        {error && (
+          <p role="alert" className="text-xs font-semibold text-rose-600">
+            {error}
+          </p>
+        )}
+
+        {/* Navigation Buttons */}
+        <div className="flex items-center justify-between gap-3 pt-2">
+          {step > 1 ? (
+            <Button type="button" variant="outline" size="sm" onClick={() => setStep((s) => (s - 1) as any)}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+            </Button>
+          ) : (
+            <div />
+          )}
+
+          {step < 5 ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                if (step === 1 && value.length < 3) {
+                  setError("Username must be at least 3 characters.");
+                  return;
+                }
+                setError("");
+                setStep((s) => (s + 1) as any);
+              }}
+              className="ml-auto"
+            >
+              Continue <ArrowRight className="ml-1.5 h-4 w-4" />
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2 ml-auto">
+              <Button type="button" variant="outline" size="sm" onClick={() => void save(false)} isLoading={busy}>
+                Start Free
+              </Button>
+              <Button type="button" size="sm" onClick={() => void save(true)} isLoading={busy} className="bg-brand-600 hover:bg-brand-700 text-white">
+                <Sparkles className="mr-1.5 h-4 w-4" /> Get Semester Pass
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
