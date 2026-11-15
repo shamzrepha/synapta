@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Newspaper, Globe, GraduationCap, ArrowUp, Users, Hash, TrendingUp, Bookmark, X } from "lucide-react";
+import { Newspaper, Globe, GraduationCap, ArrowUp, Users, Hash, TrendingUp, Bookmark, X, School } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,10 +21,10 @@ interface ClassLite {
   userEnrollmentStatus?: string;
 }
 
-/** scope: "global" | "following" | "tag:<tag>" | "<classId>" */
+/** scope: "global" | "following" | "school" | "tag:<tag>" | "<classId>" */
 async function fetchFeed(scope: string, before?: string | null) {
   const qs = new URLSearchParams();
-  if (scope === "global" || scope === "following") qs.set("scope", scope);
+  if (scope === "global" || scope === "following" || scope === "school") qs.set("scope", scope);
   else if (scope.startsWith("tag:")) {
     qs.set("scope", "tag");
     qs.set("tag", scope.slice(4));
@@ -98,8 +98,10 @@ export default function FeedPage() {
     const p = params.get("post");
     const cls = params.get("class");
     const tag = params.get("tag");
+    const sc = params.get("scope");
     const t = setTimeout(() => {
-      if (cls) setScope(cls);
+      if (sc === "school" || sc === "following") setScope(sc);
+      else if (cls) setScope(cls);
       else if (tag) setScope(`tag:${tag.toLowerCase()}`);
     }, 0);
     if (p) {
@@ -166,6 +168,11 @@ export default function FeedPage() {
 
   const tabs = [
     { key: "global", label: "Everyone", icon: <Globe className="h-4 w-4" /> },
+    {
+      key: "school",
+      label: user?.institution ? `My Campus (${user.institution.split("(")[0].trim().slice(0, 18)})` : "My School / Campus",
+      icon: <School className="h-4 w-4" />,
+    },
     { key: "following", label: "Following", icon: <Users className="h-4 w-4" /> },
     ...asArray(classes).map((c) => ({ key: c.id, label: c.title, icon: <GraduationCap className="h-4 w-4" /> })),
   ];
@@ -251,6 +258,10 @@ export default function FeedPage() {
           <Card className="p-10 text-center text-sm text-slate-500">
             {scope === "following"
               ? "Follow people (tap their name on any post) to fill this feed."
+              : scope === "school"
+              ? user?.institution
+                ? `No posts from ${user.institution} yet — be the first to post on your campus feed!`
+                : "Set your school or university in your profile (or join a School Portal at /schools) to see your campus feed."
               : tag
               ? `No posts with #${tag} yet.`
               : `No posts yet. Start the conversation${currentClass ? ` in ${currentClass.title}` : ""}!`}

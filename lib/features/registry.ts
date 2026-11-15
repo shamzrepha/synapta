@@ -37,6 +37,7 @@ export const FEATURES: FeatureEntry[] = [
   { n: 16, id: "explainers", title: "60-second explainers", blurb: "Short student-made videos that explain a concept.", emoji: "🎬", href: "/explainers", group: "Social", status: "live" },
   { n: 17, id: "live", title: "Live study events", blurb: "Countdowns and RSVPs for study sessions.", emoji: "📡", href: "/sessions", group: "Social", status: "live" },
   { n: 18, id: "communities", title: "School communities", blurb: "A feed and tags for your campus.", emoji: "🏫", href: "/communities", group: "Social", status: "live" },
+  { n: 45, id: "schools", title: "Schools, Principal Portal & Inter-Uni Cup", blurb: "School-sponsored student seats, cross-class progress for Principals/HODs, and Inter-University Cup.", emoji: "🎓", href: "/schools", group: "Teachers", status: "live" },
   { n: 19, id: "mentors", title: "Mentor matching", blurb: "Seniors paired with juniors by subject.", emoji: "🧭", href: "/mentors", group: "Social", status: "live" },
   { n: 20, id: "polls", title: "Polls & this-or-that", blurb: "Quick questions that start discussions.", emoji: "📊", href: "/polls", group: "Social", status: "live" },
   { n: 21, id: "wall", title: "Maker Wall", blurb: "Show your build with a video and parts list.", emoji: "🧱", href: "/studio/wall", group: "Maker", status: "live" },

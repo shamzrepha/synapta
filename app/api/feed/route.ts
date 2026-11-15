@@ -48,6 +48,29 @@ export async function GET(req: NextRequest) {
       const uid = sp.get("uid") || "";
       docs = await page(posts.where("authorUid", "==", uid).where("visibility", "==", "public"));
       channel = `feed:user:${uid}`;
+    } else if (scope === "school") {
+      const meSnap = await adminDb().collection("users").doc(caller.uid).get();
+      const meData = meSnap.data() || {};
+      const mySchoolId = typeof meData.schoolId === "string" ? meData.schoolId.trim() : "";
+      const myInst = typeof meData.institution === "string" ? meData.institution.trim().toLowerCase() : "";
+      const recentPublic = await page(posts.where("visibility", "==", "public"));
+      if (mySchoolId || myInst) {
+        const instAcronymMatch = myInst.match(/\(([^)]+)\)/);
+        const instAcronym = instAcronymMatch ? instAcronymMatch[1].toLowerCase() : "";
+        docs = recentPublic.filter((d) => {
+          const pd = d.data() || {};
+          if (mySchoolId && pd.schoolId === mySchoolId) return true;
+          const postInst = String(pd.authorInstitution || "").toLowerCase();
+          if (myInst && postInst) {
+            if (postInst.includes(myInst) || myInst.includes(postInst)) return true;
+            if (instAcronym && postInst.includes(instAcronym)) return true;
+          }
+          return false;
+        });
+      } else {
+        docs = [];
+      }
+      channel = "feed:global";
     } else if (scope === "following") {
       const following = await adminDb().collection("users").doc(caller.uid).collection("following").limit(300).get();
       const authors = [caller.uid, ...following.docs.map((d) => d.id)];

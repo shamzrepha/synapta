@@ -107,6 +107,56 @@ export async function GET(req: NextRequest) {
         profiles,
         caller.uid
       ).slice(0, 50);
+    } else if (scope === "schools") {
+      const snap = await adminDb().collection("users").limit(500).get();
+      const mySnap = await adminDb().collection("users").doc(caller.uid).get();
+      const myInst = String(mySnap.data()?.institution || "").trim().toLowerCase();
+
+      const campusMap = new Map<
+        string,
+        { inst: string; totalXp: number; count: number; topUid: string; topXp: number; topPhoto: string | null }
+      >();
+
+      for (const d of snap.docs) {
+        const u = d.data() || {};
+        const inst = typeof u.institution === "string" ? u.institution.trim() : "";
+        if (!inst) continue;
+        const xp = typeof u.xp === "number" ? u.xp : 0;
+        const key = inst.toLowerCase();
+        const cur = campusMap.get(key) || {
+          inst,
+          totalXp: 0,
+          count: 0,
+          topUid: d.id,
+          topXp: -1,
+          topPhoto: u.photoURL || null,
+        };
+        cur.totalXp += xp;
+        cur.count += 1;
+        if (xp > cur.topXp) {
+          cur.topXp = xp;
+          cur.topUid = d.id;
+          cur.topPhoto = u.photoURL || null;
+        }
+        campusMap.set(key, cur);
+      }
+
+      rows = Array.from(campusMap.values())
+        .sort((a, b) => b.totalXp - a.totalXp || b.count - a.count)
+        .slice(0, 40)
+        .map((c, idx) => ({
+          rank: idx + 1,
+          uid: `school_${idx}_${c.topUid}`,
+          displayName: `${c.inst} (${c.count} scholar${c.count === 1 ? "" : "s"})`,
+          username: null,
+          photoURL: c.topPhoto,
+          level: c.count,
+          xp: c.totalXp,
+          weeklyXp: c.totalXp,
+          tier: Math.min(5, Math.floor(c.totalXp / 5000)),
+          streakDays: c.count,
+          isMe: Boolean(myInst && c.inst.toLowerCase() === myInst),
+        }));
     } else if (scope === "class" || scope === "friends") {
       let uids: string[] = [];
       if (scope === "class") {

@@ -72,8 +72,14 @@ async function bumpHashtags(tags: string[]) {
 }
 
 export async function createPost(input: CreatePostInput): Promise<string> {
-  const profiles = await getPublicProfiles([input.authorUid]);
+  const [profiles, authorSnap] = await Promise.all([
+    getPublicProfiles([input.authorUid]),
+    adminDb().collection("users").doc(input.authorUid).get().catch(() => null),
+  ]);
   const p = profiles.get(input.authorUid);
+  const authorData = authorSnap?.data() || {};
+  const authorInstitution = typeof authorData.institution === "string" && authorData.institution.trim() ? authorData.institution.trim() : null;
+  const schoolId = typeof authorData.schoolId === "string" && authorData.schoolId.trim() ? authorData.schoolId.trim() : null;
   const ref = adminDb().collection("posts").doc();
   const hashtags = extractHashtags(input.text);
   const mentionNames = extractMentions(input.text);
@@ -96,6 +102,8 @@ export async function createPost(input: CreatePostInput): Promise<string> {
     authorPhoto: p?.photoURL || null,
     authorLevel: p?.level || 1,
     authorRole: p?.role || "student",
+    authorInstitution,
+    schoolId,
     kind: input.kind,
     text: input.text,
     link: input.link || null,
@@ -174,6 +182,8 @@ export function serializePost(id: string, p: FirebaseFirestore.DocumentData) {
     authorPhoto: p.authorPhoto || null,
     authorLevel: p.authorLevel || 1,
     authorRole: p.authorRole || "student",
+    authorInstitution: p.authorInstitution || null,
+    schoolId: p.schoolId || null,
     kind: p.kind,
     text: p.text || "",
     link: p.link || null,

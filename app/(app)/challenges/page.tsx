@@ -110,11 +110,18 @@ export default function ChallengesPage() {
           </h1>
           <p className="text-sm text-slate-500">Quiz sprints, hackathons and simulated build challenges. Compete, build, win XP.</p>
         </div>
-        {canCreate && (
-          <Button onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4 mr-1.5" /> New challenge
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/schools">
+            <Button variant="outline">
+              <Trophy className="h-4 w-4 mr-1.5 text-amber-500" /> Inter-Uni Cup & Schools
+            </Button>
+          </Link>
+          {canCreate && (
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus className="h-4 w-4 mr-1.5" /> New challenge
+            </Button>
+          )}
+        </div>
       </div>
 
       {events === null ? (

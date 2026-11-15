@@ -313,14 +313,21 @@ export default function PlansPage() {
             Every lecturer in your department gets Studio Plan tools (AI syllabus builder, CBT exam bank, handwritten script grader, 3D labs), and every student gets full Plus Semester access.
           </p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => setShowInquiryModal(true)}
-          className="bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold shrink-0"
-        >
-          <Building2 className="mr-1.5 h-4 w-4" /> Request Departmental Pilot / Invoice
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <Link href="/schools">
+            <Button type="button" size="sm" variant="outline" className="text-xs font-semibold">
+              <School className="mr-1.5 h-4 w-4 text-brand-600" /> Open School & Principal Portal
+            </Button>
+          </Link>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setShowInquiryModal(true)}
+            className="bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold"
+          >
+            <Building2 className="mr-1.5 h-4 w-4" /> Request Departmental Pilot / Invoice
+          </Button>
+        </div>
       </Card>
 
       {/* Institutional Quote & Pilot Modal */}

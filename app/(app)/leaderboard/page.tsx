@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Crown, Timer, Users, Globe, CalendarDays, Shield, GraduationCap, Flame } from "lucide-react";
+import { Crown, Timer, Users, Globe, CalendarDays, Shield, GraduationCap, Flame, School } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/ui/avatar";
@@ -12,7 +12,7 @@ import { WeeklyBoard } from "@/components/weekly/weekly-board";
 import { asArray } from "@/lib/api/client";
 import { cn, formatNumber } from "@/lib/utils";
 
-type Scope = "league" | "weekly" | "global" | "friends" | "class";
+type Scope = "league" | "weekly" | "global" | "schools" | "friends" | "class";
 
 interface Row {
   rank: number;
@@ -38,6 +38,7 @@ interface Payload {
 const TABS: Array<{ key: Scope; label: string; icon: React.ReactNode }> = [
   { key: "league", label: "My league", icon: <Shield className="h-4 w-4" /> },
   { key: "weekly", label: "This week", icon: <CalendarDays className="h-4 w-4" /> },
+  { key: "schools", label: "Inter-Uni Cup", icon: <School className="h-4 w-4" /> },
   { key: "global", label: "All time", icon: <Globe className="h-4 w-4" /> },
   { key: "friends", label: "Friends", icon: <Users className="h-4 w-4" /> },
   { key: "class", label: "Class", icon: <GraduationCap className="h-4 w-4" /> },
