@@ -241,8 +241,9 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
    * mode "create": build from scratch (first build or "start over").
    * mode "edit":   send the current code + a change request (or a runtime error) and change only that.
    */
-  const build = async (opts: { mode?: BuildMode; previousError?: string } = {}) => {
+  const build = async (opts: { mode?: BuildMode; previousError?: string; customInstructions?: string } = {}) => {
     const mode = opts.mode || "create";
+    const nextInstructions = opts.customInstructions ?? instructions;
     setBuildMode(mode);
     setBuildStep(0);
     setBuilding(true);
@@ -253,7 +254,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode,
-          instructions: canManage && mode === "create" ? instructions : undefined,
+          instructions: canManage && mode === "create" ? nextInstructions : undefined,
           changeRequest: canManage && mode === "edit" ? changeRequest : undefined,
           previousError: opts.previousError,
         }),
@@ -311,25 +312,30 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
 
   const ideaCards = ideas && ideas.ideas.length > 0 && (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      {ideas.ideas.map((idea, i) => (
-        <button
-          key={i}
-          type="button"
-          onClick={() =>
-            setInstructions(
-              [`${idea.title} — ${idea.pitch}`, idea.howItWorks && `How it works: ${idea.howItWorks}`, idea.challenge && `Challenge: ${idea.challenge}`, idea.learningGoal && `Learning goal: ${idea.learningGoal}`]
-                .filter(Boolean)
-                .join("\n")
-            )
-          }
-          className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-3 hover:border-indigo-500 transition-colors space-y-1"
-        >
-          <p className="text-sm font-semibold">{idea.title}</p>
-          <p className="text-xs text-slate-600 dark:text-slate-400">{idea.pitch}</p>
-          {idea.challenge && <p className="text-[11px] text-amber-700 dark:text-amber-300">🎯 {idea.challenge}</p>}
-          <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">Use this idea →</p>
-        </button>
-      ))}
+      {ideas.ideas.map((idea, i) => {
+        const ideaPrompt = [`${idea.title} — ${idea.pitch}`, idea.howItWorks && `How it works: ${idea.howItWorks}`, idea.challenge && `Challenge: ${idea.challenge}`, idea.learningGoal && `Learning goal: ${idea.learningGoal}`]
+          .filter(Boolean)
+          .join("\n");
+        return (
+          <button
+            key={i}
+            type="button"
+            disabled={building}
+            onClick={() => {
+              setInstructions(ideaPrompt);
+              void build({ mode: "create", customInstructions: ideaPrompt });
+            }}
+            className="text-left rounded-xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 p-3 hover:border-indigo-500 transition-colors space-y-1 disabled:opacity-50"
+          >
+            <p className="text-sm font-semibold">{idea.title}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">{idea.pitch}</p>
+            {idea.challenge && <p className="text-[11px] text-amber-700 dark:text-amber-300">🎯 {idea.challenge}</p>}
+            <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+              {building ? "Building…" : "Build this idea now →"}
+            </p>
+          </button>
+        );
+      })}
     </div>
   );
 

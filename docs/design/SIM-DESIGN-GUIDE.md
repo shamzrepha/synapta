@@ -3,17 +3,17 @@
 Goal: a learner changes something, sees the result at once, and wins a small challenge. The same page works on a phone, with any model that writes the code (Gemini, Groq, Claude, anything), because the structure is fixed and proven.
 
 ## 1. What the platform gives the model for free
-- Choose **realistic 2D** (`<canvas>` / `<svg>` with detailed components: glowing bulbs, color-banded resistors, digital/analog multimeters, ray optics, wet chemistry glassware, live graphs) whenever 2D is clearer — and reserve **3D (`SimKit3D` + `THREE`)** for true 3D engineering, linkages, orbits, trusses, motors, or molecular geometry.
-- `THREE` (three.js) and `SimKit3D` are already loaded in the sandbox. Never import or fetch anything.
+- Choose **realistic 2D** (`<canvas>` / `<svg>` with detailed components: glowing bulbs, color-banded resistors, digital/analog multimeters, ray optics, wet chemistry glassware, live graphs) whenever 2D is clearer — and reserve **3D (`SimKit3D` + `THREE`)** for true 3D engineering, gears, linkages, orbits, trusses, motors, or molecular geometry.
+- `THREE` (three.js) and `SimKit3D` are already loaded in the sandbox when using 3D. Never import or fetch anything.
 - `SimKit3D.create(div)` gives a studio scene: soft lighting and shadows, a grid floor, drag to orbit, pinch or wheel to zoom.
-- Parts (keep compact inside `x,z ∈ [-3.5, +3.5]`, `y ∈ [0, 3.5]`, pass styling/position inside `opts`): `kit.roundedBox(w,h,d,radius?,opts?)`, `kit.box(w,h,d,opts?)`, `kit.cylinder(r,h,opts?)`, `kit.sphere(r,opts?)`, `kit.capsule(r,len,opts?)`, `kit.tube([[x,y,z],...],radius,opts?)`. `opts` = `{ color, pos: [x,y,z], rot, metalness, roughness, emissive, emissiveIntensity, opacity }`.
-- `kit.fitCamera()` / `kit.lookAt(x,y,z,distance)` frames the whole scene cleanly without giant zoomed meshes. `kit.onFrame((dt,t)=>{...})` runs every frame. Use a non-scrolling 2-column cockpit layout on desktop (`stage` capped around `420px` height) so apparatus and sliders sit side by side.
+- Parts (keep compact inside `x,z ∈ [-3.5, +3.5]`, `y ∈ [0, 3.5]`; position/rotate the returned `Mesh` via `mesh.position.set(x,y,z)` / `mesh.rotation.set(rx,ry,rz)`): `kit.roundedBox(w,h,d,color,radius?,opts?)`, `kit.box(w,h,d,color,opts?)`, `kit.cylinder(r,h,color,opts?)`, `kit.sphere(r,color,opts?)`, `kit.tube([[x,y,z],...],radius,color,opts?)`, `kit.material(color,opts)`. `opts` = `{ metalness, roughness, emissive, emissiveIntensity, opacity }`.
+- `kit.lookAt(x,y,z,distance)` frames the whole scene cleanly without giant zoomed meshes. `kit.onFrame((dt,t)=>{...})` runs every frame. Use a non-scrolling 2-column cockpit layout on desktop (`stage` capped around `260–460px` height) so apparatus and sliders sit side by side.
 - Bridge to the app: `window.sunroot.say(text,{tone})` (tutor speaks; tones `ask`, `hint`, `praise`, `warn`), `window.sunroot.complete({score,level})` (goal reached), `window.sunroot.progress(...)`, `window.sunroot.award({stars,xp,label})`.
 - The host adds a strict content policy: no network, no storage, no popups.
 
 ## 2. The five parts every simulation has
 1. **Goal banner**: one sentence the learner can fail or pass ("Make one swing take 2.0 s").
-2. **Stage**: the 3D scene (physical topics) or canvas/SVG (abstract topics), sized from its container.
+2. **Stage**: realistic 2D canvas/SVG (circuits, optics, chemistry, graphs) or compact 3D `SimKit3D` scene (true 3D mechanisms/objects), sized from its container.
 3. **Controls**: a slider per variable with its value and unit, plus something to grab inside the scene (a handle, a tap, a hold).
 4. **Readouts**: live numbers with units and the governing formula as text (`T = 2π√(L/g)`).
 5. **Feedback loop**: the tutor asks a prediction first, hints after the first change, praises on success; the goal calls `complete()` once.

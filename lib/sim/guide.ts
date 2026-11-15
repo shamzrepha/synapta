@@ -3,10 +3,10 @@
  * Groq-hosted one) can follow it without guessing. The long version for people lives in docs/design/SIM-DESIGN-GUIDE.md;
  * keep the two in step.
  */
-export const SIM_MODEL_GUIDE = `HOW TO BUILD IT (follow in this order; the reference example below already does all of it):
-1. Choose ONE idea the learner can change and see: one or two variables, one clear cause and effect, one goal.
-2. Physical or spatial topic: build a 3D scene with SimKit3D (see 1b). Abstract topic: <canvas> or SVG, still with a goal.
-3. Write the layout first: goal banner, stage, controls with value and unit, live readouts with the formula, Pause and Reset, "What to notice".
+export const SIM_MODEL_GUIDE = `HOW TO BUILD IT (follow in this order; the reference example below shows the layout, controls, bridge, and sim-meta):
+1. Choose ONE idea the learner can change and see: one or two variables (sliders only when necessary), one clear cause and effect, one goal.
+2. Medium: use realistic 2D (<canvas> or inline SVG) for circuits & Ohm's law (bulb, resistor, switch, multimeter, live V-I graph), optics rays, chemistry benches, waves, or plots; reserve 3D (SimKit3D, kept compact and framed with kit.lookAt) for true 3D objects, gears, robotics, linkages, orbits, or 3D geometry. Never force a 2D circuit diagram into 3D blocks.
+3. Write the layout first: goal banner, compact bounded stage + controls side by side on wide screens (no long vertical scrolling), live readouts with the formula (plus live graph where helpful), Pause and Reset, "What to notice".
 4. Then the model: real equations, SI units, a fixed small time step inside kit.onFrame(dt).
 5. Then the game: a target the learner reaches by changing the variables, stars or a score, then window.sunroot.complete({score, level}).
 6. Then the tutor: window.sunroot.say(text,{tone}) to ask a prediction first, hint after the first change, praise on success.

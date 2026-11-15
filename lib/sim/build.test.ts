@@ -98,3 +98,19 @@ describe("diagnoseSimulation", () => {
     expect(diagnoseForTest("<html><body><script>" + "var a=1;".repeat(80) + "</script></body></html>")).toMatch(/canvas|svg/);
   });
 });
+
+import { buildSimulationPrompt } from "./build";
+describe("simulation prompt medium selection", () => {
+  it("guides 2D circuits/diagrams instead of banning 2D canvas, while keeping bounded 3D SimKit3D", () => {
+    const { systemInstruction } = buildSimulationPrompt({
+      kcTitle: "Ohm's Law",
+      subject: "Physics & Electronics",
+      level: "secondary",
+      contextText: "V = I * R with battery, bulb, resistor and multimeter.",
+    });
+    expect(systemInstruction).not.toContain("Do NOT use <canvas> 2D for physical scenes");
+    expect(systemInstruction).toContain("realistic 2D (<canvas> 2D or inline <svg>)");
+    expect(systemInstruction).toContain("SimKit3D");
+    expect(systemInstruction).toContain("kit.lookAt");
+  });
+});

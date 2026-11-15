@@ -80,15 +80,15 @@ OUTPUT FORMAT (strict):
 
 HARD TECHNICAL RULES:
 1. Everything inline: one <style> and one or more inline <script> blocks. NO external URLs of any kind (no CDNs, fonts, images, fetch, XHR, WebSocket, no <script src>). Images only as data: URIs if truly needed.
-1b. LOOK: for anything physical or spatial (circuits, machines, forces, motion, optics, geometry, anatomy, structures) build a SOLID, LIT 3D scene, the same look as our Maker Studio, using the pre-loaded globals (do not import or load them):
-   - \`THREE\` (three.js) and \`SimKit3D\`. Start with: const kit = SimKit3D.create(document.getElementById("stage")); // "stage" is a div you size with CSS (e.g. height: 60vh). It gives you studio lighting, soft shadows, a grid floor and drag-to-orbit/zoom for free.
-   - kit.box(w,h,d,color), kit.cylinder(r,h,color), kit.sphere(r,color), kit.tube([[x,y,z],...], radius, color) add lit, shadow-casting parts (1 unit = 1 metre or 1 cm, your choice, keep objects 1-10 units so the default camera frames them). kit.roundedBox(w,h,d,color) for moulded-looking bodies (prefer it to kit.box for cases, chips, housings), kit.material(color,{emissive,emissiveIntensity,metalness,roughness,opacity}) for glowing, metallic or glass parts (all kit.* shapes accept the same options as a last argument). Lighting, reflections, tone mapping and orbit inertia are already set up: do not add your own lights. kit.lookAt(x,y,z,distance) frames the scene.
-   - Animate inside kit.onFrame((dt, t) => { ... }) using real physics; never a second requestAnimationFrame loop for the 3D scene.
-   - Parts must look like the real thing (a resistor with colour bands, a lens, a spring coil, a pendulum bob on a rod), not plain blocks. Never use wireframes or transparent boxes.
-   - Put sliders, buttons, readouts and the goal as normal HTML overlaid on or beside the stage. Do NOT use <canvas> 2D for physical scenes.
-   For abstract topics (algorithms, economics, timelines, graphs, plots) use <canvas> 2D or inline SVG instead; you can also add a small 2D graph beside a 3D scene.
+1b. CHOOSE THE RIGHT VISUAL MEDIUM FOR THE TOPIC:
+   - Use **realistic 2D (<canvas> 2D or inline <svg>)** whenever 2D is clearer — including electrical & electronic circuits (Ohm's law, series/parallel circuits, realistic batteries, toggle switches, glowing bulbs with filament, colour-banded resistors, analog/digital multimeters/ammeters/voltmeters, animated charge dots along wires), ray optics benches, wave diagrams, live V-I / motion graphs, chemistry glassware/burners/titration, logic gates, biology cycles, algorithms, and economics. Draw realistic parts, not empty boxes; use crisp non-overlapping labels, include a live graph where relationships matter, and add sliders ONLY where continuous tuning is needed alongside clickable/draggable scene parts.
+   - Use **SOLID, LIT 3D (\`THREE\` + \`SimKit3D\`)** ONLY when true 3D objects, spatial geometry, or 3D engineering genuinely helps (gears & gear trains, linkages, cranes, 3D mechanisms, motors, pendulums, planetary orbits, 3D molecules, crystal lattices, structures).
+   - When using 3D (\`SimKit3D\`), start with: const kit = SimKit3D.create(document.getElementById("stage")); on a bounded stage container (height: clamp(260px, 54vh, 460px); width: 100%;) — never stretch #stage taller than the screen or force long page scroll:
+     * Exact positional API (do NOT pass pos inside opts; position the returned Mesh via mesh.position.set(x,y,z) and mesh.rotation.set(rx,ry,rz)):
+       kit.box(w,h,d,color,opts?), kit.roundedBox(w,h,d,color,radius?,opts?), kit.cylinder(r,h,color,opts?), kit.sphere(r,color,opts?), kit.tube([[x,y,z],...],radius,color,opts?), kit.material(color,{emissive,emissiveIntensity,metalness,roughness,opacity}).
+     * Keep all 3D geometry compact around the origin (x,z within [-3.5, 3.5], y within [0, 3.5]) and call kit.lookAt(0, 0.8, 0, 5.5) (adjust distance 4-9 to frame cleanly) so nothing zooms into a giant blue beam. Animate inside kit.onFrame((dt, t) => { ... }); never add your own renderer, camera, lights, or second requestAnimationFrame for 3D.
 2. Do NOT use localStorage, sessionStorage, cookies, alert(), confirm(), prompt(), window.open or forms that submit.
-3. Responsive: the page fills 100% of the frame width; the main stage keeps a sensible aspect ratio and re-renders on window resize. Must work at 360px wide (phones) and on wide screens. Support mouse AND touch (pointer events).
+3. Responsive cockpit layout: fit the stage and controls cleanly without long vertical scrolling or overflow (must work at 360px wide on phones and side-by-side on wide screens). Size 2D <canvas>/<svg> cleanly with ResizeObserver and devicePixelRatio. Support mouse AND touch (pointer events).
 4. Smooth animation with requestAnimationFrame and a real time step (dt). Pause/Play and Reset buttons.
 5. Vanilla JavaScript only, no frameworks. Code must run without errors — double-check every variable is defined and every element ID you query exists.
 6. Keep the whole document under ~1,200 lines.
@@ -104,7 +104,7 @@ LEARNING & GAME DESIGN RULES:
 
 ${SIM_MODEL_GUIDE}
 
-REFERENCE EXAMPLE (a complete, working simulation of a different topic). Copy its STRUCTURE, its quality bar and its use of SimKit3D, the bridge, pointer events, ResizeObserver and sim-meta. Do NOT copy its topic, wording or numbers:
+REFERENCE EXAMPLE (a complete, working simulation showing structure, quality bar, pointer interaction, bridge calls, ResizeObserver, Reset, and sim-meta). It uses SimKit3D only because pendulum motion is 3D — if your topic is 2D (circuits/Ohm's law, ray optics, wet chemistry, graphs, algorithms), draw with <canvas> 2D or inline <svg> instead of SimKit3D. Do NOT copy its topic, wording or numbers:
 <REFERENCE_EXAMPLE>
 ${SIM_REFERENCE_HTML}
 </REFERENCE_EXAMPLE>`;
