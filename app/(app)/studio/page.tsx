@@ -136,6 +136,14 @@ export default function StudioHome() {
               <Sparkles className="h-3 w-3" /> 3D: {idea}
             </button>
           ))}
+          {[
+            "a simple DC wire circuit with a 6 V battery, switch, bulb, ammeter and voltmeter (no board)",
+            "two bulbs in parallel controlled by separate switches on a 6 V battery with an ammeter (no board)",
+          ].map((idea) => (
+            <button key={idea} type="button" onClick={() => create({ from: "prompt", prompt: idea, kind: "circuit", level }, "prompt")} className="flex items-center gap-1 rounded-full border border-teal-300/60 text-teal-200 px-3 py-1 hover:bg-white/10">
+              <Sparkles className="h-3 w-3" /> Wire: {idea.split(",")[0].replace("a simple ", "")}
+            </button>
+          ))}
           <Link href="/studio/shop" className="flex items-center gap-1 rounded-full bg-amber-400 text-slate-900 font-semibold px-3 py-1 hover:bg-amber-300">
             <Wrench className="h-3 w-3" /> Parts shop
           </Link>

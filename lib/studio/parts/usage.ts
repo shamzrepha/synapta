@@ -63,8 +63,20 @@ export const PART_USAGE: Record<string, PartUsage> = {
     mistakes: ["Motor draws ~150 mA running and 1.5 A stalled; a pin gives ~20 mA.", "Over 6 V shortens its life; under ~3 V it is weak."],
   },
   battery: {
-    wiring: ["minus → board GND (shared ground!), plus → the motor driver's motor-supply pin (VS on L298N, VM on TB6612)."],
-    mistakes: ["Forgetting the shared ground: the driver then has no reference and nothing moves."],
+    wiring: ["Wire circuits (no board needed): plus → switch / resistor / bulb → minus.", "With a board & motor driver: minus → board GND (shared ground!), plus → the motor driver's motor-supply pin (VS on L298N, VM on TB6612)."],
+    mistakes: ["Direct wire from plus to minus with zero load causes a short circuit.", "When using a board, forgetting shared ground means the driver has no reference."],
+  },
+  bulb: {
+    wiring: ["Wire in a loop with a battery and switch: battery plus → switch a, switch b → bulb a, bulb b → battery minus (or add a resistor in series to dim it)."],
+    mistakes: ["Needs about 3–6 V to glow brightly; above ~9 V burns out the filament.", "An open switch in the loop stops all current."],
+  },
+  ammeter: {
+    wiring: ["Connect IN SERIES inside the current path: e.g. battery plus → ammeter in, ammeter out → resistor/bulb → battery minus."],
+    mistakes: ["NEVER wire an ammeter directly across a battery's plus and minus without a resistor or bulb — ammeters have almost zero resistance and will short-circuit the battery."],
+  },
+  voltmeter: {
+    wiring: ["Connect IN PARALLEL across the part you want to measure: voltmeter plus → the high-voltage side of a bulb, resistor, or battery; voltmeter minus → the return side."],
+    mistakes: ["If you swap plus and minus, the reading shows a minus sign (−V)."],
   },
   l298n: {
     wiring: [

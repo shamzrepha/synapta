@@ -57,7 +57,7 @@ RULES
 - Electrical sense, using the datasheet facts: motors need a driver and a battery (never a board pin); the battery minus shares ground with the board; the L298N wastes 2–3 V (so a 6 V pack gives ~3.5 V) while the TB6612FNG wastes ~0.15 V; an HC-SR04 needs 5 V; a servo needs 5 V.
 - Quantities are realistic (a two-wheel robot has 2 motors; a line follower usually 2–3 line sensors).
 - "approach" is 4–8 short steps: how to build it, in order (mechanics → wiring → code → test → tune).
-- Always include one board.
+- Include one "board" whenever code, sensors, displays, servos, steppers, or motor drivers are needed. For pure DC wire circuits (battery + switch + bulb/LED/resistor + ammeter/voltmeter only, no microcontroller needed), omit the board!
 Return ONLY JSON: {"title":"…","summary":"one paragraph","approach":["…"],"parts":[{"type":"l298n","qty":1,"why":"…"}],"notInShop":["…"],"warnings":["…"]}.
 
 THE SHOP
@@ -83,7 +83,10 @@ export async function planProject(params: { prompt: string; level?: string; user
     if (at) at.qty = Math.min(12, at.qty + p.qty);
     else parts.push(p);
   }
-  if (!parts.some((p) => p.type === "board")) parts.unshift({ type: "board", qty: 1, why: "Runs your code and switches everything." });
+  const needsBoard =
+    !parts.some((p) => p.type === "battery") ||
+    parts.some((p) => ["l298n", "tb6612", "motor_driver", "servo", "stepper", "hc_sr04", "ir_sensor", "oled", "dht11", "mpu6050", "potentiometer", "light_sensor", "temp_sensor"].includes(p.type));
+  if (!parts.some((p) => p.type === "board") && needsBoard) parts.unshift({ type: "board", qty: 1, why: "Runs your code and switches everything." });
   const types = new Set(parts.map((p) => p.type));
   const warnings = [...plan.warnings];
   if ((types.has("l298n") || types.has("tb6612")) && !types.has("battery")) {
@@ -219,7 +222,7 @@ const IDEAS_SYSTEM = `You suggest small hands-on builds a student can make and t
 RULES
 - Think like a real teacher planning a practical for this exact topic: what would they bring into the room and demonstrate or let students build? Every idea must be a REAL-LIFE, practical thing a teacher would actually show (a working model of how something in the world works), not a generic gadget. Name the real-world object it models.
 - Every idea must clearly teach the topic, be doable in 15–45 minutes, and work with ONLY parts from THE SHOP.
-- Fit the KIND to the topic. A mechanical or physical topic (forces, levers, gears, pulleys, structures, simple machines) gets "mechanism" or "assembly" ideas with NO electronics and NO code. Only use "circuit" when electronics or programming really is the topic (circuits, sensors, control, automation). Never add a board, LED or code to an idea just to fill it in.
+- Fit the KIND to the topic. A mechanical or physical topic (forces, levers, gears, pulleys, structures, simple machines) gets "mechanism" or "assembly" ideas with NO electronics and NO code. A basic electricity/Ohm's law/series-parallel circuit topic gets a wire-only "circuit" ("battery", "switch", "resistor", "bulb", "led", "ammeter", "voltmeter") with NO board and NO code! Robotics/automation/sensors/programmable builds get "circuit" with a board, code, and 3D linked body/gears/robot. Never add a board, LED or code to an idea just to fill it in.
 - Give a spread that suits the topic: an easy first build, then one that goes deeper (a measurement, a knob or sensor, or a decision) only if it belongs to the topic.
 - "buildPrompt" is a plain instruction a beginner could type, e.g. "a night light that turns on when the room gets dark, using a light sensor and an LED".
 - "parts" are shop part types only.

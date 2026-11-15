@@ -1,5 +1,5 @@
 import { CATALOG_BY_TYPE, boardPinName, pinDef, isButtonLike } from "./catalog";
-import { Netlist, emptyPinState, i2cWired, netPotential, scanCode, term, type Circuit, type PinState } from "./netlist";
+import { Netlist, emptyPinState, evaluateOutputs, i2cWired, netPotential, scanCode, term, type Circuit, type PinState } from "./netlist";
 
 /**
  * Wiring and code checks. Like SunRoot's GraphChecker, bad wiring is allowed (that's how people
@@ -65,16 +65,41 @@ export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
   const issues: Issue[] = [];
   const pins = staticPins(code);
   const boards = circuit.parts.filter((p) => p.type === "board");
+  const batteries = circuit.parts.filter((p) => p.type === "battery");
 
   if (boards.length === 0) {
-    issues.push({
-      severity: "error",
-      system: "STRUCTURE",
-      parts: [],
-      message: "There is no board on the bench.",
-      why: "Something has to run your code and switch the parts on and off.",
-      prompt: "Which part makes the decisions in this circuit?",
-    });
+    if (batteries.length === 0) {
+      issues.push({
+        severity: "error",
+        system: "STRUCTURE",
+        parts: [],
+        message: "There is no board on the bench.",
+        why: "Something has to run your code and switch the parts on and off.",
+        prompt: "Which part makes the decisions in this circuit?",
+      });
+      return issues;
+    }
+    // Pure DC electronics wire circuit (battery without a microcontroller board)
+    const out = evaluateOutputs(nl, pins);
+    for (const p of circuit.parts) {
+      if (p.type === "resistor") continue;
+      if (!nl.isWired(p.id)) {
+        issues.push({ severity: "warning", system: "STRUCTURE", parts: [p.id], message: `${label(nl, p.id)} isn't wired into the circuit yet.`, why: "An unconnected part has no complete path for current.", prompt: "Where should its wires connect?" });
+      }
+      if (["oled", "dht11", "mpu6050", "servo", "stepper", "hc_sr04", "ir_sensor", "l298n", "tb6612"].includes(p.type)) {
+        issues.push({ severity: "warning", system: "STRUCTURE", parts: [p.id], message: `${label(nl, p.id)} needs a Starter board and code to operate.`, why: "Sensors, drivers, displays and servos speak over signals from a microcontroller.", prompt: "Should this circuit include a Starter board?" });
+      }
+      const st = out[p.id];
+      if (st?.fault === "short") {
+        issues.push({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `Short circuit across ${label(nl, p.id)}!`, why: "Current is flowing from battery + to − with almost zero resistance.", prompt: "What load or resistor is missing in this loop?" });
+      } else if (st?.fault === "overcurrent") {
+        issues.push({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} has no current-limiting resistor and will burn out.`, why: "A battery pushes too much current straight through an LED unless a series resistor limits it.", prompt: "Where should a 220 Ω resistor sit in series?" });
+      } else if (st?.fault === "reversed") {
+        issues.push({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} is wired backwards.`, why: "Current only lights an LED from anode (+) to cathode (−).", prompt: "Which leg is the anode (+)?" });
+      } else if (st?.fault === "overvoltage") {
+        issues.push({ severity: "warning", system: "POWER", parts: [p.id], message: `${label(nl, p.id)} is above its safe voltage and burned out.`, why: "Lower the battery voltage or add a series resistor to share the voltage drop.", prompt: "How could you lower the voltage across the bulb?" });
+      }
+    }
     return issues;
   }
   if (boards.length > 1) {
@@ -275,7 +300,8 @@ export interface Gap {
 export function nextGaps(circuit: Circuit, code: string): Gap[] {
   const gaps: Gap[] = [];
   const nl = new Netlist(circuit);
-  if (!nl.board) {
+  const hasBattery = circuit.parts.some((p) => p.type === "battery");
+  if (!nl.board && !hasBattery) {
     gaps.push({ id: "board", title: "Place a board", hint: "Drag the Starter board onto the bench.", question: "What will run your program?", parts: [] });
     return gaps;
   }
@@ -283,15 +309,17 @@ export function nextGaps(circuit: Circuit, code: string): Gap[] {
   for (const p of circuit.parts) {
     if (p.type === "board" || p.type === "resistor") continue;
     if (!nl.isWired(p.id)) {
-      gaps.push({ id: `wire-${p.id}`, title: `Wire ${label(nl, p.id)}`, hint: CATALOG_BY_TYPE[p.type]?.description || "", question: "Which board pins does it need?", parts: [p.id] });
+      gaps.push({ id: `wire-${p.id}`, title: `Wire ${label(nl, p.id)}`, hint: CATALOG_BY_TYPE[p.type]?.description || "", question: nl.board ? "Which board pins does it need?" : "Which loop should it join?", parts: [p.id] });
     }
   }
   for (const i of issues.filter((x) => x.severity === "error")) {
     gaps.push({ id: `fix-${i.message.slice(0, 30)}`, title: i.message, hint: i.why, question: i.prompt, parts: i.parts });
   }
-  const scan = scanCode(code);
-  if (!scan.hasSetup || !scan.hasLoop) {
-    gaps.push({ id: "code", title: "Write setup() and loop()", hint: "setup() runs once; loop() repeats forever.", question: "What should your loop do each time around?", parts: [] });
+  if (nl.board) {
+    const scan = scanCode(code);
+    if (!scan.hasSetup || !scan.hasLoop) {
+      gaps.push({ id: "code", title: "Write setup() and loop()", hint: "setup() runs once; loop() repeats forever.", question: "What should your loop do each time around?", parts: [] });
+    }
   }
   for (const i of issues.filter((x) => x.severity === "warning")) {
     gaps.push({ id: `warn-${i.message.slice(0, 30)}`, title: i.message, hint: i.why, question: i.prompt, parts: i.parts });

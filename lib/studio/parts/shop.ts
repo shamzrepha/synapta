@@ -43,8 +43,11 @@ const CATEGORY: Record<string, ShopCategory> = {
   button: "Inputs",
   switch: "Inputs",
   led: "Lights & sound",
+  bulb: "Lights & sound",
   buzzer: "Lights & sound",
   resistor: "Basics",
+  ammeter: "Basics",
+  voltmeter: "Basics",
 };
 
 export const SHOP_CATEGORIES: ShopCategory[] = ["Boards", "Motor drivers", "Motors & actuators", "Sensors", "Power", "Inputs", "Lights & sound", "Basics"];
@@ -75,7 +78,7 @@ export function shopItem(type: string): ShopItem | undefined {
 }
 
 /** Parts every design may use without selecting them (they teach nothing new and have no datasheet risk). */
-export const ALWAYS_ALLOWED = ["board", "resistor", "led", "button", "switch"];
+export const ALWAYS_ALLOWED = ["board", "resistor", "led", "button", "switch", "bulb", "battery", "ammeter", "voltmeter"];
 
 /** The one-line index the planner chooses from. */
 export function shopIndex(): string {

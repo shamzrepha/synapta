@@ -233,9 +233,57 @@ function PartArt({ p, def, out, pressed }: { p: CircuitPart; def: ComponentDef; 
       return (
         <g>
           <rect width={w} height={h - 10} rx={6} fill="#a16207" stroke="#fde68a" />
+          <rect x={0.18 * w - 6} y={h - 12} width={12} height={4} rx={1} fill="#ef4444" />
           <text x={w / 2} y={(h - 10) / 2 + 4} textAnchor="middle" fontSize={13} fill="#fffbeb" fontWeight={800}>{`${Number(p.props?.volts ?? 6)} V`}</text>
+          {out?.fault === "short" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={10} fill="#ef4444" fontWeight={700}>⚡ short circuit</text>}
         </g>
       );
+    case "bulb": {
+      const lvl = out?.on ? Math.min(1.4, out.level) : 0;
+      const burnt = out?.fault === "overvoltage";
+      return (
+        <g>
+          {lvl > 0 && !burnt && <circle cx={w / 2} cy={24} r={30} fill="#fde047" opacity={0.15 + 0.35 * Math.min(1, lvl)} />}
+          <circle cx={w / 2} cy={24} r={18} fill={burnt ? "#1f2937" : "#fef9c3"} fillOpacity={burnt ? 0.6 : 0.12 + 0.72 * Math.min(1, lvl)} stroke={lvl > 0 && !burnt ? "#facc15" : "#94a3b8"} strokeWidth={2} />
+          <path d={`M${w / 2 - 7},34 L${w / 2 - 4},20 L${w / 2},25 L${w / 2 + 4},20 L${w / 2 + 7},34`} fill="none" stroke={burnt ? "#475569" : lvl > 0 ? "#fffbeb" : "#9ca3af"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+          <rect x={w / 2 - 9} y={40} width={18} height={10} rx={2} fill="#ca8a04" stroke="#eab308" />
+          <line x1={0.3 * w} y1={50} x2={0.3 * w} y2={h} stroke="#9ca3af" strokeWidth={2} />
+          <line x1={0.7 * w} y1={50} x2={0.7 * w} y2={h} stroke="#9ca3af" strokeWidth={2} />
+          {burnt && <text x={w / 2} y={-6} textAnchor="middle" fontSize={10} fill="#ef4444" fontWeight={700}>⚠ burnt out</text>}
+          {!burnt && out?.volts !== undefined && Math.abs(out.volts) > 0.05 && (
+            <text x={w / 2} y={-5} textAnchor="middle" fontSize={9.5} fill="#fde68a" fontFamily="monospace">{Math.abs(out.volts).toFixed(1)}V</text>
+          )}
+        </g>
+      );
+    }
+    case "ammeter": {
+      const ma = out?.currentMa ?? 0;
+      const disp = Math.abs(ma) >= 1000 ? `${(ma / 1000).toFixed(2)} A` : `${Math.round(ma)} mA`;
+      return (
+        <g>
+          <rect width={w} height={h - 10} rx={6} fill="#0f172a" stroke="#14b8a6" strokeWidth={1.6} />
+          <rect x={6} y={7} width={w - 12} height={24} rx={3} fill="#042f2e" stroke="#134e4a" />
+          <text x={w / 2} y={23} textAnchor="middle" fontSize={11} fill="#5eead4" fontFamily="monospace" fontWeight={700}>{disp}</text>
+          <text x={w / 2} y={h - 14} textAnchor="middle" fontSize={8} fill="#94a3b8" fontWeight={700}>AMMETER (A)</text>
+          <line x1={0.22 * w} y1={h - 10} x2={0.22 * w} y2={h} stroke="#14b8a6" strokeWidth={2} />
+          <line x1={0.78 * w} y1={h - 10} x2={0.78 * w} y2={h} stroke="#9ca3af" strokeWidth={2} />
+          {out?.fault === "short" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={10} fill="#ef4444" fontWeight={700}>⚡ short!</text>}
+        </g>
+      );
+    }
+    case "voltmeter": {
+      const vv = out?.volts ?? 0;
+      return (
+        <g>
+          <rect width={w} height={h - 10} rx={6} fill="#0f172a" stroke="#f59e0b" strokeWidth={1.6} />
+          <rect x={6} y={7} width={w - 12} height={24} rx={3} fill="#451a03" stroke="#78350f" />
+          <text x={w / 2} y={23} textAnchor="middle" fontSize={11} fill="#fde68a" fontFamily="monospace" fontWeight={700}>{`${vv.toFixed(2)} V`}</text>
+          <text x={w / 2} y={h - 14} textAnchor="middle" fontSize={8} fill="#94a3b8" fontWeight={700}>VOLTMETER (V)</text>
+          <line x1={0.22 * w} y1={h - 10} x2={0.22 * w} y2={h} stroke="#ef4444" strokeWidth={2} />
+          <line x1={0.78 * w} y1={h - 10} x2={0.78 * w} y2={h} stroke="#9ca3af" strokeWidth={2} />
+        </g>
+      );
+    }
     case "motor_driver":
       return (
         <g>
@@ -594,6 +642,16 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
               {sel.type === "resistor" && (
                 <select value={String(sel.props?.ohms ?? 220)} onChange={(e) => updateProps(sel.id, { props: { ...sel.props, ohms: Number(e.target.value) } })} className="h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-1" aria-label="Resistance">
                   {[10, 100, 220, 330, 470, 1000, 4700, 10000].map((o) => <option key={o} value={o}>{o >= 1000 ? `${o / 1000} kΩ` : `${o} Ω`}</option>)}
+                </select>
+              )}
+              {sel.type === "battery" && (
+                <select value={String(sel.props?.volts ?? 6)} onChange={(e) => updateProps(sel.id, { props: { ...sel.props, volts: Number(e.target.value) } })} className="h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-1" aria-label="Battery voltage">
+                  {[1.5, 3, 4.5, 6, 9, 12].map((bv) => <option key={bv} value={bv}>{bv} V</option>)}
+                </select>
+              )}
+              {sel.type === "bulb" && (
+                <select value={String(sel.props?.ohms ?? 12)} onChange={(e) => updateProps(sel.id, { props: { ...sel.props, ohms: Number(e.target.value) } })} className="h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent px-1" aria-label="Bulb resistance">
+                  {[6, 12, 24, 50, 100].map((bo) => <option key={bo} value={bo}>{bo} Ω</option>)}
                 </select>
               )}
               <span className="text-slate-500 hidden sm:inline">{selDef.description}</span>

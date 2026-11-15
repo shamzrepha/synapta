@@ -2,7 +2,7 @@
 
 import { ImmersiveContext } from "./gesture-lock";
 import React, { useEffect, useState } from "react";
-import { Columns2, Maximize2, Minimize2, Play, Square, X } from "lucide-react";
+import { Columns2, Columns3, Maximize2, Minimize2, Play, Square, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface StageView {
@@ -58,6 +58,7 @@ export function SimStage({
   const [wide, setWide] = useState(true);
   const [portrait, setPortrait] = useState(false);
   const [hintDismissed, setHintDismissed] = useState(false);
+  const [trio, setTrio] = useState(true);
 
   // Ask for real fullscreen + landscape on open (needs the tap that opened us; fails quietly elsewhere)
   useEffect(() => {
@@ -100,9 +101,14 @@ export function SimStage({
   }, [onClose]);
 
   const main = views.find((v) => v.key === view) || views[0];
+  const v3d = views.find((v) => v.key === "3d");
+  const vCircuit = views.find((v) => v.key === "circuit");
+  const vCode = views.find((v) => v.key === "code");
+  const canTrio = !!(wide && v3d && vCircuit && vCode);
+  const showTrio = split && canTrio && trio;
   const firstOther = views.find((v) => v.key !== "3d");
-  const showSplit = split && wide && views.some((v) => v.key === "3d") && views.length > 1;
-  const left = showSplit ? views.find((v) => v.key === "3d")! : main;
+  const showSplit = !showTrio && split && wide && !!v3d && views.length > 1;
+  const left = showSplit ? v3d! : main;
   const right = showSplit ? (main.key === "3d" ? firstOther : main) : null;
 
   const toggleFull = () => {
@@ -138,6 +144,20 @@ export function SimStage({
             </button>
           ))}
         </div>
+        {canTrio && (
+          <button
+            type="button"
+            onClick={() => {
+              if (!split) onSplit(true);
+              setTrio(!trio);
+            }}
+            aria-label="3-pane robotics view"
+            title="Tinkercad Trio: 3D + Circuit + Code together"
+            className={cn("flex h-9 w-9 items-center justify-center rounded-lg", showTrio ? "bg-brand-600" : "bg-white/10 hover:bg-white/20")}
+          >
+            <Columns3 className="h-4 w-4" />
+          </button>
+        )}
         {wide && views.length > 1 && (
           <button type="button" onClick={() => onSplit(!split)} aria-label="Split view" title="3D + another view side by side" className={cn("flex h-9 w-9 items-center justify-center rounded-lg", split ? "bg-brand-600" : "bg-white/10 hover:bg-white/20")}>
             <Columns2 className="h-4 w-4" />
@@ -167,10 +187,18 @@ export function SimStage({
         </div>
       )}
 
-      <div className={cn("grid min-h-0 flex-1 gap-1.5 p-1.5 [padding-left:max(0.375rem,env(safe-area-inset-left))] [padding-right:max(0.375rem,env(safe-area-inset-right))]", showSplit ? "grid-cols-2" : "grid-cols-1")}>
-        <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" key={left.key}>{left.node}</div>
-        {right && <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" key={right.key}>{right.node}</div>}
-      </div>
+      {showTrio && v3d && vCircuit && vCode ? (
+        <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-1.5 p-1.5 [padding-left:max(0.375rem,env(safe-area-inset-left))] [padding-right:max(0.375rem,env(safe-area-inset-right))]">
+          <div className="row-span-2 min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" key={v3d.key}>{v3d.node}</div>
+          <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" key={vCircuit.key}>{vCircuit.node}</div>
+          <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" key={vCode.key}>{vCode.node}</div>
+        </div>
+      ) : (
+        <div className={cn("grid min-h-0 flex-1 gap-1.5 p-1.5 [padding-left:max(0.375rem,env(safe-area-inset-left))] [padding-right:max(0.375rem,env(safe-area-inset-right))]", showSplit ? "grid-cols-2" : "grid-cols-1")}>
+          <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" key={left.key}>{left.node}</div>
+          {right && <div className="min-h-0 min-w-0 overflow-auto rounded-xl border border-white/10 bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100" key={right.key}>{right.node}</div>}
+        </div>
+      )}
     </div>
     </ImmersiveContext.Provider>
   );

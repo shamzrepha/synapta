@@ -174,3 +174,57 @@ describe("behaviour tests", () => {
     expect(r.message).toBe("All checks passed.");
   });
 });
+
+describe("board-free pure DC wire circuits (Ohm's law, bulbs, meters)", () => {
+  it("evaluates battery + switch + ammeter + resistor + bulb + voltmeter without any microcontroller board", () => {
+    const circuit = {
+      parts: [
+        P("bat", "battery", { volts: 6 }),
+        P("sw", "switch"),
+        P("amp", "ammeter"),
+        P("r1", "resistor", { ohms: 10 }),
+        P("lamp", "bulb", { ohms: 12, maxVolts: 9 }),
+        P("vm", "voltmeter"),
+      ],
+      wires: [
+        W("bat.plus", "sw.a"),
+        W("sw.b", "amp.in"),
+        W("amp.out", "r1.a"),
+        W("r1.b", "lamp.a"),
+        W("lamp.b", "bat.minus"),
+        W("vm.plus", "lamp.a"),
+        W("vm.minus", "lamp.b"),
+      ],
+    };
+    expect(checkCircuit(circuit, "").filter((i) => i.severity === "error")).toEqual([]);
+    const openOut = evaluateOutputs(new Netlist(circuit), emptyPinState());
+    expect(openOut.lamp.on).toBe(false);
+    expect(Math.abs(openOut.amp.currentMa ?? 0)).toBeLessThan(1);
+    expect(Math.abs(openOut.vm.volts ?? 0)).toBeLessThan(0.05);
+
+    const closedOut = evaluateOutputs(new Netlist(circuit, new Set(["sw"])), emptyPinState());
+    expect(closedOut.lamp.on).toBe(true);
+    // 6 V / (0.05 + 0.05 + 10 + 12) Ω ≈ 271.5 mA; V_lamp ≈ 3.26 V
+    expect(closedOut.amp.currentMa!).toBeGreaterThan(268);
+    expect(closedOut.amp.currentMa!).toBeLessThan(275);
+    expect(closedOut.vm.volts!).toBeCloseTo(3.26, 1);
+  });
+
+  it("detects short circuits and unresisted LED overcurrent in pure battery loops", () => {
+    const shorted = {
+      parts: [P("bat", "battery", { volts: 6 }), P("amp", "ammeter")],
+      wires: [W("bat.plus", "amp.in"), W("amp.out", "bat.minus")],
+    };
+    const out = evaluateOutputs(new Netlist(shorted), emptyPinState());
+    expect(out.bat.fault).toBe("short");
+    expect(out.amp.fault).toBe("short");
+    expect(checkCircuit(shorted, "").some((i) => i.severity === "error" && /short/i.test(i.message))).toBe(true);
+
+    const hotLed = {
+      parts: [P("bat", "battery", { volts: 6 }), P("led", "led", { color: "red" })],
+      wires: [W("bat.plus", "led.anode"), W("led.cathode", "bat.minus")],
+    };
+    expect(evaluateOutputs(new Netlist(hotLed), emptyPinState()).led.fault).toBe("overcurrent");
+    expect(checkCircuit(hotLed, "").some((i) => i.severity === "error" && /resistor/i.test(i.message))).toBe(true);
+  });
+});

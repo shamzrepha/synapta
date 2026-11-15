@@ -15,6 +15,7 @@ import { robotBody } from "../drive/robot3d";
 export type LinkRole = "light" | "spin" | "press" | "servo" | "pulse";
 export const LINK_ROLE: Record<string, LinkRole> = {
   led: "light",
+  bulb: "light",
   dc_motor: "spin",
   button: "press",
   switch: "press",
@@ -92,6 +93,15 @@ export function modelFor(type: string, props: Record<string, string | number> | 
       ];
     case "battery":
       return [box([60, 18, 30], 9, "#a16207", { opacity: 0.4, name: "Battery" }), box([60.5, 4, 30.5], 16, "#111827", { opacity: 0.6, name: "Label" }), { shape: "cylinder", size: [3, 3], dx: 31, dy: TOP + 9, dz: 0, rot: [0, 0, 90], color: "#e5e7eb", opacity: 0.8, name: "Terminal" }];
+    case "bulb":
+      return [
+        { shape: "cylinder", size: [5, 5], dx: 0, dy: TOP + 2.5, dz: 0, color: "#ca8a04", opacity: 0.7, name: "Screw base" },
+        { shape: "sphere", size: [7], dx: 0, dy: TOP + 11, dz: 0, color: "#fef08a", opacity: 0.45, name: "Glass bulb" },
+      ];
+    case "ammeter":
+      return [box([22, 8, 16], 4, "#1e293b", { opacity: 0.5, name: "Ammeter" }), box([14, 1, 8], 8.5, "#14b8a6", { opacity: 0.7, name: "Readout" })];
+    case "voltmeter":
+      return [box([22, 8, 16], 4, "#1e293b", { opacity: 0.5, name: "Voltmeter" }), box([14, 1, 8], 8.5, "#f59e0b", { opacity: 0.7, name: "Readout" })];
     case "buzzer":
       return [{ shape: "cylinder", size: [6.5, 8], dx: 0, dy: TOP + 4, dz: 0, color: "#374151", opacity: 0.5 }, { shape: "cylinder", size: [1.4, 0.6], dx: 0, dy: TOP + 8.2, dz: 0, color: "#0b0f14", opacity: 0.9, name: "Sound hole" }];
     case "servo":

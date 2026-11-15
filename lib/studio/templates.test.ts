@@ -47,4 +47,26 @@ describe("AI output repair", () => {
     expect(ids).not.toContain("x");
     expect(fixed.circuit!.wires).toHaveLength(1);
   });
+
+  it("keeps pure battery wire circuits board-free when repaired", () => {
+    const fixed = parseSpec(
+      repairSpec({
+        kind: "circuit",
+        circuit: {
+          parts: [
+            { id: "bat", type: "battery", x: 10, y: 10 },
+            { id: "sw", type: "switch", x: 60, y: 10 },
+            { id: "lamp", type: "bulb", x: 120, y: 10 },
+          ],
+          wires: [
+            { from: "bat.plus", to: "sw.a" },
+            { from: "sw.b", to: "lamp.a" },
+            { from: "lamp.b", to: "bat.minus" },
+          ],
+        },
+      })
+    );
+    expect(fixed.circuit!.parts.map((p) => p.type)).not.toContain("board");
+    expect(fixed.circuit!.wires).toHaveLength(3);
+  });
 });

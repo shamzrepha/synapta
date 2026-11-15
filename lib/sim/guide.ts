@@ -6,9 +6,9 @@
 export const SIM_MODEL_GUIDE = `HOW TO BUILD IT (follow in this order; the reference example below already does all of it):
 1. Choose ONE idea the learner can change and see: one or two variables, one clear cause and effect, one goal.
 2. Choose the clearest visual medium:
-   - Electrical circuits (Ohm's law, bulbs, resistors, multimeters, switches), ray optics, bench chemistry, waves/plots, and algorithms: build a RICH, REALISTIC 2D WORKBENCH (<canvas> or <svg>) with real parts (filament bulb glow, banded resistor, digital/needle multimeter, animated current flow dots).
-   - True 3D spatial/mechanical engineering (linkages, trusses, 3D trajectories, orbits, 3D molecules, motors): build a COMPACT 3D scene with SimKit3D kept inside x,z in [-3.5,+3.5], y in [0,3.5], pass opts like {color, pos: [x,y,z]}, and call kit.fitCamera().
-3. Write a ONE-SCREEN COCKPIT layout (never a tall scrolling page): goal bar + 2-column grid on desktop (stage on left capped at clamp(240px, 48vh, 410px), sliders/multimeter/Formula/Pause/Reset on right).
+   - Wire & electronics circuits (Ohm's law, bulbs, switches, banded resistors, multimeters, logic gates), ray optics, bench chemistry, waves/plots, and algorithms: build a RICH, REALISTIC 2D WORKBENCH (<canvas> or <svg>) with real parts (filament bulb glow, banded resistor, interactive switch, digital/needle multimeter, animated current flow dots). NEVER render simple circuits as 3D blobs.
+   - True 3D objects & mechanisms (gears, robotic arms/linkages, pulleys/winches, 3D trajectories, orbits, 3D molecules, motors): build a COMPACT 3D scene with SimKit3D kept inside x,z in [-3.5,+3.5], y in [0,3.5], pass opts like {color, pos: [x,y,z]}, and finish with kit.fitCamera(1.25).
+3. Write a ONE-SCREEN COCKPIT layout (never a tall scrolling page): goal bar + 2-column grid on desktop (stage on left capped at clamp(240px, 46vh, 390px), sliders/multimeter/Formula/Pause/Reset on right).
 4. Then the model: real equations, SI units, a fixed small time step inside kit.onFrame(dt).
 5. Then the game: a target the learner reaches by changing the variables, stars or a score, then window.sunroot.complete({score, level}).
 6. Then the tutor: window.sunroot.say(text,{tone}) to ask a prediction first, hint after the first change, praise on success.

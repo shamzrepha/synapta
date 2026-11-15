@@ -949,6 +949,82 @@ function loop() {
       ],
     },
   },
+  {
+    id: "dc-bulb-circuit",
+    title: "Battery, switch & bulb (wire circuit)",
+    kind: "circuit",
+    level: "beginner",
+    tags: ["electronics", "wires", "ohms-law", "dc"],
+    blurb: "Pure DC wire simulator with battery, latching switch, bulb, resistor, ammeter and voltmeter — no microcontroller or code needed.",
+    starter: {
+      kind: "circuit",
+      summary: "Wire a complete DC loop from battery + through the switch, ammeter, resistor and bulb back to −, then measure bulb voltage with the voltmeter.",
+      circuit: {
+        parts: [
+          { id: "bat", type: "battery", x: 90, y: 240, props: { volts: 6 } },
+          { id: "sw", type: "switch", x: 240, y: 110 },
+          { id: "amp", type: "ammeter", x: 390, y: 110 },
+          { id: "r1", type: "resistor", x: 540, y: 110, props: { ohms: 10 } },
+          { id: "lamp", type: "bulb", x: 560, y: 240, props: { ohms: 12, maxVolts: 9 } },
+          { id: "vm", type: "voltmeter", x: 370, y: 310 },
+        ],
+        wires: [w("w1", "bat.plus", "sw.a", "#ef4444")],
+      },
+      code: "",
+      steps: [
+        { id: "e1", title: "Wire the series loop", detail: "Connect sw.b → amp.in → amp.out → r1.a → r1.b → lamp.a, then return lamp.b → bat.minus. (Black wires keep return paths clear.)", check: { kind: "noErrors" } },
+        { id: "e2", title: "Press Run and close the switch", detail: "Connect the voltmeter across lamp.a (+ red) and lamp.b (− black), press Run, then tap the switch ON. Watch I = V / R_total on the ammeter and V_bulb on the voltmeter.", check: { kind: "test", testId: "dc-loop" } },
+      ],
+      tests: [
+        {
+          id: "dc-loop",
+          title: "Bulb lights up when the switch closes",
+          durationMs: 600,
+          inputs: [{ atMs: 250, part: "sw", value: 1 }],
+          expect: { kind: "at", checks: [{ atMs: 100, part: "lamp", on: false }, { atMs: 450, part: "lamp", on: true }] },
+        },
+      ],
+      notes: "An ammeter always sits IN SERIES inside the current loop; a voltmeter always connects IN PARALLEL across a component.",
+    },
+    spec: {
+      kind: "circuit",
+      summary: "Complete DC series circuit: 6 V battery → switch → ammeter → 10 Ω resistor → 12 Ω bulb → battery −, with a voltmeter across the bulb. Total resistance ≈ 22 Ω, so closing the switch drives ~270 mA through the loop and ~3.26 V across the bulb.",
+      circuit: {
+        parts: [
+          { id: "bat", type: "battery", x: 90, y: 240, props: { volts: 6 } },
+          { id: "sw", type: "switch", x: 240, y: 110 },
+          { id: "amp", type: "ammeter", x: 390, y: 110 },
+          { id: "r1", type: "resistor", x: 540, y: 110, props: { ohms: 10 } },
+          { id: "lamp", type: "bulb", x: 560, y: 240, props: { ohms: 12, maxVolts: 9 } },
+          { id: "vm", type: "voltmeter", x: 370, y: 310 },
+        ],
+        wires: [
+          w("w1", "bat.plus", "sw.a", "#ef4444"),
+          w("w2", "sw.b", "amp.in", "#ef4444"),
+          w("w3", "amp.out", "r1.a", "#f59e0b"),
+          w("w4", "r1.b", "lamp.a", "#f59e0b"),
+          w("w5", "lamp.b", "bat.minus", "#111827"),
+          w("w6", "vm.plus", "lamp.a", "#ef4444"),
+          w("w7", "vm.minus", "lamp.b", "#111827"),
+        ],
+      },
+      code: "",
+      steps: [
+        { id: "e1", title: "Wire the series loop", detail: "Connect sw.b → amp.in → amp.out → r1.a → r1.b → lamp.a, then return lamp.b → bat.minus. (Black wires keep return paths clear.)", check: { kind: "noErrors" } },
+        { id: "e2", title: "Press Run and close the switch", detail: "Connect the voltmeter across lamp.a (+ red) and lamp.b (− black), press Run, then tap the switch ON. Watch I = V / R_total on the ammeter and V_bulb on the voltmeter.", check: { kind: "test", testId: "dc-loop" } },
+      ],
+      tests: [
+        {
+          id: "dc-loop",
+          title: "Bulb lights up when the switch closes",
+          durationMs: 600,
+          inputs: [{ atMs: 250, part: "sw", value: 1 }],
+          expect: { kind: "at", checks: [{ atMs: 100, part: "lamp", on: false }, { atMs: 450, part: "lamp", on: true }] },
+        },
+      ],
+      notes: "An ammeter always sits IN SERIES inside the current loop; a voltmeter always connects IN PARALLEL across a component.",
+    },
+  },
 ];
 
 export function getTemplate(id: string): Template | undefined {

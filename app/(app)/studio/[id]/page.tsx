@@ -329,7 +329,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     const circuit = shown.circuit;
     inputsRef.current = { pressed: new Set(), values: { ...sensorValues } };
     setPressed(new Set());
-    const rt = new BoardRuntime(shown.code || "", circuitReader(circuit, inputsRef.current));
+    const hasBoard = circuit.parts.some((p) => p.type === "board");
+    const rt = new BoardRuntime(hasBoard ? shown.code || "" : "", circuitReader(circuit, inputsRef.current));
     setSerial("");
     setRunError(rt.error);
     if (rt.error) return;
@@ -560,10 +561,13 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
 
   const kindIcon = design.kind === "circuit" ? <Cpu className="h-4 w-4" /> : design.kind === "mechanism" ? <Cog className="h-4 w-4" /> : <Box className="h-4 w-4" />;
   const has3d = parts3d.length > 0 || !!shown.mechanism;
+  const hasBoard = !!shown.circuit?.parts.some((p) => p.type === "board");
+  const showCodeTab = !!(shown.circuit && (hasBoard || (shown.code || "").trim().length > 0));
+  const pureWireCircuit = !!(shown.circuit && !hasBoard && !shown.parts.length && !shown.robot && !shown.mechanism);
   const tabs: Array<{ key: Tab; label: string; show: boolean }> = [
     { key: "guide", label: "Guide", show: true },
     { key: "build", label: design.kind === "circuit" ? "Parts" : design.kind === "mechanism" ? "Mechanism" : "Parts & sizes", show: true },
-    { key: "code", label: "Code", show: !!shown.circuit },
+    { key: "code", label: "Code", show: showCodeTab },
     { key: "tests", label: `Tests${testResults.length ? ` ${testResults.filter((t) => t.pass).length}/${testResults.length}` : ""}`, show: !!shown.circuit },
     { key: "sources", label: "Sources", show: !!shown.circuit || !!shown.research },
     { key: "history", label: `History (${design.commitCount})`, show: true },
@@ -801,11 +805,11 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     </div>
   );
 
+  const view3d = has3d ? [{ key: "3d", label: "3D", node: <div className="relative h-full w-full">{viewerEl("h-full w-full")}{followButton}</div> }] : [];
+  const viewCircuit = shown.circuit ? [{ key: "circuit", label: "Circuit", node: <div className="h-full p-1.5">{benchEl(true)}</div> }] : [];
   const stageViews = [
-    ...(has3d ? [{ key: "3d", label: "3D", node: <div className="relative h-full w-full">{viewerEl("h-full w-full")}{followButton}</div> }] : []),
-    ...(activeDrive ? [{ key: "track", label: "Track", node: <TrackView drive={activeDrive} running={running} className="h-full w-full" /> }] : []),
-    ...(shown.circuit ? [{ key: "circuit", label: "Circuit", node: <div className="h-full p-1.5">{benchEl(true)}</div> }] : []),
-    ...(shown.circuit ? [{ key: "code", label: "Code", node: <div className="p-2 text-slate-900 dark:text-slate-100">{codePanel}</div> }] : []),
+    ...(pureWireCircuit ? [...viewCircuit, ...view3d] : [...view3d, ...(activeDrive ? [{ key: "track", label: "Track", node: <TrackView drive={activeDrive} running={running} className="h-full w-full" /> }] : []), ...viewCircuit]),
+    ...(showCodeTab ? [{ key: "code", label: "Code", node: <div className="p-2 text-slate-900 dark:text-slate-100">{codePanel}</div> }] : []),
     { key: "controls", label: "Controls", node: controlsPanel },
   ];
 

@@ -53,6 +53,10 @@ export interface OutputState {
   rotation?: number;
   /** relay: the coil is energised (COM connects to NO) */
   energised?: boolean;
+  /** measured or load current in mA */
+  currentMa?: number;
+  /** dissipated power in W */
+  watts?: number;
 }
 
 const VF: Record<string, number> = { red: 2, yellow: 2.1, amber: 2.1, green: 2.2, blue: 3, white: 3 };
@@ -155,9 +159,25 @@ export class Netlist {
   }
 }
 
+function firstBatteryMinusNet(nl: Netlist): string | null {
+  const b = nl.circuit.parts.find((p) => p.type === "battery");
+  return b ? nl.netOf(term(b.id, "minus")) : null;
+}
+
 /** Fixed potential of a net (volts), or undefined when nothing drives it. */
 export function netPotential(nl: Netlist, net: string, pins: PinState): number | undefined {
-  if (!nl.board) return undefined;
+  if (!nl.board) {
+    const baseMinus = firstBatteryMinusNet(nl);
+    if (!baseMinus) return undefined;
+    if (net === baseMinus) return 0;
+    let v: number | undefined;
+    for (const b of nl.circuit.parts) {
+      if (b.type !== "battery") continue;
+      if (nl.netOf(term(b.id, "minus")) !== baseMinus) continue;
+      if (nl.netOf(term(b.id, "plus")) === net) v = Math.max(v ?? 0, Number(b.props?.volts ?? 6));
+    }
+    return v;
+  }
   let v: number | undefined;
   for (const name of nl.boardPinsOn(net)) {
     const def = pinDef("board", name)!;
@@ -182,7 +202,7 @@ export function netPotential(nl: Netlist, net: string, pins: PinState): number |
 }
 
 function batteryGrounded(nl: Netlist, minusNet: string): boolean {
-  if (!nl.board) return false;
+  if (!nl.board) return minusNet === firstBatteryMinusNet(nl);
   return CATALOG_BY_TYPE.board.pins.some((p) => p.role === "ground" && nl.find(term(nl.board!.id, p.name)) === minusNet);
 }
 
@@ -193,14 +213,19 @@ interface Edge {
 
 function resistorGraph(nl: Netlist): Map<string, Edge[]> {
   const g = new Map<string, Edge[]>();
-  for (const p of nl.circuit.parts) {
-    if (p.type !== "resistor") continue;
-    const a = nl.netOf(term(p.id, "a"));
-    const b = nl.netOf(term(p.id, "b"));
-    if (a === b) continue;
-    const ohms = Math.max(1, Number(p.props?.ohms ?? 220));
+  const link = (a: string, b: string, ohms: number) => {
+    if (a === b) return;
     g.set(a, [...(g.get(a) || []), { to: b, ohms }]);
     g.set(b, [...(g.get(b) || []), { to: a, ohms }]);
+  };
+  for (const p of nl.circuit.parts) {
+    if (p.type === "resistor") {
+      link(nl.netOf(term(p.id, "a")), nl.netOf(term(p.id, "b")), Math.max(1, Number(p.props?.ohms ?? 220)));
+    } else if (p.type === "bulb") {
+      link(nl.netOf(term(p.id, "a")), nl.netOf(term(p.id, "b")), Math.max(1, Number(p.props?.ohms ?? 12)));
+    } else if (p.type === "ammeter") {
+      link(nl.netOf(term(p.id, "in")), nl.netOf(term(p.id, "out")), 0.05);
+    }
   }
   return g;
 }
@@ -372,10 +397,139 @@ export function i2cWired(nl: Netlist, id: string): boolean {
   return nl.boardPinsOn(nl.netOf(term(id, "sda"))).includes("A4") && nl.boardPinsOn(nl.netOf(term(id, "scl"))).includes("A5");
 }
 
+/** Solve nodal DC voltages across all passive/battery/board nets so bulbs, ammeters, voltmeters & dividers work accurately. */
+function solveDcNets(nl: Netlist, pins: PinState): Map<string, number> {
+  const netSet = new Set<string>();
+  for (const p of nl.circuit.parts) {
+    for (const pin of CATALOG_BY_TYPE[p.type]?.pins || []) netSet.add(nl.netOf(term(p.id, pin.name)));
+  }
+  const nets = Array.from(netSet);
+  const idx = new Map(nets.map((n, i) => [n, i]));
+  const n = nets.length;
+  const gndNets = new Set<string>();
+  if (nl.board) {
+    for (const pin of CATALOG_BY_TYPE.board.pins) {
+      if (pin.role === "ground") gndNets.add(nl.netOf(term(nl.board.id, pin.name)));
+    }
+  } else {
+    const baseMinus = firstBatteryMinusNet(nl);
+    if (baseMinus) gndNets.add(baseMinus);
+  }
+  if (!n || !gndNets.size) return new Map();
+
+  const boardGndNet = gndNets.values().next().value!;
+  let volts = new Array<number>(n).fill(0);
+
+  for (let pass = 0; pass < 4; pass++) {
+    const G = Array.from({ length: n }, () => new Float64Array(n));
+    const rhs = new Float64Array(n);
+    for (let i = 0; i < n; i++) G[i][i] += 1e-9;
+
+    const stampCond = (aNet: string, bNet: string, g: number) => {
+      const a = idx.get(aNet)!;
+      const b = idx.get(bNet)!;
+      if (a === b) return;
+      G[a][a] += g;
+      G[b][b] += g;
+      G[a][b] -= g;
+      G[b][a] -= g;
+    };
+    const stampSource = (pNet: string, mNet: string, v: number, rInt: number) => {
+      const p = idx.get(pNet)!;
+      const m = idx.get(mNet)!;
+      if (p === m) return;
+      const g = 1 / rInt;
+      stampCond(pNet, mNet, g);
+      rhs[p] += v * g;
+      rhs[m] -= v * g;
+    };
+
+    if (nl.board) {
+      const seenPins = new Set<string>();
+      for (const pin of CATALOG_BY_TYPE.board.pins) {
+        const net = nl.netOf(term(nl.board.id, pin.name));
+        if (gndNets.has(net) || seenPins.has(net)) continue;
+        const v = netPotential(nl, net, pins);
+        if (v !== undefined) {
+          seenPins.add(net);
+          stampSource(net, boardGndNet, v, 0.2);
+        }
+      }
+    }
+
+    const hasBridge = nl.circuit.parts.some((p) => p.type === "l298n" || p.type === "tb6612" || p.type === "motor_driver");
+    for (const p of nl.circuit.parts) {
+      if (p.type === "battery") {
+        stampSource(nl.netOf(term(p.id, "plus")), nl.netOf(term(p.id, "minus")), Number(p.props?.volts ?? 6), 0.05);
+      } else if (p.type === "resistor") {
+        stampCond(nl.netOf(term(p.id, "a")), nl.netOf(term(p.id, "b")), 1 / Math.max(1, Number(p.props?.ohms ?? 220)));
+      } else if (p.type === "bulb") {
+        stampCond(nl.netOf(term(p.id, "a")), nl.netOf(term(p.id, "b")), 1 / Math.max(1, Number(p.props?.ohms ?? 12)));
+      } else if (p.type === "ammeter") {
+        stampCond(nl.netOf(term(p.id, "in")), nl.netOf(term(p.id, "out")), 1 / 0.05);
+      } else if (p.type === "voltmeter") {
+        stampCond(nl.netOf(term(p.id, "plus")), nl.netOf(term(p.id, "minus")), 1e-7);
+      } else if (p.type === "dc_motor" && !hasBridge) {
+        stampCond(nl.netOf(term(p.id, "a")), nl.netOf(term(p.id, "b")), 1 / 30);
+      } else if (p.type === "led") {
+        const aNet = nl.netOf(term(p.id, "anode"));
+        const cNet = nl.netOf(term(p.id, "cathode"));
+        const vf = VF[String(p.props?.color || "red")] ?? 2;
+        if (pass === 0) stampCond(aNet, cNet, 1 / 120);
+        else if (volts[idx.get(aNet)!] - volts[idx.get(cNet)!] > vf) stampSource(aNet, cNet, vf, 15);
+      } else if (p.type === "buzzer") {
+        const aNet = nl.netOf(term(p.id, "pos"));
+        const cNet = nl.netOf(term(p.id, "neg"));
+        if (pass === 0) stampCond(aNet, cNet, 1 / 120);
+        else if (volts[idx.get(aNet)!] - volts[idx.get(cNet)!] > 1) stampSource(aNet, cNet, 1, 80);
+      }
+    }
+
+    for (const gNet of gndNets) {
+      const r = idx.get(gNet)!;
+      for (let j = 0; j < n; j++) G[r][j] = 0;
+      G[r][r] = 1;
+      rhs[r] = 0;
+    }
+
+    // Gaussian elimination with partial pivoting
+    const b = Float64Array.from(rhs);
+    for (let col = 0; col < n; col++) {
+      let piv = col;
+      for (let r = col + 1; r < n; r++) if (Math.abs(G[r][col]) > Math.abs(G[piv][col])) piv = r;
+      if (piv !== col) {
+        [G[col], G[piv]] = [G[piv], G[col]];
+        const tmp = b[col];
+        b[col] = b[piv];
+        b[piv] = tmp;
+      }
+      const d = G[col][col];
+      if (Math.abs(d) < 1e-12) continue;
+      for (let r = col + 1; r < n; r++) {
+        const f = G[r][col] / d;
+        if (f === 0) continue;
+        for (let j = col; j < n; j++) G[r][j] -= f * G[col][j];
+        b[r] -= f * b[col];
+      }
+    }
+    const nextV = new Array<number>(n).fill(0);
+    for (let r = n - 1; r >= 0; r--) {
+      let sum = b[r];
+      for (let j = r + 1; j < n; j++) sum -= G[r][j] * nextV[j];
+      const v = Math.abs(G[r][r]) > 1e-12 ? sum / G[r][r] : 0;
+      nextV[r] = Number.isFinite(v) ? v : 0;
+    }
+    volts = nextV;
+  }
+
+  return new Map(nets.map((net, i) => [net, volts[i]]));
+}
+
 /** What every output part is doing for the given pin state. */
 export function evaluateOutputs(nl0: Netlist, pins: PinState): Record<string, OutputState> {
   const { nl, energised } = withRelays(nl0, pins);
   const g = resistorGraph(nl);
+  const dcV = solveDcNets(nl, pins);
   const out: Record<string, OutputState> = {};
   const potential = (t: string) => netPotential(nl, nl.netOf(t), pins);
 
@@ -462,7 +616,68 @@ export function evaluateOutputs(nl0: Netlist, pins: PinState): Record<string, Ou
     if (va !== undefined && vb !== undefined && Math.abs(va - vb) > 2) {
       out[p.id] = { on: true, level: fromPin ? 0.15 : 1, fault: fromPin ? "overcurrent" : undefined, direction: va > vb ? 1 : -1 };
     } else {
-      out[p.id] = { on: false, level: 0 };
+      const da = dcV.get(a);
+      const db = dcV.get(b);
+      if (da !== undefined && db !== undefined && Math.abs(da - db) > 1.8) {
+        const dv = da - db;
+        out[p.id] = { on: true, level: Math.min(1, Math.abs(dv) / 6), direction: dv < 0 ? -1 : 1, volts: dv };
+      } else {
+        out[p.id] = { on: false, level: 0 };
+      }
+    }
+  }
+  // Passive electronics: light bulbs, batteries (short detection), ammeters, voltmeters
+  for (const p of nl.circuit.parts) {
+    if (p.type === "bulb") {
+      const a = nl.netOf(term(p.id, "a"));
+      const b = nl.netOf(term(p.id, "b"));
+      const va = dcV.get(a) ?? 0;
+      const vb = dcV.get(b) ?? 0;
+      const drop = Math.abs(va - vb);
+      const r = Math.max(1, Number(p.props?.ohms ?? 12));
+      const maxV = Number(p.props?.maxVolts ?? 9);
+      const currentMa = (drop / r) * 1000;
+      const watts = (drop * drop) / r;
+      const burnt = drop > maxV;
+      out[p.id] = {
+        on: drop >= 0.4 && !burnt,
+        level: burnt ? 0 : drop >= 0.4 ? Math.min(1.4, Math.pow(drop / 6, 1.3)) : 0,
+        volts: drop,
+        currentMa,
+        watts,
+        fault: burnt ? "overvoltage" : undefined,
+      };
+    } else if (p.type === "ammeter") {
+      const va = dcV.get(nl.netOf(term(p.id, "in"))) ?? 0;
+      const vb = dcV.get(nl.netOf(term(p.id, "out"))) ?? 0;
+      const currentMa = ((va - vb) / 0.05) * 1000;
+      out[p.id] = {
+        on: Math.abs(currentMa) > 0.5,
+        level: Math.min(1, Math.abs(currentMa) / 500),
+        currentMa,
+        fault: Math.abs(currentMa) > 2500 ? "short" : undefined,
+      };
+    } else if (p.type === "voltmeter") {
+      const pNet = nl.netOf(term(p.id, "plus"));
+      const mNet = nl.netOf(term(p.id, "minus"));
+      const wired = nl.termWired(term(p.id, "plus")) && nl.termWired(term(p.id, "minus"));
+      const vp = dcV.get(pNet);
+      const vm = dcV.get(mNet);
+      const volts = wired && vp !== undefined && vm !== undefined ? vp - vm : 0;
+      out[p.id] = { on: wired, level: Math.min(1, Math.abs(volts) / 12), volts };
+    } else if (p.type === "battery") {
+      const vp = dcV.get(nl.netOf(term(p.id, "plus")));
+      const vm = dcV.get(nl.netOf(term(p.id, "minus")));
+      const nom = Number(p.props?.volts ?? 6);
+      const actual = vp !== undefined && vm !== undefined ? vp - vm : nom;
+      const currentMa = ((nom - actual) / 0.05) * 1000;
+      out[p.id] = {
+        on: true,
+        level: 1,
+        volts: actual,
+        currentMa,
+        fault: Math.abs(currentMa) > 2500 ? "short" : undefined,
+      };
     }
   }
   return out;

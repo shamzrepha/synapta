@@ -70,7 +70,7 @@ LINKED 3D PARTS (one design, one world — circuit, code and 3D all run together
 - A switch is the "switch" circuit type (latching: tap on, tap off); "button" is momentary. Typical chain: switch→board pin→code→board PWM pin→motor_driver→dc_motor→bound 3D gears/wheels.
 - One Start for everything is automatic: you do not need to add start buttons unless the idea needs one.
 ROBOTS AND VEHICLES (cars, rovers, fans, arms): give them ALL THREE views in one design with kind "circuit": "parts" for the 3D body (chassis, wheels as torus tyres with rot [0,0,90] plus a thin box spoke so the spin is visible, motors, battery, board), a "circuit" (board + motor_driver per motor + dc_motor + buttons/sensors) and "code". Put "bind":"<dc_motor id>","spinAxis":"x" on every wheel part so the 3D wheels turn when the simulated motor runs.
-RULES: circuit bench coordinates x 0–900, y 0–500 (board at about x 60, y 300; parts above it). Every LED needs a resistor in series. Motors go through a motor_driver. Sensors need power and GND. Steps must build understanding in small pieces; end circuits with a behaviour test. Mechanisms: lifting must be physically possible; explain torque, ratio and speed. Assemblies: realistic sizes in mm, every part has info.where and info.fit.`;
+RULES: circuit bench coordinates x 0–900, y 0–500 (board at about x 60, y 300; parts above it). TWO ELECTRICAL MODES: (A) Pure DC wire simulator (Ohm's law, series/parallel bulbs, switches, ammeters, voltmeters, battery + resistor + LED): DO NOT add a board or code — just wire the battery, switch, resistor/bulb/LED, and ammeter/voltmeter cleanly! (B) Tinkercad Robotics / Embedded controller (motors, sensors, servos, steppers, programmable timing/logic): include board + circuit + 3D body/wheels/gears (or mechanism/robot) + code/blocks running together. Every LED needs a resistor in series. Motors through a board need a motor driver. Steps build understanding in small pieces; end circuits with a behaviour test. Mechanisms: lifting must be physically possible; explain torque, ratio and speed. Assemblies: realistic sizes in mm, every part has info.where and info.fit.`;
 
 const outSchema = z.object({
   title: z.string().max(80).default("Untitled design"),
@@ -122,7 +122,13 @@ export function repairSpec(raw: Record<string, unknown>): Record<string, unknown
         x: Math.max(0, Math.min(1000, Number(p.x) || 100 + i * 60)),
         y: Math.max(0, Math.min(1000, Number(p.y) || 80)),
       }));
-    if (!parts.some((p) => p.type === "board")) parts.unshift({ id: "board", type: "board", x: 60, y: 300 });
+    const rawWires = Array.isArray(circuit.wires) ? (circuit.wires as Array<Record<string, unknown>>) : [];
+    const usesBoard =
+      rawWires.some((w) => String(w.from).startsWith("board.") || String(w.to).startsWith("board.")) ||
+      parts.some((p) => ["oled", "dht11", "mpu6050", "servo", "stepper", "hc_sr04", "ir_sensor", "l298n", "tb6612"].includes(String(p.type)));
+    if (!parts.some((p) => p.type === "board") && (!parts.some((p) => p.type === "battery") || usesBoard)) {
+      parts.unshift({ id: "board", type: "board", x: 60, y: 300 });
+    }
     const pinsOf = new Map(parts.map((p) => [String(p.id), new Set(CATALOG.find((c) => c.type === p.type)!.pins.map((x) => x.name))]));
     const ok = (t: unknown) => {
       const [part, pin] = String(t).split(".");
