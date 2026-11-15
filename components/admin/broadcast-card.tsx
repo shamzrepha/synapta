@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Megaphone, Send, Users, Filter, School, GraduationCap, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,31 +9,27 @@ import { Sprout, type BotPose } from "@/components/bot/sprout";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 
-const QUICK_SCHOOLS = [
+const QUICK_LEVELS = [
   "",
-  "University of Lagos (UNILAG)",
-  "Federal University of Technology, Owerri (FUTO)",
-  "University of Ibadan (UI)",
-  "Obafemi Awolowo University (OAU)",
-  "University of Nigeria, Nsukka (UNN)",
-  "University of Benin (UNIBEN)",
-  "Ahmadu Bello University (ABU)",
-  "Covenant University",
-  "Federal University of Technology, Akure (FUTA)",
-  "University of Ilorin (UNILORIN)",
-  "Lagos State University (LASU)",
-  "Bayero University Kano (BUK)",
-  "University of Ghana, Legon (UG)",
-  "Kwame Nkrumah University of Science & Technology (KNUST)",
-  "University of Nairobi (UoN)",
-  "University of Cape Town (UCT)",
-  "University of the Witwatersrand (Wits)",
-  "Makerere University",
-  "University of Rwanda",
-  "Cairo University",
+  "Primary 1",
+  "Primary 2",
+  "Primary 3",
+  "Primary 4",
+  "Primary 5",
+  "Primary 6",
+  "JSS 1",
+  "JSS 2",
+  "JSS 3",
+  "SS 1",
+  "SS 2",
+  "SS 3",
+  "100L",
+  "200L",
+  "300L",
+  "400L",
+  "500L",
+  "Postgraduate",
 ];
-
-const QUICK_LEVELS = ["", "100L", "200L", "300L", "400L", "500L", "Postgraduate"];
 
 const QUICK_INTERESTS = [
   { id: "", label: "Any Interest" },
@@ -64,9 +60,21 @@ export function AdminBroadcastCard() {
 
   // Selective filters
   const [institution, setInstitution] = useState("");
+  const [registeredSchools, setRegisteredSchools] = useState<{ id: string; name: string; kind: string }[]>([]);
   const [department, setDepartment] = useState("");
   const [level, setLevel] = useState("");
   const [interest, setInterest] = useState("");
+
+  useEffect(() => {
+    fetch("/api/schools?mode=directory")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.ok && Array.isArray(j.data?.registeredSchools)) {
+          setRegisteredSchools(j.data.registeredSchools);
+        }
+      })
+      .catch(() => null);
+  }, []);
 
   const [sending, setSending] = useState(false);
 
@@ -168,20 +176,22 @@ export function AdminBroadcastCard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-border">
             <div>
               <label className="text-[11px] font-bold text-muted-foreground flex items-center gap-1 mb-1">
-                <School className="h-3 w-3 text-brand-600" /> University / Campus
+                <School className="h-3 w-3 text-brand-600" /> Registered School / Campus
               </label>
-              <select
+              <Input
+                list="registered-schools-list"
                 value={institution}
                 onChange={(e) => setInstitution(e.target.value)}
-                className="w-full h-9 px-2.5 text-xs rounded-lg border border-border bg-card text-foreground"
-              >
-                <option value="">All Universities</option>
-                {QUICK_SCHOOLS.filter(Boolean).map((sch) => (
-                  <option key={sch} value={sch}>
-                    {sch}
+                placeholder="All Schools (or type/pick school)"
+                className="h-9 text-xs"
+              />
+              <datalist id="registered-schools-list">
+                {registeredSchools.map((sch) => (
+                  <option key={sch.id} value={sch.name}>
+                    {sch.name} ({sch.kind})
                   </option>
                 ))}
-              </select>
+              </datalist>
             </div>
 
             <div>

@@ -4,12 +4,37 @@
  */
 export const normWord = (w: string): string => String(w || "").toLowerCase().normalize("NFKD").replace(/[^\p{L}\p{N}]/gu, "");
 
+const NUM_WORDS: Record<string, string> = {
+  zero: "0",
+  one: "1",
+  two: "2",
+  three: "3",
+  four: "4",
+  five: "5",
+  six: "6",
+  seven: "7",
+  eight: "8",
+  nine: "9",
+  ten: "10",
+  eleven: "11",
+  twelve: "12",
+  first: "1st",
+  second: "2nd",
+  third: "3rd",
+  fourth: "4th",
+  fifth: "5th",
+};
+
+const canon = (w: string): string => NUM_WORDS[w] || w;
+
 const same = (a: string, b: string): boolean => {
   if (!a || !b) return false;
-  if (a === b) return true;
+  const ca = canon(a);
+  const cb = canon(b);
+  if (ca === cb) return true;
   // "ventricle" and "ventricles", "pumps" and "pumping"
-  const n = Math.min(a.length, b.length);
-  return n >= 4 && (a.startsWith(b) || b.startsWith(a)) && Math.abs(a.length - b.length) <= 4;
+  const n = Math.min(ca.length, cb.length);
+  return n >= 4 && (ca.startsWith(cb) || cb.startsWith(ca)) && Math.abs(ca.length - cb.length) <= 4;
 };
 
 /** Words (runs of letters and digits) in a piece of text, with where each starts and ends. */
@@ -43,6 +68,21 @@ export function alignSpoken(spoken: string[], dom: string[], from = 0, reach = 8
     for (let k = j; k + run.length <= d.length && anchor < 0; k++) {
       if (run.every((w, t) => same(d[k + t], w))) anchor = k;
     }
+    // If a 3-word prefix didn't match (e.g. a formula or symbol at word 1), look for a 2-word consecutive pair near `j`
+    if (anchor < 0) {
+      const searchEnd = Math.min(d.length, j + 28);
+      for (let start = firstAt; start < Math.min(sp.length - 1, firstAt + 4) && anchor < 0; start++) {
+        const w1 = sp[start];
+        const w2 = sp[start + 1];
+        if (!w1 || !w2) continue;
+        for (let k = j; k + 1 < searchEnd; k++) {
+          if (same(d[k], w1) && same(d[k + 1], w2)) {
+            anchor = Math.max(j, k - (start - firstAt));
+            break;
+          }
+        }
+      }
+    }
   }
   for (let i = 0; i < sp.length; i++) {
     const s = sp[i];
@@ -55,7 +95,7 @@ export function alignSpoken(spoken: string[], dom: string[], from = 0, reach = 8
     if (first && i === firstAt && anchor >= 0) {
       hit = anchor;
     } else {
-      const limit = first ? d.length : Math.min(d.length, j + reach);
+      const limit = first ? Math.min(d.length, j + Math.max(reach, 12)) : Math.min(d.length, j + reach);
       for (let k = j; k < limit; k++) {
         if (same(d[k], s)) {
           hit = k;

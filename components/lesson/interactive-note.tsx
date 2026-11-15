@@ -251,6 +251,7 @@ function NoteBody({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
+                data-spoiler-toggle={revealAnswers ? "open" : "closed"}
                 onClick={() => setRevealAnswers((v) => !v)}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold hover:bg-muted"
               >
@@ -919,7 +920,7 @@ export function InteractiveNote({
               </span>
             )}
             {p.subtopic && p.sectionTitle && p.subtopic !== p.sectionTitle && (
-              <span className="font-semibold uppercase tracking-wide text-muted-foreground">
+              <span data-read-heading className="font-semibold uppercase tracking-wide text-muted-foreground">
                 {p.sectionTitle}
               </span>
             )}

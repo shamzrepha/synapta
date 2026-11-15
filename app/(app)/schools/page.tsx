@@ -83,7 +83,7 @@ export default function SchoolsPortalPage() {
   // Create School state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [schoolName, setSchoolName] = useState("");
-  const [schoolKind, setSchoolKind] = useState<"university" | "secondary" | "polytechnic" | "college">("university");
+  const [schoolKind, setSchoolKind] = useState<"primary" | "secondary" | "university" | "polytechnic" | "college" | "academy">("secondary");
   const [schoolDept, setSchoolDept] = useState("");
   const [schoolSeats, setSchoolSeats] = useState(100);
   const [creatingSchool, setCreatingSchool] = useState(false);
@@ -1230,14 +1230,18 @@ export default function SchoolsPortalPage() {
                   <select
                     value={schoolKind}
                     onChange={(e) =>
-                      setSchoolKind(e.target.value as "university" | "secondary" | "polytechnic" | "college")
+                      setSchoolKind(
+                        e.target.value as "primary" | "secondary" | "university" | "polytechnic" | "college" | "academy"
+                      )
                     }
                     className="w-full h-9 px-2.5 text-xs rounded-lg border border-border bg-card text-foreground"
                   >
-                    <option value="university">University / Faculty</option>
+                    <option value="primary">Primary / Elementary School</option>
                     <option value="secondary">Secondary / High School</option>
+                    <option value="university">University / Faculty</option>
                     <option value="polytechnic">Polytechnic / Monotechnic</option>
                     <option value="college">College of Education</option>
+                    <option value="academy">Academy / Tutorial Center</option>
                   </select>
                 </div>
                 <div>

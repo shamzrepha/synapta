@@ -3,6 +3,7 @@ import { MobileLandingRedirect } from "@/components/auth/mobile-landing-redirect
 import { HeroEngine } from "@/components/landing/hero-engine";
 import { PixelField } from "@/components/landing/pixel-field";
 import { Reveal } from "@/components/landing/reveal";
+import { SchoolRegisterSection } from "@/components/landing/school-register-section";
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -36,11 +37,11 @@ const FEATURES = [
 ];
 
 const AUDIENCES = [
-  { icon: School, title: "School students", body: "Turn class notes and past papers into practice before the exam." },
-  { icon: GraduationCap, title: "University students", body: "Bring lecture slides and handouts; get notes, recall and a tutor." },
-  { icon: Sprout, title: "Self-learners", body: "Any book, article or course PDF becomes something you can study from." },
-  { icon: Briefcase, title: "Working professionals", body: "Learn a new field from the documents you already have." },
-  { icon: Users, title: "Teachers and lecturers", body: "Publish a class from a syllabus file and see where students are stuck." },
+  { icon: School, title: "Primary & secondary schools", body: "Interactive read-aloud with Sprout, virtual science labs, and WAEC, NECO, JAMB & BECE practice." },
+  { icon: GraduationCap, title: "Universities & colleges", body: "Bring lecture slides and handouts; get notes, recall, 3D labs, and a tutor in your language." },
+  { icon: Sprout, title: "Independent self-learners", body: "Anyone willing to learn: turn any book, article, or course PDF into an interactive study studio." },
+  { icon: Briefcase, title: "Working professionals", body: "Master a new discipline or certification from the documents you already have." },
+  { icon: Users, title: "Principals, teachers & lecturers", body: "Register your school, sponsor student seats, and track mastery across every class." },
 ];
 
 /** A small "+" where hairlines cross: a registration mark. */
@@ -115,7 +116,7 @@ export default function LandingPage() {
             <span translate="no" className="text-[17px] font-semibold tracking-tight">Sunroot</span>
           </Link>
           <nav className="hidden items-center gap-6 xl:gap-8 lg:flex" aria-label="Page sections">
-            {[["How it works", "#how"], ["Features", "#features"], ["Who it's for", "#who"], ["Teachers", "#teachers"], ["Languages", "#languages"], ["About", "/about"]].map(([t, h]) => (
+            {[["How it works", "#how"], ["Features", "#features"], ["Who it's for", "#who"], ["Register School", "#schools"], ["Teachers", "#teachers"], ["Languages", "#languages"], ["About", "/about"]].map(([t, h]) => (
               <Link key={h} href={h} className="whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground">{t}</Link>
             ))}
           </nav>
@@ -145,6 +146,9 @@ export default function LandingPage() {
               <Link href="/signup" className="group inline-flex h-12 items-center gap-2 rounded-md bg-brand-500 px-6 text-sm font-semibold text-slate-950 transition-colors hover:bg-brand-400">
                 Start free <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
+              <a href="#schools" className="inline-flex h-12 items-center gap-2 rounded-md border border-brand-500/40 bg-brand-500/10 px-6 text-sm font-semibold text-brand-700 dark:text-brand-300 transition-colors hover:bg-brand-500/20">
+                <School className="h-4 w-4" /> Register Your School
+              </a>
               <a href="#how" className="inline-flex h-12 items-center gap-2 rounded-md border border-border bg-card px-6 text-sm font-medium transition-colors hover:border-muted-foreground/60">
                 See how it works
               </a>
@@ -238,6 +242,13 @@ export default function LandingPage() {
                 </Reveal>
               ))}
             </ul>
+          </div>
+        </section>
+
+        {/* REGISTER YOUR SCHOOL (PRIMARY, SECONDARY, UNIVERSITY, ACADEMY) */}
+        <section id="schools" className="scroll-mt-14 border-b border-border">
+          <div className={`${rail} px-5 py-20 sm:px-8 lg:py-28`}>
+            <SchoolRegisterSection />
           </div>
         </section>
 

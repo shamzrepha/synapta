@@ -1,6 +1,7 @@
 import { chunkForSpeech, cleanForSpeech } from "@/lib/voice/speech";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { readAccessibility } from "@/components/settings/use-accessibility";
+import { applyCartoonVoice } from "@/lib/audio/robot-voice";
 
 export interface SpeakOptions {
   /** Playback rate (0.75..1.5); defaults to the learner's accessibility ttsSpeed. */
@@ -33,7 +34,7 @@ export function createSpeaker(voice: "female" | "male" = "female"): Speaker {
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice, lang: readPrefs().language }),
+        body: JSON.stringify({ text, voice, lang: readPrefs().language, reader: true }),
       });
       if (!res.ok) return null;
       const url = URL.createObjectURL(await res.blob());
@@ -62,11 +63,7 @@ export function createSpeaker(voice: "female" | "male" = "female"): Speaker {
   const setRate = (rate: number) => {
     currentRate = Math.max(0.75, Math.min(1.5, rate));
     if (audio) {
-      try {
-        audio.playbackRate = currentRate;
-      } catch {
-        /* ignore */
-      }
+      applyCartoonVoice(audio, currentRate);
     }
   };
 
@@ -104,11 +101,7 @@ export function createSpeaker(voice: "female" | "male" = "female"): Speaker {
       }
       opts?.onProgress?.(i + 1, pieces.length);
       const a = new Audio(url);
-      try {
-        a.playbackRate = currentRate;
-      } catch {
-        /* ignore */
-      }
+      applyCartoonVoice(a, currentRate);
       audio = a;
       a.onended = () => void playAt(i + 1);
       a.onerror = () => {

@@ -10,13 +10,13 @@ interface DomWord {
   end: number;
 }
 
-/** Every word on the page inside `root`, in reading order (math's hidden copy and buttons are left out). */
+/** Every word on the page inside `root`, in reading order (math's hidden copy and UI action buttons are left out, while inline `.note-term` glossary words are kept). */
 function pageWords(root: HTMLElement): DomWord[] {
   const out: DomWord[] = [];
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(n) {
       const p = n.parentElement;
-      if (!p || p.closest(".katex-mathml, script, style, button, [aria-hidden='true']")) return NodeFilter.FILTER_REJECT;
+      if (!p || p.closest(".katex-mathml, script, style, button:not(.note-term), [data-no-read], [aria-hidden='true']")) return NodeFilter.FILTER_REJECT;
       return n.nodeValue && n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
     },
   });
@@ -75,22 +75,24 @@ export function followReading(opts: {
   const follower: Follower = { stop: () => {}, next };
   let raf = 0;
   let last = -2;
-  let lastLineTop = -1;
+  let lastDomIdx = -1;
   let lastScroll = 0;
   let off = false;
   let lost = false;
   /** the page word Sprout is standing on, and when its current hop ends (until then the hop itself moves it) */
   let perch = -1;
   let hopEnds = 0;
+  let hopWordTop = 0;
 
   const boxOf = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height });
 
   /** Hop to the word. A new hop takes over from where Sprout really is, so it never queues up behind the voice or gets stuck on a hop that was left behind. */
-  const hopTo = (to: { x: number; y: number }, ms: number) => {
+  const hopTo = (to: { x: number; y: number }, ms: number, wordTop: number) => {
     if (off) return;
     const from = bot.where();
     const path = hopPath(from, to);
     hopEnds = performance.now() + ms;
+    hopWordTop = wordTop;
     // never wait on a hop that cannot finish (a hidden tab pauses animations): give it its time plus a little, then let the next one run
     void Promise.race([bot.path(path, { duration: ms, pose: "idle" }), new Promise<void>((r) => window.setTimeout(r, ms + 400))]).catch(() => {});
   };
@@ -104,16 +106,20 @@ export function followReading(opts: {
   const rectOfWord = (j: number): DOMRect => rangeOf(j).getBoundingClientRect();
 
   const lineOf = (j: number): Range => {
-    const top = rectOfWord(j).top;
-    const topOf = (k: number) => rectOfWord(k).top;
+    const rect = rectOfWord(j);
+    const midY = rect.top + rect.height / 2;
+    const tol = Math.max(8, rect.height * 0.55);
+    const sameRow = (k: number) => {
+      const r = rectOfWord(k);
+      return Math.abs(r.top + r.height / 2 - midY) <= tol;
+    };
     let a = j;
     let b = j;
-    while (a > 0 && Math.abs(topOf(a - 1) - top) < 4) a--;
-    while (b < dom.length - 1 && Math.abs(topOf(b + 1) - top) < 4) b++;
+    while (a > 0 && sameRow(a - 1)) a--;
+    while (b < dom.length - 1 && sameRow(b + 1)) b++;
     const range = document.createRange();
     range.setStart(dom[a].node, dom[a].start);
     range.setEnd(dom[b].node, dom[b].end);
-    lastLineTop = top;
     return range;
   };
 
@@ -159,17 +165,18 @@ export function followReading(opts: {
       }
       const ms = audio.currentTime * 1000;
 
-      // the word being said glows
-      const idx = wordAt(words, ms);
+      // Keep the word highlight, line highlight, and Sprout's landing target locked to the same spoken word so Sprout and the lit line never diverge
+      const idx = ms < 40 ? 0 : wordAt(words, ms + 90);
       if (idx !== last && idx >= 0) {
         last = idx;
         const j = pageIndex(idx);
-        if (j >= 0 && dom[j]) {
+        if (j >= 0 && dom[j] && j !== lastDomIdx) {
+          lastDomIdx = j;
           const range = rangeOf(j);
           const rect = range.getBoundingClientRect();
           if (rect.width > 0 || rect.height > 0) {
             setHighlight("sprout-word", range);
-            if (Math.abs(rect.top - lastLineTop) > 4) setHighlight("sprout-line", lineOf(j));
+            setHighlight("sprout-line", lineOf(j));
             // keep the line being read comfortably in view
             const now = performance.now();
             if (now - lastScroll > 700 && (rect.top < 110 || rect.bottom > window.innerHeight - 150)) {
@@ -180,25 +187,33 @@ export function followReading(opts: {
         }
       }
 
-      // Sprout is a little ahead of the voice, so it has landed on a word by the time it is said (even at the start of a new line)
-      // before the voice has started (Sprout gets there first) it stands on the very first word, not on one a little way in
-      const lead = ms < 40 ? 0 : wordAt(words, ms + 190);
+      const lead = idx;
       if (lead !== lastLead && lead >= 0) {
         lastLead = lead;
         const j = pageIndex(lead);
         if (j >= 0 && dom[j]) {
           perch = j;
-          const to = perchOnWord(boxOf(rectOfWord(j)), { width: window.innerWidth, height: window.innerHeight });
+          const wRect = rectOfWord(j);
+          const to = perchOnWord(boxOf(wRect), { width: window.innerWidth, height: window.innerHeight });
           const from = bot.where();
           if (Math.hypot(to.x - from.x, to.y - from.y) > 1.5) {
             // the voice may be sped up, so a word takes less real time than its length in the clip
-            hopTo(to, Math.max(90, hopMs(from, to, Math.max(120, words[lead].e - words[lead].s)) / Math.max(0.5, audio.playbackRate)));
+            hopTo(
+              to,
+              Math.max(85, hopMs(from, to, Math.max(110, words[lead].e - words[lead].s)) / Math.max(0.5, audio.playbackRate)),
+              wRect.top
+            );
           }
         }
-      } else if (perch >= 0 && dom[perch] && performance.now() > hopEnds) {
-        // between hops Sprout stays on its word while the page scrolls under it
-        const to = perchOnWord(boxOf(rectOfWord(perch)), { width: window.innerWidth, height: window.innerHeight });
-        bot.stick(to.x, to.y);
+      } else if (perch >= 0 && dom[perch]) {
+        const wRect = rectOfWord(perch);
+        const scrolledWhileHopping = Math.abs(wRect.top - hopWordTop) > 8;
+        if (performance.now() > hopEnds || scrolledWhileHopping) {
+          // keep Sprout locked onto its active word even while the page scrolls under it
+          hopWordTop = wRect.top;
+          const to = perchOnWord(boxOf(wRect), { width: window.innerWidth, height: window.innerHeight });
+          bot.stick(to.x, to.y);
+        }
       }
     } catch {
       // a word that vanished mid-frame: the next frame looks again

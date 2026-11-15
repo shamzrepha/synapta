@@ -5,7 +5,7 @@ import { Loader2, Pause, Play, SkipBack, SkipForward, Square } from "lucide-reac
 import { buildReadQueue, type ReadChunk } from "@/lib/study/read-queue";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { useBot } from "@/components/bot/bot-provider";
-import { robotAudio } from "@/lib/audio/robot-voice";
+import { applyCartoonVoice, robotAudio } from "@/lib/audio/robot-voice";
 import { clearReadingHighlights, followReading, type Follower } from "./reading-follow";
 import { textHasBlock } from "./find-block";
 import { estimateWordTimings, type WordTiming } from "@/lib/voice/word-timing";
@@ -23,6 +23,8 @@ interface Clip {
   words: WordTiming[] | null;
   /** the times were worked out from the text, not measured: they are re-spread over the clip's real length before use */
   estimated?: boolean;
+  /** true when fallback adult voice was used, so formant lift is boosted for child cartoon timbre */
+  fallbackCartoon?: boolean;
 }
 
 function base64ToUrl(b64: string, mime: string): string {
@@ -42,7 +44,7 @@ export function useReadThrough(opts: {
   /** scroll the reader to a topic (called when reading moves to it) */
   onSection: (id: string) => void;
   /** find the paragraph element on the page (may turn the page first when the paragraph is on another page) */
-  findEl: (sectionId: string, blockText: string) => HTMLElement | null | Promise<HTMLElement | null>;
+  findEl: (sectionId: string, blockText: string, pageAnchor?: string) => HTMLElement | null | Promise<HTMLElement | null>;
 }) {
   const [state, setState] = useState<State>("idle");
   const [currentId, setCurrentId] = useState<string | null>(null);
@@ -147,7 +149,12 @@ export function useReadThrough(opts: {
                   if (j?.ok && typeof j.data?.audioBase64 === "string") {
                     const url = base64ToUrl(j.data.audioBase64, j.data.mimeType || "audio/mpeg");
                     urls.current.push(url);
-                    return { url, words: Array.isArray(j.data.words) ? (j.data.words as WordTiming[]) : null, estimated: j.data.estimated === true };
+                    return {
+                      url,
+                      words: Array.isArray(j.data.words) ? (j.data.words as WordTiming[]) : null,
+                      estimated: j.data.estimated === true,
+                      fallbackCartoon: j.data.fallbackCartoon === true,
+                    };
                   }
                 } catch {
                   /* fall back below */
@@ -158,7 +165,7 @@ export function useReadThrough(opts: {
                 if (!r.ok) return null;
                 const u = URL.createObjectURL(await r.blob());
                 urls.current.push(u);
-                return { url: u, words: null };
+                return { url: u, words: null, fallbackCartoon: true };
               } catch {
                 return null;
               }
@@ -189,16 +196,17 @@ export function useReadThrough(opts: {
         }
         // the paragraph being read: turn the page to it first when it is on another page, so the reader never reads off-screen
         const block = queue[k].block;
+        const pageAnchor = queue[k].pageAnchor;
         let el: HTMLElement | null = null;
         if (block) {
           try {
-            el = await Promise.resolve(optsRef.current.findEl(sec.id, block));
+            el = await Promise.resolve(optsRef.current.findEl(sec.id, block, pageAnchor));
           } catch {
             el = null;
           }
           if (mine !== token.current) return;
         }
-        // one shared audio element, played as it is (no sound effect)
+        // one shared audio element, tuned to Sprout's high-pitched child cartoon voice
         const ra = robotAudio();
         ra.wake();
         const a = (audio.current = ra.el);
@@ -208,7 +216,7 @@ export function useReadThrough(opts: {
         a.onerror = null;
         a.onloadedmetadata = null;
         a.src = url;
-        a.playbackRate = rateRef.current;
+        applyCartoonVoice(a, rateRef.current, got.fallbackCartoon);
         a.onended = () => void play(k + 1);
         a.onerror = () => {
           if (mine !== token.current) return;
@@ -255,7 +263,7 @@ export function useReadThrough(opts: {
               bot: botRef.current,
               // the page redrew this paragraph: find it again and carry on from where the voice is
               onLost: () => {
-                void Promise.resolve(optsRef.current.findEl(sec.id, block)).then((again) => {
+                void Promise.resolve(optsRef.current.findEl(sec.id, block, pageAnchor)).then((again) => {
                   if (mine !== token.current || !again) return;
                   cursor.current = { el: again, next: 0 };
                   startFollow(again);
@@ -325,7 +333,7 @@ export function useReadThrough(opts: {
     const next = RATES[(RATES.indexOf(rateRef.current) + 1) % RATES.length];
     rateRef.current = next;
     setRateState(next);
-    if (audio.current) audio.current.playbackRate = next;
+    if (audio.current) applyCartoonVoice(audio.current, next);
   }, []);
   const setAutoNext = useCallback((v: boolean) => {
     autoRef.current = v;

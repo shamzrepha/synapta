@@ -28,7 +28,11 @@ import {
   Crown,
   Swords,
   BookOpen,
+  FlaskConical,
+  Sparkles,
+  Volume2,
 } from "lucide-react";
+import { MasteryRadar } from "@/components/dashboard/mastery-radar";
 import { SessionsPanel } from "@/components/sessions/sessions-panel";
 import { ClassPlanCard } from "@/components/teacher/class-plan-card";
 import type { ClassroomPlan } from "@/components/teacher/classroom-plan";
@@ -653,6 +657,106 @@ export default function ClassOverviewPage({
           </div>
         </Card>
       </div>
+
+      {/* Interactive Game-Like Learning Studio & Science Lab Launcher (Retroactively enabled on all classes) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <Link href={`/classes/${classId}/read`}>
+          <Card className="p-4 h-full border-2 border-brand-500/30 bg-gradient-to-br from-brand-500/10 via-card to-card hover:border-brand-500 transition-all group">
+            <div className="flex items-center justify-between mb-2">
+              <div className="h-9 w-9 rounded-xl bg-brand-600 text-white flex items-center justify-center">
+                <Volume2 className="h-4 w-4" />
+              </div>
+              <Badge variant="outline" className="text-[10px] font-mono border-brand-500/40 text-brand-600 dark:text-brand-300">
+                Sprout Read-Aloud
+              </Badge>
+            </div>
+            <h3 className="text-sm font-extrabold text-foreground group-hover:text-brand-600 transition-colors">
+              Interactive Flipbook & Voice
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Sprout hops word-by-word with cartoon voice, turns pages, and pops up visual diagrams.
+            </p>
+          </Card>
+        </Link>
+
+        <Link href="/experiments">
+          <Card className="p-4 h-full border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 via-card to-card hover:border-emerald-500 transition-all group">
+            <div className="flex items-center justify-between mb-2">
+              <div className="h-9 w-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
+                <FlaskConical className="h-4 w-4" />
+              </div>
+              <Badge variant="emerald" className="text-[10px] font-mono">
+                Interactive Lab
+              </Badge>
+            </div>
+            <h3 className="text-sm font-extrabold text-foreground group-hover:text-emerald-600 transition-colors">
+              Virtual Science & Reaction Lab
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Mix chemicals, heat over a Bunsen burner, inspect slides under the microscope, and build 3D circuits.
+            </p>
+          </Card>
+        </Link>
+
+        <Link href={`/classes/${classId}/past-questions`}>
+          <Card className="p-4 h-full border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-card to-card hover:border-amber-500 transition-all group">
+            <div className="flex items-center justify-between mb-2">
+              <div className="h-9 w-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <Badge variant="amber" className="text-[10px] font-mono">
+                CBT + Snap-to-Grade
+              </Badge>
+            </div>
+            <h3 className="text-sm font-extrabold text-foreground group-hover:text-amber-600 transition-colors">
+              Past Questions & Exam Arena
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Practice timed CBT mode or snap handwritten paper workings for instant step-by-step AI grading.
+            </p>
+          </Card>
+        </Link>
+
+        <Link href={`/classes/${classId}/map`}>
+          <Card className="p-4 h-full border-2 border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 via-card to-card hover:border-indigo-500 transition-all group">
+            <div className="flex items-center justify-between mb-2">
+              <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+                <Compass className="h-4 w-4" />
+              </div>
+              <Badge variant="outline" className="text-[10px] font-mono border-indigo-500/40 text-indigo-600 dark:text-indigo-300">
+                World Quest
+              </Badge>
+            </div>
+            <h3 className="text-sm font-extrabold text-foreground group-hover:text-indigo-600 transition-colors">
+              3D Adventure & Quest Map
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Conquer topic islands, unlock boss checkpoints, and earn XP streaks with your coursemates.
+            </p>
+          </Card>
+        </Link>
+      </div>
+
+      {/* All-Topic Cognitive Twin Mastery Radar for this Class */}
+      {kcs.length > 0 && (
+        <MasteryRadar
+          title={`Cognitive Twin Mastery Radar — ${classData.title}`}
+          subtitle={`Live Bayesian mastery probability P(L) across all ${kcs.length} syllabus topics in this class`}
+          data={kcs.map((kc) => {
+            const rawPL = masteryMap[kc.id] ?? kc.bkt?.pL0 ?? 0.2;
+            const pct = Math.round(Math.max(0, Math.min(1, rawPL)) * 100);
+            const fullName = kc.title || "Topic";
+            return {
+              id: kc.id,
+              classId,
+              subject: fullName.length > 18 ? `${fullName.slice(0, 15)}...` : fullName,
+              fullName,
+              pL: pct,
+              threshold: 95,
+            };
+          })}
+        />
+      )}
 
       {(isOwner || user?.role === "admin") && (
         <ClassPlanCard

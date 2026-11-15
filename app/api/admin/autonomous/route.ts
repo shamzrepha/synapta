@@ -79,30 +79,6 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.students - a.students)
       .slice(0, 4);
 
-    // If all current student departments have classes (or early launch), surface high-priority NUC campus packs ready to seed
-    if (unservedDepartments.length === 0) {
-      unservedDepartments.push(
-        {
-          institution: "Federal University of Technology, Owerri (FUTO)",
-          department: "Mechanical Engineering",
-          level: "200L",
-          students: 1,
-        },
-        {
-          institution: "University of Lagos (UNILAG)",
-          department: "Computer Science",
-          level: "200L",
-          students: 1,
-        },
-        {
-          institution: "Obafemi Awolowo University (OAU)",
-          department: "Electrical & Electronics Engineering",
-          level: "300L",
-          students: 1,
-        }
-      );
-    }
-
     const topCampuses = Array.from(campusCounts.entries())
       .map(([institution, students]) => ({ institution, students }))
       .sort((a, b) => b.students - a.students)

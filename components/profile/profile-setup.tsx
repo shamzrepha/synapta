@@ -29,53 +29,94 @@ import { cn } from "@/lib/utils";
 
 type Pick = { kind: "keep" } | { kind: "preset"; index: number } | { kind: "upload"; dataUrl: string };
 type Step = 1 | 2 | 3 | 4 | 5;
+type EducationTier = "primary" | "secondary" | "university" | "independent";
 
-const POPULAR_SCHOOLS = [
-  "University of Lagos (UNILAG)",
-  "Federal University of Technology, Owerri (FUTO)",
-  "University of Ibadan (UI)",
-  "Obafemi Awolowo University (OAU)",
-  "University of Nigeria, Nsukka (UNN)",
-  "University of Benin (UNIBEN)",
-  "Ahmadu Bello University (ABU)",
-  "Covenant University",
-  "Federal University of Technology, Akure (FUTA)",
-  "University of Ilorin (UNILORIN)",
-  "Lagos State University (LASU)",
-  "Bayero University Kano (BUK)",
-  "University of Ghana, Legon (UG)",
-  "Kwame Nkrumah University of Science & Technology (KNUST)",
-  "University of Nairobi (UoN)",
-  "University of Cape Town (UCT)",
-  "University of the Witwatersrand (Wits)",
-  "Makerere University",
-  "University of Rwanda",
-  "Cairo University",
+interface RegisteredSchoolOption {
+  id: string;
+  name: string;
+  kind: string;
+  department: string;
+}
+
+const EDUCATION_TIERS: { id: EducationTier; label: string; sub: string }[] = [
+  { id: "primary", label: "Primary School", sub: "Primary 1–6 • Numeracy, Literacy & Basic Science" },
+  { id: "secondary", label: "Secondary / High School", sub: "JSS 1–3 & SS 1–3 • WAEC, NECO, JAMB & IGCSE" },
+  { id: "university", label: "University / Polytechnic / College", sub: "100L–500L & Postgrad • Degrees, Diplomas & Courses" },
+  { id: "independent", label: "Independent / Self-Learner", sub: "Anyone willing to learn • Custom topics & skills" },
 ];
 
-const POPULAR_DEPARTMENTS = [
-  "Computer Science",
-  "Mechanical Engineering",
-  "Electrical & Electronics Engineering",
-  "Medicine & Surgery",
-  "Accounting",
-  "Economics",
-  "Law",
-  "Biochemistry",
-  "Pharmacy",
-  "Civil Engineering",
-  "Mass Communication",
-  "Microbiology",
-];
+const STREAMS_BY_TIER: Record<EducationTier, string[]> = {
+  primary: [
+    "General Primary Subjects",
+    "Mathematics & Numeracy",
+    "Basic Science & Technology",
+    "English & Reading Comprehension",
+    "Coding & Robotics for Kids",
+    "Creative Arts & Social Studies",
+  ],
+  secondary: [
+    "Science Stream (Physics, Chemistry, Biology, Maths)",
+    "Commercial / Business Stream (Accounting, Economics, Commerce)",
+    "Arts & Humanities (Literature, Government, History)",
+    "Technical & Computer Studies",
+    "Junior Secondary (JSS General)",
+  ],
+  university: [
+    "Computer Science",
+    "Mechanical Engineering",
+    "Electrical & Electronics Engineering",
+    "Medicine & Surgery",
+    "Accounting",
+    "Economics",
+    "Law",
+    "Biochemistry",
+    "Pharmacy",
+    "Civil Engineering",
+    "Mass Communication",
+    "Microbiology",
+  ],
+  independent: [
+    "Software Engineering & AI",
+    "Science & Engineering",
+    "Business, Finance & Economics",
+    "Languages & Communication",
+    "Professional Certification Prep",
+    "General Curiosity & Self-Study",
+  ],
+};
 
-const STUDY_LEVELS = [
-  { id: "100L", label: "100 Level (Year 1)" },
-  { id: "200L", label: "200 Level (Year 2)" },
-  { id: "300L", label: "300 Level (Year 3)" },
-  { id: "400L", label: "400 Level (Year 4)" },
-  { id: "500L", label: "500 Level (Year 5)" },
-  { id: "Postgraduate", label: "Postgraduate / Master's" },
-];
+const LEVELS_BY_TIER: Record<EducationTier, { id: string; label: string }[]> = {
+  primary: [
+    { id: "Primary 1", label: "Primary 1 / Grade 1" },
+    { id: "Primary 2", label: "Primary 2 / Grade 2" },
+    { id: "Primary 3", label: "Primary 3 / Grade 3" },
+    { id: "Primary 4", label: "Primary 4 / Grade 4" },
+    { id: "Primary 5", label: "Primary 5 / Grade 5" },
+    { id: "Primary 6", label: "Primary 6 / Common Entrance" },
+  ],
+  secondary: [
+    { id: "JSS 1", label: "JSS 1 (Grade 7)" },
+    { id: "JSS 2", label: "JSS 2 (Grade 8)" },
+    { id: "JSS 3", label: "JSS 3 (BECE / Junior WAEC)" },
+    { id: "SS 1", label: "SS 1 (Grade 10)" },
+    { id: "SS 2", label: "SS 2 (Grade 11)" },
+    { id: "SS 3", label: "SS 3 (WAEC / NECO / JAMB)" },
+  ],
+  university: [
+    { id: "100L", label: "100 Level (Year 1)" },
+    { id: "200L", label: "200 Level (Year 2)" },
+    { id: "300L", label: "300 Level (Year 3)" },
+    { id: "400L", label: "400 Level (Year 4)" },
+    { id: "500L", label: "500 Level (Year 5)" },
+    { id: "Postgraduate", label: "Postgraduate / Master's" },
+  ],
+  independent: [
+    { id: "Self-Paced Foundation", label: "Foundation / Beginner" },
+    { id: "Self-Paced Intermediate", label: "Intermediate Learner" },
+    { id: "Self-Paced Advanced", label: "Advanced / Mastery" },
+    { id: "Exam & Certification Prep", label: "Exam / Certification Prep" },
+  ],
+};
 
 const INTEREST_TAGS = [
   { id: "past_questions", label: "Past Questions & Exam Drills", desc: "Step-by-step worked exam questions", Icon: FileCheck2 },
@@ -132,6 +173,8 @@ export function ProfileSetup() {
   const [handleDraft, setHandleDraft] = useState<string | null>(null);
   const [pick, setPick] = useState<Pick | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+  const [tierDraft, setTierDraft] = useState<EducationTier>("secondary");
+  const [registeredSchools, setRegisteredSchools] = useState<RegisteredSchoolOption[]>([]);
   const [institutionDraft, setInstitutionDraft] = useState<string | null>(null);
   const [departmentDraft, setDepartmentDraft] = useState<string | null>(null);
   const [levelDraft, setLevelDraft] = useState<string | null>(null);
@@ -140,6 +183,17 @@ export function ProfileSetup() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch("/api/schools?mode=directory")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.ok && Array.isArray(j.data?.registeredSchools)) {
+          setRegisteredSchools(j.data.registeredSchools);
+        }
+      })
+      .catch(() => null);
+  }, []);
 
   useEffect(() => {
     const onOpen = () => {
@@ -425,68 +479,134 @@ export function ProfileSetup() {
           </div>
         )}
 
-        {/* STEP 2: University / School */}
+        {/* STEP 2: Education Category & School */}
         {step === 2 && (
           <div className="space-y-4">
             <div>
               <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
-                <School className="h-5 w-5 text-brand-600 shrink-0" /> Which school are you attending?
+                <School className="h-5 w-5 text-brand-600 shrink-0" /> How are you learning on SunRoot?
               </h2>
               <p className="text-xs text-muted-foreground">
-                This helps Sprout connect you with syllabi and materials from your actual lecturers.
+                SunRoot is built for Primary Schools, Secondary Schools, Universities, and independent learners.
               </p>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {EDUCATION_TIERS.map((t) => {
+                const active = tierDraft === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setTierDraft(t.id);
+                      const firstLvl = LEVELS_BY_TIER[t.id][0]?.id;
+                      if (firstLvl) setLevelDraft(firstLvl);
+                      if (t.id === "independent" && !institutionDraft) {
+                        setInstitutionDraft("Independent Learner");
+                      }
+                    }}
+                    className={cn(
+                      "p-2.5 rounded-xl border text-left transition flex flex-col justify-between",
+                      active
+                        ? "bg-brand-50 dark:bg-brand-950/40 border-brand-600 ring-1 ring-brand-600"
+                        : "bg-slate-50 dark:bg-slate-800 border-border hover:border-slate-300"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className="text-xs font-bold text-foreground">{t.label}</span>
+                      {active && <Check className="h-3.5 w-3.5 text-brand-600 shrink-0" />}
+                    </div>
+                    <span className="text-[11px] text-muted-foreground mt-0.5">{t.sub}</span>
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="space-y-2">
+              <label className="text-xs font-semibold text-muted-foreground block">
+                {tierDraft === "independent"
+                  ? "Learning Community or School Name (Optional)"
+                  : "Your School or Institution Name"}
+              </label>
               <Input
-                placeholder="Type or search your institution..."
+                placeholder={
+                  tierDraft === "primary"
+                    ? "Type your primary school name..."
+                    : tierDraft === "secondary"
+                    ? "Type your secondary school name..."
+                    : tierDraft === "university"
+                    ? "Type your university, polytechnic, or college..."
+                    : "Independent Learner (or type your academy/group)..."
+                }
                 value={institution}
                 onChange={(e) => setInstitutionDraft(e.target.value)}
               />
-              <p className="text-xs font-semibold text-muted-foreground pt-1">Popular Universities:</p>
-              <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1">
-                {POPULAR_SCHOOLS.map((sch) => (
-                  <button
-                    key={sch}
-                    type="button"
-                    onClick={() => setInstitutionDraft(sch)}
-                    className={cn(
-                      "text-xs px-2.5 py-1.5 rounded-lg border transition text-left",
-                      institution === sch
-                        ? "bg-brand-600 text-white border-brand-600 font-semibold"
-                        : "bg-slate-50 dark:bg-slate-800 border-border hover:border-brand-500"
-                    )}
-                  >
-                    {sch}
-                  </button>
-                ))}
-              </div>
+              {registeredSchools.length > 0 && (
+                <>
+                  <p className="text-xs font-semibold text-muted-foreground pt-1">
+                    Registered Schools on SunRoot (Tap to join):
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
+                    {registeredSchools.map((sch) => (
+                      <button
+                        key={sch.id}
+                        type="button"
+                        onClick={() => setInstitutionDraft(sch.name)}
+                        className={cn(
+                          "text-xs px-2.5 py-1.5 rounded-lg border transition text-left",
+                          institution === sch.name
+                            ? "bg-brand-600 text-white border-brand-600 font-semibold"
+                            : "bg-slate-50 dark:bg-slate-800 border-border hover:border-brand-500"
+                        )}
+                      >
+                        {sch.name} <span className="opacity-70 text-[10px]">({sch.kind})</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
 
-        {/* STEP 3: Department & Level */}
+        {/* STEP 3: Class Stream / Department & Grade Level */}
         {step === 3 && (
           <div className="space-y-4">
             <div>
               <h2 className="text-base sm:text-lg font-bold flex items-center gap-2">
-                <GraduationCap className="h-5 w-5 text-brand-600 shrink-0" /> Department & Year Level
+                <GraduationCap className="h-5 w-5 text-brand-600 shrink-0" />{" "}
+                {tierDraft === "primary" || tierDraft === "secondary"
+                  ? "Subject Stream & Class Grade"
+                  : tierDraft === "independent"
+                  ? "Focus Area & Pace"
+                  : "Department & Year Level"}
               </h2>
               <p className="text-xs text-muted-foreground">
-                We use this to rank course topics and past papers matching your curriculum.
+                We use this to calibrate your lessons, interactive science labs, and past exam practice.
               </p>
             </div>
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1">Department / Major</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                  {tierDraft === "primary" || tierDraft === "secondary"
+                    ? "Class Stream / Subject Focus"
+                    : "Department / Major / Focus Area"}
+                </label>
                 <Input
-                  placeholder="e.g. Computer Science, Accounting..."
+                  placeholder={
+                    tierDraft === "primary"
+                      ? "e.g. Numeracy & Basic Science"
+                      : tierDraft === "secondary"
+                      ? "e.g. Science Stream, Arts, or Commercial"
+                      : "e.g. Computer Science, Medicine, Accounting..."
+                  }
                   value={department}
                   onChange={(e) => setDepartmentDraft(e.target.value)}
                 />
                 <div className="flex flex-wrap gap-1 mt-2">
-                  {POPULAR_DEPARTMENTS.slice(0, 6).map((dep) => (
+                  {STREAMS_BY_TIER[tierDraft].slice(0, 6).map((dep) => (
                     <button
                       key={dep}
                       type="button"
@@ -505,9 +625,11 @@ export function ProfileSetup() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Current Study Level</label>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">
+                  Current Grade / Study Level
+                </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {STUDY_LEVELS.map((lvl) => (
+                  {LEVELS_BY_TIER[tierDraft].map((lvl) => (
                     <button
                       key={lvl.id}
                       type="button"

@@ -401,12 +401,13 @@ export async function synthesizeSpeech(text: string, gender: "female" | "male", 
   }
   const edgeMs = opts.patient ? Math.min(45_000, 8_000 + clean.length * 25) : 5_000;
   const primary = edgeVoice || voices[0];
-  const edge = await synthesizeEdgeVoice(clean, primary, edgeMs);
+  const sproutProsody = primary === "en-US-AnaNeural" ? { rate: "-8%", pitch: "+38Hz" } : undefined;
+  const edge = await synthesizeEdgeVoice(clean, primary, edgeMs, sproutProsody);
   if (edge) return { audio: edge, mimeType: "audio/mpeg", engine: "edge" };
   // a second Edge attempt costs little and covers a single connection glitch or throttled voice
   if (edgeAvailable()) {
     const retryVoice = langVoice || voices.find((v) => v !== primary) || voices[1];
-    const alt = await synthesizeEdgeVoice(clean, retryVoice, edgeMs);
+    const alt = await synthesizeEdgeVoice(clean, retryVoice, edgeMs, sproutProsody);
     if (alt) return { audio: alt, mimeType: "audio/mpeg", engine: "edge" };
   }
   // a retry of the free voice must not fall through to the paid engines
@@ -458,11 +459,16 @@ async function nativeSpeech(text: string, gender: "female" | "male", timeoutMs: 
 }
 
 /** Synthesises text with a specific Edge neural voice (free, no API key). Returns MP3 bytes. */
-export async function synthesizeEdgeVoice(text: string, voice: string, timeoutMs = 6_000): Promise<Buffer | null> {
+export async function synthesizeEdgeVoice(
+  text: string,
+  voice: string,
+  timeoutMs = 6_000,
+  prosody?: { rate?: string; pitch?: string; volume?: string }
+): Promise<Buffer | null> {
   if (!text || !text.trim()) return null;
   if (!edgeAvailable()) return null;
   // The Edge websocket can stall without erroring (blocked egress, throttling); never wait forever.
-  const out = await withVoiceTimeout(edgeStream(text, voice), timeoutMs);
+  const out = await withVoiceTimeout(edgeStream(text, voice, prosody), timeoutMs);
   if (out) edgeState.failures = 0;
   else if (++edgeState.failures >= 2) edgeState.downUntil = Date.now() + 15_000;
   return out;
@@ -477,9 +483,9 @@ export async function synthesizeEdgeWithWords(
   voice: string,
   prosody: { rate?: string; pitch?: string; volume?: string } = {},
   timeoutMs = 9_000
-): Promise<{ audio: Buffer; words: WordTiming[]; estimated: boolean } | null> {
+): Promise<{ audio: Buffer; words: WordTiming[]; estimated: boolean; fallbackCartoon?: boolean } | null> {
   const clean = text.trim();
-  if (!clean || !edgeAvailable()) return null;
+  if (!clean) return null;
   const run = async () => {
     try {
       const communicate = new Communicate(clean, { voice, connectionTimeout: 8_000, ...prosody });
@@ -498,15 +504,32 @@ export async function synthesizeEdgeWithWords(
       return null;
     }
   };
-  const out = await withVoiceTimeout(run(), timeoutMs);
-  if (out) edgeState.failures = 0;
-  else if (++edgeState.failures >= 2) edgeState.downUntil = Date.now() + 15_000;
-  return out;
+  if (edgeAvailable()) {
+    const out = await withVoiceTimeout(run(), timeoutMs);
+    if (out) {
+      edgeState.failures = 0;
+      return out;
+    }
+    if (++edgeState.failures >= 2) edgeState.downUntil = Date.now() + 15_000;
+  }
+  // Fallback when Edge websocket is unreachable: synthesize via fallback engine and mark fallbackCartoon so browser raises pitch into Sprout's child cartoon voice
+  const fallback = await synthesizeSpeech(clean, "female", "en-US-AnaNeural", { edgeFirst: true });
+  if (!fallback) return null;
+  return {
+    audio: fallback.audio,
+    words: estimateWordTimings(clean, mp3DurationMs(fallback.audio.length)),
+    estimated: true,
+    fallbackCartoon: fallback.engine !== "edge",
+  };
 }
 
-async function edgeStream(text: string, voice: string): Promise<Buffer | null> {
+async function edgeStream(
+  text: string,
+  voice: string,
+  prosody?: { rate?: string; pitch?: string; volume?: string }
+): Promise<Buffer | null> {
   try {
-    const communicate = new Communicate(text.trim(), { voice, connectionTimeout: 8_000 });
+    const communicate = new Communicate(text.trim(), { voice, connectionTimeout: 8_000, ...(prosody || {}) });
     const chunks: Buffer[] = [];
     for await (const chunk of communicate.stream()) {
       if (chunk.type === "audio" && chunk.data) chunks.push(chunk.data);

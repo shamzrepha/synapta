@@ -130,38 +130,60 @@ export async function GET(req: NextRequest) {
       .get();
 
     interface RadarDataPoint {
+      id?: string;
+      classId?: string;
       subject: string;
       fullName: string;
       pL: number;
       threshold: number;
     }
 
+    const masteryByKc = new Map<string, { pL: number; kcTitle?: string }>();
+    masterySnap.docs.forEach((doc) => {
+      const m = doc.data();
+      if (m.kcId) {
+        masteryByKc.set(String(m.kcId), {
+          pL: typeof m.pL === "number" ? m.pL : 0.2,
+          kcTitle: typeof m.kcTitle === "string" ? m.kcTitle : undefined,
+        });
+      }
+    });
+
     const radarData: RadarDataPoint[] = [];
     let masteredCount = 0;
     let learningCount = 0;
     let strugglingCount = 0;
     let totalPL = 0;
+    const seenKcs = new Set<string>();
 
-    masterySnap.docs.forEach((doc) => {
-      const m = doc.data();
-      const rawPL = typeof m.pL === "number" ? m.pL : 0.2;
-      const percentPL = Math.round(rawPL * 100);
-      const kc = kcsMap.get(m.kcId);
-      const fullName = kc?.title || m.kcTitle || m.kcId || "Topic";
+    const pushTopicStat = (kcId: string, fullName: string, rawPL: number, classId?: string) => {
+      seenKcs.add(kcId);
+      const percentPL = Math.round(Math.max(0, Math.min(1, rawPL)) * 100);
       const subject = fullName.length > 18 ? `${fullName.slice(0, 15)}...` : fullName;
-
       radarData.push({
+        id: kcId,
+        classId,
         subject,
         fullName,
         pL: percentPL,
         threshold: 95,
       });
-
       totalPL += percentPL;
       if (percentPL >= 95) masteredCount++;
       else if (percentPL >= 40) learningCount++;
       else strugglingCount++;
-    });
+    };
+
+    // Include ALL topics across all enrolled/owned classes (plus any standalone mastery records)
+    for (const [kcId, kc] of kcsMap.entries()) {
+      const m = masteryByKc.get(kcId);
+      pushTopicStat(kcId, kc.title, m ? m.pL : 0.2, kc.classId);
+    }
+
+    for (const [kcId, m] of masteryByKc.entries()) {
+      if (seenKcs.has(kcId)) continue;
+      pushTopicStat(kcId, m.kcTitle || kcId || "Topic", m.pL);
+    }
 
     const averagePL = radarData.length > 0 ? Math.round(totalPL / radarData.length) : 0;
 
@@ -191,7 +213,7 @@ export async function GET(req: NextRequest) {
       data: {
         profile,
         classes,
-        radarData: radarData.slice(0, 8),
+        radarData,
         masterySummary: {
           masteredCount,
           learningCount,

@@ -40,7 +40,9 @@ import { fireCelebration } from "@/components/game/confetti";
 import { asArray } from "@/lib/api/client";
 import { rankBlocks } from "@/lib/study/locate";
 import { ReadPlayer, useReadThrough } from "@/components/lesson/read-through";
-import { findBlockElement, pageHolding } from "@/components/lesson/find-block";
+import { clearReadingHighlights } from "@/components/lesson/reading-follow";
+import { findBlockElement, firstWordBox, pageHolding } from "@/components/lesson/find-block";
+import { hopPath, perchOnWord } from "@/lib/pet/read-hop";
 import { peekClass, rememberClass } from "@/lib/client/class-cache";
 import { prefetchGlossaries } from "@/lib/study/glossary-client";
 import { cn } from "@/lib/utils";
@@ -643,26 +645,87 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     },
     [doneKey, sendSignal, sections]
   );
-  // the voice reads on past the page on screen: turn to the page that holds the paragraph, wait for it to draw, then hand it over
+  // the voice reads on past the page on screen: Sprout runs to the bottom of the page, flips/tears open the new page by running to the top, and stands on the first word before the voice continues
+  const [sproutTearFlip, setSproutTearFlip] = useState(false);
   const findElFlip = useCallback(
-    async (kcId: string, blockText: string): Promise<HTMLElement | null> => {
+    async (kcId: string, blockText: string, pageAnchor?: string): Promise<HTMLElement | null> => {
       // a paragraph drawn as bare text (no element of its own): the whole topic stands in, and the words are found by their order
       const topic = () => document.querySelector<HTMLElement>(`[data-kc="${kcId}"]`);
       const direct = findBlockEl(kcId, blockText);
       if (direct || viewMode !== "flip") return direct ?? topic();
       const mine = flipPages.map((p, i) => ({ p, i })).filter(({ p }) => p.section.id === kcId);
-      const at = pageHolding(mine.map(({ p }) => `${p.pageTitle}\n${p.subtopic || ""}\n${p.pageBody}`), blockText);
+      const pagesMd = mine.map(({ p }) => `${p.pageTitle}\n${p.subtopic || ""}\n${p.pageBody}`);
+      let at = pageHolding(pagesMd, blockText);
+      if (at < 0 && pageAnchor) at = pageHolding(pagesMd, pageAnchor);
       const idx = at >= 0 ? mine[at].i : -1;
       if (idx < 0) return topic();
-      goToPage(idx);
-      for (let i = 0; i < 20; i++) {
-        await new Promise((r) => window.setTimeout(r, 80));
-        const el = findBlockEl(kcId, blockText);
-        if (el) return el;
+
+      if (idx !== safeFlipIdx && bot.enabled && !bot.reduced) {
+        clearReadingHighlights();
+        const paper = document.querySelector<HTMLElement>(".note-paper");
+        const pr = paper?.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const bottomPt = {
+          x: pr ? Math.min(vw - 82, Math.max(16, pr.right - 84)) : vw - 96,
+          y: pr ? Math.min(vh - 96, Math.max(140, pr.bottom - 84)) : vh - 120,
+        };
+        const topPt = {
+          x: pr ? Math.max(16, Math.min(vw - 82, pr.left + 44)) : 48,
+          y: pr ? Math.max(72, Math.min(vh - 180, pr.top + 18)) : 96,
+        };
+        const startPt = bot.where();
+        bot.say("Next page!", 1300);
+        // 1. Sprout walks/runs from wherever it currently is down to the bottom of the page
+        await bot.path(
+          (u) => ({
+            x: startPt.x + (bottomPt.x - startPt.x) * u,
+            y: startPt.y + (bottomPt.y - startPt.y) * u - Math.sin(u * Math.PI) * 14,
+          }),
+          { duration: 540, pose: "point", face: bottomPt.x < startPt.x ? -1 : 1 }
+        );
+        // 2. Flip / tear open the new page while Sprout runs from the bottom up to the top of the new page
+        setSproutTearFlip(true);
+        goToPage(idx);
+        await bot.path(
+          (u) => ({
+            x: bottomPt.x + (topPt.x - bottomPt.x) * u - Math.sin(u * Math.PI) * 26,
+            y: bottomPt.y + (topPt.y - bottomPt.y) * u,
+          }),
+          { duration: 620, pose: "pull", face: topPt.x <= bottomPt.x ? -1 : 1 }
+        );
+        window.setTimeout(() => setSproutTearFlip(false), 260);
+      } else {
+        goToPage(idx);
       }
-      return topic();
+
+      let foundEl: HTMLElement | null = null;
+      for (let i = 0; i < 20; i++) {
+        await new Promise((r) => window.setTimeout(r, 65));
+        const el = findBlockEl(kcId, blockText) || (pageAnchor ? findBlockEl(kcId, pageAnchor) : null);
+        if (el) {
+          foundEl = el;
+          break;
+        }
+      }
+      const targetEl = foundEl ?? topic();
+      // 3. Stand on the first word at the top of the new page before the voice resumes playing
+      if (targetEl && bot.enabled && !bot.reduced) {
+        const wBox = firstWordBox(targetEl);
+        const perchPt = perchOnWord(
+          { left: wBox.left, top: wBox.top, width: wBox.width, height: wBox.height },
+          { width: window.innerWidth, height: window.innerHeight }
+        );
+        const curPt = bot.where();
+        if (Math.hypot(perchPt.x - curPt.x, perchPt.y - curPt.y) > 2) {
+          await bot.path(hopPath(curPt, perchPt), { duration: 230, pose: "idle" });
+        }
+        bot.stick(perchPt.x, perchPt.y);
+        await new Promise((r) => window.setTimeout(r, 160));
+      }
+      return targetEl;
     },
-    [viewMode, flipPages, goToPage]
+    [viewMode, flipPages, safeFlipIdx, bot, goToPage]
   );
   const voice = useReadThrough({
     sections: readable,
@@ -1123,7 +1186,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                       }}
                       className={cn(
                         "note-paper sunroot-paper touch-pan-y relative",
-                        flipDir === "next" ? "note-flip-next" : "note-flip-prev"
+                        sproutTearFlip ? "note-flip-sprout-tear" : flipDir === "next" ? "note-flip-next" : "note-flip-prev"
                       )}
                     >
                       {safeFlipIdx > 0 && (

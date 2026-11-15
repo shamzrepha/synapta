@@ -527,6 +527,26 @@ textarea, input { scroll-margin-block: 96px; }
 }
 .note-flip-next { animation: note-flip-next 0.45s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); }
 .note-flip-prev { animation: note-flip-prev 0.45s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); }
+@keyframes note-flip-sprout-tear {
+  0% {
+    opacity: 0.15;
+    transform-origin: bottom right;
+    transform: perspective(1200px) rotateX(24deg) rotateZ(-3deg) translateY(36px) scale(0.95);
+    box-shadow: 0 28px 50px -12px rgba(37, 99, 235, 0.28);
+  }
+  55% {
+    opacity: 0.92;
+    transform-origin: top left;
+    transform: perspective(1200px) rotateX(-6deg) rotateZ(1deg) translateY(-6px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+.note-flip-sprout-tear {
+  animation: note-flip-sprout-tear 0.68s cubic-bezier(0.22, 1, 0.36, 1);
+}
 @keyframes note-sheet-up {
   from { opacity: 0; transform: translateY(24px) scale(0.98); }
   to { opacity: 1; transform: none; }

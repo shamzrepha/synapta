@@ -9,13 +9,25 @@ import { LEARNING_COHORTS, type LearningCohortId } from "@/lib/learning/telemetr
 
 export const runtime = "nodejs";
 
+const SCHOOL_KINDS = ["primary", "secondary", "university", "polytechnic", "college", "academy"] as const;
+
 const postSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("create_school"),
     name: z.string().trim().min(3).max(140),
-    kind: z.enum(["university", "secondary", "polytechnic", "college"]).default("university"),
+    kind: z.enum(SCHOOL_KINDS).default("university"),
     department: z.string().trim().max(120).optional().default(""),
     seatLimit: z.number().int().min(10).max(10_000).optional().default(50),
+  }),
+  z.object({
+    action: z.literal("public_register_school"),
+    name: z.string().trim().min(3).max(140),
+    kind: z.enum(SCHOOL_KINDS).default("secondary"),
+    department: z.string().trim().max(120).optional().default(""),
+    contactName: z.string().trim().min(2).max(100),
+    contactEmail: z.string().trim().email().max(140),
+    contactPhone: z.string().trim().max(40).optional().default(""),
+    seatLimit: z.number().int().min(10).max(10_000).optional().default(100),
   }),
   z.object({
     action: z.literal("register_members"),
@@ -93,8 +105,25 @@ export interface InterUniStanding {
  */
 export async function GET(req: NextRequest) {
   try {
-    const caller = await requireUser(req);
     const db = adminDb();
+    const mode = req.nextUrl.searchParams.get("mode") || "";
+
+    // Lightweight directory lookup for onboarding / landing page / school selectors (only real registered schools)
+    if (mode === "directory") {
+      const schoolsSnap = await db.collection("schools").orderBy("createdAt", "desc").limit(100).get();
+      const registeredSchools = schoolsSnap.docs.map((d) => {
+        const sd = d.data() || {};
+        return {
+          id: d.id,
+          name: String(sd.name || ""),
+          kind: String(sd.kind || "university"),
+          department: String(sd.department || ""),
+        };
+      }).filter((s) => s.name.length > 0);
+      return NextResponse.json({ ok: true, data: { registeredSchools } });
+    }
+
+    const caller = await requireUser(req);
 
     const [callerDoc, schoolsSnap, usersSnap] = await Promise.all([
       db.collection("users").doc(caller.uid).get(),
@@ -281,12 +310,25 @@ export async function GET(req: NextRequest) {
           })
         : [];
 
+    const registeredSchools = schoolsSnap.docs
+      .map((d) => {
+        const sd = d.data() || {};
+        return {
+          id: d.id,
+          name: String(sd.name || ""),
+          kind: String(sd.kind || "university"),
+          department: String(sd.department || ""),
+        };
+      })
+      .filter((s) => s.name.length > 0);
+
     return NextResponse.json({
       ok: true,
       data: {
         mySchool,
         interUniStandings,
         allSchools,
+        registeredSchools,
       },
     });
   } catch (error) {
@@ -296,6 +338,69 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const body = await parseJson(req, postSchema);
+    const db = adminDb();
+
+    // Public self-registration from the Landing Page for Primary Schools, Secondary Schools, Universities & Academies
+    if (body.action === "public_register_school") {
+      const limited = await checkRateLimit(req, {
+        keyPrefix: "public_school_reg",
+        limit: 8,
+        windowMs: 60_000,
+      });
+      if (limited) return limited;
+
+      const ref = db.collection("schools").doc();
+      const inviteCode = makeSchoolCode(body.name);
+      const pilotExpiry = Timestamp.fromMillis(Date.now() + 14 * 86_400_000);
+      const seats = body.seatLimit ?? 100;
+
+      await ref.set({
+        id: ref.id,
+        name: body.name,
+        kind: body.kind,
+        department: body.department || "",
+        principalUid: "",
+        principalName: body.contactName,
+        contactEmail: body.contactEmail,
+        contactPhone: body.contactPhone || "",
+        teacherUids: [],
+        inviteCode,
+        seatLimit: seats,
+        studentCount: 0,
+        seatExpiresAt: pilotExpiry,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+
+      await db.collection("institutionInquiries").add({
+        institution: body.name,
+        kind: body.kind,
+        department: body.department || "All Classes / Arms",
+        contactRole: body.kind === "primary" || body.kind === "secondary" ? "principal_headteacher" : "hod_dean",
+        estimatedStudents: seats,
+        estimatedSemesterNgn: seats * 1200,
+        contactName: body.contactName,
+        contactEmail: body.contactEmail,
+        contactPhone: body.contactPhone || "",
+        inviteCode,
+        schoolId: ref.id,
+        status: "pilot_active",
+        createdAt: Timestamp.now(),
+      });
+
+      return NextResponse.json({
+        ok: true,
+        data: {
+          schoolId: ref.id,
+          schoolName: body.name,
+          kind: body.kind,
+          inviteCode,
+          message: `${body.name} is now registered on SunRoot! Your school invite code is ${inviteCode} (14-day pilot active for ${seats} students).`,
+        },
+      });
+    }
+
     const caller = await requireUser(req);
     const limited = await checkRateLimit(req, {
       uid: caller.uid,
@@ -304,9 +409,6 @@ export async function POST(req: NextRequest) {
       windowMs: 60_000,
     });
     if (limited) return limited;
-
-    const body = await parseJson(req, postSchema);
-    const db = adminDb();
 
     if (body.action === "create_school") {
       const callerSnap = await db.collection("users").doc(caller.uid).get();
