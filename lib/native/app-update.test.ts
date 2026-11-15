@@ -17,6 +17,10 @@ describe("app update check", () => {
     const release = { ...ok, url: "https://github.com/shamzrepha/synapta/releases/download/v2.5/sunroot-2.5.apk" };
     expect(parseLatest(release)).toEqual({ ...release, minVersionCode: 0, notes: "" });
     expect(parseLatest({ ...ok, url: "https://github.com/someone-else/x/releases/download/v1/a.apk" })).toBeNull();
+    const prevEnv = process.env.NEXT_PUBLIC_APP_URL;
+    process.env.NEXT_PUBLIC_APP_URL = "https://sunroot.africa";
+    expect(parseLatest({ ...ok, url: "https://sunroot.africa/sunroot-3.3.apk" })?.url).toBe("https://sunroot.africa/sunroot-3.3.apk");
+    process.env.NEXT_PUBLIC_APP_URL = prevEnv;
   });
   it("offers an update only to the app, and only when the installed build is older", () => {
     const latest = parseLatest(ok);

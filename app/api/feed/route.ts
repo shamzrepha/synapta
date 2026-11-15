@@ -109,29 +109,24 @@ export async function POST(req: NextRequest) {
     }
     if (body.link && !/^https?:\/\//i.test(body.link)) throw new ApiError(400, "VALIDATION", "Links must start with http:// or https://");
 
-    // Free-tier students are limited to 3 community posts per day
+    // Free-tier students are limited to 3 community posts per day (O(1) counter on user doc, no composite index needed)
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    let nextDailyPostCount = 1;
     if (caller.role === "student") {
       const userSnap = await adminDb().collection("users").doc(caller.uid).get();
-      const userPlan = planOf(userSnap.data() || {});
-      if (userPlan.id === "free") {
-        const startOfDay = new Date();
-        startOfDay.setUTCHours(0, 0, 0, 0);
-        const recentSnap = await adminDb()
-          .collection("posts")
-          .where("authorUid", "==", caller.uid)
-          .limit(10)
-          .get();
-        const postsToday = recentSnap.docs.filter((d) => {
-          const ms = d.data().createdAt?.toMillis?.() || 0;
-          return ms >= startOfDay.getTime();
-        }).length;
-        if (postsToday >= 3) {
-          throw new ApiError(
-            403,
-            "DAILY_LIMIT_REACHED",
-            "Free Seed accounts can publish up to 3 community posts per day. Upgrade to Plus for unlimited community discussions!"
-          );
-        }
+      const userData = userSnap.data() || {};
+      const userPlan = planOf(userData);
+      const postsToday =
+        userData.dailyPostDate === todayUtc && typeof userData.dailyPostCount === "number"
+          ? userData.dailyPostCount
+          : 0;
+      nextDailyPostCount = postsToday + 1;
+      if (userPlan.id === "free" && postsToday >= 3) {
+        throw new ApiError(
+          403,
+          "DAILY_LIMIT_REACHED",
+          "Free Seed accounts can publish up to 3 community posts per day. Upgrade to Plus for unlimited community discussions!"
+        );
       }
     }
 
@@ -146,6 +141,12 @@ export async function POST(req: NextRequest) {
       poll: body.poll ? { options: body.poll.options, durationHours: body.poll.durationHours ?? 24 } : null,
       attachment: body.attachment || null,
     });
+    if (caller.role === "student") {
+      await adminDb()
+        .collection("users")
+        .doc(caller.uid)
+        .set({ dailyPostDate: todayUtc, dailyPostCount: nextDailyPostCount }, { merge: true });
+    }
     await trackProgress({ uid: caller.uid, stats: { posts: 1 }, reason: "post" });
     return NextResponse.json({ ok: true, data: { id } });
   } catch (error) {

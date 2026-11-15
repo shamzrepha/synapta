@@ -7,7 +7,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { BrainCircuit, AlertCircle, ArrowRight, GraduationCap, User } from "lucide-react";
+import { BrainCircuit, AlertCircle, ArrowRight, GraduationCap, User, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { redirectFromLocation } from "@/lib/auth/redirect";
 
@@ -21,8 +21,26 @@ export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [redirectPath, setRedirectPath] = useState("/dashboard");
+  const [refHandle, setRefHandle] = useState("");
   useEffect(() => {
-    const t = setTimeout(() => setRedirectPath(redirectFromLocation()), 0);
+    const t = setTimeout(() => {
+      setRedirectPath(redirectFromLocation());
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        const fromQuery = (sp.get("ref") || "").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 24);
+        const fromStorage = (window.localStorage.getItem("sunroot:pending_ref") || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, "")
+          .slice(0, 24);
+        const picked = fromQuery.length >= 3 ? fromQuery : fromStorage.length >= 3 ? fromStorage : "";
+        if (picked) {
+          window.localStorage.setItem("sunroot:pending_ref", picked);
+          setRefHandle(picked);
+        }
+      } catch {
+        // ignore storage errors
+      }
+    }, 0);
     return () => clearTimeout(t);
   }, []);
 
@@ -50,7 +68,8 @@ export default function SignupPage() {
       } else if (msg.includes("auth/operation-not-allowed")) {
         setError("Email/Password sign-in is not enabled yet in your Firebase project. Please enable it in Firebase Console under Authentication > Sign-in method.");
       } else if (msg.includes("auth/unauthorized-domain")) {
-        setError("This domain is not authorized in Firebase Auth. Add sunrootlearn.vercel.app under Firebase Console > Authentication > Settings > Authorized domains.");
+        const host = typeof window !== "undefined" ? window.location.hostname : "your domain";
+        setError(`This domain (${host}) is not authorized in Firebase Auth yet. Add ${host} under Firebase Console > Authentication > Settings > Authorized domains.`);
       } else if (msg.includes("Cloud Firestore API") || msg.includes("FIRESTORE_DISABLED")) {
         setError("Cloud Firestore is not initialized yet in your Firebase Console. Please go to https://console.firebase.google.com/project/synapta-learning/firestore and click 'Create database'.");
       } else {
@@ -110,6 +129,15 @@ export default function SignupPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <AutoSignIn />
+            {refHandle && (
+              <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+                <Gift className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Invited by @{refHandle}!</span> Complete your signup to automatically claim{" "}
+                  <strong>+250 bonus XP</strong> for both of you.
+                </div>
+              </div>
+            )}
             {redirectPath.startsWith("/classes/") && (
               <div className="rounded-xl border border-brand-500/30 bg-brand-500/10 p-3 text-xs text-brand-800 dark:text-brand-300">
                 Create your free account and we&apos;ll take you straight to the class you were invited to.

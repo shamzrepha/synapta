@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sparkles, School, TrendingUp, Zap, PlusCircle, CheckCircle2, Layers } from "lucide-react";
+import { Sparkles, School, TrendingUp, Zap, PlusCircle, CheckCircle2, Layers, Building2, Mail, Phone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sprout } from "@/components/bot/sprout";
@@ -16,9 +16,23 @@ interface UnservedDept {
   students: number;
 }
 
+interface InstitutionalLead {
+  id: string;
+  institution: string;
+  department: string;
+  contactRole: string;
+  estimatedStudents: number;
+  estimatedSemesterNgn: number;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  status: string;
+}
+
 interface AutonomousDigestData {
   topCampuses: { institution: string; students: number }[];
   unservedDepartments: UnservedDept[];
+  institutionalLeads?: InstitutionalLead[];
   cohortCounts: Record<LearningCohortId, number>;
   paidSubscribers: number;
   estimatedGrossMarginPercent: number;
@@ -171,6 +185,83 @@ export function AutonomousCeoDigest() {
           </div>
         </div>
       </div>
+
+      {/* B2B University & Departmental Licensing Pipeline */}
+      {data.institutionalLeads && data.institutionalLeads.length > 0 && (
+        <div className="pt-3 border-t border-border space-y-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Building2 className="h-3.5 w-3.5 text-brand-600" /> B2B University & Departmental Pilot Requests
+            </h4>
+            <span className="text-[11px] font-bold text-emerald-600">
+              Pipeline Value: ₦
+              {data.institutionalLeads
+                .reduce((acc, l) => acc + (l.estimatedSemesterNgn || 0), 0)
+                .toLocaleString("en-NG")}
+              /semester
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {data.institutionalLeads.map((lead) => {
+              const key = `${lead.institution}::${lead.department}`;
+              const createdClassId = seededClasses[key];
+              return (
+                <div
+                  key={lead.id}
+                  className="p-3 rounded-xl border border-brand-500/25 bg-card flex flex-col justify-between gap-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-foreground truncate">{lead.institution}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {lead.department} • {lead.estimatedStudents} students
+                      </p>
+                    </div>
+                    <span className="text-xs font-extrabold text-emerald-600 shrink-0">
+                      ₦{lead.estimatedSemesterNgn.toLocaleString("en-NG")}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/60 text-[11px] text-muted-foreground">
+                    <div className="flex flex-wrap items-center gap-2 min-w-0">
+                      <span className="font-semibold text-foreground">{lead.contactName}</span>
+                      <a href={`mailto:${lead.contactEmail}`} className="inline-flex items-center gap-1 hover:underline">
+                        <Mail className="h-3 w-3" /> {lead.contactEmail}
+                      </a>
+                      <span className="inline-flex items-center gap-1">
+                        <Phone className="h-3 w-3" /> {lead.contactPhone}
+                      </span>
+                    </div>
+                    {createdClassId ? (
+                      <Link href={`/classes/${createdClassId}/past-questions`}>
+                        <Button size="sm" variant="outline" className="h-7 text-[11px] text-emerald-600 font-bold">
+                          <CheckCircle2 className="mr-1 h-3 w-3" /> Pack Ready
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        isLoading={seedingKey === key}
+                        onClick={() =>
+                          void handleAutoSeed({
+                            institution: lead.institution,
+                            department: lead.department,
+                            level: "200L",
+                            students: lead.estimatedStudents,
+                          })
+                        }
+                        className="h-7 text-[11px] font-semibold"
+                      >
+                        <PlusCircle className="mr-1 h-3 w-3" /> Seed Dept Pack
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

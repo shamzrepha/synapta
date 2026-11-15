@@ -32,48 +32,76 @@ export async function POST(req: NextRequest) {
     const caller = await requireUser(req, ["admin"]);
     const b = await parseJson(req, broadcastSchema);
 
-    let query: FirebaseFirestore.Query = adminDb().collection("users").where("disabled", "==", false);
-
-    if (b.target === "selective" && b.filters) {
-      if (b.filters.institution) {
-        query = query.where("institution", "==", b.filters.institution);
-      }
-      if (b.filters.department) {
-        query = query.where("department", "==", b.filters.department);
-      }
-      if (b.filters.level) {
-        query = query.where("level", "==", b.filters.level);
-      }
-      if (b.filters.interest) {
-        query = query.where("interests", "array-contains", b.filters.interest);
-      }
-    }
-
-    const snap = await query.limit(500).get();
+    const snap = await adminDb().collection("users").where("disabled", "==", false).limit(1000).get();
     if (snap.empty) {
       return NextResponse.json({ ok: true, data: { deliveredCount: 0, message: "No matching users found." } });
     }
 
-    const batch = adminDb().batch();
-    let count = 0;
+    const instFilter = b.filters?.institution?.trim().toLowerCase() || "";
+    const instAcronymMatch = instFilter.match(/\(([^)]+)\)/);
+    const instAcronym = instAcronymMatch ? instAcronymMatch[1].toLowerCase() : "";
+    const deptFilter = b.filters?.department?.trim().toLowerCase() || "";
+    const levelFilter = b.filters?.level?.trim().toLowerCase() || "";
+    const interestFilter = b.filters?.interest?.trim() || "";
 
-    for (const doc of snap.docs) {
-      const notifRef = adminDb().collection("users").doc(doc.id).collection("notifications").doc();
-      batch.set(notifRef, {
-        type: "broadcast",
-        title: b.title,
-        body: b.body,
-        href: b.href,
-        icon: b.icon,
-        sproutMood: b.sproutMood,
-        read: false,
-        senderUid: caller.uid,
-        createdAt: Timestamp.now(),
-      });
-      count++;
+    const matchedDocs = snap.docs.filter((doc) => {
+      if (b.target !== "selective" || !b.filters) return true;
+      const u = doc.data() || {};
+
+      if (instFilter) {
+        const userInst = String(u.institution || "").toLowerCase();
+        if (!userInst) return false;
+        const matchesFull = userInst.includes(instFilter) || instFilter.includes(userInst);
+        const matchesAcronym = instAcronym ? userInst.includes(instAcronym) : false;
+        if (!matchesFull && !matchesAcronym) return false;
+      }
+
+      if (deptFilter) {
+        const userDept = String(u.department || "").toLowerCase();
+        if (!userDept.includes(deptFilter)) return false;
+      }
+
+      if (levelFilter) {
+        const userLevel = String(u.level || "").toLowerCase();
+        if (userLevel !== levelFilter) return false;
+      }
+
+      if (interestFilter) {
+        const userInterests = Array.isArray(u.interests) ? u.interests : [];
+        if (!userInterests.includes(interestFilter)) return false;
+      }
+
+      return true;
+    });
+
+    if (matchedDocs.length === 0) {
+      return NextResponse.json({ ok: true, data: { deliveredCount: 0, message: "No matching users found for those filters." } });
     }
 
-    await batch.commit();
+    const now = Timestamp.now();
+    let count = 0;
+    const CHUNK_SIZE = 400;
+
+    for (let i = 0; i < matchedDocs.length; i += CHUNK_SIZE) {
+      const chunk = matchedDocs.slice(i, i + CHUNK_SIZE);
+      const batch = adminDb().batch();
+      for (const doc of chunk) {
+        const notifRef = adminDb().collection("users").doc(doc.id).collection("notifications").doc();
+        batch.set(notifRef, {
+          type: "broadcast",
+          title: b.title,
+          body: b.body,
+          href: b.href,
+          icon: b.icon,
+          sproutMood: b.sproutMood,
+          read: false,
+          senderUid: caller.uid,
+          createdAt: now,
+        });
+        count++;
+      }
+      await batch.commit();
+    }
 
     return NextResponse.json({
       ok: true,

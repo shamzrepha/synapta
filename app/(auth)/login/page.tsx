@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { BrainCircuit, AlertCircle, ArrowRight } from "lucide-react";
+import { BrainCircuit, AlertCircle, ArrowRight, Gift } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { safeRedirect } from "@/lib/auth/redirect";
 import { AutoSignIn } from "@/components/auth/auto-sign-in";
@@ -22,7 +22,27 @@ function LoginForm() {
   const [remember, setRemember] = useState(true);
   const searchParams = useSearchParams();
   const redirectPath = safeRedirect(searchParams.get("redirect"));
+  const rawRef = (searchParams.get("ref") || "").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 24);
+  const refHandle = rawRef.length >= 3 ? rawRef : "";
   const invitedToClass = redirectPath.startsWith("/classes/");
+
+  useEffect(() => {
+    if (refHandle && typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem("sunroot:pending_ref", refHandle);
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [refHandle]);
+
+  const signupHref = (() => {
+    const params = new URLSearchParams();
+    if (redirectPath !== "/dashboard") params.set("redirect", redirectPath);
+    if (refHandle) params.set("ref", refHandle);
+    const qs = params.toString();
+    return qs ? `/signup?${qs}` : "/signup";
+  })();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,10 +106,22 @@ function LoginForm() {
       </CardHeader>
       <CardContent className="space-y-4">
         <AutoSignIn />
+        {refHandle && (
+          <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
+            <Gift className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold">Invited by @{refHandle}!</span> Sign in or{" "}
+              <Link href={signupHref} className="font-bold underline">
+                create a free account
+              </Link>{" "}
+              to claim <strong>+250 bonus XP</strong> for both of you.
+            </div>
+          </div>
+        )}
         {redirectPath !== "/dashboard" && (
           <div className="rounded-xl border border-brand-500/30 bg-brand-500/10 p-3 text-xs text-brand-800 dark:text-brand-300">
             {invitedToClass ? "Sign in — or create a free account — to open the class you were invited to." : "Sign in to continue to the page you opened."}{" "}
-            <Link href={`/signup?redirect=${encodeURIComponent(redirectPath)}`} className="font-semibold underline">
+            <Link href={signupHref} className="font-semibold underline">
               New here? Create an account
             </Link>
           </div>
@@ -194,7 +226,7 @@ function LoginForm() {
         <p className="text-xs text-slate-500">
           Don&apos;t have an account?{" "}
           <Link
-            href={redirectPath !== "/dashboard" ? `/signup?redirect=${encodeURIComponent(redirectPath)}` : "/signup"}
+            href={signupHref}
             className="font-semibold text-brand-600 dark:text-brand-400 hover:underline"
           >
             Sign up

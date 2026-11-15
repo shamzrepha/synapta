@@ -17,9 +17,15 @@ export async function GET(req: NextRequest) {
   try {
     await requireUser(req, ["admin"]);
 
-    const [usersSnap, classesSnap] = await Promise.all([
+    const [usersSnap, classesSnap, inquiriesSnap] = await Promise.all([
       adminDb().collection("users").limit(400).get(),
       adminDb().collection("classes").limit(200).get(),
+      adminDb()
+        .collection("institutionInquiries")
+        .orderBy("createdAt", "desc")
+        .limit(8)
+        .get()
+        .catch(() => null),
     ]);
 
     const campusCounts = new Map<string, number>();
@@ -102,11 +108,28 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.students - a.students)
       .slice(0, 5);
 
+    const institutionalLeads = (inquiriesSnap?.docs || []).map((doc) => {
+      const d = doc.data() || {};
+      return {
+        id: doc.id,
+        institution: String(d.institution || ""),
+        department: String(d.department || ""),
+        contactRole: String(d.contactRole || "hod_dean"),
+        estimatedStudents: Number(d.estimatedStudents || 100),
+        estimatedSemesterNgn: Number(d.estimatedSemesterNgn || 120_000),
+        contactName: String(d.contactName || ""),
+        contactEmail: String(d.contactEmail || ""),
+        contactPhone: String(d.contactPhone || ""),
+        status: String(d.status || "new"),
+      };
+    });
+
     return NextResponse.json({
       ok: true,
       data: {
         topCampuses,
         unservedDepartments,
+        institutionalLeads,
         cohortCounts,
         paidSubscribers,
         estimatedGrossMarginPercent: 89,

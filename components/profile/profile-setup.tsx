@@ -32,15 +32,25 @@ type Step = 1 | 2 | 3 | 4 | 5;
 
 const POPULAR_SCHOOLS = [
   "University of Lagos (UNILAG)",
-  "University of Benin (UNIBEN)",
+  "Federal University of Technology, Owerri (FUTO)",
+  "University of Ibadan (UI)",
   "Obafemi Awolowo University (OAU)",
   "University of Nigeria, Nsukka (UNN)",
+  "University of Benin (UNIBEN)",
   "Ahmadu Bello University (ABU)",
-  "University of Ibadan (UI)",
   "Covenant University",
-  "Federal University of Technology, Owerri (FUTO)",
+  "Federal University of Technology, Akure (FUTA)",
+  "University of Ilorin (UNILORIN)",
   "Lagos State University (LASU)",
   "Bayero University Kano (BUK)",
+  "University of Ghana, Legon (UG)",
+  "Kwame Nkrumah University of Science & Technology (KNUST)",
+  "University of Nairobi (UoN)",
+  "University of Cape Town (UCT)",
+  "University of the Witwatersrand (Wits)",
+  "Makerere University",
+  "University of Rwanda",
+  "Cairo University",
 ];
 
 const POPULAR_DEPARTMENTS = [
@@ -139,6 +149,37 @@ export function ProfileSetup() {
     window.addEventListener("sunroot:open-academic-setup", onOpen);
     return () => window.removeEventListener("sunroot:open-academic-setup", onOpen);
   }, []);
+
+  // Automatically claim any pending campus referral link (?ref=<username>) saved during login or signup
+  useEffect(() => {
+    if (!user?.uid) return;
+    let pending = "";
+    try {
+      pending = (window.localStorage.getItem("sunroot:pending_ref") || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, "")
+        .slice(0, 24);
+      if (pending) {
+        window.localStorage.removeItem("sunroot:pending_ref");
+      }
+    } catch {
+      return;
+    }
+    if (pending.length < 3 || pending === (user.username || "").toLowerCase()) return;
+
+    fetch("/api/referrals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ referrerUsername: pending }),
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.ok && j?.data?.xpAwarded) {
+          updateUser({ xp: (user.xp || 0) + Number(j.data.xpAwarded) });
+        }
+      })
+      .catch(() => null);
+  }, [user?.uid, user?.username, user?.xp, updateUser]);
 
   const isOpen = Boolean(user && !dismissedForSession && (user.profileSetup === false || forceOpen));
   if (!isOpen || !user) return null;

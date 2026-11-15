@@ -14,13 +14,32 @@ export interface LatestApp {
 }
 
 const URL_OK = /^https:\/\/(sunrootlearn\.vercel\.app\/|github\.com\/shamzrepha\/synapta\/releases\/download\/[A-Za-z0-9._-]+\/)[A-Za-z0-9._-]+\.apk$/;
+
+export function isAllowedApkUrl(url: string): boolean {
+  if (URL_OK.test(url)) return true;
+  const customBase = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/+$/, "");
+  if (customBase && /^https:\/\/[A-Za-z0-9.-]+$/.test(customBase)) {
+    const prefix = `${customBase}/`;
+    if (url.startsWith(prefix) && /^[A-Za-z0-9._-]+\.apk$/.test(url.slice(prefix.length))) {
+      return true;
+    }
+  }
+  if (typeof window !== "undefined" && window.location?.origin?.startsWith("https://")) {
+    const prefix = `${window.location.origin}/`;
+    if (url.startsWith(prefix) && /^[A-Za-z0-9._-]+\.apk$/.test(url.slice(prefix.length))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const cleanLine = (v: unknown, max: number) => (typeof v === "string" ? v.replace(/[\u0000-\u001f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : "");
 
 export function parseLatest(raw: unknown): LatestApp | null {
   const d = raw as { versionCode?: unknown; versionName?: unknown; url?: unknown; minVersionCode?: unknown; notes?: unknown } | null;
   if (!d || typeof d.versionCode !== "number" || !Number.isFinite(d.versionCode) || typeof d.url !== "string") return null;
-  // only our own site, or our own GitHub releases, may host the download
-  if (!URL_OK.test(d.url)) return null;
+  // only our own site (default or custom NEXT_PUBLIC_APP_URL domain), or our own GitHub releases, may host the download
+  if (!isAllowedApkUrl(d.url)) return null;
   const min = typeof d.minVersionCode === "number" && Number.isFinite(d.minVersionCode) && d.minVersionCode > 0 ? Math.min(d.minVersionCode, d.versionCode) : 0;
   return {
     versionCode: d.versionCode,
@@ -58,7 +77,7 @@ export function buildManifest(
     throw new Error(`versionCode ${next.versionCode} must be higher than the current ${previous.versionCode}, or no phone will see the update`);
   }
   if (!/^[0-9][0-9A-Za-z.\-]{0,19}$/.test(next.versionName)) throw new Error("versionName looks like 2.7 or 2.7.1");
-  if (!URL_OK.test(next.url)) throw new Error("url must be an .apk on sunrootlearn.vercel.app or on this project's GitHub release downloads");
+  if (!isAllowedApkUrl(next.url)) throw new Error("url must be an .apk on our configured domain or on this project's GitHub release downloads");
   const out: { versionCode: number; versionName: string; url: string; minVersionCode?: number; notes?: string } = { versionCode: next.versionCode, versionName: next.versionName, url: next.url };
   if (next.minVersionCode !== undefined && next.minVersionCode > 0) {
     if (!Number.isInteger(next.minVersionCode) || next.minVersionCode > next.versionCode) throw new Error("minVersionCode cannot be higher than versionCode");
