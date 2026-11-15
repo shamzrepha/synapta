@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { AdminAlerts } from "@/components/admin/admin-alerts";
 import { AdminBroadcastCard } from "@/components/admin/broadcast-card";
+import { AutonomousCeoDigest } from "@/components/admin/autonomous-ceo-digest";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useToast } from "@/components/ui/toast";
 import { Card } from "@/components/ui/card";
@@ -877,6 +878,7 @@ export default function AdminConsolePage() {
       {/* TAB: OVERVIEW */}
       {activeTab === "overview" && (
         <div className="space-y-4">
+          <AutonomousCeoDigest />
           <AdminBroadcastCard />
           <Card className="p-6 space-y-4">
             <h3 className="font-extrabold text-base text-slate-900 dark:text-white">

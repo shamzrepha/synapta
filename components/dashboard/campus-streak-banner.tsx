@@ -1,11 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
-import { Flame, School, ArrowRight, Clock, X, CalendarClock } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import {
+  Flame,
+  School,
+  ArrowRight,
+  Clock,
+  X,
+  CalendarClock,
+  Zap,
+  CheckCircle2,
+  Sparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { openAcademicSetup } from "@/components/profile/profile-setup";
 import { Sprout } from "@/components/bot/sprout";
+import type { FormulaStruggleEntry } from "@/lib/learning/telemetry";
 import Link from "next/link";
 
 interface CampusStreakBannerProps {
@@ -15,6 +26,25 @@ interface CampusStreakBannerProps {
 export function CampusStreakBanner({ pendingAssignmentCount = 0 }: CampusStreakBannerProps) {
   const user = useUserStore((s) => s.user);
   const [dismissed, setDismissed] = useState(false);
+  const [weakFormula, setWeakFormula] = useState<FormulaStruggleEntry | null>(null);
+  const [drillRevealed, setDrillRevealed] = useState(false);
+  const [drillCompleted, setDrillCompleted] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    fetch("/api/study/telemetry")
+      .then((r) => r.json())
+      .then((j) => {
+        if (!cancelled && j.ok && j.data?.profile?.weakFormulas?.length > 0) {
+          setWeakFormula(j.data.profile.weakFormulas[0]);
+        }
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   if (!user || dismissed) return null;
 
@@ -61,7 +91,95 @@ export function CampusStreakBanner({ pendingAssignmentCount = 0 }: CampusStreakB
     );
   }
 
-  // 2. Assignment Deadline Alert Banner
+  // 2. Autonomous Nightly Weak-Formula Micro-Drill (#1)
+  if (weakFormula && !drillCompleted) {
+    const completeMicroDrill = async () => {
+      setDrillCompleted(true);
+      await fetch("/api/study/telemetry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: `micro_drill_${weakFormula.formula.slice(0, 24)}`,
+          topic: weakFormula.topic,
+          formulas: [weakFormula.formula],
+          dwellMs: 45_000,
+          correct: true,
+          scorePercent: 95,
+        }),
+      }).catch(() => null);
+    };
+
+    return (
+      <div className="rounded-2xl border border-brand-500/40 bg-gradient-to-r from-brand-500/10 via-brand-500/5 to-card p-4 shadow-sm space-y-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="relative w-10 h-12 shrink-0 flex items-center justify-center">
+              <Sprout pose="think" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-600 text-white flex items-center gap-1">
+                  <Zap className="h-3 w-3" /> 60-Sec Weak Formula Micro-Drill
+                </span>
+                <span className="text-xs font-bold text-foreground">Topic: {weakFormula.topic}</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Your telemetry noticed extra time spent on{" "}
+                <code className="font-mono font-bold text-foreground bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                  {weakFormula.formula}
+                </code>
+                . Conquer it right now to boost your exam readiness!
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {!drillRevealed ? (
+              <Button
+                size="sm"
+                onClick={() => setDrillRevealed(true)}
+                className="w-full sm:w-auto bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold"
+              >
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" /> Start 60s Drill
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => void completeMicroDrill()}
+                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold"
+              >
+                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Got It — Mark Conquered
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={() => setDismissed(true)}
+              aria-label="Dismiss banner"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {drillRevealed && (
+          <div className="p-3.5 rounded-xl bg-card border border-border text-xs space-y-1.5 animate-in fade-in duration-150">
+            <p className="font-bold text-brand-600">Micro-Step Memory Hook:</p>
+            <p className="text-foreground leading-relaxed">
+              1. Write down the exact formula:{" "}
+              <code className="font-mono font-bold">{weakFormula.formula}</code>.
+              <br />
+              2. Identify every known variable and convert to standard SI / base units before substituting.
+              <br />
+              3. Check boundary conditions in <strong>{weakFormula.topic}</strong> so you never lose method marks.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // 3. Assignment Deadline Alert Banner
   if (pendingAssignmentCount > 0) {
     return (
       <div className="rounded-2xl border border-rose-500/40 bg-gradient-to-r from-rose-500/10 via-rose-500/5 to-card p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -104,10 +222,10 @@ export function CampusStreakBanner({ pendingAssignmentCount = 0 }: CampusStreakB
     );
   }
 
-  // 3. Duolingo-style Streak Urgency Banner (shown late in the day if streak is active)
+  // 4. Duolingo-style Streak Urgency Banner (shown late in the day if streak is active)
   const currentHour = new Date().getHours();
   const streakDays = user.streakDays || 0;
-  const isLate = currentHour >= 18; // After 6 PM
+  const isLate = currentHour >= 18;
 
   if (streakDays > 0 && isLate) {
     return (
