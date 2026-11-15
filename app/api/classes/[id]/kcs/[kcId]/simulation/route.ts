@@ -5,7 +5,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { parseJson } from "@/lib/api/errors";
-import { generateAndStoreSimulation, getStoredSimulation, toClientSimulation } from "@/lib/sim/store";
+import {
+  deleteSimulation,
+  generateAndStoreSimulation,
+  getStoredSimulation,
+  toClientSimulation,
+} from "@/lib/sim/store";
+import { bumpChannel } from "@/lib/live/server";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -91,6 +97,25 @@ export async function POST(
       ok: true,
       data: { simulation: toClientSimulation(sim, { includeInstructions: canManage }), canManage },
     });
+  } catch (error) {
+    return handleAuthError(error);
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string; kcId: string }> }) {
+  try {
+    const { id: classId, kcId } = await params;
+    const caller = await requireUser(req);
+    const access = await assertClassAccess(caller, classId, "view");
+    if (!access.canMutate) {
+      return NextResponse.json(
+        { ok: false, error: { code: "FORBIDDEN", message: "Only teachers can delete simulations." } },
+        { status: 403 }
+      );
+    }
+    await deleteSimulation({ classId, kcId });
+    await bumpChannel(`kc:${classId}:${kcId}`).catch(() => null);
+    return NextResponse.json({ ok: true, data: { deleted: true } });
   } catch (error) {
     return handleAuthError(error);
   }

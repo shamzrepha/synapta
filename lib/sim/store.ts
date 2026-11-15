@@ -381,3 +381,19 @@ export async function undoSimulation(params: { classId: string; kcId: string; us
     return restored;
   });
 }
+
+/** Deletes the topic's main simulation draft, undo history, and live student snapshot. */
+export async function deleteSimulation(params: { classId: string; kcId: string }): Promise<void> {
+  const { classId, kcId } = params;
+  const snap = await simulationsCollection(classId, kcId).get();
+  await Promise.all(snap.docs.map((d) => d.ref.delete()));
+  await adminDb()
+    .collection("classes")
+    .doc(classId)
+    .collection("kcs")
+    .doc(kcId)
+    .collection("live")
+    .doc("simulation")
+    .delete()
+    .catch(() => null);
+}

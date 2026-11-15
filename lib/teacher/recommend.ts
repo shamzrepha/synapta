@@ -114,7 +114,6 @@ export const simIdeasSchema = z.object({
         howItWorks: z.string().default(""),
         challenge: z.string().default(""),
         learningGoal: z.string().default(""),
-        visualMode: z.enum(["3d", "2d"]).default("2d"),
       })
     )
     .min(1)
@@ -135,16 +134,10 @@ export async function recommendSimulation(params: {
   const scope = scopeRule({ kcTitle: ctx.kcTitle, objectives: ctx.objectives, otherTopics: ctx.otherTopics });
   const systemInstruction = `You design interactive HTML5 learning simulations and games for ONE specific subtopic of a class.
 ${scope}
-STRICT TOPIC LOCK:
-- Every single idea (title, pitch, howItWorks, challenge, learningGoal) MUST directly teach "${ctx.kcTitle}" and match its lesson objectives.
-- Never propose generic "explore a ball" or unrelated topics from other chapters (${ctx.otherTopics.slice(0, 6).join(", ") || "none"}).
-Read the subtopic's lesson and propose 4 DIFFERENT simulation concepts that make "${ctx.kcTitle}" visual and interactive — vary the format (3D lab bench, challenge game with levels, step-through visualiser, design/build experiment…).
-For each idea set "visualMode":
-- Choose "2d" whenever a realistic 2D workbench, circuit diagram with bulb/resistor/multimeter, ray diagram, plot, titration beaker, algorithm trace, or table makes the relationship clearest (default "2d" for Ohm's law, circuits, electronics, waveforms, optics rays, graphs).
-- Choose "3d" ONLY when genuine 3D spatial depth is essential (high-end engineering trusses, 3D mechanical linkages, orbits, 3D EM coils/motors, 3D molecular crystals, anatomy).
-Each idea: a catchy title tied to "${ctx.kcTitle}", a one-sentence pitch, how it works (what sliders/controls change and what realistic 2D workbench or compact 3D artifact responds in real time), the challenge/goal that makes it a game, and the learning goal it targets. Be concrete and accurate for level ${ctx.level}.
-${params.current ? `There is an existing simulation ("${params.current.title}", goal: "${params.current.goal}"). Also give 4-6 specific, small "improvements" phrased as direct change requests a teacher can apply with one click (e.g. "Add a multimeter toggle showing current in mA alongside power in W", "Highlight live formula values next to the apparatus").` : `Return "improvements": [].`}
-Return JSON only: {"ideas":[{"title":"","pitch":"","howItWorks":"","challenge":"","learningGoal":"","visualMode":"2d"}],"improvements":["..."]}`;
+Read the subtopic's lesson and propose 4 DIFFERENT simulation concepts that would make exactly this subtopic click — vary the format (lab bench, game with levels, step-through visualiser, design/build challenge, prediction game…).
+Each idea: a catchy title, a one-sentence pitch, how it works (what the learner manipulates and sees), the challenge/goal that makes it a game, and the learning goal it targets. Be concrete and accurate for level ${ctx.level}.
+${params.current ? `There is an existing simulation ("${params.current.title}", goal: "${params.current.goal}"). Also give 4-6 specific, small "improvements" phrased as change requests a teacher could apply to it (e.g. "Add a wind slider to level 2", "Show the formula with live values").` : `Return "improvements": [].`}
+Return JSON only: {"ideas":[{"title":"","pitch":"","howItWorks":"","challenge":"","learningGoal":""}],"improvements":["..."]}`;
 
   const r = await executeStructuredAiTask({
     // shared class content is written in the source language; each reader gets a translation

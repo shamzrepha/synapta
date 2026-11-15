@@ -70,6 +70,7 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
   const [focus, setFocus] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [rosterFor, setRosterFor] = useState<string | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const [ideas, setIdeas] = useState<Idea[] | null>(null);
   const [ideasBusy, setIdeasBusy] = useState(false);
 
@@ -265,13 +266,37 @@ export function TopicLabs({ classId, kcId, topicTitle }: { classId: string; kcId
                         </div>
                       )}
                       {data.canManage && (
-                        <div className="flex gap-1">
+                        <div className="flex items-center gap-1">
                           <button type="button" onClick={() => setRosterFor(rosterFor === lab.id ? null : lab.id)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Student progress">
                             <Users className="h-4 w-4" />
                           </button>
-                          <button type="button" onClick={() => confirm(`Remove “${lab.title}”?`) && post({ action: "remove", labId: lab.id }, `rm-${lab.id}`)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600" aria-label="Remove lab">
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                          {confirmRemoveId === lab.id ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                isLoading={busy === `rm-${lab.id}`}
+                                onClick={() => {
+                                  setConfirmRemoveId(null);
+                                  post({ action: "remove", labId: lab.id }, `rm-${lab.id}`);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => setConfirmRemoveId(null)}>
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmRemoveId(lab.id)}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600"
+                              aria-label="Remove lab"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

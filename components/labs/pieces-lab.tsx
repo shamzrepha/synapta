@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import confetti from "canvas-confetti";
-import { CheckCircle2, ChevronLeft, ChevronRight, ListChecks, Loader2, Maximize2, Minimize2, Play, Sparkles, Star, Target, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronLeft, ChevronRight, ListChecks, Loader2, Maximize2, Minimize2, Play, Sparkles, Star, Target, Trash2, XCircle } from "lucide-react";
 import { frameHtmlFor } from "@/lib/sim/runtime3d";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -49,6 +49,8 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
   const [canManage, setCanManage] = useState(false);
   const [active, setActive] = useState(0);
   const [busy, setBusy] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [solved, setSolved] = useState<Record<number, boolean>>({});
   const [picked, setPicked] = useState<number | null>(null);
   const [result, setResult] = useState<{ correct: boolean; explanation?: string; correctIndex: number } | null>(null);
@@ -101,6 +103,7 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
       setResult(null);
       setTutor(null);
       setSheet(false);
+      setConfirmDelete(null);
       if (html) frameHtmlFor(html).then((h) => alive && setFrameHtml(h)).catch(() => alive && setFrameHtml(html));
     }, 0);
     return () => {
@@ -192,6 +195,28 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
       setPieces((prev) => prev?.map((p) => (p.index === index ? j.data.piece : p)) ?? prev);
     } finally {
       setBusy(null);
+    }
+  };
+
+  const deletePiece = async (index: number) => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/classes/${classId}/kcs/${kcId}/pieces?index=${index}`, {
+        method: "DELETE",
+      });
+      const j = await res.json().catch(() => null);
+      if (!j?.ok) {
+        toast({ title: "Couldn't delete this lab", description: j?.error?.message || "Please try again.", variant: "destructive" });
+        return;
+      }
+      setConfirmDelete(null);
+      setPieces((prev) => prev?.map((p) => (p.index === index ? { index: p.index, objective: p.objective, status: "none" } : p)) ?? prev);
+      toast({ title: "Piece lab deleted", variant: "success" });
+      void load();
+    } catch {
+      toast({ title: "Network error", variant: "destructive" });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -408,19 +433,44 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
           )}
         </div>
 
-        <div className="inline-flex rounded-lg border border-border p-0.5 text-sm" role="tablist" aria-label="How to practise this piece">
-          {(["quest", "lab"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              role="tab"
-              aria-selected={view === v}
-              onClick={() => setView(v)}
-              className={cn("rounded-md px-3 py-1.5 font-semibold", view === v ? "bg-brand-600 text-white" : "text-muted-foreground")}
-            >
-              {v === "quest" ? "Quest" : "Explore lab"}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="inline-flex rounded-lg border border-border p-0.5 text-sm" role="tablist" aria-label="How to practise this piece">
+            {(["quest", "lab"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={view === v}
+                onClick={() => setView(v)}
+                className={cn("rounded-md px-3 py-1.5 font-semibold", view === v ? "bg-brand-600 text-white" : "text-muted-foreground")}
+              >
+                {v === "quest" ? "Quest" : "Explore lab"}
+              </button>
+            ))}
+          </div>
+          {canManage && view === "lab" && piece && (piece.status === "ready" || piece.status === "failed") && (
+            <div className="flex items-center gap-1.5">
+              {confirmDelete === piece.index ? (
+                <>
+                  <Button size="sm" variant="destructive" isLoading={deleting} onClick={() => deletePiece(piece.index)}>
+                    Confirm delete
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={deleting} onClick={() => setConfirmDelete(null)}>
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setConfirmDelete(piece.index)}
+                  className="text-rose-600 hover:text-rose-700 hover:bg-rose-500/10"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Delete lab
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {view === "quest" ? questCard : labReady ? (

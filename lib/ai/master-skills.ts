@@ -127,7 +127,7 @@ const FAMILY_PROFILES: Record<ModelFamily, ModelMasterSkillProfile> = {
     label: "Gemini Flash-Lite",
     strengths: "Rapid instruction following and clean structured output.",
     guardrails: "Never take shortcuts, never output placeholder stubs, and never fabricate quotes or numeric results.",
-    creatingRule: "Generate complete self-contained artifacts from frame zero with real physical/math formulas wired to every slider.",
+    creatingRule: "Generate complete self-contained artifacts from frame zero with real physical/math formulas wired to every active control.",
     analyzingRule: "Anchor every judgment in explicit evidence from the student response or source excerpt; verify math step-by-step.",
   },
   "gemini-flash": {
@@ -233,10 +233,10 @@ function specialtyPlaybook(mode: SkillMode, specialty: SkillSpecialty): string {
     case "simulation_and_interactive_lab":
       return [
         "CREATING LABS, WORKBENCHES & INTERACTIVE ARTIFACTS (MASTER STRUCTURE SKILL):",
-        "- MEDIUM SELECTION: Default to a RICH REALISTIC 2D WORKBENCH (<canvas>/<svg>) for circuits/Ohm's Law (realistic filament bulb glow, banded resistor, battery, multimeter readout, flowing electrons), optics rays, wet chemistry glass/burners, plots & algorithms. Reserve 3D (SimKit3D) strictly for genuine 3D spatial engineering (linkages, trusses, 3D trajectories, orbits, 3D fields, molecules).",
-        "- SPATIAL ARRANGEMENT & PROPORTIONS: In 3D keep every object bounded inside [-3.5..3.5] on X/Z and [0..3.5] on Y, pass { color, pos: [x,y,z] } inside opts cleanly, separate sub-parts in space so nothing overlaps at (0,0,0), and call kit.fitCamera() so nothing zooms huge into the viewport. In 2D draw layered multi-part hardware with clear labels and zero text overlap.",
-        "- COCKPIT LAYOUT (ZERO LONG SCROLL): Render a compact one-screen lab (grid with stage on left capped <= 420px high + sliders/multimeter/readouts docked cleanly alongside/below) visible at once without vertical scroll bloat.",
-        "- LIVE MODEL FIDELITY: Render frame 1 immediately, bind every slider/toggle to real domain equations (units, equilibria, conservation, burn-out/safety bounds), and animate cause-effect cleanly.",
+        "- MEDIUM SELECTION: Choose the clearest visual form requested by the lab spec — lit 3D (`SimKit3D` using `box`, `roundedBox`, `cylinder`, `sphere`, `tube`, `material`, `lookAt`, `onFrame`) for physical 3D scenes, or crisp `<canvas>` / inline `<svg>` for 2D graphical sims, live graphs, circuit diagrams, or step-through models (plus Blockly/electronics when working in Maker Studio).",
+        "- SPATIAL ARRANGEMENT & PROPORTIONS: Keep 3D parts clean, realistic, well-spaced, and properly framed with `kit.lookAt(...)` using ONLY the documented `SimKit3D` API in the prompt; in 2D draw clear, proportional hardware, circuits, or live graphs with zero overlapping labels.",
+        "- COCKPIT LAYOUT & VIEWPORT DISCIPLINE: Fill the screen cleanly using flex layout, `ResizeObserver`, and `devicePixelRatio` with a compact portrait/landscape control dock and zero horizontal scroll.",
+        "- LIVE MODEL FIDELITY: Use sliders ONLY when necessary for continuous tuning alongside direct scene manipulation (`pointerdown`/`pointermove`/`pointerup`); drive all readouts, live graphs, and safe/unsafe warnings from real equations with SI units.",
       ].join("\n");
     case "assessment_design":
       return [

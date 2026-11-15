@@ -78,6 +78,7 @@ export const LAB_CLEAN_TEXT_JS = `function sunrootClean(t){
 export const LAB_VIEW_JS = `(function(){
   if(window.__sunrootView)return;window.__sunrootView=1;
   var MIN=0.6,MAX=5,zoom=1,box,wrap,bar,stage,base,pan=false,tries=0,done=false,fixedW=false;
+  function area(el){var r=el.getBoundingClientRect();return r.width*r.height}
   function pick(){
     if(window.SimKit3D||window.THREE)return null;
     var list=[].slice.call(document.querySelectorAll("svg,canvas")),best=null,ba=0;
@@ -141,7 +142,7 @@ export const LAB_VIEW_JS = `(function(){
     // two fingers pinch even when the lab is in control of single touches
     wrap.addEventListener("pointerdown",down,true);wrap.addEventListener("pointermove",move,true);wrap.addEventListener("pointerup",up,true);wrap.addEventListener("pointercancel",up,true);
     wrap.addEventListener("wheel",function(e){e.preventDefault();setZoom(zoom*(e.deltaY<0?1.15:1/1.15),e.clientX,e.clientY)},{passive:false});
-    var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(function(){var z=zoom;zoom=1;apply();box.getBoundingClientRect();measure();box.style.height=base.h+"px";zoom=z;apply()},200)});
+    var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(function(){var z=zoom;zoom=1;apply();var rr=box.getBoundingClientRect();measure();box.style.height=base.h+"px";zoom=z;apply()},200)});
     return true;
   }
   function start(){
@@ -152,7 +153,7 @@ export const LAB_VIEW_JS = `(function(){
   if(document.readyState==="complete")setTimeout(start,300);else window.addEventListener("load",function(){setTimeout(start,300)});
 })();`;
 
-export const LAB_DISPLAY_PATCH = `<style id="sunroot-fit">*,*::before,*::after{box-sizing:border-box}html,body{max-width:100vw;overflow-x:hidden;overflow-y:auto!important;-webkit-text-size-adjust:100%}canvas,svg,img,video{max-width:100%}canvas[data-simkit3d]{max-height:430px!important}#stage{max-height:430px}body{overscroll-behavior:contain}button,input,select,[role=button]{min-height:36px}</style><script id="sunroot-clean">(function(){${LAB_CLEAN_TEXT_JS}
+export const LAB_DISPLAY_PATCH = `<style id="sunroot-fit">*,*::before,*::after{box-sizing:border-box}html,body{max-width:100vw;overflow-x:hidden;overflow-y:auto!important;-webkit-text-size-adjust:100%}canvas,svg,img,video{max-width:100%}body{overscroll-behavior:contain}button,input,select,[role=button]{min-height:36px}</style><script id="sunroot-clean">(function(){${LAB_CLEAN_TEXT_JS}
   function walk(root){
     if(!root)return;
     var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null),n,list=[];

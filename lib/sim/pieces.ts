@@ -150,3 +150,11 @@ export async function generatePieceLab(params: { classId: string; kcId: string; 
     throw err;
   }
 }
+
+/** Deletes a generated piece lab so the teacher can rebuild or leave that piece without a lab. */
+export async function deletePieceLab(params: { classId: string; kcId: string; index: number }): Promise<void> {
+  if (!Number.isInteger(params.index) || params.index < 0 || params.index >= MAX_PIECES) {
+    throw new ApiError(400, "VALIDATION", "Invalid piece index");
+  }
+  await pieceRef(params.classId, params.kcId, params.index).delete();
+}

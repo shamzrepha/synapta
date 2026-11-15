@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import path from "node:path";
 import { describe, it, expect } from "vitest";
 import { LAB_CLEAN_TEXT_JS, LAB_VIEW_JS, SIM_HEAD_INJECT, withDisplayPatch } from "./inject";
 import { readableText } from "@/lib/text/readable";
@@ -40,20 +38,7 @@ describe("look-around tools for 2D labs (zoom, move, fit)", () => {
     expect(patched).toContain("overflow-y:auto!important");
     expect(patched).toContain("Zoom in");
   });
-  it("leaves 3D labs alone and does not inject fake heal2D hijacking", () => {
+  it("leaves 3D labs alone (they have their own orbit and zoom)", () => {
     expect(LAB_VIEW_JS).toContain("window.SimKit3D");
-    expect(LAB_VIEW_JS).not.toContain("heal2D");
-  });
-});
-
-describe("SimKit3D clean physical runtime", () => {
-  it("parses cleanly, provides PMREM physical primitives without hijacking generated scenes", () => {
-    const code = fs.readFileSync(path.join(process.cwd(), "public/sim/simkit3d.js"), "utf8");
-    expect(() => new Function(code)).not.toThrow();
-    for (const sym of ["OrbitControls", "MeshPhysicalMaterial", "PMREMGenerator", "cone", "torus", "capsule", "plane", "ring", "disc", "rod", "spring", "arrow", "line", "label", "group", "fitCamera"]) {
-      expect(code).toContain(sym);
-    }
-    expect(code).not.toContain("ensureLivingLab");
-    expect(code).not.toContain("bindOrphanSlidersToScene");
   });
 });

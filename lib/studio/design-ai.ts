@@ -123,9 +123,25 @@ export function repairSpec(raw: Record<string, unknown>): Record<string, unknown
         y: Math.max(0, Math.min(1000, Number(p.y) || 80)),
       }));
     const rawWires = Array.isArray(circuit.wires) ? (circuit.wires as Array<Record<string, unknown>>) : [];
+    const boardOnly = new Set([
+      "oled",
+      "dht11",
+      "mpu6050",
+      "servo",
+      "stepper",
+      "hc_sr04",
+      "ir_sensor",
+      "l298n",
+      "tb6612",
+      "motor_driver",
+      "light_sensor",
+      "temp_sensor",
+    ]);
+    const hasPassiveWireMetersOrBulb = parts.some((p) => ["bulb", "ammeter", "voltmeter"].includes(String(p.type)));
     const usesBoard =
       rawWires.some((w) => String(w.from).startsWith("board.") || String(w.to).startsWith("board.")) ||
-      parts.some((p) => ["oled", "dht11", "mpu6050", "servo", "stepper", "hc_sr04", "ir_sensor", "l298n", "tb6612"].includes(String(p.type)));
+      parts.some((p) => boardOnly.has(String(p.type))) ||
+      (parts.some((p) => String(p.type) === "potentiometer") && !hasPassiveWireMetersOrBulb);
     if (!parts.some((p) => p.type === "board") && (!parts.some((p) => p.type === "battery") || usesBoard)) {
       parts.unshift({ id: "board", type: "board", x: 60, y: 300 });
     }
@@ -136,6 +152,10 @@ export function repairSpec(raw: Record<string, unknown>): Record<string, unknown
     };
     const wires = (Array.isArray(circuit.wires) ? circuit.wires : []).filter((w) => ok(w.from) && ok(w.to) && w.from !== w.to).slice(0, 120).map((w, i) => ({ ...w, id: `w${i + 1}` }));
     spec.circuit = { parts, wires };
+    if (!parts.some((p) => p.type === "board")) {
+      delete spec.blocks;
+      spec.code = "";
+    }
   }
   if (spec.blocks !== undefined) {
     const parsed = blocksSchema.safeParse(spec.blocks);

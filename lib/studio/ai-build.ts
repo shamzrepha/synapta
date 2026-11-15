@@ -83,9 +83,29 @@ export async function planProject(params: { prompt: string; level?: string; user
     if (at) at.qty = Math.min(12, at.qty + p.qty);
     else parts.push(p);
   }
+  const BOARD_ONLY_PARTS = new Set([
+    "l298n",
+    "tb6612",
+    "motor_driver",
+    "servo",
+    "stepper",
+    "hc_sr04",
+    "ir_sensor",
+    "oled",
+    "dht11",
+    "mpu6050",
+    "light_sensor",
+    "temp_sensor",
+  ]);
+  const wantsPureDc =
+    parts.some((p) => ["bulb", "ammeter", "voltmeter"].includes(p.type)) ||
+    /\b(no board|without board|no microcontroller|wire[- ]only|pure dc|ohm'?s law|series|parallel|kirchhoff)\b/i.test(params.prompt);
+  const asksForCode = /\b(board|arduino|microcontroller|blockly|code|program|blink|traffic light|sequence|pwm|dimmer|automatic|timer|alarm)\b/i.test(params.prompt);
   const needsBoard =
+    parts.some((p) => BOARD_ONLY_PARTS.has(p.type)) ||
+    (parts.some((p) => p.type === "potentiometer") && !wantsPureDc) ||
     !parts.some((p) => p.type === "battery") ||
-    parts.some((p) => ["l298n", "tb6612", "motor_driver", "servo", "stepper", "hc_sr04", "ir_sensor", "oled", "dht11", "mpu6050", "potentiometer", "light_sensor", "temp_sensor"].includes(p.type));
+    (asksForCode && !wantsPureDc);
   if (!parts.some((p) => p.type === "board") && needsBoard) parts.unshift({ type: "board", qty: 1, why: "Runs your code and switches everything." });
   const types = new Set(parts.map((p) => p.type));
   const warnings = [...plan.warnings];

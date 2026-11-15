@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { parseJson } from "@/lib/api/errors";
-import { generatePieceLab, getStoredPieces, toClientPiece, MAX_PIECES } from "@/lib/sim/pieces";
+import { deletePieceLab, generatePieceLab, getStoredPieces, toClientPiece, MAX_PIECES } from "@/lib/sim/pieces";
+import { bumpChannel } from "@/lib/live/server";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -47,6 +48,40 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     }
     const piece = await generatePieceLab({ classId, kcId, index, userId: caller.uid });
     return NextResponse.json({ ok: true, data: { piece: toClientPiece(piece) } });
+  } catch (error) {
+    return handleAuthError(error);
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  try {
+    const { id: classId, kcId } = await params;
+    const caller = await requireUser(req);
+    const access = await assertClassAccess(caller, classId, "view");
+    if (!access.canMutate) {
+      return NextResponse.json(
+        { ok: false, error: { code: "FORBIDDEN", message: "Only teachers can delete piece labs." } },
+        { status: 403 }
+      );
+    }
+    const raw = req.nextUrl.searchParams.get("index");
+    let index: number;
+    if (raw !== null) {
+      const trimmed = raw.trim();
+      const parsed = /^\d+$/.test(trimmed) ? buildSchema.safeParse({ index: Number(trimmed) }) : { success: false as const };
+      if (!parsed.success) {
+        return NextResponse.json(
+          { ok: false, error: { code: "VALIDATION", message: "Invalid piece index." } },
+          { status: 400 }
+        );
+      }
+      index = parsed.data.index;
+    } else {
+      ({ index } = await parseJson(req, buildSchema));
+    }
+    await deletePieceLab({ classId, kcId, index });
+    await bumpChannel(`kc:${classId}:${kcId}`).catch(() => null);
+    return NextResponse.json({ ok: true, data: { deleted: index } });
   } catch (error) {
     return handleAuthError(error);
   }
