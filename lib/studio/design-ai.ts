@@ -247,6 +247,7 @@ interface AskOptions {
 }
 
 async function askForDesign(prompt: string, userId: string, system: string, opts: AskOptions = {}): Promise<{ title: string; message?: string; spec: DesignSpec; removed: string[]; problems: string[] }> {
+  const deadlineAt = Date.now() + 98_000;
   let lastError = "";
   let removedAll: string[] = [];
   const parse = (out: z.output<typeof outSchema>) => {
@@ -259,6 +260,8 @@ async function askForDesign(prompt: string, userId: string, system: string, opts
     return parseSpec(repairSpec(raw));
   };
   for (let attempt = 0; attempt < 2; attempt++) {
+    const remaining = deadlineAt - Date.now();
+    if (attempt > 0 && remaining < 25_000) break;
     const res = await generateWithFallback({
       task: "studio_build",
       systemInstruction: system,
@@ -266,12 +269,13 @@ async function askForDesign(prompt: string, userId: string, system: string, opts
       schema: outSchema,
       temperature: 0.3,
       userId,
+      maxWaitMs: Math.max(20_000, remaining),
     });
     const out = res.data!;
     try {
       let spec = parse(out);
       let problems = opts.verify ? verifyProblems(spec) : [];
-      if (problems.length) {
+      if (problems.length && deadlineAt - Date.now() >= 35_000) {
         // the simulator found real problems: show them to the model once
         try {
           const fix = await generateWithFallback({
@@ -281,6 +285,7 @@ async function askForDesign(prompt: string, userId: string, system: string, opts
             schema: outSchema,
             temperature: 0.2,
             userId,
+            maxWaitMs: Math.max(20_000, deadlineAt - Date.now()),
           });
           const fixed = parse(fix.data!);
           const fixedProblems = verifyProblems(fixed);
@@ -376,6 +381,7 @@ export function applyPatch(spec: DesignSpec, patch: Patch): Record<string, unkno
 }
 
 export async function editDesign(params: { spec: DesignSpec; instruction: string; userId: string }): Promise<{ message?: string; spec: DesignSpec; cannot?: string; changed: boolean }> {
+  const deadlineAt = Date.now() + 95_000;
   const base = `CURRENT DESIGN:
 ${JSON.stringify(params.spec).slice(0, 60_000)}
 
@@ -384,6 +390,8 @@ CHANGE REQUEST: ${params.instruction.slice(0, 1500)}`;
   const usedTypes = Array.from(new Set((params.spec.circuit?.parts || []).map((p) => p.type)));
   const editSystem = `${EDIT_SYSTEM}\n\n${groundingBlock({ types: usedTypes })}\n\nOTHER SHOP PARTS YOU MAY ADD (same datasheet rules apply; use exact pin names):\n${shopIndex()}`;
   for (let attempt = 0; attempt < 2; attempt++) {
+    const remaining = deadlineAt - Date.now();
+    if (attempt > 0 && remaining < 25_000) break;
     const res = await generateWithFallback({
       task: "studio_build",
       systemInstruction: editSystem,
@@ -391,6 +399,7 @@ CHANGE REQUEST: ${params.instruction.slice(0, 1500)}`;
       schema: editSchema,
       temperature: 0.4,
       userId: params.userId,
+      maxWaitMs: Math.max(20_000, remaining),
     });
     const patch = res.data!;
     const touches = !!(patch.addParts?.length || patch.updateParts?.length || patch.removePartIds?.length || (patch.set && Object.keys(patch.set).length));

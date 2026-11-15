@@ -114,3 +114,16 @@ describe("simulation prompt medium selection", () => {
     expect(systemInstruction).toContain("kit.lookAt");
   });
 });
+
+import { interactionIssues } from "./build";
+describe("interactionIssues", () => {
+  it("accepts interactive simulations that use pointerup alongside resize, reset, warn, and complete", () => {
+    const html = `<!DOCTYPE html><html><body><canvas id="c"></canvas><button id="reset">Reset</button><script>
+      new ResizeObserver(() => {}).observe(document.body);
+      document.getElementById("c").addEventListener("pointerup", () => {});
+      window.sunroot.say("short circuit!", { tone: "warn" });
+      window.sunroot.complete({ score: 100, level: 1 });
+    </script></body></html>`;
+    expect(interactionIssues(html)).toEqual([]);
+  });
+});

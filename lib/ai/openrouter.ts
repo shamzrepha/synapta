@@ -134,6 +134,8 @@ export function toMessages(opts: { systemInstruction?: string; userPrompt?: stri
   return out;
 }
 
+export type OpenRouterReasoningEffort = "none" | "minimal" | "low" | "medium" | "high";
+
 export interface OpenRouterCall {
   /** one model per call; the caller loops over its chain so it can check each answer */
   model: string;
@@ -144,6 +146,8 @@ export interface OpenRouterCall {
   json?: boolean;
   temperature?: number;
   maxTokens?: number;
+  reasoningEffort?: OpenRouterReasoningEffort;
+  timeoutMs?: number;
   signal?: AbortSignal;
 }
 export interface OpenRouterResult {
@@ -154,13 +158,37 @@ export interface OpenRouterResult {
   latencyMs: number;
 }
 
+/** Claude 5.x, GPT-5, o-series and `:batch` Gemini endpoints omit `temperature` on OpenRouter. */
+export function openRouterSupportsTemperature(model: string): boolean {
+  const id = model.trim().toLowerCase();
+  if (/^anthropic\/claude-(?:sonnet|haiku|opus|fable)-5/.test(id)) return false;
+  if (/^openai\/(?:gpt-5|o[134](?:$|-))/.test(id)) return false;
+  if (/^google\/gemini-.*:batch$/.test(id)) return false;
+  return true;
+}
+
+/** Reasoning-capable OpenRouter families whose hidden thinking tokens count against `max_tokens` and wall time unless bounded. */
+export function openRouterSupportsReasoning(model: string): boolean {
+  const id = model.trim().toLowerCase();
+  return (
+    /:thinking$/.test(id) ||
+    /^deepseek\/deepseek-(?:v4|r1)/.test(id) ||
+    /^anthropic\/claude-.*-5/.test(id) ||
+    /^google\/gemini-(?:[34]|omni)/.test(id) ||
+    /^openai\/(?:gpt-5|o[134](?:$|-)|gpt-oss)/.test(id) ||
+    /^qwen\/qwen3\.[5-9]/.test(id) ||
+    /^z-ai\/glm-5/.test(id) ||
+    /^minimax\/minimax-m3/.test(id)
+  );
+}
+
 export class OpenRouterError extends Error {
   constructor(message: string, public status: number) {
     super(message);
   }
-  /** this model can't be used right now (wrong name, not allowed, no providers up): move on to the next one */
+  /** this model can't be used right now (wrong name, not allowed, no providers up, or timed out): move on to the next one */
   get modelProblem(): boolean {
-    return this.status === 404 || this.status === 400 || this.status === 403 || this.status === 429 || this.status === 502 || this.status === 503;
+    return this.status === 404 || this.status === 400 || this.status === 403 || this.status === 408 || this.status === 429 || this.status === 502 || this.status === 503 || this.status === 504;
   }
 }
 
@@ -172,20 +200,68 @@ export async function callOpenRouterChat(opts: OpenRouterCall): Promise<OpenRout
   const payload: Record<string, unknown> = {
     model: opts.model,
     messages: toMessages(opts),
-    temperature: typeof opts.temperature === "number" ? opts.temperature : 0.4,
   };
+  if (openRouterSupportsTemperature(opts.model)) {
+    payload.temperature = typeof opts.temperature === "number" ? opts.temperature : 0.4;
+  }
   if (opts.maxTokens) payload.max_tokens = opts.maxTokens;
+  if (openRouterSupportsReasoning(opts.model)) {
+    payload.reasoning = { effort: opts.reasoningEffort ?? "low", exclude: true };
+  }
   if (opts.json) {
     payload.response_format = { type: "json_object" };
     // only route to providers that really support a JSON answer
     payload.provider = { require_parameters: true };
   }
-  const res = await fetch(`${BASE}/chat/completions`, { method: "POST", headers: headers(key), body: JSON.stringify(payload), signal: opts.signal ?? AbortSignal.timeout(110_000) });
-  const data = (await res.json().catch(() => null)) as { choices?: Array<{ message?: { content?: unknown } }>; model?: string; usage?: { prompt_tokens?: number; completion_tokens?: number }; error?: { message?: string } } | null;
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/chat/completions`, {
+      method: "POST",
+      headers: headers(key),
+      body: JSON.stringify(payload),
+      signal: opts.signal ?? AbortSignal.timeout(opts.timeoutMs ?? 90_000),
+    });
+  } catch (err) {
+    const isAbort = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError" || /abort|timeout/i.test(err.message));
+    if (isAbort) throw new OpenRouterError(`OpenRouter timed out waiting for ${opts.model}.`, 504);
+    throw err;
+  }
+  const data = (await res.json().catch(() => null)) as {
+    choices?: Array<{
+      finish_reason?: string;
+      error?: { message?: string; code?: number | string };
+      message?: { content?: unknown; refusal?: string | null };
+    }>;
+    model?: string;
+    usage?: { prompt_tokens?: number; completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number } };
+    error?: { message?: string };
+  } | null;
   if (!res.ok || data?.error) throw new OpenRouterError(data?.error?.message || `OpenRouter error (HTTP ${res.status})`, res.status);
-  const content = data?.choices?.[0]?.message?.content;
-  const text = typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => (c as { text?: string })?.text || "").join("") : "";
-  if (!text.trim()) throw new OpenRouterError("The model returned an empty answer.", 502);
+  const choice = data?.choices?.[0];
+  if (choice?.error) {
+    const code = typeof choice.error.code === "number" ? choice.error.code : 502;
+    throw new OpenRouterError(choice.error.message || `OpenRouter provider error (${code})`, code);
+  }
+  const content = choice?.message?.content;
+  const rawText =
+    typeof content === "string"
+      ? content
+      : Array.isArray(content)
+        ? content.map((c) => ((c as { type?: string; text?: string })?.type === "thinking" ? "" : (c as { text?: string })?.text || "")).join("")
+        : "";
+  const text = rawText.replace(/^\s*<think>[\s\S]*?<\/think>\s*/i, "");
+  if (!text.trim()) {
+    const details = [
+      choice?.finish_reason ? `finish=${choice.finish_reason}` : null,
+      data?.usage?.completion_tokens !== undefined ? `out=${data.usage.completion_tokens}` : null,
+      data?.usage?.completion_tokens_details?.reasoning_tokens ? `reasoning=${data.usage.completion_tokens_details.reasoning_tokens}` : null,
+      choice?.message?.refusal ? `refusal=${choice.message.refusal.slice(0, 80)}` : null,
+    ].filter(Boolean);
+    throw new OpenRouterError(
+      details.length ? `The model returned an empty answer (${details.join(", ")}).` : "The model returned an empty answer.",
+      502
+    );
+  }
   return { text, model: data?.model || opts.model, tokensIn: data?.usage?.prompt_tokens || 0, tokensOut: data?.usage?.completion_tokens || 0, latencyMs: Date.now() - started };
 }
 

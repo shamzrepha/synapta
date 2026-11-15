@@ -9,6 +9,7 @@ import {
 import { groqModelFor } from "@/lib/ai/groq-assign";
 import { activeOpenRouterKey, callOpenRouterChat, OpenRouterError, refreshOpenRouterKey } from "@/lib/ai/openrouter";
 import { openRouterChainFor } from "@/lib/ai/openrouter-assign";
+import { orClassFor } from "@/lib/ai/openrouter-models";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { languageDirective, type LanguageCode } from "@/lib/i18n/languages";
 import { getGeminiClient } from "@/lib/gemini/client";
@@ -550,13 +551,20 @@ async function viaOpenRouter<T>(a: {
   schema?: GenerateWithFallbackOptions<T>["schema"];
   temperature?: number;
   maxOutputTokens?: number;
+  maxWaitMs?: number;
   cacheKey?: string;
   startTime: number;
   fallbackTriggered: boolean;
 }): Promise<GenerateWithFallbackResult<T>> {
   const chain = (await openRouterChainFor(String(a.task))).slice(0, 4);
+  const cls = orClassFor(String(a.task));
   let lastErr: unknown = null;
   for (const model of chain) {
+    const remaining = a.maxWaitMs !== undefined ? a.maxWaitMs - (Date.now() - a.startTime) : 200_000;
+    if (a.maxWaitMs !== undefined && remaining < 12_000) break;
+    const timeoutMs = Math.min(75_000, Math.max(12_000, remaining));
+    const reasoningEffort = cls === "grading" || cls === "heavy" ? (remaining < 90_000 ? "low" : "medium") : "low";
+    const maxTokens = a.maxOutputTokens ?? (cls === "code" ? 16_000 : undefined);
     try {
       const res = await callOpenRouterChat({
         model,
@@ -569,7 +577,9 @@ async function viaOpenRouter<T>(a: {
         contents: a.contents,
         json: Boolean(a.schema),
         temperature: a.temperature,
-        maxTokens: a.maxOutputTokens,
+        maxTokens,
+        reasoningEffort,
+        timeoutMs,
       });
       let parsedData: T | undefined = undefined;
       if (a.schema) {
@@ -649,7 +659,7 @@ async function generateWithFallbackInner<T>({
   if (activeProvider === "openrouter") {
     if (openRouterKey) {
       try {
-        return await viaOpenRouter<T>({ task, systemInstruction, userPrompt, contents, schema, temperature, maxOutputTokens, cacheKey, startTime, fallbackTriggered: false });
+        return await viaOpenRouter<T>({ task, systemInstruction, userPrompt, contents, schema, temperature, maxOutputTokens, maxWaitMs, cacheKey, startTime, fallbackTriggered: false });
       } catch (orErr) {
         console.warn("[ai-router] Active OpenRouter provider failed, falling back to the Gemini chain:", orErr);
       }
@@ -785,6 +795,7 @@ async function generateWithFallbackInner<T>({
   let sawQuotaProblem = false;
 
   for (let i = 0; i < chain.length; i++) {
+    if (maxWaitMs !== undefined && Date.now() - startTime >= maxWaitMs) break;
     const activeModel = chain[i];
 
     // Privileged (teacher class-building) calls never pre-emptively skip a model based on
@@ -808,6 +819,7 @@ async function generateWithFallbackInner<T>({
 
     let attempt = 0;
     while (attempt <= maxRetriesPerModel) {
+      if (maxWaitMs !== undefined && Date.now() - startTime >= maxWaitMs) break;
       try {
         attemptedAny = true;
         // Pacing slot
@@ -1044,10 +1056,10 @@ async function generateWithFallbackInner<T>({
   }
 
   // Emergency safety net: if Gemini ran out or failed, OpenRouter (when its key is set) answers with the recommended models for the task, then Groq.
-  if (openRouterKey && activeProvider !== "openrouter") {
+  if (openRouterKey && activeProvider !== "openrouter" && (maxWaitMs === undefined || Date.now() - startTime + 15_000 < maxWaitMs)) {
     try {
       console.warn(`[lib/ai/router] All Gemini models exhausted for task "${task}". Activating OpenRouter emergency fallback.`);
-      return await viaOpenRouter<T>({ task, systemInstruction, userPrompt, contents, schema, temperature, maxOutputTokens, cacheKey, startTime, fallbackTriggered: true });
+      return await viaOpenRouter<T>({ task, systemInstruction, userPrompt, contents, schema, temperature, maxOutputTokens, maxWaitMs, cacheKey, startTime, fallbackTriggered: true });
     } catch (orEmergencyErr) {
       console.warn("[lib/ai/router] OpenRouter emergency fallback also failed:", orEmergencyErr);
     }

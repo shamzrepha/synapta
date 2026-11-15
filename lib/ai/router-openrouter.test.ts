@@ -43,4 +43,26 @@ describe("router with OpenRouter as the active engine", () => {
     expect(r.fallbackTriggered).toBe(true);
     expect(callOpenRouterChat).toHaveBeenCalledTimes(2);
   });
+
+  it("caps code-generation OpenRouter calls with bounded reasoning effort and wall-clock timeout", async () => {
+    callOpenRouterChat.mockResolvedValueOnce({
+      text: "<!DOCTYPE html><html><body><canvas></canvas><script>var a=1;</script></body></html>",
+      model: "deepseek/deepseek-v4-flash",
+      tokensIn: 100,
+      tokensOut: 200,
+      latencyMs: 500,
+    });
+    const r = await generateWithFallback({
+      task: "sim_build",
+      userPrompt: "build Ohm law sim",
+      learnerLanguage: false,
+      maxWaitMs: 60_000,
+    });
+    expect(r.modelUsed).toBe("deepseek/deepseek-v4-flash");
+    const callArg = callOpenRouterChat.mock.calls[0][0] as { maxTokens?: number; reasoningEffort?: string; timeoutMs?: number };
+    expect(callArg.maxTokens).toBe(16_000);
+    expect(callArg.reasoningEffort).toBe("low");
+    expect(callArg.timeoutMs).toBeGreaterThanOrEqual(12_000);
+    expect(callArg.timeoutMs).toBeLessThanOrEqual(60_000);
+  });
 });

@@ -91,10 +91,14 @@ export async function generatePieceLab(params: { classId: string; kcId: string; 
 
   try {
     await checkRateLimitAndQuota(userId, 12000);
+    const deadlineAt = Date.now() + 220_000;
     let parsed: ParsedSimulation | null = null;
     let weak: ParsedSimulation | null = null;
     let weakIssues: string[] = [];
     for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
+      const remaining = deadlineAt - Date.now();
+      if (attempt > 0 && weak && remaining < 80_000) break;
+      if (remaining < 20_000) break;
       const prompt = buildSimulationPrompt({
         kcTitle: `${ctx.kcTitle}: ${objective}`,
         subject: ctx.subject,
@@ -119,6 +123,8 @@ export async function generatePieceLab(params: { classId: string; kcId: string; 
         userId,
         temperature: 0.6,
         isPrivileged: true,
+        maxOutputTokens: 16_000,
+        maxWaitMs: Math.max(25_000, remaining),
       });
       const candidate = parseGeneratedSimulation(result.text, objective);
       if (candidate) {

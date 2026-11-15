@@ -260,7 +260,7 @@ export function diagnoseSimulation(raw: string): string {
 /** Things a lab must have to feel like a game on a phone; used to ask the model to try again once. */
 export function interactionIssues(html: string): string[] {
   const issues: string[] = [];
-  if (!/pointerdown|mousedown|touchstart|dragstart|setPointerCapture/.test(html)) {
+  if (!/pointerdown|pointerup|mousedown|touchstart|dragstart|setPointerCapture/.test(html)) {
     issues.push("the scene cannot be dragged or tapped: add pointer-event handling (pointerdown/pointermove/pointerup) so the learner can grab and move things in the scene itself, not only use sliders");
   }
   if (!/ResizeObserver|addEventListener\(\s*["']resize["']|onresize/.test(html)) {

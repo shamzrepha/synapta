@@ -200,8 +200,12 @@ export async function generateAndStoreSimulation(params: {
     const restartNote = existingBefore?.html && mode === "create"
       ? `A previous lab exists for this topic ("${existingBefore.title || "untitled"}": ${existingBefore.goal || "no goal"}). The learner found it static, hard to use on a phone and poorly drawn. Do NOT reuse its layout, drawing or idea. Pick a different experiment and visual metaphor, and make it far more hands-on: the learner drags and taps things in the scene itself.`
       : "";
+    const deadlineAt = Date.now() + 230_000;
     let lastWhy = "";
     for (let attempt = 0; attempt < 3 && !parsed; attempt++) {
+      const remaining = deadlineAt - Date.now();
+      if (attempt > 0 && weak && remaining < 85_000) break;
+      if (remaining < 20_000) break;
       const retryNote =
         attempt > 0
           ? weakIssues.length
@@ -254,6 +258,7 @@ export async function generateAndStoreSimulation(params: {
         isPrivileged: true,
         // a whole page with a 3D scene is long; without this some providers stop early (or reserve too little) and the page is cut off
         maxOutputTokens: 24_000,
+        maxWaitMs: Math.max(20_000, deadlineAt - Date.now()),
       });
       modelUsed = result.modelUsed;
       const candidate = parseGeneratedSimulation(result.text, ctx.kcTitle);
