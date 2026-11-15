@@ -1,14 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
-import { Flame, School, ArrowRight, Clock, Sparkles } from "lucide-react";
+import { Flame, School, ArrowRight, Clock, X, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { openAcademicSetup } from "@/components/profile/profile-setup";
 import { Sprout } from "@/components/bot/sprout";
 import Link from "next/link";
 
-export function CampusStreakBanner() {
+interface CampusStreakBannerProps {
+  pendingAssignmentCount?: number;
+}
+
+export function CampusStreakBanner({ pendingAssignmentCount = 0 }: CampusStreakBannerProps) {
   const user = useUserStore((s) => s.user);
   const [dismissed, setDismissed] = useState(false);
 
@@ -18,7 +22,7 @@ export function CampusStreakBanner() {
   const needsCampusSetup = !user.institution || !user.department;
   if (needsCampusSetup) {
     return (
-      <div className="rounded-2xl border-2 border-brand-500/30 bg-gradient-to-r from-brand-50 via-brand-100/40 to-white dark:from-brand-950/40 dark:via-brand-900/20 dark:to-card p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="rounded-2xl border-2 border-brand-500/30 bg-gradient-to-r from-brand-50 via-brand-100/40 to-white dark:from-brand-950/40 dark:via-brand-900/20 dark:to-card p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative">
         <div className="flex items-center gap-3.5">
           <div className="relative w-12 h-14 shrink-0 flex items-center justify-center">
             <Sprout pose="search" />
@@ -44,12 +48,63 @@ export function CampusStreakBanner() {
           >
             Select Campus <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
           </Button>
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            aria-label="Dismiss banner"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       </div>
     );
   }
 
-  // 2. Duolingo-style Streak Urgency Banner (shown late in the day if streak is active)
+  // 2. Assignment Deadline Alert Banner
+  if (pendingAssignmentCount > 0) {
+    return (
+      <div className="rounded-2xl border border-rose-500/40 bg-gradient-to-r from-rose-500/10 via-rose-500/5 to-card p-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="relative w-10 h-12 shrink-0 flex items-center justify-center">
+            <Sprout pose="pull" />
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <CalendarClock className="h-4 w-4 text-rose-500" />
+              <h3 className="text-xs sm:text-sm font-bold text-foreground">
+                {pendingAssignmentCount} class assignment{pendingAssignmentCount === 1 ? "" : "s"} due soon!
+              </h3>
+            </div>
+            <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+              Sprout is ready to walk you through the prerequisite formulas before the submission window closes.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Link href="/classes" className="w-full sm:w-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full sm:w-auto border-rose-500/40 text-xs font-semibold text-rose-700 dark:text-rose-400 hover:bg-rose-500/10"
+            >
+              Review Assignments <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            </Button>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            aria-label="Dismiss banner"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Duolingo-style Streak Urgency Banner (shown late in the day if streak is active)
   const currentHour = new Date().getHours();
   const streakDays = user.streakDays || 0;
   const isLate = currentHour >= 18; // After 6 PM
@@ -74,11 +129,25 @@ export function CampusStreakBanner() {
             </p>
           </div>
         </div>
-        <Link href="/study/daily" className="w-full sm:w-auto">
-          <Button size="sm" variant="outline" className="w-full sm:w-auto border-amber-500/40 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-500/10">
-            Keep Streak Alive <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Link href="/study/daily" className="w-full sm:w-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full sm:w-auto border-amber-500/40 text-xs font-semibold text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+            >
+              Keep Streak Alive <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            </Button>
+          </Link>
+          <button
+            type="button"
+            onClick={() => setDismissed(true)}
+            aria-label="Dismiss banner"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     );
   }

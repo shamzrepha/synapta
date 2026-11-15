@@ -197,6 +197,26 @@ export async function POST(req: NextRequest) {
         await userRef.update(updates);
       }
 
+      // Retroactive notification for already-registered users who haven't set their school/department yet
+      if (!existing.institution) {
+        const setupNotifRef = userRef.collection("notifications").doc("setup_campus_profile");
+        const setupNotifSnap = await setupNotifRef.get().catch(() => null);
+        if (setupNotifSnap && !setupNotifSnap.exists) {
+          await setupNotifRef
+            .set({
+              type: "onboarding",
+              title: "Sprout wants to know your university!",
+              body: "Pick your campus, department, and level so Sprout can unlock your syllabus and past questions.",
+              href: "/dashboard",
+              icon: "school",
+              sproutMood: "wave",
+              read: false,
+              createdAt: Timestamp.now(),
+            })
+            .catch(() => {});
+        }
+      }
+
       // Atomically touch daily presence and keep streak alive/incrementing
       const streakInfo = await touchUserStreak(uid);
 

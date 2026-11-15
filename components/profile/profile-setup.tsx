@@ -1,7 +1,23 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { Camera, Check, Sparkles, School, GraduationCap, BookOpen, Compass, ArrowRight, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  Camera,
+  Check,
+  Sparkles,
+  School,
+  GraduationCap,
+  BookOpen,
+  ArrowRight,
+  ArrowLeft,
+  FileCheck2,
+  Code2,
+  Calculator,
+  Cpu,
+  FlaskConical,
+  TrendingUp,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
@@ -11,6 +27,7 @@ import { Sprout, type BotPose } from "@/components/bot/sprout";
 import { cn } from "@/lib/utils";
 
 type Pick = { kind: "keep" } | { kind: "preset"; index: number } | { kind: "upload"; dataUrl: string };
+type Step = 1 | 2 | 3 | 4 | 5;
 
 const POPULAR_SCHOOLS = [
   "University of Lagos (UNILAG)",
@@ -50,12 +67,12 @@ const STUDY_LEVELS = [
 ];
 
 const INTEREST_TAGS = [
-  { id: "past_questions", label: "📝 Past Questions & Exam Drills", desc: "Step-by-step worked exam questions" },
-  { id: "programming", label: "💻 Programming & Algorithms", desc: "Python, C++, Data structures" },
-  { id: "math", label: "📐 Mathematics & Calculus", desc: "Step-by-step formulas & derivations" },
-  { id: "circuits", label: "⚡ 3D Circuits & Hardware Labs", desc: "Interactive breadboards and robotics" },
-  { id: "sciences", label: "🔬 Sciences & Chemistry", desc: "Reaction mechanics, biology, physics" },
-  { id: "business", label: "📊 Business & Economics", desc: "Financial models, accounting, commerce" },
+  { id: "past_questions", label: "Past Questions & Exam Drills", desc: "Step-by-step worked exam questions", Icon: FileCheck2 },
+  { id: "programming", label: "Programming & Algorithms", desc: "Python, C++, Data structures", Icon: Code2 },
+  { id: "math", label: "Mathematics & Calculus", desc: "Step-by-step formulas & derivations", Icon: Calculator },
+  { id: "circuits", label: "3D Circuits & Hardware Labs", desc: "Interactive breadboards and robotics", Icon: Cpu },
+  { id: "sciences", label: "Sciences & Chemistry", desc: "Reaction mechanics, biology, physics", Icon: FlaskConical },
+  { id: "business", label: "Business & Economics", desc: "Financial models, accounting, commerce", Icon: TrendingUp },
 ];
 
 /** Shrinks an uploaded picture to a centred square JPEG */
@@ -78,27 +95,35 @@ export function openAcademicSetup() {
   }
 }
 
+function clampStep(n: number): Step {
+  if (n <= 1) return 1;
+  if (n === 2) return 2;
+  if (n === 3) return 3;
+  if (n === 4) return 4;
+  return 5;
+}
+
 /**
  * Sprout's 5-step animated onboarding questionnaire.
  * Gathers handle, avatar, institution, department, level, and goals,
  * calibrating course recommendations and walking the student through study plans.
  */
 export function ProfileSetup() {
+  const router = useRouter();
   const user = useUserStore((s) => s.user);
   const updateUser = useUserStore((s) => s.updateUser);
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [step, setStep] = useState<Step>(1);
   const [forceOpen, setForceOpen] = useState(false);
 
-  // Form states
-  const [handle, setHandle] = useState("");
-  const [touched, setTouched] = useState(false);
+  // Form states (null means use existing user profile field until edited)
+  const [handleDraft, setHandleDraft] = useState<string | null>(null);
   const [pick, setPick] = useState<Pick | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string | null>(null);
-  const [institution, setInstitution] = useState("");
-  const [department, setDepartment] = useState("");
-  const [level, setLevel] = useState("100L");
-  const [interests, setInterests] = useState<string[]>(["past_questions"]);
+  const [institutionDraft, setInstitutionDraft] = useState<string | null>(null);
+  const [departmentDraft, setDepartmentDraft] = useState<string | null>(null);
+  const [levelDraft, setLevelDraft] = useState<string | null>(null);
+  const [interestsDraft, setInterestsDraft] = useState<string[] | null>(null);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -110,21 +135,15 @@ export function ProfileSetup() {
     return () => window.removeEventListener("sunroot:open-academic-setup", onOpen);
   }, []);
 
-  // Initialize from existing user state
-  useEffect(() => {
-    if (user) {
-      if (user.username) setHandle(user.username);
-      if (user.institution) setInstitution(user.institution);
-      if (user.department) setDepartment(user.department);
-      if (user.level) setLevel(user.level);
-      if (user.interests && user.interests.length > 0) setInterests(user.interests);
-    }
-  }, [user]);
-
   const isOpen = Boolean(user && (user.profileSetup === false || forceOpen));
   if (!isOpen || !user) return null;
 
-  const value = touched ? handle : user.username || "";
+  const value = handleDraft ?? user.username ?? "";
+  const institution = institutionDraft ?? user.institution ?? "";
+  const department = departmentDraft ?? user.department ?? "";
+  const level = levelDraft ?? user.level ?? "100L";
+  const interests = interestsDraft ?? (user.interests && user.interests.length > 0 ? user.interests : ["past_questions"]);
+
   const choice: Pick = pick ?? (user.photoURL ? { kind: "keep" } : { kind: "preset", index: 0 });
   const preview =
     choice.kind === "upload" ? uploadPreview : choice.kind === "preset" ? presetAvatarUrl(choice.index) : user.photoURL;
@@ -142,7 +161,8 @@ export function ProfileSetup() {
   };
 
   const toggleInterest = (id: string) => {
-    setInterests((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    const next = interests.includes(id) ? interests.filter((x) => x !== id) : [...interests, id];
+    setInterestsDraft(next);
   };
 
   const save = async (redirectToPlan = false) => {
@@ -182,8 +202,8 @@ export function ProfileSetup() {
         profileSetup: true,
       });
       setForceOpen(false);
-      if (redirectToPlan && typeof window !== "undefined") {
-        window.location.href = "/settings?tab=plan";
+      if (redirectToPlan) {
+        router.push("/settings?tab=plan");
       }
     } catch {
       setError("No connection. Try again.");
@@ -204,7 +224,6 @@ export function ProfileSetup() {
       aria-labelledby="profile-setup-title"
     >
       <div className="w-full max-w-lg rounded-2xl border border-border bg-card text-foreground shadow-2xl p-6 space-y-5 max-h-[92vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
-        
         {/* Progress bar */}
         <div className="space-y-1">
           <div className="flex justify-between items-center text-xs font-semibold text-muted-foreground">
@@ -258,8 +277,12 @@ export function ProfileSetup() {
         {step === 1 && (
           <div className="space-y-4">
             <div>
-              <h2 id="profile-setup-title" className="text-lg font-bold">Pick your call-sign & picture</h2>
-              <p className="text-xs text-muted-foreground">Your friends and coursemates will see this on class leaderboards.</p>
+              <h2 id="profile-setup-title" className="text-lg font-bold">
+                Pick your call-sign & picture
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Your friends and coursemates will see this on class leaderboards.
+              </p>
             </div>
 
             <div className="flex items-center gap-3">
@@ -274,8 +297,7 @@ export function ProfileSetup() {
                     id="setup-handle"
                     value={value}
                     onChange={(e) => {
-                      setTouched(true);
-                      setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""));
+                      setHandleDraft(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""));
                     }}
                     maxLength={24}
                     placeholder="student_hero"
@@ -305,7 +327,9 @@ export function ProfileSetup() {
                       )}
                     >
                       <Avatar name="" photoURL={presetAvatarUrl(i)} size={44} />
-                      {on && <Check className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-brand-600 p-0.5 text-white" />}
+                      {on && (
+                        <Check className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-brand-600 p-0.5 text-white" />
+                      )}
                     </button>
                   );
                 })}
@@ -354,7 +378,7 @@ export function ProfileSetup() {
               <Input
                 placeholder="Type or search your institution..."
                 value={institution}
-                onChange={(e) => setInstitution(e.target.value)}
+                onChange={(e) => setInstitutionDraft(e.target.value)}
               />
               <p className="text-xs font-semibold text-muted-foreground pt-1">Popular Universities:</p>
               <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1">
@@ -362,7 +386,7 @@ export function ProfileSetup() {
                   <button
                     key={sch}
                     type="button"
-                    onClick={() => setInstitution(sch)}
+                    onClick={() => setInstitutionDraft(sch)}
                     className={cn(
                       "text-xs px-2.5 py-1.5 rounded-lg border transition",
                       institution === sch
@@ -396,14 +420,14 @@ export function ProfileSetup() {
                 <Input
                   placeholder="e.g. Computer Science, Accounting..."
                   value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
+                  onChange={(e) => setDepartmentDraft(e.target.value)}
                 />
                 <div className="flex flex-wrap gap-1 mt-2">
                   {POPULAR_DEPARTMENTS.slice(0, 6).map((dep) => (
                     <button
                       key={dep}
                       type="button"
-                      onClick={() => setDepartment(dep)}
+                      onClick={() => setDepartmentDraft(dep)}
                       className={cn(
                         "text-[11px] px-2 py-1 rounded-md border transition",
                         department === dep
@@ -424,7 +448,7 @@ export function ProfileSetup() {
                     <button
                       key={lvl.id}
                       type="button"
-                      onClick={() => setLevel(lvl.id)}
+                      onClick={() => setLevelDraft(lvl.id)}
                       className={cn(
                         "text-xs p-2 rounded-xl border text-left flex items-center justify-between transition",
                         level === lvl.id
@@ -455,6 +479,7 @@ export function ProfileSetup() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {INTEREST_TAGS.map((tag) => {
                 const active = interests.includes(tag.id);
+                const Icon = tag.Icon;
                 return (
                   <button
                     key={tag.id}
@@ -468,7 +493,10 @@ export function ProfileSetup() {
                     )}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span className="text-xs font-bold">{tag.label}</span>
+                      <span className="text-xs font-bold flex items-center gap-1.5">
+                        <Icon className="h-3.5 w-3.5 text-brand-600 shrink-0" />
+                        {tag.label}
+                      </span>
                       {active && <Check className="h-3.5 w-3.5 text-brand-600 shrink-0" />}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1">{tag.desc}</p>
@@ -502,7 +530,7 @@ export function ProfileSetup() {
                   <span className="text-base font-extrabold text-brand-600">₦11,000</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Covers full 4.5 months through final exams. Unlocks own PDF uploads, 3D Maker Studio labs, audio podcasts, and all past questions.
+                  Covers full 4.5 months through final exams. Unlocks own PDF uploads, 3D Maker Studio labs, audio podcasts, and all past questions at no extra cost.
                 </p>
               </div>
 
@@ -536,7 +564,7 @@ export function ProfileSetup() {
         {/* Navigation Buttons */}
         <div className="flex items-center justify-between gap-3 pt-2">
           {step > 1 ? (
-            <Button type="button" variant="outline" size="sm" onClick={() => setStep((s) => (s - 1) as any)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setStep((s) => clampStep(s - 1))}>
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
             </Button>
           ) : (
@@ -553,7 +581,7 @@ export function ProfileSetup() {
                   return;
                 }
                 setError("");
-                setStep((s) => (s + 1) as any);
+                setStep((s) => clampStep(s + 1));
               }}
               className="ml-auto"
             >
@@ -564,7 +592,13 @@ export function ProfileSetup() {
               <Button type="button" variant="outline" size="sm" onClick={() => void save(false)} isLoading={busy}>
                 Start Free
               </Button>
-              <Button type="button" size="sm" onClick={() => void save(true)} isLoading={busy} className="bg-brand-600 hover:bg-brand-700 text-white">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void save(true)}
+                isLoading={busy}
+                className="bg-brand-600 hover:bg-brand-700 text-white"
+              >
                 <Sparkles className="mr-1.5 h-4 w-4" /> Get Semester Pass
               </Button>
             </div>

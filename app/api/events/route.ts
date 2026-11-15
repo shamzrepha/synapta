@@ -156,12 +156,54 @@ export async function POST(req: NextRequest) {
     };
     await ref.set(doc);
 
+    const notifiedSet = new Set<string>();
     if (doc.classId) {
       const uids = await getActiveStudentUids(doc.classId);
-      await notifyMany(uids, {
+      uids.forEach((u) => notifiedSet.add(u));
+    }
+
+    // Smart Interest & Department Auto-Dispatcher:
+    // Automatically figures out which students would be interested in this hackathon/challenge
+    const combinedText = `${doc.title} ${doc.topic} ${doc.description}`.toLowerCase();
+    const matchedInterests: string[] = [];
+    if (doc.kind === "build" || /circuit|breadboard|arduino|hardware|robot|iot|sensor/.test(combinedText)) {
+      matchedInterests.push("circuits");
+    }
+    if (doc.kind === "hackathon" || /code|python|algorithm|software|web|ai|hack|data|javascript|app/.test(combinedText)) {
+      matchedInterests.push("programming");
+    }
+    if (doc.kind === "quiz_sprint") {
+      matchedInterests.push("past_questions");
+    }
+    if (/math|calculus|algebra|differential|equation|matrix|statistics/.test(combinedText)) {
+      matchedInterests.push("math");
+    }
+    if (/chemistry|physics|biology|molecule|reaction|thermodynamics|mechanics/.test(combinedText)) {
+      matchedInterests.push("sciences");
+    }
+    if (/business|economics|accounting|finance|market|commerce/.test(combinedText)) {
+      matchedInterests.push("business");
+    }
+
+    if (matchedInterests.length > 0 && doc.visibility === "public") {
+      const matchedSnap = await adminDb()
+        .collection("users")
+        .where("interests", "array-contains-any", matchedInterests.slice(0, 10))
+        .limit(150)
+        .get()
+        .catch(() => null);
+      if (matchedSnap) {
+        for (const d of matchedSnap.docs) {
+          if (d.id !== caller.uid) notifiedSet.add(d.id);
+        }
+      }
+    }
+
+    if (notifiedSet.size > 0) {
+      await notifyMany(Array.from(notifiedSet), {
         type: "event_started",
         title: `New ${doc.kind === "hackathon" ? "hackathon" : doc.kind === "build" ? "build challenge" : "quiz sprint"}: ${doc.title}`,
-        body: `Starts ${startAt.toUTCString().replace(":00 GMT", " UTC")}`,
+        body: `Matched to your study interests • Starts ${startAt.toUTCString().replace(":00 GMT", " UTC")}`,
         href: `/challenges/${ref.id}`,
         icon: doc.kind === "hackathon" ? "🛠️" : "⚡",
       });
