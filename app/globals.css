@@ -217,9 +217,9 @@ h1, h2, h3 { text-wrap: balance; }
   outline-offset: 2px;
 }
 
-/* Respect prefers-reduced-motion */
+/* Respect prefers-reduced-motion, but keep Sprout mascot lively unless explicitly reduced in in-app settings */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *:not(.sunroot-bot):not(.sunroot-bot *):not(.sprout):not(.sprout *) {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -726,8 +726,12 @@ html[data-typing="true"] .sunroot-bot { display: none; }
 .kin-cross { position: relative; display: inline-block; padding: 0 0.125rem; color: color-mix(in srgb, #f43f5e 80%, transparent); }
 .kin-cross::after { content: ""; position: absolute; left: 0; right: 0; top: 52%; height: 2.5px; border-radius: 2px; background: #f43f5e; transform-origin: left center; animation: kin-draw 0.45s ease-out 0.5s both; }
 @keyframes kin-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+html[data-reduce-motion="true"] .sprout,
+html[data-reduce-motion="true"] .sprout-leaf,
+html[data-reduce-motion="true"] .sprout-eyes,
+html[data-reduce-motion="true"] .sprout-lens,
+html[data-reduce-motion="true"] .sprout-sparkles { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
-  .sprout, .sprout-leaf, .sprout-eyes, .sprout-lens, .sprout-sparkles { animation: none !important; }
   .kin-cross::after { animation: none; }
 }
 
@@ -777,10 +781,14 @@ html[data-typing="true"] .sunroot-bot { display: none; }
 @keyframes sprout-flicker { from { transform: scale(1, 0.9); } to { transform: scale(1.06, 1.12); } }
 .sprout-stars { animation: sprout-twinkle 1.2s ease-in-out infinite alternate; }
 .sprout-flame { animation: sprout-flicker 0.2s ease-in-out infinite alternate; }
-@media (prefers-reduced-motion: reduce) {
-  .sprout[data-pose="dance"], .sprout[data-pose="jump"], .sprout-zzz, .sprout-flames, .sprout-stars, .sprout-flame, .sprout-lens-glint { animation: none !important; }
-  .sunroot-bot[data-moving="true"] .sprout { animation: none !important; }
-}
+html[data-reduce-motion="true"] .sprout[data-pose="dance"],
+html[data-reduce-motion="true"] .sprout[data-pose="jump"],
+html[data-reduce-motion="true"] .sprout-zzz,
+html[data-reduce-motion="true"] .sprout-flames,
+html[data-reduce-motion="true"] .sprout-stars,
+html[data-reduce-motion="true"] .sprout-flame,
+html[data-reduce-motion="true"] .sprout-lens-glint { animation: none !important; }
+html[data-reduce-motion="true"] .sunroot-bot[data-moving="true"] .sprout { animation: none !important; }
 
 /* ===== Sprout: ask-me, peeking while you read, pulling a pop-up up with a rope ===== */
 /* the speech bubble opens towards the screen, whichever side Sprout waits on */
@@ -832,10 +840,8 @@ html[data-typing="true"] .sunroot-bot { display: none; }
 .sprout[data-pose="pull"] .sprout-mouth-open { opacity: 1; }
 /* the rope that Sprout fires at a pop-up */
 .sunroot-rope { position: fixed; inset: 0; width: 100vw; height: 100dvh; pointer-events: none; z-index: 84; overflow: visible; }
-@media (prefers-reduced-motion: reduce) {
-  .sprout[data-pose="pull"] { animation: none !important; }
-  .sunroot-bot-body { transition: none; }
-}
+html[data-reduce-motion="true"] .sprout[data-pose="pull"] { animation: none !important; }
+html[data-reduce-motion="true"] .sunroot-bot-body { transition: none; }
 
 /* ===== Sprout: napping, focus-sprint timer ===== */
 .sprout[data-pose="nap"] { animation: sprout-breathe 3.4s ease-in-out infinite; }
@@ -852,9 +858,7 @@ html[data-typing="true"] .sunroot-bot { display: none; }
   color: #fff; background: var(--color-brand-600, #2563eb); box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.45); white-space: nowrap;
 }
 .sunroot-bot-timer[data-break="true"] { background: #059669; }
-@media (prefers-reduced-motion: reduce) {
-  .sprout[data-pose="nap"] { animation: none !important; }
-}
+html[data-reduce-motion="true"] .sprout[data-pose="nap"] { animation: none !important; }
 
 /* a dialog or the tutor panel is open: Sprout and its menu step aside (the word pop-up keeps Sprout, it is part of that show) */
 body:has([aria-modal="true"]:not([data-sprout-ok])) .sunroot-bot,
@@ -870,9 +874,7 @@ body:has([data-tutor-open]) .sunroot-jarvis-hud { display: none !important; }
   0%, 100% { transform: scaleX(var(--sx, 1)) rotate(-2.5deg); }
   50% { transform: scaleX(var(--sx, 1)) rotate(2.5deg) translateY(1px); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .sunroot-bot[data-glide="true"] .sprout { animation: none !important; }
-}
+html[data-reduce-motion="true"] .sunroot-bot[data-glide="true"] .sprout { animation: none !important; }
 
 /* Sprout reads along: the word being said glows and its line is tinted, using the browser's text highlights (the page's text is not touched) */
 ::highlight(sprout-line) { background-color: color-mix(in srgb, var(--color-brand-500, #3b6df6) 13%, transparent); }

@@ -2,7 +2,6 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { usePrefs } from "@/components/settings/use-prefs";
 import { Sprout, type BotPose } from "@/components/bot/sprout";
@@ -155,8 +154,11 @@ function greeting(p: PetInfo): string {
  */
 export function BotProvider({ children }: { children: React.ReactNode }) {
   const [prefs] = usePrefs();
-  const osReduced = useReducedMotion();
-  const reduce = Boolean(prefs.reduceMotion || osReduced);
+  // Rely strictly on in-app prefs.reduceMotion rather than osReduced.
+  // Android WebViews frequently report prefers-reduced-motion: reduce by default
+  // (under battery saver, vendor defaults, or accessibility flags), which was
+  // freezing Sprout into a stagnant image on mobile devices.
+  const reduce = Boolean(prefs.reduceMotion);
   const [mode, setModeState] = useState<BotMode>("lively");
   const enabled = mode !== "off";
   const [pose, setPoseState] = useState<BotPose>("idle");

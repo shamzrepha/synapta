@@ -1,6 +1,6 @@
 {
-  "versionCode": 12,
-  "versionName": "3.1",
-  "url": "https://sunrootlearn.vercel.app/sunroot-3.1.apk",
-  "notes": "Smoother keyboard layout, fixed tutor input visibility, live 3D labs and Sprout everywhere."
+  "versionCode": 13,
+  "versionName": "3.2",
+  "url": "https://sunrootlearn.vercel.app/sunroot-3.2.apk",
+  "notes": "Full web parity: smooth Sprout animations, arc jumps and flying path, hardware-accelerated rendering."
 }
