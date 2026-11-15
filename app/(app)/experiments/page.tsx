@@ -6,20 +6,31 @@ import { ArrowLeft } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SavedRuns } from "@/components/experiments/saved-runs";
+import { ScienceWorkbenchGame } from "@/components/experiments/workbench-game";
 import { EXPERIMENTS } from "@/lib/experiments/defs";
 
 export default function ExperimentsPage() {
   return (
-    <div className="space-y-5 pb-24">
+    <div className="space-y-6 pb-24 max-w-6xl mx-auto">
       <div className="flex items-center gap-2">
         <Link href="/more" className="h-9 w-9 rounded-xl flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-900" aria-label="Back"><ArrowLeft className="h-4 w-4" /></Link>
         <div>
-          <p className="text-xs font-mono tracking-widest text-brand-600">SCIENCE LAB</p>
-          <h1 className="text-xl font-extrabold">Experiments</h1>
+          <p className="text-xs font-mono tracking-widest text-brand-600">VIRTUAL SCIENCE & VERIFICATION LAB</p>
+          <h1 className="text-xl sm:text-2xl font-extrabold">Interactive Chemistry, Fire & Physics Lab</h1>
         </div>
       </div>
-      <p className="text-sm text-slate-600 dark:text-slate-400 max-w-2xl">Change the settings, watch the graph respond, record readings in a table, answer a few guided questions, and save your runs to your account.</p>
-      <div className="grid gap-3 sm:grid-cols-2">
+
+      {/* Interactive "Cooking Fever"-Style Chemistry, Bunsen Burner Fire & Microscope Workbench */}
+      <ScienceWorkbenchGame />
+
+      <div className="space-y-3 pt-2">
+        <div>
+          <h2 className="text-base font-extrabold">Quantitative Physics & Chemistry Simulators</h2>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
+            Change parameters, watch the live curve respond, record data table rows, and verify your calculations.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
         {EXPERIMENTS.map((e) => (
           <Link key={e.id} href={`/experiments/${e.id}`}>
             <Card className="p-4 h-full hover:border-brand-500 transition-colors">
@@ -34,6 +45,7 @@ export default function ExperimentsPage() {
             </Card>
           </Link>
         ))}
+        </div>
       </div>
       <div className="space-y-2">
         <h2 className="text-sm font-bold">My saved runs</h2>

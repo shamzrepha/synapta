@@ -21,6 +21,10 @@ import {
   Newspaper,
   Megaphone,
   Download,
+  Share2,
+  Printer,
+  QrCode,
+  Layers,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -109,6 +113,39 @@ export default function SchoolsPortalPage() {
 
   // Admin seat grant state
   const [grantingSchoolId, setGrantingSchoolId] = useState<string | null>(null);
+
+  // Rotating 60-second Physical Lecture / Lab Hall Attendance Code
+  const [hallPin, setHallPin] = useState("482-910");
+  useEffect(() => {
+    const computePin = () => {
+      const bucket = Math.floor(Date.now() / 60_000);
+      const n = ((bucket * 2654435761) >>> 0) % 900000 + 100000;
+      const s = String(n);
+      setHallPin(`${s.slice(0, 3)}-${s.slice(3)}`);
+    };
+    const t = setTimeout(computePin, 0);
+    const iv = setInterval(computePin, 15_000);
+    return () => {
+      clearTimeout(t);
+      clearInterval(iv);
+    };
+  }, []);
+
+  const sendParentWhatsAppReport = (student: SchoolStudentRow) => {
+    if (!mySchool) return;
+    const msg = [
+      `*${mySchool.name} — Official Student Progress Report*`,
+      `Student: ${student.displayName} (${student.level} • ${student.department})`,
+      `Predicted Exam Readiness: *${student.predictedReadiness}%* (+${student.weeklyGain}%/wk trend)`,
+      `Learning Style Cohort: ${student.cohortLabel}`,
+      `Study Activity: ${student.totalStudyMinutes} mins logged • ${student.totalQuestionsAttempted} past questions practiced • ${student.streakDays}-day streak`,
+      student.weakTopics.length > 0
+        ? `Focus Areas for Revision: ${student.weakTopics.join(", ")}`
+        : `Status: Excelling across all syllabus topics`,
+      `Verified via SunRoot Institutional Portal`,
+    ].join("\n");
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
+  };
 
   const loadData = useCallback(async (targetSchoolId?: string) => {
     try {
@@ -765,6 +802,51 @@ export default function SchoolsPortalPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Physical Lecture Hall Check-In Code & Faculty/Department Breakdown */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 pt-1">
+                  <div className="p-3.5 rounded-xl border border-brand-500/30 bg-brand-500/5 flex items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-600 flex items-center gap-1">
+                        <QrCode className="h-3 w-3" /> Physical Hall Live Check-In Code
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        Project in lecture hall (rotates every 60s)
+                      </p>
+                    </div>
+                    <span className="font-mono text-base sm:text-lg font-black px-3 py-1 rounded-xl bg-card border border-brand-500/40 text-brand-600 shrink-0">
+                      {hallPin}
+                    </span>
+                  </div>
+
+                  <div className="lg:col-span-2 p-3.5 rounded-xl border border-border bg-card flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                      <Layers className="h-4 w-4 text-brand-600 shrink-0" />
+                      <span>Departmental Breakdown:</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Array.from(
+                        mySchool.roster.reduce((map, r) => {
+                          const d = r.department || "General";
+                          const cur = map.get(d) || { count: 0, sum: 0 };
+                          cur.count += 1;
+                          cur.sum += r.predictedReadiness;
+                          map.set(d, cur);
+                          return map;
+                        }, new Map<string, { count: number; sum: number }>())
+                      )
+                        .slice(0, 4)
+                        .map(([deptName, info]) => (
+                          <span
+                            key={deptName}
+                            className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-900 font-semibold text-foreground"
+                          >
+                            {deptName}: {info.count} ({Math.round(info.sum / Math.max(1, info.count))}% ready)
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                </div>
               </Card>
 
               {/* Cross-Class Student Progress Roster (Principal & Teacher View) */}
@@ -781,6 +863,15 @@ export default function SchoolsPortalPage() {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.print()}
+                      className="h-8 text-xs font-semibold"
+                    >
+                      <Printer className="mr-1.5 h-3.5 w-3.5 text-brand-600" /> Print Transcript
+                    </Button>
                     <Button
                       type="button"
                       size="sm"
@@ -830,13 +921,14 @@ export default function SchoolsPortalPage() {
                         <th className="py-2.5 px-2 font-bold">FYP Learning Cohort</th>
                         <th className="py-2.5 px-2 font-bold">Weak Topics Detected</th>
                         <th className="py-2.5 px-2 font-bold text-center">Activity</th>
-                        <th className="py-2.5 pl-2 font-bold text-right">Exam Readiness</th>
+                        <th className="py-2.5 px-2 font-bold text-right">Exam Readiness</th>
+                        <th className="py-2.5 pl-2 font-bold text-right">Parent / Sponsor</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60">
                       {filteredRoster.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                          <td colSpan={7} className="py-8 text-center text-muted-foreground">
                             No members match that filter yet.
                           </td>
                         </tr>
@@ -919,6 +1011,18 @@ export default function SchoolsPortalPage() {
                                   />
                                 </div>
                               </div>
+                            </td>
+                            <td className="py-3 pl-2 text-right">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => sendParentWhatsAppReport(r)}
+                                className="h-7 px-2.5 text-[11px] font-semibold text-emerald-600"
+                                title="Send WhatsApp Progress Report to Parent or Sponsor"
+                              >
+                                <Share2 className="mr-1 h-3 w-3" /> WhatsApp Report
+                              </Button>
                             </td>
                           </tr>
                         ))

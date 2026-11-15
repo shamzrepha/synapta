@@ -72,6 +72,9 @@ export default function ChallengesPage() {
   const [channels, setChannels] = useState<string[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [myClasses, setMyClasses] = useState<Array<{ id: string; title: string }>>([]);
+  const [topCampuses, setTopCampuses] = useState<
+    Array<{ rank: number; institution: string; totalXp: number; studentCount: number; avgReadiness: number }>
+  >([]);
   const canCreate = user?.role === "teacher" || user?.role === "admin";
 
   useEffect(() => {
@@ -79,6 +82,14 @@ export default function ChallengesPage() {
       setEvents(d?.events || []);
       setChannels(d?.channels || []);
     });
+    fetch("/api/schools")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.ok && Array.isArray(j.data?.interUniStandings)) {
+          setTopCampuses(j.data.interUniStandings.slice(0, 2));
+        }
+      })
+      .catch(() => null);
   }, []);
 
   useEffect(() => {
@@ -123,6 +134,31 @@ export default function ChallengesPage() {
           )}
         </div>
       </div>
+
+      {/* Head-to-Head Inter-University Clash Scoreboard Banner */}
+      {topCampuses.length >= 2 && (
+        <Card className="p-4 border-2 border-amber-500/35 bg-gradient-to-r from-amber-500/10 via-card to-brand-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-10 w-10 rounded-xl bg-amber-500 text-slate-950 font-black flex items-center justify-center shrink-0">
+              VS
+            </div>
+            <div className="min-w-0">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                Live Pan-African Inter-University Clash
+              </span>
+              <p className="text-xs sm:text-sm font-extrabold text-foreground truncate">
+                #1 {topCampuses[0].institution} ({topCampuses[0].totalXp.toLocaleString()} XP) vs. #2{" "}
+                {topCampuses[1].institution} ({topCampuses[1].totalXp.toLocaleString()} XP)
+              </p>
+            </div>
+          </div>
+          <Link href="/leaderboard?scope=schools" className="shrink-0">
+            <Button size="sm" variant="outline" className="text-xs font-bold">
+              View Full Standings →
+            </Button>
+          </Link>
+        </Card>
+      )}
 
       {events === null ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

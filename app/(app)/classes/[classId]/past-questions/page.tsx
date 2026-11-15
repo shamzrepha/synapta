@@ -241,6 +241,7 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
   const [cbtAnswers, setCbtAnswers] = useState<Record<string, number>>({});
   const [cbtSubmitted, setCbtSubmitted] = useState(false);
   const [cbtIndex, setCbtIndex] = useState(0);
+  const [cbtFocusWarnings, setCbtFocusWarnings] = useState(0);
 
   // Handwritten Snap & Grader State
   const [snapPreviewUrl, setSnapPreviewUrl] = useState<string | null>(null);
@@ -297,6 +298,23 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
     }, 1000);
     return () => clearInterval(timer);
   }, [activeQuestion?.id, practiceMode]);
+
+  // CBT Anti-Cheat Tab-Switch & Focus Lock Monitor
+  useEffect(() => {
+    if (practiceMode !== "cbt" || cbtSubmitted) return;
+    const onVisibility = () => {
+      if (document.hidden) {
+        setCbtFocusWarnings((w) => w + 1);
+        toast({
+          title: "CBT Focus Lock Warning",
+          description: "Tab switch detected during active CBT simulation. Keep this exam window focused.",
+          variant: "amber",
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [practiceMode, cbtSubmitted, toast]);
 
   // Extract distinct syllabus topics and completion counts
   const completedIdsSet = useMemo(
@@ -869,9 +887,22 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
         <Card className="p-6 border border-border shadow-sm space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
             <div>
-              <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-600 text-white">
-                CBT Objective Simulator
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-600 text-white">
+                  CBT Objective Simulator
+                </span>
+                <span
+                  className={cn(
+                    "text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full flex items-center gap-1",
+                    cbtFocusWarnings === 0
+                      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                      : "bg-amber-500/20 text-amber-700 dark:text-amber-300"
+                  )}
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  Focus Lock: {cbtFocusWarnings === 0 ? "100% Integrity (0 Tab Switches)" : `${cbtFocusWarnings} Tab Switch${cbtFocusWarnings === 1 ? "" : "es"} Flagged`}
+                </span>
+              </div>
               <h2 className="text-lg font-extrabold text-foreground mt-1">
                 Computer-Based Test Practice ({cbtPool.length} Questions)
               </h2>
