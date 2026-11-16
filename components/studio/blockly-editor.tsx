@@ -5,6 +5,7 @@ import * as Blockly from "blockly/core";
 import "blockly/blocks";
 import { arduinoGenerator, defineArduinoBlocks, toolbox } from "@/lib/studio/blockly/arduino";
 import { emptyBlockly } from "@/lib/studio/blockly/convert";
+import type { Circuit } from "@/lib/studio/circuit/netlist";
 import { GestureToggle, useGestureLock } from "./gesture-lock";
 
 /**
@@ -12,7 +13,7 @@ import { GestureToggle, useGestureLock } from "./gesture-lock";
  * "forever", and they snap together. The sketch they make is what the board runs. On phones the page
  * scrolls over the editor until "Edit blocks" is on, so it never traps a swipe.
  */
-export function BlocklyEditor({ state, readOnly, onChange }: { state: object | null; readOnly?: boolean; onChange: (state: object, code: string) => void }) {
+export function BlocklyEditor({ state, readOnly, circuit, onChange }: { state: object | null; readOnly?: boolean; circuit?: Circuit | null; onChange: (state: object, code: string) => void }) {
   const host = useRef<HTMLDivElement>(null);
   const ws = useRef<Blockly.WorkspaceSvg | null>(null);
   const last = useRef<string>("");
@@ -47,7 +48,7 @@ export function BlocklyEditor({ state, readOnly, onChange }: { state: object | n
     // on a phone the block drawer is a row along the top, so the workspace keeps the full width
     const narrow = el.clientWidth < 560;
     const w = Blockly.inject(el, {
-      toolbox: toolbox(),
+      toolbox: toolbox(circuit),
       horizontalLayout: narrow,
       toolboxPosition: "start",
       renderer: "zelos",
@@ -109,6 +110,13 @@ export function BlocklyEditor({ state, readOnly, onChange }: { state: object | n
     }
     last.current = JSON.stringify(Blockly.serialization.workspaces.save(w));
   }, [state]);
+
+  // Keep the Hardware block category synced as parts are wired/unwired on the bench
+  useEffect(() => {
+    const w = ws.current;
+    if (!w || readOnly || !w.getToolbox()) return;
+    w.updateToolbox(toolbox(circuit));
+  }, [circuit, readOnly]);
 
   return (
     <div className="relative rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden h-[62vh] min-h-[360px] max-h-[640px]">

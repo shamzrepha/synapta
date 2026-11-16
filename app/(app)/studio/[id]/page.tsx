@@ -3,7 +3,7 @@
 import React, { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Play, Square, Save, Sparkles, GitFork, Star, Share2, FlaskConical, Loader2, Wand2, Undo2, Redo2, Maximize2, Box, Cpu, Cog, Users, Globe, Lock, GraduationCap, Upload, Download } from "lucide-react";
+import { ArrowLeft, Play, Square, Save, Sparkles, GitFork, Star, Share2, FlaskConical, Loader2, Wand2, Undo2, Redo2, Maximize2, Box, Cpu, Cog, Users, Globe, Lock, GraduationCap, Upload, Download, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -578,7 +578,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
 
   const liveOutputs = running ? outputs : {};
   const canRun = !!(shown.circuit || shown.mechanism);
-  const mode3 = shown.codeMode ?? "text";
+  const blankCode = !(shown.code || "").replace(/void (?:setup|loop)\(\)\s*\{\s*\}|\s+/g, "").length;
+  const mode3 = shown.codeMode ?? (shown.blocks || shown.blockly || (hasBoard && blankCode) ? "blocks" : "text");
   const onBlocksChange = (state: object, code: string) => edit({ blockly: { state: state as Record<string, unknown>, code }, blocks: undefined, code, codeMode: "blocks" });
   const switchCodeMode = (m: "blocks" | "text") => {
     if (m === "text") return edit({ codeMode: "text" });
@@ -628,8 +629,15 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
       <Button size="sm" variant="outline" onClick={() => setStageOpen(true)} title="Full screen, landscape-friendly simulation">
         <Maximize2 className="h-4 w-4 mr-1" /> Full screen
       </Button>
+      {showCodeTab && tab !== "code" && (
+        <Button size="sm" variant="outline" onClick={() => setTab("code")} title="Open blocks & code for the wired circuit">
+          <Code2 className="h-4 w-4 mr-1" /> Code
+        </Button>
+      )}
       {issues.filter((i) => i.severity === "error").length > 0 && (
-        <Badge variant="destructive" className="text-[10px]">{issues.filter((i) => i.severity === "error").length} wiring error(s)</Badge>
+        <button type="button" onClick={() => setTab("build")} className="focus:outline-none" title="View wiring diagnostics">
+          <Badge variant="destructive" className="text-[10px] cursor-pointer hover:opacity-90">{issues.filter((i) => i.severity === "error").length} wiring error(s)</Badge>
+        </button>
       )}
       {running && <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> simulating</span>}
     </div>
@@ -740,7 +748,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
       </div>
       {mode3 === "blocks" ? (
         <>
-          <BlocklyEditor key={canEdit ? "edit" : "view"} state={blocklyState} readOnly={!canEdit} onChange={onBlocksChange} />
+          <BlocklyEditor key={canEdit ? "edit" : "view"} state={blocklyState} circuit={shown.circuit || undefined} readOnly={!canEdit} onChange={onBlocksChange} />
           <details className="text-xs">
             <summary className="cursor-pointer font-semibold text-slate-500">See the code your blocks make (you can also switch to Raw code and edit it)</summary>
             <pre className="mt-1 rounded-xl bg-[#0b1220] text-slate-100 p-3 overflow-auto font-mono text-[12px]">{shown.code}</pre>

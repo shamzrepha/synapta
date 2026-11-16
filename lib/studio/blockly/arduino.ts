@@ -1,6 +1,8 @@
 import * as Blockly from "blockly/core";
 import "blockly/blocks";
 import * as En from "blockly/msg/en";
+import type { Circuit } from "../circuit/netlist";
+import { discoverWiredHardware } from "./wired";
 
 /**
  * Scratch-style block coding for Maker Studio: drag blocks, snap them together, and they become a normal
@@ -24,7 +26,7 @@ const pinExpr = (v: string | number): string => {
 
 // ------------------------------------------------------------------ block definitions
 
-const COLOURS = { start: 40, pins: 20, wait: 195, logic: 210, loops: 120, math: 230, vars: 330, sound: 300, text: 160 };
+const COLOURS = { hw: 145, start: 40, pins: 20, wait: 195, logic: 210, loops: 120, math: 230, vars: 330, sound: 300, text: 160 };
 
 Blockly.setLocale(En as unknown as { [key: string]: string });
 
@@ -115,6 +117,195 @@ export function defineArduinoBlocks() {
       tooltip: "Turns a reading from one range into another, e.g. a knob 0–1023 into brightness 0–255.",
     },
     { type: "code_expr", message0: "maths %1", args0: [{ type: "field_input", name: "EXPR", text: "level / 4" }], output: null, colour: COLOURS.math, tooltip: "Advanced: type a short expression using your variables." },
+    {
+      type: "hw_digital_out",
+      message0: "turn %1 (%2) %3",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "LED" },
+        { type: "field_dropdown", name: "PIN", options: ANY_PINS },
+        { type: "field_dropdown", name: "STATE", options: [["ON", "HIGH"], ["OFF", "LOW"]] },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: COLOURS.hw,
+      tooltip: "Switch this wired component ON or OFF.",
+    },
+    {
+      type: "hw_pwm_out",
+      message0: "set %1 (%2) power to %3 (0–255)",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "LED" },
+        { type: "field_dropdown", name: "PIN", options: PWM_PINS },
+        { type: "input_value", name: "VALUE", check: "Number" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: COLOURS.hw,
+      tooltip: "Fade an LED or control a motor's speed with PWM (0–255).",
+    },
+    {
+      type: "hw_relay_set",
+      message0: "switch %1 (%2) %3 (%4)",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "Relay" },
+        { type: "field_dropdown", name: "PIN", options: ANY_PINS },
+        { type: "field_dropdown", name: "STATE", options: [["ON", "ON"], ["OFF", "OFF"]] },
+        { type: "field_dropdown", name: "ACTIVE", options: [["active-LOW", "LOW"], ["active-HIGH", "HIGH"]] },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: COLOURS.hw,
+      tooltip: "Energise or release the relay module coil.",
+    },
+    {
+      type: "hw_servo_angle",
+      message0: "move %1 (%2) to %3°",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "Servo" },
+        { type: "field_dropdown", name: "PIN", options: ANY_PINS },
+        { type: "input_value", name: "ANGLE", check: "Number" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: COLOURS.hw,
+      tooltip: "Turn the servo horn to an angle from 0° to 180°.",
+    },
+    {
+      type: "hw_tone",
+      message0: "beep %1 (%2) at %3 Hz",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "Buzzer" },
+        { type: "field_dropdown", name: "PIN", options: ANY_PINS },
+        { type: "input_value", name: "HZ", check: "Number" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: COLOURS.hw,
+      tooltip: "Play a tone on this wired buzzer.",
+    },
+    {
+      type: "hw_notone",
+      message0: "silence %1 (%2)",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "Buzzer" },
+        { type: "field_dropdown", name: "PIN", options: ANY_PINS },
+      ],
+      previousStatement: null,
+      nextStatement: null,
+      colour: COLOURS.hw,
+      tooltip: "Stop the buzzer sound.",
+    },
+    {
+      type: "hw_stepper_move",
+      message0: "rotate %1 %2 steps (pins %3 %4 %5 %6)",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "Stepper" },
+        { type: "input_value", name: "STEPS", check: "Number" },
+        { type: "field_dropdown", name: "P1", options: ANY_PINS },
+        { type: "field_dropdown", name: "P2", options: ANY_PINS },
+        { type: "field_dropdown", name: "P3", options: ANY_PINS },
+        { type: "field_dropdown", name: "P4", options: ANY_PINS },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: COLOURS.hw,
+      tooltip: "Step a 28BYJ-48 motor forward (positive) or reverse (negative). 4096 half-steps = 1 turn.",
+    },
+    {
+      type: "hw_oled_print",
+      message0: "%1 show %2",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "OLED" },
+        { type: "input_value", name: "TEXT" },
+      ],
+      inputsInline: true,
+      previousStatement: null,
+      nextStatement: null,
+      colour: COLOURS.hw,
+      tooltip: "Print a line on the SSD1306 OLED screen.",
+    },
+    {
+      type: "hw_oled_clear",
+      message0: "%1 clear screen",
+      args0: [{ type: "field_label_serializable", name: "LABEL", text: "OLED" }],
+      previousStatement: null,
+      nextStatement: null,
+      colour: COLOURS.hw,
+      tooltip: "Wipe everything off the OLED screen.",
+    },
+    {
+      type: "hw_button",
+      message0: "%1 (%2) is %3",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "Button" },
+        { type: "field_dropdown", name: "PIN", options: ANY_PINS },
+        { type: "field_dropdown", name: "STATE", options: [["pressed / ON", "pressed"], ["released / OFF", "released"]] },
+      ],
+      output: "Boolean",
+      colour: COLOURS.hw,
+      tooltip: "True while this wired button or switch is pressed (uses INPUT_PULLUP).",
+    },
+    {
+      type: "hw_analog_in",
+      message0: "read %1 (%2)",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "Sensor" },
+        { type: "field_dropdown", name: "PIN", options: ANALOG_PINS },
+      ],
+      output: "Number",
+      colour: COLOURS.hw,
+      tooltip: "Reads 0–1023 from this wired analog sensor.",
+    },
+    {
+      type: "hw_digital_in",
+      message0: "read %1 (%2)",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "Sensor" },
+        { type: "field_dropdown", name: "PIN", options: ANY_PINS },
+      ],
+      output: "Number",
+      colour: COLOURS.hw,
+      tooltip: "Reads 1 (HIGH) or 0 (LOW) from this wired sensor.",
+    },
+    {
+      type: "hw_ultrasonic_cm",
+      message0: "read %1 distance cm (trig %2 echo %3)",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "Ultrasonic" },
+        { type: "field_dropdown", name: "TRIG", options: ANY_PINS },
+        { type: "field_dropdown", name: "ECHO", options: ANY_PINS },
+      ],
+      output: "Number",
+      colour: COLOURS.hw,
+      tooltip: "Measures distance in centimetres using the wired HC-SR04.",
+    },
+    {
+      type: "hw_dht_read",
+      message0: "read %1 (%2) %3",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "DHT11" },
+        { type: "field_dropdown", name: "PIN", options: DIGITAL_PINS },
+        { type: "field_dropdown", name: "KIND", options: [["temperature (°C)", "TEMP"], ["humidity (%RH)", "HUM"]] },
+      ],
+      output: "Number",
+      colour: COLOURS.hw,
+      tooltip: "Reads temperature (°C) or humidity (%RH) from the wired DHT11.",
+    },
+    {
+      type: "hw_mpu_axis",
+      message0: "read %1 tilt %2",
+      args0: [
+        { type: "field_label_serializable", name: "LABEL", text: "MPU-6050" },
+        { type: "field_dropdown", name: "AXIS", options: [["X (g)", "X"], ["Y (g)", "Y"], ["Z (g)", "Z"]] },
+      ],
+      output: "Number",
+      colour: COLOURS.hw,
+      tooltip: "Reads acceleration/tilt along X, Y, or Z in g from the wired MPU-6050.",
+    },
   ]);
 }
 
@@ -168,7 +359,17 @@ class ArduinoGenerator extends Blockly.CodeGenerator {
       .filter((b) => b.type === "procedures_defnoreturn" || b.type === "procedures_defreturn")
       .map((b) => this.functionToCode(b as ProcBlock))
       .join("\n");
-    const code = `${vars}${vars ? "\n" : ""}${functions}${functions ? "\n" : ""}void setup() {\n${pinLines}${setupBody}}\n\nvoid loop() {\n${loopBody}}\n`;
+    const ultrasonicFn = this.uses.has("ultrasonic")
+      ? "int readUltrasonicCm(int trigPin, int echoPin) {\n" +
+        `${this.INDENT}digitalWrite(trigPin, LOW);\n` +
+        `${this.INDENT}delayMicroseconds(2);\n` +
+        `${this.INDENT}digitalWrite(trigPin, HIGH);\n` +
+        `${this.INDENT}delayMicroseconds(12);\n` +
+        `${this.INDENT}digitalWrite(trigPin, LOW);\n` +
+        `${this.INDENT}return pulseIn(echoPin, HIGH) / 58;\n` +
+        "}\n\n"
+      : "";
+    const code = `${vars}${vars ? "\n" : ""}${ultrasonicFn}${functions}${functions ? "\n" : ""}void setup() {\n${pinLines}${setupBody}}\n\nvoid loop() {\n${loopBody}}\n`;
     return code;
   }
 
@@ -324,6 +525,59 @@ forBlock["procedures_ifreturn"] = (b) => {
   return `if (${val(b, "CONDITION", "false")}) {\n${G.INDENT}return${hasValue ? ` ${val(b, "VALUE")}` : ""};\n}\n`;
 };
 
+forBlock["hw_digital_out"] = (b) => {
+  G.pins.set(num(b, "PIN"), "OUTPUT");
+  return `digitalWrite(${pinExpr(b.getFieldValue("PIN"))}, ${b.getFieldValue("STATE")});\n`;
+};
+forBlock["hw_pwm_out"] = (b) => {
+  G.pins.set(num(b, "PIN"), "OUTPUT");
+  return `analogWrite(${pinExpr(b.getFieldValue("PIN"))}, constrain(${val(b, "VALUE")}, 0, 255));\n`;
+};
+forBlock["hw_relay_set"] = (b) => {
+  G.pins.set(num(b, "PIN"), "OUTPUT");
+  const activeLow = b.getFieldValue("ACTIVE") === "LOW";
+  const on = b.getFieldValue("STATE") === "ON";
+  const level = activeLow ? (on ? "LOW" : "HIGH") : (on ? "HIGH" : "LOW");
+  return `digitalWrite(${pinExpr(b.getFieldValue("PIN"))}, ${level});\n`;
+};
+forBlock["hw_servo_angle"] = (b) => {
+  G.pins.set(num(b, "PIN"), "OUTPUT");
+  return `servoWrite(${pinExpr(b.getFieldValue("PIN"))}, constrain(${val(b, "ANGLE", "90")}, 0, 180));\n`;
+};
+forBlock["hw_tone"] = (b) => {
+  G.pins.set(num(b, "PIN"), "OUTPUT");
+  return `tone(${pinExpr(b.getFieldValue("PIN"))}, ${val(b, "HZ", "440")});\n`;
+};
+forBlock["hw_notone"] = (b) => `noTone(${pinExpr(b.getFieldValue("PIN"))});\n`;
+forBlock["hw_stepper_move"] = (b) =>
+  `stepperRun(${pinExpr(b.getFieldValue("P1"))}, ${pinExpr(b.getFieldValue("P2"))}, ${pinExpr(b.getFieldValue("P3"))}, ${pinExpr(b.getFieldValue("P4"))}, ${val(b, "STEPS", "512")}, 2);\n`;
+forBlock["hw_oled_print"] = (b) => `oledPrint(${val(b, "TEXT", '""')});\n`;
+forBlock["hw_oled_clear"] = () => "oledClear();\n";
+forBlock["hw_button"] = (b) => {
+  const n = num(b, "PIN");
+  G.pins.set(n, "INPUT_PULLUP");
+  return [`(digitalRead(${pinExpr(n)}) == ${b.getFieldValue("STATE") === "pressed" ? "LOW" : "HIGH"})`, ATOM];
+};
+forBlock["hw_analog_in"] = (b) => [`analogRead(${pinExpr(b.getFieldValue("PIN"))})`, ATOM];
+forBlock["hw_digital_in"] = (b) => {
+  const n = num(b, "PIN");
+  if (n < 14) G.pins.set(n, "INPUT_PULLUP");
+  return [`digitalRead(${pinExpr(n)})`, ATOM];
+};
+forBlock["hw_ultrasonic_cm"] = (b) => {
+  G.uses.add("ultrasonic");
+  G.pins.set(num(b, "TRIG"), "OUTPUT");
+  return [`readUltrasonicCm(${pinExpr(b.getFieldValue("TRIG"))}, ${pinExpr(b.getFieldValue("ECHO"))})`, ATOM];
+};
+forBlock["hw_dht_read"] = (b) => {
+  const p = pinExpr(b.getFieldValue("PIN"));
+  return [b.getFieldValue("KIND") === "HUM" ? `dhtHumidity(${p})` : `dhtTemperature(${p})`, ATOM];
+};
+forBlock["hw_mpu_axis"] = (b) => {
+  const axis = b.getFieldValue("AXIS");
+  return [axis === "Y" ? "accelY()" : axis === "Z" ? "accelZ()" : "accelX()", ATOM];
+};
+
 /** A workspace state (as saved by Blockly) → the Arduino sketch it makes. Works without a browser. */
 export function blocklyToCode(state: unknown): string {
   defineArduinoBlocks();
@@ -338,12 +592,90 @@ export function blocklyToCode(state: unknown): string {
 
 // ------------------------------------------------------------------ toolbox
 
-export function toolbox(): Blockly.utils.toolbox.ToolboxInfo {
+export function toolbox(circuit?: Circuit | null): Blockly.utils.toolbox.ToolboxInfo {
   const block = (type: string, extra: Record<string, unknown> = {}) => ({ kind: "block", type, ...extra });
   const num = (n: number) => ({ shadow: { type: "math_number", fields: { NUM: n } } });
+  const txt = (s: string) => ({ shadow: { type: "text", fields: { TEXT: s } } });
+  const hw = discoverWiredHardware(circuit);
+  const hwBlocks: Array<Record<string, unknown>> = [];
+
+  for (const a of hw.actions) {
+    switch (a.kind) {
+      case "digital_out":
+        hwBlocks.push(block("hw_digital_out", { fields: { LABEL: a.label, PIN: String(a.pinNum) } }));
+        if (a.pwm) hwBlocks.push(block("hw_pwm_out", { fields: { LABEL: a.label, PIN: String(a.pinNum) }, inputs: { VALUE: num(180) } }));
+        break;
+      case "pwm_out":
+        hwBlocks.push(block("hw_pwm_out", { fields: { LABEL: a.label, PIN: String(a.pinNum) }, inputs: { VALUE: num(180) } }));
+        hwBlocks.push(block("hw_digital_out", { fields: { LABEL: a.label, PIN: String(a.pinNum) } }));
+        break;
+      case "relay":
+        hwBlocks.push(block("hw_relay_set", { fields: { LABEL: a.label, PIN: String(a.pinNum), ACTIVE: a.activeLow ? "LOW" : "HIGH" } }));
+        break;
+      case "tone":
+        hwBlocks.push(block("hw_tone", { fields: { LABEL: a.label, PIN: String(a.pinNum) }, inputs: { HZ: num(440) } }));
+        hwBlocks.push(block("hw_notone", { fields: { LABEL: a.label, PIN: String(a.pinNum) } }));
+        break;
+      case "servo":
+        hwBlocks.push(block("hw_servo_angle", { fields: { LABEL: a.label, PIN: String(a.pinNum) }, inputs: { ANGLE: num(90) } }));
+        break;
+      case "stepper":
+        hwBlocks.push(
+          block("hw_stepper_move", {
+            fields: {
+              LABEL: a.label,
+              P1: String(a.pins[0]),
+              P2: String(a.pins[1]),
+              P3: String(a.pins[2]),
+              P4: String(a.pins[3]),
+            },
+            inputs: { STEPS: num(512) },
+          })
+        );
+        break;
+      case "oled":
+        hwBlocks.push(block("hw_oled_print", { fields: { LABEL: a.label }, inputs: { TEXT: txt("Hello!") } }));
+        hwBlocks.push(block("hw_oled_clear", { fields: { LABEL: a.label } }));
+        break;
+      case "button":
+        hwBlocks.push(block("hw_button", { fields: { LABEL: a.label, PIN: String(a.pinNum) } }));
+        break;
+      case "analog_in":
+        hwBlocks.push(block("hw_analog_in", { fields: { LABEL: a.label, PIN: String(a.pinNum) } }));
+        break;
+      case "digital_in":
+        hwBlocks.push(block("hw_digital_in", { fields: { LABEL: a.label, PIN: String(a.pinNum) } }));
+        break;
+      case "ultrasonic":
+        hwBlocks.push(block("hw_ultrasonic_cm", { fields: { LABEL: a.label, TRIG: String(a.trigPin), ECHO: String(a.echoPin) } }));
+        break;
+      case "dht11":
+        hwBlocks.push(block("hw_dht_read", { fields: { LABEL: a.label, PIN: String(a.pinNum), KIND: "TEMP" } }));
+        hwBlocks.push(block("hw_dht_read", { fields: { LABEL: a.label, PIN: String(a.pinNum), KIND: "HUM" } }));
+        break;
+      case "mpu6050":
+        hwBlocks.push(block("hw_mpu_axis", { fields: { LABEL: a.label, AXIS: "X" } }));
+        break;
+    }
+  }
+
+  const hardwareCategory = hw.hasBoard
+    ? [
+        {
+          kind: "category",
+          name: hwBlocks.length ? "Hardware" : "Hardware (none wired)",
+          colour: hwBlocks.length ? String(COLOURS.hw) : "215",
+          contents: hwBlocks.length
+            ? hwBlocks
+            : [{ kind: "label", text: "Wire parts to D2–D13 or A0–A5 on the bench to unlock blocks here." }],
+        },
+      ]
+    : [];
+
   return {
     kind: "categoryToolbox",
     contents: [
+      ...hardwareCategory,
       { kind: "category", name: "Pins", colour: String(COLOURS.pins), contents: [block("io_digital_write"), block("io_analog_write", { inputs: { VALUE: num(200) } }), block("io_analog_read"), block("io_digital_read"), block("io_button")] },
       { kind: "category", name: "Wait", colour: String(COLOURS.wait), contents: [block("io_delay", { inputs: { MS: num(1000) } }), block("io_wait_until"), block("io_millis")] },
       { kind: "category", name: "Control", colour: String(COLOURS.loops), contents: [block("controls_if"), block("controls_if", { extraState: { hasElse: true } }), block("controls_repeat_ext", { inputs: { TIMES: num(3) } }), block("controls_whileUntil"), block("controls_for", { inputs: { FROM: num(1), TO: num(10), BY: num(1) } }), block("controls_flow_statements")] },

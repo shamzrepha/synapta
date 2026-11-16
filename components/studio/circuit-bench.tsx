@@ -3,10 +3,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Trash2, Plus, X, ZoomIn, ZoomOut, Maximize } from "lucide-react";
 import { GestureToggle, useGestureLock } from "./gesture-lock";
-import { CATALOG, CATALOG_BY_TYPE, LED_COLORS, isButtonLike, type ComponentDef } from "@/lib/studio/circuit/catalog";
+import { CATALOG, CATALOG_BY_TYPE, LED_COLORS, isButtonLike, type ComponentDef, type PinDef } from "@/lib/studio/circuit/catalog";
 import type { OutputState } from "@/lib/studio/circuit/netlist";
 import type { CircuitPart, Wire } from "@/lib/studio/spec";
 import { cn } from "@/lib/utils";
+import { PartArt } from "./part-art";
 
 /**
  * Virtual breadboard bench. Build mode: drag parts, tap a pin then another pin to wire, tap a wire
@@ -48,263 +49,28 @@ function nextId(prefix: string, taken: Set<string>) {
   return `${prefix}${i}`;
 }
 
-function PartArt({ p, def, out, pressed }: { p: CircuitPart; def: ComponentDef; out?: OutputState; pressed: boolean }) {
-  const { w, h } = def;
-  switch (p.type) {
-    case "board":
-      return (
-        <g>
-          <rect width={w} height={h} rx={8} fill="#0f5132" stroke="#22c55e" strokeWidth={1.5} />
-          <rect x={w / 2 - 30} y={h / 2 - 14} width={60} height={28} rx={3} fill="#111827" />
-          <text x={w / 2} y={h / 2 + 4} textAnchor="middle" fontSize={10} fill="#9ca3af" fontFamily="monospace">MCU</text>
-          <text x={10} y={h / 2 + 4} fontSize={12} fill="#bbf7d0" fontWeight={700}>Starter board</text>
-        </g>
-      );
-    case "led": {
-      const col = LED_COLORS[String(p.props?.color || "red")] || "#ef4444";
-      const lvl = out?.on ? out.level : 0;
-      return (
-        <g>
-          {lvl > 0 && <circle cx={w / 2} cy={22} r={30} fill={col} opacity={0.25 * lvl + 0.1} />}
-          <path d={`M${w / 2 - 14},40 L${w / 2 - 14},18 A14,14 0 0 1 ${w / 2 + 14},18 L${w / 2 + 14},40 Z`} fill={col} opacity={0.25 + 0.75 * lvl} stroke={col} strokeWidth={2} />
-          <rect x={w / 2 - 17} y={38} width={34} height={5} fill={col} opacity={0.7} />
-          <line x1={0.3 * w} y1={43} x2={0.3 * w} y2={h} stroke="#9ca3af" strokeWidth={2} />
-          <line x1={0.7 * w} y1={43} x2={0.7 * w} y2={h - 8} stroke="#9ca3af" strokeWidth={2} />
-          <text x={0.3 * w - 9} y={h - 10} fontSize={10} fill="#ef4444">+</text>
-          {out?.fault === "overcurrent" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={11} fill="#ef4444" fontWeight={700}>⚠ burning out</text>}
-          {out?.fault === "reversed" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={11} fill="#f59e0b" fontWeight={700}>⟲ reversed</text>}
-        </g>
-      );
-    }
-    case "resistor": {
-      const ohms = Number(p.props?.ohms ?? 220);
-      return (
-        <g>
-          <line x1={0} y1={h / 2} x2={w} y2={h / 2} stroke="#9ca3af" strokeWidth={2} />
-          <rect x={18} y={4} width={w - 36} height={h - 8} rx={8} fill="#d6b88d" stroke="#92704a" />
-          {[28, 38, 48].map((x, i) => <rect key={x} x={x} y={4} width={4} height={h - 8} fill={["#7c3aed", "#ef4444", "#78350f"][i]} />)}
-          <text x={w / 2} y={h + 12} textAnchor="middle" fontSize={10} fill="#94a3b8">{ohms >= 1000 ? `${ohms / 1000}kΩ` : `${ohms}Ω`}</text>
-        </g>
-      );
-    }
-    case "button":
-      return (
-        <g>
-          <rect width={w} height={h - 10} rx={6} fill="#1f2937" stroke="#6b7280" />
-          <circle cx={w / 2} cy={(h - 10) / 2} r={14} fill={pressed ? "#2563eb" : "#3b82f6"} stroke="#1e3a8a" strokeWidth={pressed ? 4 : 2} />
-          <line x1={0} y1={h - 10} x2={0} y2={h} stroke="#9ca3af" strokeWidth={2} />
-          <line x1={w} y1={h - 10} x2={w} y2={h} stroke="#9ca3af" strokeWidth={2} />
-        </g>
-      );
-    case "ir_sensor":
-      return (
-        <g>
-          <rect width={w} height={h - 8} rx={6} fill="#0f172a" stroke="#94a3b8" />
-          <circle cx={w * 0.32} cy={(h - 8) / 2} r={7} fill="#1e293b" stroke="#475569" />
-          <circle cx={w * 0.68} cy={(h - 8) / 2} r={7} fill={(out?.on ?? pressed) ? "#f87171" : "#7f1d1d"} stroke="#475569" />
-          <text x={w / 2} y={h - 12} textAnchor="middle" fontSize={8} fill="#94a3b8">IR</text>
-        </g>
-      );
-    case "switch":
-      return (
-        <g>
-          <rect width={w} height={h - 14} rx={8} fill="#1f2937" stroke="#6b7280" />
-          <rect x={8} y={(h - 14) / 2 - 7} width={w - 16} height={14} rx={7} fill={pressed ? "#16a34a" : "#374151"} />
-          <circle cx={pressed ? w - 16 : 16} cy={(h - 14) / 2} r={9} fill={pressed ? "#bbf7d0" : "#e5e7eb"} stroke="#111827" />
-          <text x={w / 2} y={h - 16 + 1} textAnchor="middle" fontSize={9} fill="#94a3b8">{pressed ? "ON" : "OFF"}</text>
-          <line x1={0} y1={h - 14} x2={0} y2={h} stroke="#9ca3af" strokeWidth={2} />
-          <line x1={w} y1={h - 14} x2={w} y2={h} stroke="#9ca3af" strokeWidth={2} />
-        </g>
-      );
-    case "buzzer":
-      return (
-        <g>
-          <circle cx={w / 2} cy={h / 2 - 4} r={20} fill="#111827" stroke="#6b7280" />
-          <circle cx={w / 2} cy={h / 2 - 4} r={4} fill="#374151" />
-          {out?.on && [26, 32].map((r) => <circle key={r} cx={w / 2} cy={h / 2 - 4} r={r} fill="none" stroke="#facc15" strokeWidth={2} opacity={0.6} />)}
-        </g>
-      );
-    case "potentiometer":
-    case "light_sensor":
-    case "temp_sensor": {
-      const v = Number(p.props?.value ?? 512);
-      return (
-        <g>
-          <rect width={w} height={h - 8} rx={6} fill={p.type === "potentiometer" ? "#1e3a8a" : p.type === "light_sensor" ? "#166534" : "#7c2d12"} stroke="#94a3b8" />
-          {p.type === "potentiometer" ? (
-            <g transform={`rotate(${(v / 1023) * 270 - 135} ${w / 2} ${(h - 8) / 2})`}>
-              <circle cx={w / 2} cy={(h - 8) / 2} r={16} fill="#cbd5e1" />
-              <line x1={w / 2} y1={(h - 8) / 2} x2={w / 2} y2={(h - 8) / 2 - 14} stroke="#0f172a" strokeWidth={3} />
-            </g>
-          ) : (
-            <text x={w / 2} y={(h - 8) / 2 + 5} textAnchor="middle" fontSize={16}>{p.type === "light_sensor" ? "☀" : "🌡"}</text>
-          )}
-        </g>
-      );
-    }
-    case "servo":
-      return (
-        <g>
-          <rect width={w} height={h - 8} rx={4} fill="#1e40af" stroke="#93c5fd" />
-          <g transform={`rotate(${(out?.angle ?? 90) - 90} ${w * 0.3} ${(h - 8) / 2})`}>
-            <rect x={w * 0.3 - 4} y={(h - 8) / 2 - 30} width={8} height={30} rx={4} fill="#f8fafc" />
-          </g>
-          <circle cx={w * 0.3} cy={(h - 8) / 2} r={7} fill="#f8fafc" />
-          <text x={w * 0.68} y={(h - 8) / 2 + 4} textAnchor="middle" fontSize={10} fill="#dbeafe">{Math.round(out?.angle ?? 90)}°</text>
-        </g>
-      );
-    case "l298n":
-    case "tb6612": {
-      const l = p.type === "l298n";
-      return (
-        <g>
-          <rect width={w} height={h} rx={5} fill={l ? "#b91c1c" : "#1e3a8a"} stroke="#fecaca" />
-          <rect x={w * 0.34} y={10} width={w * 0.32} height={h * 0.45} rx={3} fill="#111827" stroke="#9ca3af" />
-          <text x={w / 2} y={h * 0.32} textAnchor="middle" fontSize={11} fill="#f8fafc" fontWeight={800}>{l ? "L298N" : "TB6612"}</text>
-          <text x={w / 2} y={h * 0.58} textAnchor="middle" fontSize={8} fill="#fecaca">{out?.on ? (out.fault ? out.fault : "driving") : out?.fault || "idle"}</text>
-          <text x={w * 0.2} y={14} textAnchor="middle" fontSize={8} fill="#fee2e2">A</text>
-          <text x={w * 0.86} y={14} textAnchor="middle" fontSize={8} fill="#fee2e2">B</text>
-        </g>
-      );
-    }
-    case "hc_sr04":
-      return (
-        <g>
-          <rect width={w} height={h - 8} rx={5} fill="#1e40af" stroke="#93c5fd" />
-          <circle cx={w * 0.27} cy={(h - 8) / 2} r={14} fill="#cbd5e1" stroke="#475569" strokeWidth={3} />
-          <circle cx={w * 0.73} cy={(h - 8) / 2} r={14} fill="#cbd5e1" stroke="#475569" strokeWidth={3} />
-          <text x={w / 2} y={h - 12} textAnchor="middle" fontSize={8} fill="#bfdbfe">HC-SR04</text>
-        </g>
-      );
-    case "stepper": {
-      const rot = out?.rotation ?? 0;
-      return (
-        <g>
-          <rect width={w} height={h - 8} rx={5} fill="#1e3a8a" stroke="#93c5fd" />
-          <circle cx={w * 0.3} cy={(h - 8) / 2} r={26} fill="#9ca3af" stroke="#e5e7eb" strokeWidth={2} />
-          <g transform={`rotate(${rot} ${w * 0.3} ${(h - 8) / 2})`}>
-            <rect x={w * 0.3 - 3} y={(h - 8) / 2 - 24} width={6} height={24} rx={3} fill="#f8fafc" />
-          </g>
-          <circle cx={w * 0.3} cy={(h - 8) / 2} r={5} fill="#f8fafc" />
-          {[0, 1, 2, 3].map((i) => <circle key={i} cx={w * (0.62 + i * 0.08)} cy={14} r={4} fill={out?.on ? "#fbbf24" : "#475569"} />)}
-          <text x={w * 0.76} y={(h - 8) / 2 + 12} textAnchor="middle" fontSize={9} fill="#dbeafe">{Math.round(((rot % 360) + 360) % 360)}°</text>
-          <text x={w * 0.76} y={(h - 8) / 2 + 24} textAnchor="middle" fontSize={7} fill="#bfdbfe">28BYJ-48</text>
-        </g>
-      );
-    }
-    case "oled": {
-      const lines = out?.text ?? [];
-      return (
-        <g>
-          <rect width={w} height={h - 8} rx={4} fill="#111827" stroke="#64748b" />
-          <rect x={6} y={6} width={w - 12} height={h - 20} fill="#020617" stroke="#334155" />
-          {lines.slice(0, 8).map((t, i) => <text key={i} x={9} y={15 + i * 5.4} fontSize={5} fill="#7dd3fc" fontFamily="monospace">{t}</text>)}
-          {!out?.on && <text x={w / 2} y={(h - 8) / 2 + 3} textAnchor="middle" fontSize={8} fill="#475569">{out?.fault || "SSD1306"}</text>}
-        </g>
-      );
-    }
-    case "dht11":
-      return (
-        <g>
-          <rect width={w} height={h - 8} rx={5} fill="#0ea5e9" stroke="#bae6fd" />
-          {[0, 1, 2, 3].map((i) => <line key={i} x1={8} x2={w - 8} y1={9 + i * 6} y2={9 + i * 6} stroke="#0369a1" strokeWidth={2} />)}
-          <text x={w / 2} y={(h - 8) / 2 + 12} textAnchor="middle" fontSize={9} fill="#f0f9ff" fontWeight={700}>DHT11</text>
-        </g>
-      );
-    case "relay":
-      return (
-        <g>
-          <rect width={w} height={h - 8} rx={5} fill="#1e3a8a" stroke="#93c5fd" />
-          <rect x={w * 0.12} y={14} width={w * 0.55} height={(h - 8) * 0.55} rx={3} fill="#2563eb" stroke="#bfdbfe" />
-          <text x={w * 0.395} y={14 + (h - 8) * 0.3} textAnchor="middle" fontSize={9} fill="#eff6ff" fontWeight={700}>RELAY</text>
-          <circle cx={w * 0.85} cy={22} r={5} fill={out?.energised ? "#4ade80" : "#14532d"} />
-          <text x={w * 0.85} y={40} textAnchor="middle" fontSize={8} fill="#bfdbfe">{out?.energised ? "COM-NO" : "COM-NC"}</text>
-        </g>
-      );
-    case "mpu6050":
-      return (
-        <g>
-          <rect width={w} height={h - 8} rx={5} fill="#1d4ed8" stroke="#bfdbfe" />
-          <rect x={w / 2 - 10} y={(h - 8) / 2 - 10} width={20} height={20} rx={2} fill="#111827" />
-          <text x={w / 2} y={(h - 8) / 2 + 3} textAnchor="middle" fontSize={6} fill="#9ca3af">MPU</text>
-        </g>
-      );
-    case "battery":
-      return (
-        <g>
-          <rect width={w} height={h - 10} rx={6} fill="#a16207" stroke="#fde68a" />
-          <rect x={0.18 * w - 6} y={h - 12} width={12} height={4} rx={1} fill="#ef4444" />
-          <text x={w / 2} y={(h - 10) / 2 + 4} textAnchor="middle" fontSize={13} fill="#fffbeb" fontWeight={800}>{`${Number(p.props?.volts ?? 6)} V`}</text>
-          {out?.fault === "short" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={10} fill="#ef4444" fontWeight={700}>⚡ short circuit</text>}
-        </g>
-      );
-    case "bulb": {
-      const lvl = out?.on ? Math.min(1.4, out.level) : 0;
-      const burnt = out?.fault === "overvoltage";
-      return (
-        <g>
-          {lvl > 0 && !burnt && <circle cx={w / 2} cy={24} r={30} fill="#fde047" opacity={0.15 + 0.35 * Math.min(1, lvl)} />}
-          <circle cx={w / 2} cy={24} r={18} fill={burnt ? "#1f2937" : "#fef9c3"} fillOpacity={burnt ? 0.6 : 0.12 + 0.72 * Math.min(1, lvl)} stroke={lvl > 0 && !burnt ? "#facc15" : "#94a3b8"} strokeWidth={2} />
-          <path d={`M${w / 2 - 7},34 L${w / 2 - 4},20 L${w / 2},25 L${w / 2 + 4},20 L${w / 2 + 7},34`} fill="none" stroke={burnt ? "#475569" : lvl > 0 ? "#fffbeb" : "#9ca3af"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-          <rect x={w / 2 - 9} y={40} width={18} height={10} rx={2} fill="#ca8a04" stroke="#eab308" />
-          <line x1={0.3 * w} y1={50} x2={0.3 * w} y2={h} stroke="#9ca3af" strokeWidth={2} />
-          <line x1={0.7 * w} y1={50} x2={0.7 * w} y2={h} stroke="#9ca3af" strokeWidth={2} />
-          {burnt && <text x={w / 2} y={-6} textAnchor="middle" fontSize={10} fill="#ef4444" fontWeight={700}>⚠ burnt out</text>}
-          {!burnt && out?.volts !== undefined && Math.abs(out.volts) > 0.05 && (
-            <text x={w / 2} y={-5} textAnchor="middle" fontSize={9.5} fill="#fde68a" fontFamily="monospace">{Math.abs(out.volts).toFixed(1)}V</text>
-          )}
-        </g>
-      );
-    }
-    case "ammeter": {
-      const ma = out?.currentMa ?? 0;
-      const disp = Math.abs(ma) >= 1000 ? `${(ma / 1000).toFixed(2)} A` : `${Math.round(ma)} mA`;
-      return (
-        <g>
-          <rect width={w} height={h - 10} rx={6} fill="#0f172a" stroke="#14b8a6" strokeWidth={1.6} />
-          <rect x={6} y={7} width={w - 12} height={24} rx={3} fill="#042f2e" stroke="#134e4a" />
-          <text x={w / 2} y={23} textAnchor="middle" fontSize={11} fill="#5eead4" fontFamily="monospace" fontWeight={700}>{disp}</text>
-          <text x={w / 2} y={h - 14} textAnchor="middle" fontSize={8} fill="#94a3b8" fontWeight={700}>AMMETER (A)</text>
-          <line x1={0.22 * w} y1={h - 10} x2={0.22 * w} y2={h} stroke="#14b8a6" strokeWidth={2} />
-          <line x1={0.78 * w} y1={h - 10} x2={0.78 * w} y2={h} stroke="#9ca3af" strokeWidth={2} />
-          {out?.fault === "short" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={10} fill="#ef4444" fontWeight={700}>⚡ short!</text>}
-        </g>
-      );
-    }
-    case "voltmeter": {
-      const vv = out?.volts ?? 0;
-      return (
-        <g>
-          <rect width={w} height={h - 10} rx={6} fill="#0f172a" stroke="#f59e0b" strokeWidth={1.6} />
-          <rect x={6} y={7} width={w - 12} height={24} rx={3} fill="#451a03" stroke="#78350f" />
-          <text x={w / 2} y={23} textAnchor="middle" fontSize={11} fill="#fde68a" fontFamily="monospace" fontWeight={700}>{`${vv.toFixed(2)} V`}</text>
-          <text x={w / 2} y={h - 14} textAnchor="middle" fontSize={8} fill="#94a3b8" fontWeight={700}>VOLTMETER (V)</text>
-          <line x1={0.22 * w} y1={h - 10} x2={0.22 * w} y2={h} stroke="#ef4444" strokeWidth={2} />
-          <line x1={0.78 * w} y1={h - 10} x2={0.78 * w} y2={h} stroke="#9ca3af" strokeWidth={2} />
-        </g>
-      );
-    }
-    case "motor_driver":
-      return (
-        <g>
-          <rect width={w} height={h} rx={4} fill="#991b1b" stroke="#fca5a5" />
-          <text x={w / 2} y={h / 2 + 4} textAnchor="middle" fontSize={10} fill="#fee2e2" fontWeight={700}>DRIVER</text>
-          {out?.fault === "unpowered" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={10} fill="#f59e0b">no power</text>}
-        </g>
-      );
-    case "dc_motor":
-      return (
-        <g>
-          <circle cx={w / 2} cy={h / 2 - 4} r={24} fill="#6b7280" stroke="#d1d5db" />
-          <g style={out?.on ? { transformOrigin: `${w / 2}px ${h / 2 - 4}px`, animation: `spin ${Math.max(0.15, 1.2 - out.level)}s linear infinite`, animationDirection: out.direction === -1 ? "reverse" : "normal" } : undefined}>
-            <line x1={w / 2 - 18} y1={h / 2 - 4} x2={w / 2 + 18} y2={h / 2 - 4} stroke="#f8fafc" strokeWidth={4} />
-          </g>
-          {out?.fault === "overcurrent" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={10} fill="#ef4444">⚠ needs a driver</text>}
-        </g>
-      );
-    default:
-      return <rect width={w} height={h} fill="#374151" />;
-  }
+function pinTooltip(pin: PinDef, editable: boolean): string {
+  const roleLabel =
+    pin.role === "power"
+      ? `power supply${pin.volts ? ` (${pin.volts} V)` : ""}`
+      : pin.role === "ground"
+        ? "ground reference (0 V)"
+        : pin.role === "digital"
+          ? `digital I/O${pin.pwm ? " + PWM (~)" : ""}`
+          : pin.role === "analog"
+            ? "analog input (0–5 V)"
+            : pin.role === "signalIn"
+              ? "signal input"
+              : pin.role === "signalOut"
+                ? "signal output"
+                : pin.role === "anode"
+                  ? "anode (+)"
+                  : pin.role === "cathode"
+                    ? "cathode (-)"
+                    : pin.role === "loadOut"
+                      ? "motor / load output"
+                      : "passive terminal";
+  return editable ? `${pin.name} · ${roleLabel} · click to wire, Shift/Alt-click to lift wire` : `${pin.name} · ${roleLabel}`;
 }
 
 export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pressed, onPress, sensorValues, onSensor, highlight = [], fit }: Props) {
@@ -384,8 +150,27 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
     return { x: p.x, y: p.y };
   };
 
-  const clickPin = (t: string) => {
+  useEffect(() => {
+    if (!pendingPin) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPendingPin(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pendingPin]);
+
+  const clickPin = (t: string, e?: React.MouseEvent) => {
     if (!editable) return;
+    if (!pendingPin && (e?.shiftKey || e?.altKey)) {
+      const idx = circuit.wires.findIndex((w) => w.from === t || w.to === t);
+      if (idx >= 0) {
+        const lifted = circuit.wires[idx];
+        const anchor = lifted.from === t ? lifted.to : lifted.from;
+        onChange({ ...circuit, wires: circuit.wires.filter((_, i) => i !== idx) });
+        setPendingPin(anchor);
+        return;
+      }
+    }
     if (!pendingPin) {
       setPendingPin(t);
       return;
@@ -571,13 +356,12 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
                   const color = pin.role === "power" ? "#ef4444" : pin.role === "ground" ? "#94a3b8" : pin.role === "analog" ? "#a855f7" : "#fbbf24";
                   const labelBelow = p.type === "board" && pin.y >= 1;
                   return (
-                    <g key={pin.name} onClick={(e) => { e.stopPropagation(); clickPin(t); }} style={{ cursor: editable ? "crosshair" : "default" }}>
+                    <g key={pin.name} onClick={(e) => { e.stopPropagation(); clickPin(t, e); }} style={{ cursor: editable ? "crosshair" : "default" }}>
+                      <title>{pinTooltip(pin, editable)}</title>
                       <circle cx={px} cy={py} r={Math.min(16, Math.max(11, 22 / v.s))} fill="transparent" />
                       <circle cx={px} cy={py} r={(isPending ? 7 : 4.5) * Math.min(1.8, Math.max(1, 0.9 / v.s))} fill={isPending ? "#14b8a6" : color} stroke="#0b1220" strokeWidth={1.5} />
-                      {p.type === "board" ? (
+                      {p.type === "board" && (
                         <text x={px} y={labelBelow ? py + 16 : py - 9} textAnchor="middle" fontSize={8.5} fill="#e2e8f0" fontFamily="monospace">{pin.name}{pin.pwm ? "~" : ""}</text>
-                      ) : (
-                        <title>{`${pin.name} (${pin.role})`}</title>
                       )}
                     </g>
                   );
@@ -603,8 +387,11 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
             const isSel = selected?.kind === "wire" && selected.id === w.id;
             return (
               <g key={w.id} onClick={(e) => { e.stopPropagation(); if (editable) setSelected({ kind: "wire", id: w.id }); }} style={{ cursor: editable ? "pointer" : "default" }}>
-                <path d={d} stroke="transparent" strokeWidth={12} fill="none" />
-                <path d={d} stroke={isSel ? "#14b8a6" : w.color || "#ef4444"} strokeWidth={isSel ? 4.5 : 3} fill="none" strokeLinecap="round" opacity={0.95} />
+                <path d={d} stroke="transparent" strokeWidth={14} fill="none" />
+                <path d={d} stroke="#020617" strokeOpacity={0.55} strokeWidth={5.5} transform="translate(0 3)" fill="none" strokeLinecap="round" />
+                <path d={d} stroke={isSel ? "#14b8a6" : w.color || "#ef4444"} strokeWidth={isSel ? 4.5 : 3.2} fill="none" strokeLinecap="round" opacity={0.96} />
+                <circle cx={a.x} cy={a.y} r={3.2} fill={isSel ? "#14b8a6" : w.color || "#ef4444"} stroke="#0b1220" strokeWidth={1} />
+                <circle cx={b.x} cy={b.y} r={3.2} fill={isSel ? "#14b8a6" : w.color || "#ef4444"} stroke="#0b1220" strokeWidth={1} />
               </g>
             );
           })}
@@ -622,7 +409,14 @@ export function CircuitBench({ circuit, onChange, outputs, running, readOnly, pr
         </div>
         {gesture.canToggle && <GestureToggle active={gesture.active} onChange={gesture.setActive} className="absolute top-2 right-2 z-10" />}
         {gesture.canToggle && !gesture.active && !pendingPin && <p className="pointer-events-none absolute bottom-2 left-2 z-10 max-w-[60%] rounded-lg bg-slate-900/70 px-2 py-1 text-[10px] text-white">Swipe scrolls the page · tap pins to wire · tap Move &amp; zoom to drag parts</p>}
-        {pendingPin && <div className="absolute top-2 left-2 rounded-lg bg-brand-600 text-white text-xs font-semibold px-2 py-1">Wiring from {pendingPin} — tap another pin</div>}
+        {pendingPin && (
+          <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 rounded-lg bg-brand-600 text-white text-xs font-semibold px-2.5 py-1 shadow">
+            <span>Wiring from {pendingPin} — tap another pin (Esc cancels)</span>
+            <button type="button" onClick={() => setPendingPin(null)} aria-label="Cancel wiring" className="rounded p-0.5 hover:bg-black/20">
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* selection panel */}
