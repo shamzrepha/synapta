@@ -22,27 +22,19 @@ import { GuidePanel, type GuideMode } from "@/components/studio/guide-panel";
 import { HistoryPanel } from "@/components/studio/history-panel";
 import { PresenceBar } from "@/components/studio/presence-bar";
 import { TrackView } from "@/components/studio/track-view";
-import { DriveSim } from "@/lib/studio/drive/physics";
-import { JointRig } from "@/lib/studio/twin/joints";
-import { resolveTrack } from "@/lib/studio/drive/track";
 import { PartEditor } from "@/components/studio/part-editor";
 import { SourcesPanel } from "@/components/studio/sources-panel";
 import dynamic from "next/dynamic";
 import { useUserStore } from "@/lib/store/use-user-store";
-import { emptyBlockly, programToBlockly } from "@/lib/studio/blockly/convert";
+import { emptyBlockly } from "@/lib/studio/blockly/convert";
 
 // the Scratch-style editor is large, so it loads only when a lab is opened in blocks
 const BlocklyEditor = dynamic(() => import("@/components/studio/blockly-editor").then((m) => m.BlocklyEditor), { ssr: false, loading: () => <Skeleton className="h-[62vh] min-h-[360px] rounded-2xl" /> });
 import { SimStage, type StageLab } from "@/components/studio/sim-stage";
-import { compileBlocks, type BlockProgram } from "@/lib/studio/blocks";
+import { useStudioSim } from "@/components/studio/use-studio-sim";
+import { compileBlocks } from "@/lib/studio/blocks";
 import { cppProblems, looksLikeCpp } from "@/lib/studio/cpp";
-import { sceneParts, sceneWires } from "@/lib/studio/circuit/to3d";
-import { analyzeMechanism } from "@/lib/studio/mech/gears";
-import { playLift } from "@/lib/studio/mech/playback";
 import { parseSpec, type DesignSpec } from "@/lib/studio/spec";
-import { Netlist, evaluateOutputs, type OutputState } from "@/lib/studio/circuit/netlist";
-import { BoardRuntime, circuitReader, runBehaviorTest, type TestResult } from "@/lib/studio/circuit/runtime";
-import { checkCircuit, nextGaps } from "@/lib/studio/circuit/checker";
 import { verifyStep, type StepResult } from "@/lib/studio/verify";
 import { cn } from "@/lib/utils";
 
@@ -99,6 +91,36 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const [dirty, setDirty] = useState(false);
   const [stale, setStale] = useState(false);
   const [preview, setPreview] = useState<DesignSpec | null>(null);
+  const shown = preview || work;
+  const {
+    mechState,
+    setMechState,
+    running,
+    liveOutputs,
+    serial,
+    runError,
+    pressed,
+    sensorValues,
+    setSensor,
+    testResults,
+    parts3d,
+    wires3d,
+    blocklyState,
+    activeRig,
+    activeDrive,
+    links,
+    gaps,
+    issues,
+    stopSim,
+    runAll,
+    press,
+    runTests,
+  } = useStudioSim(shown, {
+    onTestsDone: (results) => {
+      const passed = results.filter((r) => r.pass).length;
+      toast({ title: `${passed}/${results.length} tests passed`, variant: passed === results.length ? "success" : "amber" });
+    },
+  });
   const [tab, setTab] = useState<Tab>("guide");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -108,30 +130,14 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const [checking, setChecking] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [explode, setExplode] = useState(0.4);
-  const [mechState, setMechState] = useState({ inputAngle: 0, loadHeight: 0 });
   const [historyVersion, setHistoryVersion] = useState(0);
   // fullscreen stage (also opened by ?stage=1 when you switch labs from inside it)
   const [stageOpen, setStageOpen] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("stage") === "1");
   const [stageView, setStageView] = useState("3d");
   const [stageSplit, setStageSplit] = useState(true);
   const [labs, setLabs] = useState<StageLab[]>([]);
-  const [drive, setDrive] = useState<DriveSim | null>(null);
   const [follow, setFollow] = useState(false);
-  const [rig, setRig] = useState<JointRig | null>(null);
-  const typesRef = useRef<Record<string, string>>({});
-  const runningRef = useRef(false);
-  const mechStopRef = useRef<(() => void) | null>(null);
   const [sharing, setSharing] = useState(false);
-  // circuit simulation
-  const [running, setRunning] = useState(false);
-  const [outputs, setOutputs] = useState<Record<string, OutputState>>({});
-  const [serial, setSerial] = useState<string>("");
-  const [runError, setRunError] = useState<string | null>(null);
-  const [pressed, setPressed] = useState<Set<string>>(new Set());
-  const [sensorValues, setSensorValues] = useState<Record<string, number>>({});
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
-  const inputsRef = useRef({ pressed: new Set<string>(), values: {} as Record<string, number> });
-  const rafRef = useRef(0);
 
   // undo / redo of unsaved edits (saved versions live in History)
   const workRef = useRef<DesignSpec | null>(null);
@@ -227,9 +233,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     setWork(prev);
     markDirty(true);
     syncHist();
-    cancelAnimationFrame(rafRef.current);
-    setRunning(false);
-  }, [markDirty]);
+    stopSim();
+  }, [markDirty, stopSim]);
 
   const redo = useCallback(() => {
     const h = hist.current;
@@ -242,9 +247,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     setWork(next);
     markDirty(true);
     syncHist();
-    cancelAnimationFrame(rafRef.current);
-    setRunning(false);
-  }, [markDirty]);
+    stopSim();
+  }, [markDirty, stopSim]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -264,7 +268,6 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo]);
 
-  const shown = preview || work;
   const design = data?.design;
   const { user: me } = useUserStore();
   // In a class lab a student builds the lesson themselves: no AI building for them, no sharing the work out of the class
@@ -277,32 +280,6 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const backHref = fromTopic ? `/classes/${design!.classId}/topics/${design!.kcId}?tab=${design!.labId?.endsWith("~proof") ? "prove" : "build"}` : "/studio";
   const backLabel = fromTopic ? "Back to the topic" : "Back to Maker Studio";
 
-  const parts3d = useMemo(() => (shown ? sceneParts(shown) : []), [shown]);
-  const wires3d = useMemo(() => (shown ? sceneWires(shown) : []), [shown]);
-  // The block workspace to show: the one saved with the sketch while the sketch still matches it, else the
-  // AI's / template's block program converted to stacked blocks, else an empty workspace.
-  const blocklyState = useMemo<object>(() => {
-    if (shown?.blockly && shown.blockly.code === shown.code) return shown.blockly.state;
-    if (shown?.blocks) return programToBlockly(shown.blocks);
-    return emptyBlockly();
-  }, [shown]);
-  const idleDrive = useMemo(() => (shown?.robot && shown.world ? new DriveSim(shown.robot, resolveTrack(shown.world)) : null), [shown]);
-  const idleRig = useMemo(() => (shown && shown.joints.length ? new JointRig(shown.joints) : null), [shown]);
-  const activeRig = rig && shown && rig.joints === shown.joints ? rig : idleRig;
-  const activeDrive = drive && shown?.robot === drive.robot ? drive : idleDrive;
-  const links = useMemo(() => {
-    const out: Record<string, string> = {};
-    for (const p of shown?.circuit?.parts || []) out[p.id] = p.type;
-    return out;
-  }, [shown]);
-  useEffect(() => {
-    typesRef.current = links;
-  }, [links]);
-  useEffect(() => {
-    runningRef.current = running;
-  }, [running]);
-  const gaps = useMemo(() => (shown?.circuit ? nextGaps(shown.circuit, shown.code || "") : []), [shown]);
-  const issues = useMemo(() => (shown?.circuit ? checkCircuit(shown.circuit, shown.code || "") : []), [shown]);
   const liveSteps = useMemo(() => {
     const out: Record<string, StepResult> = {};
     if (!shown) return out;
@@ -314,134 +291,6 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
     }
     return out;
   }, [shown, testResults]);
-
-  // ---------- circuit simulation ----------
-  const stopSim = useCallback(() => {
-    cancelAnimationFrame(rafRef.current);
-    mechStopRef.current?.();
-    mechStopRef.current = null;
-    setRunning(false);
-  }, []);
-
-  const startSim = () => {
-    if (!shown?.circuit) return;
-    stopSim();
-    const circuit = shown.circuit;
-    inputsRef.current = { pressed: new Set(), values: { ...sensorValues } };
-    setPressed(new Set());
-    const hasBoard = circuit.parts.some((p) => p.type === "board");
-    const rt = new BoardRuntime(hasBoard ? shown.code || "" : "", circuitReader(circuit, inputsRef.current));
-    setSerial("");
-    setRunError(rt.error);
-    if (rt.error) return;
-    setRunning(true);
-    let last = performance.now();
-    let printed = 0;
-    let lastKey = "";
-    let nl = new Netlist(circuit);
-    const robot = shown.robot;
-    const sim = robot && shown.world ? new DriveSim(robot, resolveTrack(shown.world)) : null;
-    setDrive(sim);
-    const jr = shown.joints.length ? new JointRig(shown.joints) : null;
-    setRig(jr);
-    // a mechanism in the same design turns with the circuit's motor, so one Run drives everything
-    const mech = shown.mechanism;
-    const radPerMetre = mech ? analyzeMechanism(mech).radPerMetre : 0;
-    let shaft = 0;
-    let lastOutsKey = "";
-    let lastMechPaint = 0;
-    const frame = (now: number) => {
-      const dt = Math.min(100, now - last);
-      last = now;
-      if (sim && robot) for (const sn of robot.sensors) inputsRef.current.values[sn.id] = sim.read(sn);
-      rt.advance(rt.now + dt, 150_000);
-      const key = Array.from(inputsRef.current.pressed).sort().join(",");
-      if (key !== lastKey) {
-        lastKey = key;
-        nl = new Netlist(circuit, inputsRef.current.pressed);
-      }
-      const outs = evaluateOutputs(nl, rt.pins);
-      // Re-render the page only when something visible changed. Setting state on every animation frame re-renders the whole
-      // studio ~60 times a second, which drops frames on phones and makes the screen flicker.
-      const outsKey = JSON.stringify(outs);
-      if (outsKey !== lastOutsKey) {
-        lastOutsKey = outsKey;
-        setOutputs(outs);
-      }
-      if (sim && robot) {
-        let rem = dt / 1000;
-        while (rem > 1e-6) {
-          const h = Math.min(0.02, rem);
-          sim.step(h, outs[robot.left], outs[robot.right]);
-          rem -= h;
-        }
-      }
-      if (jr) {
-        jr.step(dt / 1000, outs);
-        if (jr.applyTriggers(shown.triggers, inputsRef.current)) setPressed(new Set(inputsRef.current.pressed));
-      }
-      if (mech) {
-        const m = Object.entries(outs).find(([pid, o]) => typesRef.current[pid] === "dc_motor" && o.on)?.[1];
-        if (m) {
-          shaft += (m.direction || 1) * (0.5 + m.level * 9) * (dt / 1000);
-          const lift = radPerMetre > 0 ? Math.max(0, Math.min(mech.liftHeight, shaft / radPerMetre)) : 0;
-          // the 3D view reads this ref-backed value each frame; ~30 updates a second is plenty for the readouts
-          if (now - lastMechPaint > 33) {
-            lastMechPaint = now;
-            setMechState({ inputAngle: shaft, loadHeight: lift });
-          }
-        }
-      }
-      if (rt.serial.length > printed) {
-        const add = rt.serial.slice(printed).map((s) => s.text).join("");
-        printed = rt.serial.length;
-        setSerial((s) => (s + add).slice(-4000));
-      }
-      if (rt.error) {
-        setRunError(rt.error);
-        setRunning(false);
-        return;
-      }
-      rafRef.current = requestAnimationFrame(frame);
-    };
-    rafRef.current = requestAnimationFrame(frame);
-  };
-
-  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
-
-  /** One Run for everything: the circuit + code (which drive the 3D parts and any mechanism), or just the gear rig. */
-  const runAll = () => {
-    if (!shown) return;
-    if (shown.circuit) return startSim();
-    if (shown.mechanism) {
-      stopSim();
-      setRunning(true);
-      mechStopRef.current = playLift(shown.mechanism, setMechState, () => setRunning(false));
-    }
-  };
-
-  /** Buttons are momentary; switches latch. Used by the bench and by clicking the 3D parts. */
-  const press = (pid: string, down: boolean) => {
-    const isSwitch = typesRef.current[pid] === "switch";
-    if (isSwitch && !down) return;
-    if (!runningRef.current && shown?.circuit && down) startSim();
-    const next = new Set(inputsRef.current.pressed);
-    if (isSwitch) {
-      if (next.has(pid)) next.delete(pid);
-      else next.add(pid);
-    } else if (down) next.add(pid);
-    else next.delete(pid);
-    inputsRef.current.pressed = next;
-    setPressed(next);
-  };
-
-  const runTests = () => {
-    if (!shown?.circuit) return;
-    const results = shown.tests.map((t) => runBehaviorTest(shown.circuit!, shown.code || "", t));
-    setTestResults(results);
-    const passed = results.filter((r) => r.pass).length;
-    toast({ title: `${passed}/${results.length} tests passed`, variant: passed === results.length ? "success" : "amber" });
-  };
 
   // ---------- saving ----------
   const save = async (msg?: string, source: "manual" | "param" = "manual"): Promise<boolean> => {
@@ -576,7 +425,6 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
   const errorLine = runError ? Number(/^Line (\d+)/.exec(runError)?.[1]) || null : null;
   const selectedPart = parts3d.find((p) => p.id === selected);
 
-  const liveOutputs = running ? outputs : {};
   const canRun = !!(shown.circuit || shown.mechanism);
   const blankCode = !(shown.code || "").replace(/void (?:setup|loop)\(\)\s*\{\s*\}|\s+/g, "").length;
   const mode3 = shown.codeMode ?? (shown.blocks || shown.blockly || (hasBoard && blankCode) ? "blocks" : "text");
@@ -659,10 +507,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ id: str
         pressed={pressed}
         onPress={press}
         sensorValues={sensorValues}
-        onSensor={(pid, v) => {
-          inputsRef.current.values[pid] = v;
-          setSensorValues((s) => ({ ...s, [pid]: v }));
-        }}
+        onSensor={setSensor}
         highlight={gaps[0]?.parts || []}
         fit={fit}
       />

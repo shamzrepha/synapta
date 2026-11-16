@@ -4,6 +4,8 @@ import { generateWithFallback, AiGenerationError } from "@/lib/ai/router";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
 import { loadKcGroundingContext } from "@/lib/kc/context";
 import { buildSimulationPrompt, parseGeneratedSimulation, interactionIssues, type ParsedSimulation } from "./build";
+import { decideSimulationMedium, generateStudioSimulation } from "./studio-mode";
+import type { DesignSpec } from "@/lib/studio/spec";
 
 /**
  * Piece labs: every learning objective of a topic ("piece") gets its own small interactive lab,
@@ -12,7 +14,9 @@ import { buildSimulationPrompt, parseGeneratedSimulation, interactionIssues, typ
 const LOCK_MS = 4 * 60 * 1000;
 export const MAX_PIECES = 8;
 
-export interface StoredPiece extends ParsedSimulation {
+export interface StoredPiece extends Omit<ParsedSimulation, "html"> {
+  html?: string | null;
+  studioSpec?: DesignSpec | null;
   status: "ready" | "generating" | "failed";
   index: number;
   objective: string;
@@ -28,6 +32,7 @@ export interface ClientPiece {
   objective: string;
   status: StoredPiece["status"];
   html?: string;
+  studioSpec?: DesignSpec;
   title?: string;
   goal?: string;
   howTo?: string[];
@@ -35,6 +40,10 @@ export interface ClientPiece {
   version?: number;
   error?: string;
   checkQuestion?: { question: string; options: string[] };
+}
+
+function hasPieceContent(p: { html?: string | null; studioSpec?: DesignSpec | null } | null | undefined): boolean {
+  return !!(p?.html || p?.studioSpec);
 }
 
 function piecesCol(classId: string, kcId: string) {
@@ -59,8 +68,9 @@ export function toClientPiece(p: StoredPiece): ClientPiece {
   return {
     index: p.index,
     objective: p.objective,
-    status: stale ? (p.html ? "ready" : "failed") : p.status,
-    html: p.html,
+    status: stale ? (hasPieceContent(p) ? "ready" : "failed") : p.status,
+    html: p.html || undefined,
+    studioSpec: p.studioSpec || undefined,
     title: p.title,
     goal: p.goal,
     howTo: p.howTo,
@@ -91,54 +101,91 @@ export async function generatePieceLab(params: { classId: string; kcId: string; 
 
   try {
     await checkRateLimitAndQuota(userId, 12000);
-    const deadlineAt = Date.now() + 220_000;
-    let parsed: ParsedSimulation | null = null;
-    let weak: ParsedSimulation | null = null;
-    let weakIssues: string[] = [];
-    for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
-      const remaining = deadlineAt - Date.now();
-      if (attempt > 0 && weak && remaining < 80_000) break;
-      if (remaining < 20_000) break;
-      const prompt = buildSimulationPrompt({
-        kcTitle: `${ctx.kcTitle}: ${objective}`,
+    const medium = await decideSimulationMedium({
+      kcTitle: ctx.kcTitle,
+      subject: ctx.subject,
+      level: ctx.level,
+      contextText: ctx.contextText,
+      objective,
+      userId,
+    });
+
+    let nextContent: (Omit<ParsedSimulation, "html"> & { html: string | null; studioSpec: DesignSpec | null }) | null = null;
+    if (medium.medium === "studio") {
+      const studio = await generateStudioSimulation({
+        kcTitle: ctx.kcTitle,
         subject: ctx.subject,
         level: ctx.level,
         contextText: ctx.contextText,
-        objectives: [objective],
-        otherTopics: [...ctx.otherTopics, ...ctx.objectives.filter((_, i) => i !== index)],
-        teacherInstructions:
-          "This is ONE piece of a larger topic. Build a single focused experiment for exactly this learning objective (one stage only: no stage navigation). Include a prediction question before the controls unlock, 2 to 4 controls, live readouts with units, and the governing formula. Keep it compact.",
-        previousError:
-          attempt > 0
-            ? weakIssues.length
-              ? `Your last version was rejected because: ${weakIssues.join("; ")}. Fix every one of these.`
-              : "Your last answer was not a complete runnable HTML document with an inline <script> and a <canvas>, <svg> or SimKit3D stage."
-            : undefined,
-      });
-      const result = await generateWithFallback({
-        learnerLanguage: false,
-        task: "sim_build",
-        systemInstruction: prompt.systemInstruction,
-        userPrompt: prompt.userPrompt,
+        objective,
+        instructions:
+          "This is ONE piece of a larger topic. Build a compact, focused interactive lab that isolates just this learning objective.",
+        kind: medium.kind,
         userId,
-        temperature: 0.6,
-        isPrivileged: true,
-        maxOutputTokens: 16_000,
-        maxWaitMs: Math.max(25_000, remaining),
       });
-      const candidate = parseGeneratedSimulation(result.text, objective);
-      if (candidate) {
-        const issues = interactionIssues(candidate.html);
-        if (issues.length && attempt === 0) {
-          weak = candidate;
-          weakIssues = issues;
-        } else parsed = candidate;
-      }
+      nextContent = {
+        html: null,
+        studioSpec: studio.studioSpec,
+        title: studio.title,
+        goal: studio.goal,
+        howTo: studio.howTo,
+        concepts: studio.concepts,
+        checkQuestion: studio.checkQuestion,
+      };
     }
-    if (!parsed && weak) parsed = weak;
-    if (!parsed) throw new AiGenerationError("The AI couldn't build a working lab for this piece. Try again.");
+
+    if (!nextContent) {
+      const deadlineAt = Date.now() + 220_000;
+      let parsed: ParsedSimulation | null = null;
+      let weak: ParsedSimulation | null = null;
+      let weakIssues: string[] = [];
+      for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
+        const remaining = deadlineAt - Date.now();
+        if (attempt > 0 && weak && remaining < 80_000) break;
+        if (remaining < 20_000) break;
+        const prompt = buildSimulationPrompt({
+          kcTitle: `${ctx.kcTitle}: ${objective}`,
+          subject: ctx.subject,
+          level: ctx.level,
+          contextText: ctx.contextText,
+          objectives: [objective],
+          otherTopics: [...ctx.otherTopics, ...ctx.objectives.filter((_, i) => i !== index)],
+          teacherInstructions:
+            "This is ONE piece of a larger topic. Build a single focused experiment for exactly this learning objective (one stage only: no stage navigation). Include a prediction question before the controls unlock, 2 to 4 controls, live readouts with units, and the governing formula. Keep it compact.",
+          previousError:
+            attempt > 0
+              ? weakIssues.length
+                ? `Your last version was rejected because: ${weakIssues.join("; ")}. Fix every one of these.`
+                : "Your last answer was not a complete runnable HTML document with an inline <script> and a <canvas>, <svg> or SimKit3D stage."
+              : undefined,
+        });
+        const result = await generateWithFallback({
+          learnerLanguage: false,
+          task: "sim_build",
+          systemInstruction: prompt.systemInstruction,
+          userPrompt: prompt.userPrompt,
+          userId,
+          temperature: 0.6,
+          isPrivileged: true,
+          maxOutputTokens: 16_000,
+          maxWaitMs: Math.max(25_000, remaining),
+        });
+        const candidate = parseGeneratedSimulation(result.text, objective);
+        if (candidate) {
+          const issues = interactionIssues(candidate.html);
+          if (issues.length && attempt === 0) {
+            weak = candidate;
+            weakIssues = issues;
+          } else parsed = candidate;
+        }
+      }
+      if (!parsed && weak) parsed = weak;
+      if (!parsed) throw new AiGenerationError("The AI couldn't build a working lab for this piece. Try again.");
+      nextContent = { ...parsed, studioSpec: null };
+    }
+
     const stored: StoredPiece = {
-      ...parsed,
+      ...nextContent,
       status: "ready",
       index,
       objective,
@@ -151,7 +198,7 @@ export async function generatePieceLab(params: { classId: string; kcId: string; 
     return stored;
   } catch (err) {
     await ref
-      .set({ status: before?.html ? "ready" : "failed", error: err instanceof ApiError ? err.message : "Lab generation failed.", updatedAt: Timestamp.now() }, { merge: true })
+      .set({ status: hasPieceContent(before) ? "ready" : "failed", error: err instanceof ApiError ? err.message : "Lab generation failed.", updatedAt: Timestamp.now() }, { merge: true })
       .catch(() => null);
     throw err;
   }

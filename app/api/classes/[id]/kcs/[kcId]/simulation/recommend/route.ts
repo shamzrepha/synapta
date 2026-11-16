@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       classId,
       kcId,
       userId: caller.uid,
-      current: sim?.html ? { title: sim.title, goal: sim.goal, howTo: sim.howTo || [] } : null,
+      current: (sim?.html || sim?.studioSpec) ? { title: sim.title, goal: sim.goal, howTo: sim.howTo || [] } : null,
     });
     return NextResponse.json({ ok: true, data: ideas });
   } catch (error) {

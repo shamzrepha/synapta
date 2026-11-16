@@ -29,11 +29,14 @@ import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { EnterLabVeil } from "@/components/labs/tap-to-enter";
+import { InteractiveStudioLab } from "@/components/labs/interactive-studio-lab";
+import type { DesignSpec } from "@/lib/studio/spec";
 import { useCoarsePointer } from "@/lib/ui/use-coarse-pointer";
 
 interface ClientSimulation {
   status: "ready" | "generating" | "failed";
   html?: string;
+  studioSpec?: DesignSpec;
   title?: string;
   goal?: string;
   howTo?: string[];
@@ -129,11 +132,13 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
   // the html shown in the frame: 3D simulations get the Maker Studio 3D runtime added (the sandbox can't load it itself)
   const [frameHtml, setFrameHtml] = useState<string | null>(null);
   const simHtml = sim?.html;
+  const hasSimContent = !!(sim?.html || sim?.studioSpec);
   useEffect(() => {
-    if (!simHtml) return;
     let alive = true;
     const t = setTimeout(() => {
-      if (alive) setFrameHtml(null);
+      if (!alive) return;
+      setFrameHtml(null);
+      if (!simHtml) return;
       frameHtmlFor(simHtml)
         .then((h) => alive && setFrameHtml(h))
         .catch(() => alive && setFrameHtml(simHtml));
@@ -492,16 +497,16 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
         placeholder={`e.g. "A game where students adjust launch angle and speed to hit castle targets, with wind in level 3" — leave empty and the AI designs it from the topic.`}
         className="text-sm"
       />
-      {sim?.html && (
+      {hasSimContent && (
         <p className="text-xs text-amber-700 dark:text-amber-300">
           This writes a completely new simulation. The current one is saved, so you can Undo.
         </p>
       )}
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => build({ mode: "create" })}>
-          <Sparkles className="h-4 w-4 mr-1.5" /> {sim?.html ? "Start over from scratch" : "Build simulation"}
+          <Sparkles className="h-4 w-4 mr-1.5" /> {hasSimContent ? "Start over from scratch" : "Build simulation"}
         </Button>
-        {sim?.html && (
+        {hasSimContent && (
           <Button size="sm" variant="outline" onClick={() => setShowDesigner(false)}>
             Cancel
           </Button>
@@ -512,7 +517,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
 
   const designer = canManage && (
     <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-4 space-y-3">
-      {sim?.html ? (
+      {hasSimContent ? (
         <>
           <div className="flex items-center gap-1 p-1 rounded-xl bg-white/60 dark:bg-slate-900/60 w-fit">
             <button
@@ -547,7 +552,11 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
                 onChange={(e) => setChangeRequest(e.target.value)}
                 rows={3}
                 maxLength={2000}
-                placeholder={`e.g. "Make the ball red and twice as big", "Add a wind slider in level 2", "Rename 'Fire' to 'Launch'"`}
+                placeholder={
+                  sim?.studioSpec
+                    ? `e.g. "Add a push button on D2 that toggles the buzzer", "Use Blockly to fade the LED brighter when distance < 20 cm", "Add a second bulb in parallel"`
+                    : `e.g. "Make the ball red and twice as big", "Add a wind slider in level 2", "Rename 'Fire' to 'Launch'"`
+                }
                 className="text-sm"
               />
               <div className="flex flex-wrap items-center gap-2">
@@ -608,7 +617,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
   );
 
   // ---------- Empty state ----------
-  if (!sim?.html) {
+  if (!hasSimContent) {
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-8 text-center space-y-4">
@@ -668,7 +677,7 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <Badge variant="amber" className="text-[10px]">
-              <Gamepad2 className="h-3 w-3 mr-1" /> AI simulation
+              <Gamepad2 className="h-3 w-3 mr-1" /> {sim.studioSpec ? "Interactive lab" : "AI simulation"}
             </Badge>
             {canManage && sim.version ? <Badge variant="outline" className="text-[10px]">v{sim.version}</Badge> : null}
           </div>
@@ -753,21 +762,43 @@ export function AiSimulation({ classId, kcId, topicTitle, onEvidence }: AiSimula
       <div
         ref={stageRef}
         className={cn(
-          "relative overflow-hidden bg-[#0b0f14]",
+          "relative overflow-hidden",
+          sim.studioSpec ? "bg-white dark:bg-slate-950" : "bg-[#0b0f14]",
           full
-            ? "fixed inset-0 z-[100] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
+            ? "fixed inset-0 z-[100] flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
             : "rounded-2xl border border-slate-200 dark:border-slate-800 shadow-lg"
         )}
       >
-        {full && (
+        {full && sim.studioSpec && (
+          <div className="flex items-center justify-between gap-2 border-b border-slate-200 dark:border-slate-800 px-3 py-2 shrink-0">
+            <span className="text-sm font-bold truncate">{sim.title}</span>
+            <button type="button" onClick={goFullscreen} className="flex h-8 items-center gap-1.5 rounded-lg bg-slate-900 dark:bg-slate-800 px-3 text-xs font-semibold text-white" aria-label="Exit full screen">
+              Exit full screen
+            </button>
+          </div>
+        )}
+        {full && !sim.studioSpec && (
           <button type="button" onClick={goFullscreen} className="absolute right-2 top-2 z-20 flex h-9 items-center gap-1.5 rounded-lg bg-black/60 px-3 text-xs font-semibold text-white backdrop-blur" aria-label="Exit full screen">
             Exit full screen
           </button>
         )}
         <TutorBubble message={tutor} className="absolute left-3 right-14 bottom-3 z-10" />
-        {/* on a phone the stage is a still preview: tap it to enter, so the page scrolls instead of the lab */}
-        {!full && touch && <EnterLabVeil onEnter={goFullscreen} />}
-        {frameHtml ? (
+        {/* on a phone the HTML stage is a still preview: tap it to enter, so the page scrolls instead of the lab */}
+        {!full && touch && !sim.studioSpec && <EnterLabVeil onEnter={goFullscreen} />}
+        {sim.studioSpec ? (
+          <div className={cn("min-h-0", full && "flex-1")}>
+            <InteractiveStudioLab
+              spec={sim.studioSpec}
+              resetKey={frameKey}
+              full={full}
+              onGoalComplete={(detail) => {
+                setGoalReached(detail || {});
+                confetti({ particleCount: 90, spread: 65, origin: { y: 0.4 } });
+              }}
+              onRuntimeError={(msg) => setRuntimeError(msg)}
+            />
+          </div>
+        ) : frameHtml ? (
           <iframe
             key={frameKey}
             ref={frameRef}

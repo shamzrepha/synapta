@@ -13,6 +13,8 @@ import { readableText } from "@/lib/text/readable";
 import { QuestRunner } from "@/components/quest/quest-runner";
 import { cn } from "@/lib/utils";
 import { EnterLabVeil } from "@/components/labs/tap-to-enter";
+import { InteractiveStudioLab } from "@/components/labs/interactive-studio-lab";
+import type { DesignSpec } from "@/lib/studio/spec";
 import { useCoarsePointer } from "@/lib/ui/use-coarse-pointer";
 
 interface Piece {
@@ -20,6 +22,7 @@ interface Piece {
   objective: string;
   status: "none" | "ready" | "generating" | "failed";
   html?: string;
+  studioSpec?: DesignSpec;
   title?: string;
   goal?: string;
   howTo?: string[];
@@ -322,7 +325,18 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
     </Card>
   );
 
-  const frame = frameHtml ? (
+  const frame = piece?.studioSpec ? (
+    <InteractiveStudioLab
+      spec={piece.studioSpec}
+      full={full}
+      compact={!full}
+      onGoalComplete={() => {
+        confetti({ particleCount: 90, spread: 65, origin: { y: 0.5 } });
+        setTutor({ id: ++msgId.current, tone: "praise", text: "Goal reached. Now answer the check question to lock it in." });
+        setSheet(true);
+      }}
+    />
+  ) : frameHtml ? (
     <iframe
       ref={frameRef}
       title={readableText(piece?.title || piece?.objective)}
@@ -335,7 +349,7 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
     <div className={cn("w-full flex items-center justify-center text-xs text-slate-400", full ? "h-full" : "h-[380px]")} role="status">Loading the lab…</div>
   );
 
-  const labReady = piece?.status === "ready" && !!piece.html;
+  const labReady = piece?.status === "ready" && !!(piece.html || piece.studioSpec);
   const questOf = (i: number) => quests.find((q) => q.index === i);
   const quest = piece ? questOf(piece.index) : undefined;
 
@@ -486,12 +500,13 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
               ref={wrapRef}
               className={cn(
                 full
-                  ? "fixed inset-0 z-[100] flex flex-col bg-[#0b0f14] text-slate-100 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
-                  : "relative rounded-xl overflow-hidden border border-border bg-[#0b0f14]"
+                  ? "fixed inset-0 z-[100] flex flex-col pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
+                  : "relative rounded-xl overflow-hidden border border-border",
+                piece?.studioSpec ? "bg-white dark:bg-slate-950 text-foreground" : "bg-[#0b0f14] text-slate-100"
               )}
             >
               {full && (
-                <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+                <div className={cn("flex items-center gap-2 border-b px-3 py-2", piece?.studioSpec ? "border-border" : "border-white/10")}>
                   <Button size="sm" variant="outline" onClick={() => prev && setActive(active - 1)} disabled={!prev} aria-label="Previous piece">
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -515,11 +530,25 @@ export function PiecesLab({ classId, kcId, topicTitle, onEvidence }: Props) {
                 </div>
               )}
 
+              {!full && piece?.studioSpec && (
+                <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-1.5 bg-slate-50/70 dark:bg-slate-900/60">
+                  <span className="text-[11px] font-semibold text-muted-foreground">Interactive Workbench</span>
+                  <button
+                    type="button"
+                    onClick={enterFull}
+                    className="flex h-7 items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-xs font-semibold hover:bg-muted"
+                    aria-label="Full screen"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" /> <span>Full screen</span>
+                  </button>
+                </div>
+              )}
+
               <div className={cn("relative", full && "flex-1 min-h-0")}>
                 {frame}
-                {!full && touch && <EnterLabVeil onEnter={enterFull} />}
+                {!full && touch && !piece?.studioSpec && <EnterLabVeil onEnter={enterFull} />}
                 <TutorBubble message={tutor} className="absolute left-2 right-12 bottom-2 sm:left-3 sm:bottom-3" />
-                {!full && (
+                {!full && !piece?.studioSpec && (
                   <button
                     type="button"
                     onClick={enterFull}

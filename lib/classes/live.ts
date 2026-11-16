@@ -101,10 +101,11 @@ async function draftOf(classId: string, kcId: string, kc: Record<string, unknown
         getStoredPieces(classId, kcId).catch(() => new Map()),
         getStoredQuests(classId, kcId).catch(() => new Map()),
       ]);
-      const readyPieces = [...pieces.values()].filter((p) => p.status === "ready" && !!p.html);
+      const readyPieces = [...pieces.values()].filter((p) => p.status === "ready" && !!(p.html || p.studioSpec));
       const readyQuests = [...quests.values()].filter((q) => questStatus(q) === "ready" && !!q.challenges?.length);
-      const main = !!sim?.html && sim.status === "ready";
-      const fp = `v${sim?.version || 0}-${stableId(sim?.html || "")}-p${readyPieces.map((p) => `${p.index}.${p.version || 0}`).join(",")}-q${readyQuests.map((q) => `${q.index}.${q.version || 0}`).join(",")}`;
+      const mainBody = sim?.html || (sim?.studioSpec ? JSON.stringify(sim.studioSpec) : "");
+      const main = !!mainBody && sim?.status === "ready";
+      const fp = `v${sim?.version || 0}-${stableId(mainBody)}-p${readyPieces.map((p) => `${p.index}.${p.version || 0}`).join(",")}-q${readyQuests.map((q) => `${q.index}.${q.version || 0}`).join(",")}`;
       return { exists: main || readyPieces.length > 0 || readyQuests.length > 0, fp };
     }
     case "practice": {

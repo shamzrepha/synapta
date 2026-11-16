@@ -132,10 +132,12 @@ export async function recommendSimulation(params: {
   // Small material budget: the excerpts are background only; the subtopic itself is what matters
   const ctx = await loadKcGroundingContext(params.classId, params.kcId, { materialBudget: 3500 });
   const scope = scopeRule({ kcTitle: ctx.kcTitle, objectives: ctx.objectives, otherTopics: ctx.otherTopics });
-  const systemInstruction = `You design interactive HTML5 learning simulations and games for ONE specific subtopic of a class.
+  const systemInstruction = `You design interactive learning simulations and hands-on labs for ONE specific subtopic of a class.
 ${scope}
-Read the subtopic's lesson and propose 4 DIFFERENT simulation concepts that would make exactly this subtopic click — vary the format (lab bench, game with levels, step-through visualiser, design/build challenge, prediction game…).
-Each idea: a catchy title, a one-sentence pitch, how it works (what the learner manipulates and sees), the challenge/goal that makes it a game, and the learning goal it targets. Be concrete and accurate for level ${ctx.level}.
+Read the subtopic's lesson and propose 4 DIFFERENT interactive lab/simulation concepts that make exactly this subtopic click:
+- For electrical/DC circuits, electronics, sensors/actuators, Arduino/Starter boards, Blockly coding, robotics, or 3D gear mechanisms: propose real wireable circuit bench labs, Blockly + C++ programming challenges, or Tinkercad Trio robotics/3D labs (where learners wire components, code blocks, and run live physics).
+- For kinematics, optics, waves, chemistry, biology, economics, or math: propose interactive 2D/3D simulations (lab bench, game with levels, step-through visualiser, prediction game).
+Each idea: a catchy title, a one-sentence pitch, how it works (what the learner manipulates/wires/codes and sees), the challenge/goal that makes it a game, and the learning goal it targets. Be concrete and accurate for level ${ctx.level}.
 ${params.current ? `There is an existing simulation ("${params.current.title}", goal: "${params.current.goal}"). Also give 4-6 specific, small "improvements" phrased as change requests a teacher could apply to it (e.g. "Add a wind slider to level 2", "Show the formula with live values").` : `Return "improvements": [].`}
 Return JSON only: {"ideas":[{"title":"","pitch":"","howItWorks":"","challenge":"","learningGoal":""}],"improvements":["..."]}`;
 

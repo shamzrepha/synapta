@@ -54,6 +54,10 @@ describe("push to students", () => {
     expect(sim.hasDraft).toBe(true);
     expect(sim.mode).toBe("off");
 
+    h.pieces = new Map([[0, { index: 0, status: "ready", studioSpec: { kind: "circuit" }, version: 1 }]]);
+    h.quests = new Map();
+    expect((await liveStatus("c", "k", kc)).find((s) => s.key === "simulation")!.hasDraft).toBe(true);
+
     h.pieces = new Map();
     h.quests = new Map([[1, { index: 1, status: "ready", challenges: [{}], version: 1 }]]);
     expect((await liveStatus("c", "k", kc)).find((s) => s.key === "simulation")!.hasDraft).toBe(true);

@@ -12,6 +12,9 @@ import {
   stripHostInjection,
   type ParsedSimulation,
 } from "./build";
+import { decideSimulationMedium, generateStudioSimulation } from "./studio-mode";
+import { editDesign } from "@/lib/studio/design-ai";
+import type { DesignSpec } from "@/lib/studio/spec";
 
 const GENERATION_LOCK_MS = 4 * 60 * 1000;
 const MAX_EDIT_LOG = 20;
@@ -24,7 +27,9 @@ export interface SimEditLogEntry {
   at: string;
 }
 
-export interface StoredSimulation extends ParsedSimulation {
+export interface StoredSimulation extends Omit<ParsedSimulation, "html"> {
+  html?: string | null;
+  studioSpec?: DesignSpec | null;
   status: "ready" | "generating" | "failed";
   version: number;
   modelUsed?: string;
@@ -41,6 +46,7 @@ export interface StoredSimulation extends ParsedSimulation {
 export interface ClientSimulation {
   status: StoredSimulation["status"];
   html?: string;
+  studioSpec?: DesignSpec;
   title?: string;
   goal?: string;
   howTo?: string[];
@@ -56,6 +62,10 @@ export interface ClientSimulation {
 }
 
 export type SimGenerationMode = "create" | "edit";
+
+export function hasSimulationContent(sim: { html?: string | null; studioSpec?: DesignSpec | null } | null | undefined): boolean {
+  return !!(sim?.html || sim?.studioSpec);
+}
 
 function simulationsCollection(classId: string, kcId: string) {
   return adminDb()
@@ -91,9 +101,11 @@ export function toClientSimulation(sim: StoredSimulation | null, opts: { include
     sim.status === "generating" &&
     sim.generationStartedAt &&
     Date.now() - sim.generationStartedAt.toMillis() > GENERATION_LOCK_MS;
+  const ready = hasSimulationContent(sim);
   return {
-    status: isStaleLock ? (sim.html ? "ready" : "failed") : sim.status,
-    html: sim.html,
+    status: isStaleLock ? (ready ? "ready" : "failed") : sim.status,
+    html: sim.html || undefined,
+    studioSpec: sim.studioSpec || undefined,
     title: sim.title,
     goal: sim.goal,
     howTo: sim.howTo,
@@ -115,7 +127,8 @@ function snapshotForHistory(sim: StoredSimulation) {
   return {
     isHistory: true,
     version: sim.version,
-    html: sim.html,
+    html: sim.html ?? null,
+    studioSpec: sim.studioSpec ?? null,
     title: sim.title,
     goal: sim.goal,
     howTo: sim.howTo || [],
@@ -164,10 +177,10 @@ export async function generateAndStoreSimulation(params: {
         throw new ApiError(409, "SIM_GENERATING", "This simulation is already being built. It will appear in about a minute.");
       }
     }
-    if (existing?.html && !params.allowReplace) {
+    if (hasSimulationContent(existing) && !params.allowReplace) {
       throw new ApiError(409, "SIM_EXISTS", "A simulation already exists for this topic.");
     }
-    if (mode === "edit" && !existing?.html) {
+    if (mode === "edit" && !hasSimulationContent(existing)) {
       throw new ApiError(409, "SIM_MISSING", "There is no simulation to edit yet. Build one first.");
     }
     t.set(ref, { status: "generating", generationStartedAt: Timestamp.now(), error: null }, { merge: true });
@@ -179,7 +192,7 @@ export async function generateAndStoreSimulation(params: {
       .set(
         {
           // Keep serving the previous version if there was one
-          status: existingBefore?.html ? "ready" : "failed",
+          status: hasSimulationContent(existingBefore) ? "ready" : "failed",
           error: message,
           updatedAt: Timestamp.now(),
         },
@@ -192,110 +205,169 @@ export async function generateAndStoreSimulation(params: {
     await checkRateLimitAndQuota(params.userId, mode === "edit" ? 20000 : 12000);
     const ctx = await loadKcGroundingContext(params.classId, params.kcId, { materialBudget: 6000 });
 
-    let parsed: ParsedSimulation | null = null;
-    let weak: ParsedSimulation | null = null;
-    let weakIssues: string[] = [];
+    let nextContent: Omit<ParsedSimulation, "html"> & { html: string | null; studioSpec: DesignSpec | null } | null = null;
     let modelUsed = "";
     // Starting over must give something different, not the same lab again
-    const restartNote = existingBefore?.html && mode === "create"
-      ? `A previous lab exists for this topic ("${existingBefore.title || "untitled"}": ${existingBefore.goal || "no goal"}). The learner found it static, hard to use on a phone and poorly drawn. Do NOT reuse its layout, drawing or idea. Pick a different experiment and visual metaphor, and make it far more hands-on: the learner drags and taps things in the scene itself.`
+    const restartNote = hasSimulationContent(existingBefore) && mode === "create"
+      ? `A previous lab exists for this topic ("${existingBefore?.title || "untitled"}": ${existingBefore?.goal || "no goal"}). Do NOT reuse the exact same layout or experiment. Pick a fresh angle and make it hands-on.`
       : "";
-    const deadlineAt = Date.now() + 230_000;
-    let lastWhy = "";
-    for (let attempt = 0; attempt < 3 && !parsed; attempt++) {
-      const remaining = deadlineAt - Date.now();
-      if (attempt > 0 && weak && remaining < 85_000) break;
-      if (remaining < 20_000) break;
-      const retryNote =
-        attempt > 0
-          ? weakIssues.length
-            ? `Your last version was rejected because: ${weakIssues.join("; ")}. Fix every one of these.`
-            : `Your last answer was not a complete runnable HTML document: ${lastWhy || "it had no inline <script> with a <canvas>, <svg> or SimKit3D scene"}.`
-          : undefined;
 
-      const prompt =
-        mode === "edit" && existingBefore?.html
-          ? buildSimulationEditPrompt({
-              kcTitle: ctx.kcTitle,
-              currentHtml: stripHostInjection(existingBefore.html),
-              currentMeta: {
-                title: existingBefore.title,
-                goal: existingBefore.goal,
-                howTo: existingBefore.howTo || [],
-                concepts: existingBefore.concepts || [],
-                checkQuestion: existingBefore.checkQuestion
-                  ? {
-                      question: existingBefore.checkQuestion.question,
-                      options: existingBefore.checkQuestion.options,
-                      answer: existingBefore.checkQuestion.options[existingBefore.checkQuestion.correctIndex],
-                      explanation: existingBefore.checkQuestion.explanation,
-                    }
-                  : null,
-              },
-              changeRequest: params.changeRequest,
-              runtimeError: [params.previousError, retryNote].filter(Boolean).join(" ") || undefined,
-            })
-          : buildSimulationPrompt({
-              kcTitle: ctx.kcTitle,
-              subject: ctx.subject,
-              level: ctx.level,
-              contextText: ctx.contextText,
-              objectives: ctx.objectives,
-              otherTopics: ctx.otherTopics,
-              teacherInstructions: [params.instructions, restartNote].filter(Boolean).join("\n\n") || undefined,
-              previousError: params.previousError || retryNote,
-            });
-
-      const result = await generateWithFallback({
-    // shared class content is written in the source language; each reader gets a translation
-    learnerLanguage: false,
-        task: "sim_build",
-        systemInstruction: prompt.systemInstruction,
-        userPrompt: prompt.userPrompt,
+    if (mode === "edit" && existingBefore?.studioSpec) {
+      const instruction = [params.changeRequest, params.previousError ? `Fix this runtime error: ${params.previousError}` : ""].filter(Boolean).join("\n");
+      const edited = await editDesign({
+        spec: existingBefore.studioSpec,
+        instruction,
         userId: params.userId,
-        // Edits should stay close to the original code
-        temperature: mode === "edit" ? 0.2 : restartNote ? 0.9 : 0.6,
-        isPrivileged: true,
-        // a whole page with a 3D scene is long; without this some providers stop early (or reserve too little) and the page is cut off
-        maxOutputTokens: 24_000,
-        maxWaitMs: Math.max(20_000, deadlineAt - Date.now()),
       });
-      modelUsed = result.modelUsed;
-      const candidate = parseGeneratedSimulation(result.text, ctx.kcTitle);
-      if (!candidate) {
-        lastWhy = diagnoseSimulation(result.text);
-        console.warn(`[sim] attempt ${attempt + 1} with ${modelUsed} was unusable: ${lastWhy} (${result.text?.length ?? 0} chars)`);
+      if (!edited.changed) {
+        throw new AiGenerationError(edited.cannot || "The AI couldn't apply that change cleanly. Your simulation is unchanged — try rephrasing the change.");
       }
-      if (candidate) {
-        const issues = mode === "edit" ? [] : interactionIssues(candidate.html);
-        if (issues.length && attempt === 0) {
-          weak = candidate;
-          weakIssues = issues;
-        } else parsed = candidate;
+      modelUsed = "studio";
+      nextContent = {
+        html: null,
+        studioSpec: edited.spec,
+        title: existingBefore.title,
+        goal: existingBefore.goal,
+        howTo: existingBefore.howTo || [],
+        concepts: existingBefore.concepts || [],
+        checkQuestion: existingBefore.checkQuestion || null,
+      };
+    } else if (mode === "create") {
+      const medium = await decideSimulationMedium({
+        kcTitle: ctx.kcTitle,
+        subject: ctx.subject,
+        level: ctx.level,
+        contextText: ctx.contextText,
+        instructions: params.instructions,
+        userId: params.userId,
+      });
+      if (medium.medium === "studio") {
+        const studio = await generateStudioSimulation({
+          kcTitle: ctx.kcTitle,
+          subject: ctx.subject,
+          level: ctx.level,
+          contextText: ctx.contextText,
+          objectives: ctx.objectives,
+          instructions: [params.instructions, restartNote].filter(Boolean).join("\n\n") || undefined,
+          kind: medium.kind,
+          userId: params.userId,
+        });
+        modelUsed = "studio";
+        nextContent = {
+          html: null,
+          studioSpec: studio.studioSpec,
+          title: studio.title,
+          goal: studio.goal,
+          howTo: studio.howTo,
+          concepts: studio.concepts,
+          checkQuestion: studio.checkQuestion,
+        };
       }
     }
-    if (!parsed && !weak && lastWhy) {
-      throw new AiGenerationError(`The AI couldn't build a working simulation: ${lastWhy.split(":")[0]}. Try again, or pick a different model in Admin.`);
-    }
-    // a second attempt that failed outright still leaves the first, usable one
-    if (!parsed && weak) parsed = weak;
 
-    if (!parsed) {
-      throw new AiGenerationError(
-        mode === "edit"
-          ? "The AI couldn't apply that change cleanly. Your simulation is unchanged — try rephrasing the change."
-          : "The AI couldn't build a working simulation for this topic. Try again, or add more specific instructions."
-      );
-    }
+    if (!nextContent) {
+      let parsed: ParsedSimulation | null = null;
+      let weak: ParsedSimulation | null = null;
+      let weakIssues: string[] = [];
+      const deadlineAt = Date.now() + 230_000;
+      let lastWhy = "";
+      for (let attempt = 0; attempt < 3 && !parsed; attempt++) {
+        const remaining = deadlineAt - Date.now();
+        if (attempt > 0 && weak && remaining < 85_000) break;
+        if (remaining < 20_000) break;
+        const retryNote =
+          attempt > 0
+            ? weakIssues.length
+              ? `Your last version was rejected because: ${weakIssues.join("; ")}. Fix every one of these.`
+              : `Your last answer was not a complete runnable HTML document: ${lastWhy || "it had no inline <script> with a <canvas>, <svg> or SimKit3D scene"}.`
+            : undefined;
 
-    // An edit that drops the check question keeps the previous one, so lab credit isn't lost
-    if (mode === "edit" && !parsed.checkQuestion && existingBefore?.checkQuestion) {
-      parsed = { ...parsed, checkQuestion: existingBefore.checkQuestion };
+        const prompt =
+          mode === "edit" && existingBefore?.html
+            ? buildSimulationEditPrompt({
+                kcTitle: ctx.kcTitle,
+                currentHtml: stripHostInjection(existingBefore.html),
+                currentMeta: {
+                  title: existingBefore.title,
+                  goal: existingBefore.goal,
+                  howTo: existingBefore.howTo || [],
+                  concepts: existingBefore.concepts || [],
+                  checkQuestion: existingBefore.checkQuestion
+                    ? {
+                        question: existingBefore.checkQuestion.question,
+                        options: existingBefore.checkQuestion.options,
+                        answer: existingBefore.checkQuestion.options[existingBefore.checkQuestion.correctIndex],
+                        explanation: existingBefore.checkQuestion.explanation,
+                      }
+                    : null,
+                },
+                changeRequest: params.changeRequest,
+                runtimeError: [params.previousError, retryNote].filter(Boolean).join(" ") || undefined,
+              })
+            : buildSimulationPrompt({
+                kcTitle: ctx.kcTitle,
+                subject: ctx.subject,
+                level: ctx.level,
+                contextText: ctx.contextText,
+                objectives: ctx.objectives,
+                otherTopics: ctx.otherTopics,
+                teacherInstructions: [params.instructions, restartNote].filter(Boolean).join("\n\n") || undefined,
+                previousError: params.previousError || retryNote,
+              });
+
+        const result = await generateWithFallback({
+          // shared class content is written in the source language; each reader gets a translation
+          learnerLanguage: false,
+          task: "sim_build",
+          systemInstruction: prompt.systemInstruction,
+          userPrompt: prompt.userPrompt,
+          userId: params.userId,
+          // Edits should stay close to the original code
+          temperature: mode === "edit" ? 0.2 : restartNote ? 0.9 : 0.6,
+          isPrivileged: true,
+          // a whole page with a 3D scene is long; without this some providers stop early (or reserve too little) and the page is cut off
+          maxOutputTokens: 24_000,
+          maxWaitMs: Math.max(20_000, deadlineAt - Date.now()),
+        });
+        modelUsed = result.modelUsed;
+        const candidate = parseGeneratedSimulation(result.text, ctx.kcTitle);
+        if (!candidate) {
+          lastWhy = diagnoseSimulation(result.text);
+          console.warn(`[sim] attempt ${attempt + 1} with ${modelUsed} was unusable: ${lastWhy} (${result.text?.length ?? 0} chars)`);
+        }
+        if (candidate) {
+          const issues = mode === "edit" ? [] : interactionIssues(candidate.html);
+          if (issues.length && attempt === 0) {
+            weak = candidate;
+            weakIssues = issues;
+          } else parsed = candidate;
+        }
+      }
+      if (!parsed && !weak && lastWhy) {
+        throw new AiGenerationError(`The AI couldn't build a working simulation: ${lastWhy.split(":")[0]}. Try again, or pick a different model in Admin.`);
+      }
+      // a second attempt that failed outright still leaves the first, usable one
+      if (!parsed && weak) parsed = weak;
+
+      if (!parsed) {
+        throw new AiGenerationError(
+          mode === "edit"
+            ? "The AI couldn't apply that change cleanly. Your simulation is unchanged — try rephrasing the change."
+            : "The AI couldn't build a working simulation for this topic. Try again, or add more specific instructions."
+        );
+      }
+
+      // An edit that drops the check question keeps the previous one, so lab credit isn't lost
+      if (mode === "edit" && !parsed.checkQuestion && existingBefore?.checkQuestion) {
+        parsed = { ...parsed, checkQuestion: existingBefore.checkQuestion };
+      }
+
+      nextContent = { ...parsed, studioSpec: null };
     }
 
     const version = (existingBefore?.version || 0) + 1;
     const kind: SimEditLogEntry["kind"] =
-      mode === "edit" ? (params.changeRequest ? "edit" : "fix") : existingBefore?.html ? "rebuild" : "create";
+      mode === "edit" ? (params.changeRequest ? "edit" : "fix") : hasSimulationContent(existingBefore) ? "rebuild" : "create";
     const note =
       kind === "edit"
         ? params.changeRequest!.slice(0, 200)
@@ -306,7 +378,7 @@ export async function generateAndStoreSimulation(params: {
         : "First version";
 
     let historyVersions = existingBefore?.historyVersions || [];
-    if (existingBefore?.html) {
+    if (hasSimulationContent(existingBefore) && existingBefore) {
       const archivedVersion = existingBefore.version || 0;
       await historyRef(params.classId, params.kcId, archivedVersion).set(snapshotForHistory(existingBefore));
       historyVersions = [...historyVersions.filter((v) => v !== archivedVersion), archivedVersion];
@@ -318,7 +390,7 @@ export async function generateAndStoreSimulation(params: {
     }
 
     const stored: StoredSimulation = {
-      ...parsed,
+      ...nextContent,
       status: "ready",
       version,
       modelUsed,
@@ -361,7 +433,8 @@ export async function undoSimulation(params: { classId: string; kcId: string; us
     // Version numbers only move forward so students' evidence stays traceable
     const version = (current?.version || p.version) + 1;
     const restored: StoredSimulation = {
-      html: p.html,
+      html: p.html ?? null,
+      studioSpec: p.studioSpec ?? null,
       title: p.title,
       goal: p.goal,
       howTo: p.howTo || [],
