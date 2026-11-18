@@ -54,7 +54,7 @@ export const FEATURES: FeatureEntry[] = [
   { n: 32, id: "report", title: "Weekly report card", blurb: "A summary you can share with a parent or teacher.", emoji: "📋", href: "/report", group: "Rewards", status: "live" },
   { n: 33, id: "goals", title: "Goal tracker", blurb: "“Pass physics by March” turned into daily tasks.", emoji: "🎓", href: "/goals", group: "Rewards", status: "live" },
   { n: 34, id: "heatmap", title: "Study heatmap", blurb: "Your study days at a glance, like GitHub's.", emoji: "🟩", href: "/activity", group: "Rewards", status: "live" },
-  { n: 35, id: "plans", title: "AI lesson plans", blurb: "Lesson plans and quizzes from a syllabus upload.", emoji: "🧑‍🏫", href: "/teach/plans", group: "Teachers", status: "live" },
+  { n: 35, id: "lessonplans", title: "AI lesson plans", blurb: "Lesson plans and quizzes from a syllabus upload.", emoji: "🧑‍🏫", href: "/teach/plans", group: "Teachers", status: "live" },
   { n: 36, id: "grading", title: "Auto-grading", blurb: "AI marks short answers; you can override.", emoji: "✅", href: "/teach/grading", group: "Teachers", status: "live" },
   { n: 37, id: "attendance", title: "Attendance check-ins", blurb: "Check in to live sessions to record attendance.", emoji: "🙋", href: "/teach/attendance", group: "Teachers", status: "live" },
   { n: 38, id: "announcements", title: "Class announcements", blurb: "Announcements with read receipts.", emoji: "📣", href: "/classes/announcements", group: "Teachers", status: "live" },

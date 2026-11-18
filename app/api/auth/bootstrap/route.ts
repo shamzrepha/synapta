@@ -6,6 +6,7 @@ import { z } from "zod";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { touchUserStreak } from "@/lib/streak/server";
 import { recordActivityDay } from "@/lib/activity/server";
+import { isPlaceholderHandle, isPlaceholderName } from "@/lib/auth/placeholders";
 
 export const runtime = "nodejs";
 
@@ -132,8 +133,8 @@ export async function POST(req: NextRequest) {
         monthlyTokensUsed: 0,
         usagePeriod: currentPeriod,
         disabled: false,
-        // Fresh users go through Sprout's 5-step animated setup quest
-        profileSetup: false,
+        // Someone who typed their own handle (email sign-up) has already done it; Google sign-ups are asked for a handle and a picture
+        profileSetup: !!username,
         institution: null,
         department: null,
         level: null,
@@ -162,19 +163,15 @@ export async function POST(req: NextRequest) {
 
       // If existing user has placeholder or outdated name, sync from Google token
       let currentDisplayName = existing.displayName;
-      if (
-        !currentDisplayName ||
-        currentDisplayName.toLowerCase().includes("alex rivera") ||
-        currentDisplayName === "Learner" ||
-        (decoded.name && currentDisplayName !== decoded.name)
-      ) {
+      // Only a blank or placeholder name is filled in: a name the person chose themselves is never overwritten at sign-in.
+      if (!currentDisplayName || isPlaceholderName(currentDisplayName)) {
         currentDisplayName = decoded.name || resolvedDisplayName;
         updates.displayName = currentDisplayName;
       }
 
       // If existing user has no username or legacy placeholder handle, update
       let currentUsername = existing.username;
-      if (!currentUsername || currentUsername.includes("alex") || currentUsername.includes("rivera")) {
+      if (!currentUsername || isPlaceholderHandle(currentUsername)) {
         currentUsername = handle;
         updates.username = currentUsername;
       } else {

@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
-import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { TERM_DAYS } from "@/lib/billing/plans";
 import { LEARNING_COHORTS, type LearningCohortId } from "@/lib/learning/telemetry";
+import { canAssignTeachers, canManageSchool, makeSchoolCode, membershipFor, sponsorshipPatch } from "@/lib/schools/policy";
+import { loadCampuses } from "@/lib/schools/standings";
 
 export const runtime = "nodejs";
 
 const SCHOOL_KINDS = ["primary", "secondary", "university", "polytechnic", "college", "academy"] as const;
+
+/** A self-registered school gets a free 14-day pilot, so the size of that pilot is capped. An admin raises it after an invoice is paid. */
+const PUBLIC_PILOT_MAX_SEATS = 200;
+/** The same cap for a signed-in user starting a school: bigger numbers come with an invoice, granted by an admin. */
+const PILOT_MAX_SEATS = 500;
+/** Most members one school read, notification fan-out or roster ever touches in a single request. */
+const MEMBER_READ_LIMIT = 1000;
 
 const postSchema = z.discriminatedUnion("action", [
   z.object({
@@ -17,7 +26,7 @@ const postSchema = z.discriminatedUnion("action", [
     name: z.string().trim().min(3).max(140),
     kind: z.enum(SCHOOL_KINDS).default("university"),
     department: z.string().trim().max(120).optional().default(""),
-    seatLimit: z.number().int().min(10).max(10_000).optional().default(50),
+    seatLimit: z.number().int().min(10).max(PILOT_MAX_SEATS).optional().default(50),
   }),
   z.object({
     action: z.literal("public_register_school"),
@@ -27,7 +36,7 @@ const postSchema = z.discriminatedUnion("action", [
     contactName: z.string().trim().min(2).max(100),
     contactEmail: z.string().trim().email().max(140),
     contactPhone: z.string().trim().max(40).optional().default(""),
-    seatLimit: z.number().int().min(10).max(10_000).optional().default(100),
+    seatLimit: z.number().int().min(10).max(PUBLIC_PILOT_MAX_SEATS).optional().default(100),
   }),
   z.object({
     action: z.literal("register_members"),
@@ -54,16 +63,6 @@ const postSchema = z.discriminatedUnion("action", [
     body: z.string().trim().min(2).max(500),
   }),
 ]);
-
-function makeSchoolCode(name: string): string {
-  const prefix = name
-    .replace(/[^A-Za-z]/g, "")
-    .slice(0, 4)
-    .toUpperCase()
-    .padEnd(3, "X");
-  const num = Math.floor(1000 + Math.random() * 9000);
-  return `SCH-${prefix}-${num}`;
-}
 
 export interface SchoolStudentRow {
   uid: string;
@@ -96,152 +95,97 @@ export interface InterUniStanding {
   topScholarXp: number;
 }
 
+type Db = FirebaseFirestore.Firestore;
+
+async function standings(): Promise<InterUniStanding[]> {
+  const campuses = await loadCampuses();
+  return campuses.slice(0, 20).map((c, idx) => ({
+    rank: idx + 1,
+    institution: c.institution,
+    studentCount: c.studentCount,
+    totalXp: c.totalXp,
+    avgXp: Math.round(c.totalXp / Math.max(1, c.studentCount)),
+    avgReadiness: Math.round(c.readinessSum / Math.max(1, c.studentCount)),
+    topScholarName: c.topScholarName || "Scholar",
+    topScholarXp: Math.max(0, c.topScholarXp),
+  }));
+}
+
+/** The school this caller is looking at: the one they asked for if they may see it, else the one they belong to or run. Looked up directly, never by scanning. */
+async function findActiveSchool(db: Db, caller: { uid: string; role: string }, callerSchoolId: string, requestedId: string) {
+  const byId = async (id: string) => {
+    if (!id) return null;
+    const s = await db.collection("schools").doc(id).get();
+    return s.exists ? s : null;
+  };
+  if (requestedId) {
+    const s = await byId(requestedId);
+    if (s && (canManageSchool(caller, s.data() || {}) || callerSchoolId === s.id)) return s;
+  }
+  const own = await byId(callerSchoolId);
+  if (own) return own;
+  const asTeacher = await db.collection("schools").where("teacherUids", "array-contains", caller.uid).limit(1).get();
+  if (!asTeacher.empty) return asTeacher.docs[0];
+  const asPrincipal = await db.collection("schools").where("principalUid", "==", caller.uid).limit(1).get();
+  return asPrincipal.empty ? null : asPrincipal.docs[0];
+}
+
 /**
  * GET /api/schools
- * Returns:
- * 1. The caller's active School Account (Principal, Teacher, or Student view) + full cross-class student progress roster.
- * 2. Pan-African Inter-University & Inter-School Championship Standings.
- * 3. All registered B2B schools (when caller is platform admin).
+ * ?mode=directory  public list of school names (for sign-up and the landing page)
+ * ?mode=standings  just the Inter-University Cup table
+ * default          the caller's own school (principal/teacher get the roster, a student only the totals), the Cup table,
+ *                  and, for a platform admin, every school.
  */
 export async function GET(req: NextRequest) {
   try {
     const db = adminDb();
     const mode = req.nextUrl.searchParams.get("mode") || "";
 
-    // Lightweight directory lookup for onboarding / landing page / school selectors (only real registered schools)
     if (mode === "directory") {
+      const limited = await checkRateLimit(req, { keyPrefix: "school_directory", limit: 60, windowMs: 60_000 });
+      if (limited) return limited;
       const schoolsSnap = await db.collection("schools").orderBy("createdAt", "desc").limit(100).get();
-      const registeredSchools = schoolsSnap.docs.map((d) => {
-        const sd = d.data() || {};
-        return {
-          id: d.id,
-          name: String(sd.name || ""),
-          kind: String(sd.kind || "university"),
-          department: String(sd.department || ""),
-        };
-      }).filter((s) => s.name.length > 0);
+      const registeredSchools = schoolsSnap.docs
+        .map((d) => {
+          const sd = d.data() || {};
+          return { id: d.id, name: String(sd.name || ""), kind: String(sd.kind || "university"), department: String(sd.department || "") };
+        })
+        .filter((s) => s.name.length > 0);
       return NextResponse.json({ ok: true, data: { registeredSchools } });
     }
 
     const caller = await requireUser(req);
 
-    const [callerDoc, schoolsSnap, usersSnap] = await Promise.all([
-      db.collection("users").doc(caller.uid).get(),
-      db.collection("schools").orderBy("createdAt", "desc").limit(50).get(),
-      db.collection("users").limit(600).get(),
-    ]);
+    if (mode === "standings") {
+      return NextResponse.json({ ok: true, data: { interUniStandings: await standings() } });
+    }
 
+    const callerDoc = await db.collection("users").doc(caller.uid).get();
     const callerData = callerDoc.data() || {};
-    const requestedSchoolId = req.nextUrl.searchParams.get("schoolId") || "";
+    const callerSchoolId = typeof callerData.schoolId === "string" ? callerData.schoolId.trim() : "";
+    const requestedSchoolId = (req.nextUrl.searchParams.get("schoolId") || "").slice(0, 120);
 
-    // Find caller's school: explicit query (if admin/principal/teacher), or callerData.schoolId, or principalUid/teacherUids match
-    let activeSchoolDoc = schoolsSnap.docs.find((d) => {
-      const sd = d.data();
-      if (requestedSchoolId && d.id === requestedSchoolId) {
-        return (
-          caller.role === "admin" ||
-          sd.principalUid === caller.uid ||
-          (Array.isArray(sd.teacherUids) && sd.teacherUids.includes(caller.uid)) ||
-          callerData.schoolId === d.id
-        );
-      }
-      return false;
-    });
-
-    if (!activeSchoolDoc) {
-      activeSchoolDoc = schoolsSnap.docs.find((d) => {
-        const sd = d.data();
-        return (
-          sd.principalUid === caller.uid ||
-          (Array.isArray(sd.teacherUids) && sd.teacherUids.includes(caller.uid)) ||
-          callerData.schoolId === d.id
-        );
-      });
-    }
-
-    // Build Inter-University & Inter-School Championship Standings from all users with an institution
-    const campusMap = new Map<
-      string,
-      {
-        institution: string;
-        studentCount: number;
-        totalXp: number;
-        readinessSum: number;
-        topScholarName: string;
-        topScholarXp: number;
-      }
-    >();
-
-    for (const uDoc of usersSnap.docs) {
-      const u = uDoc.data() || {};
-      const inst = typeof u.institution === "string" ? u.institution.trim() : "";
-      if (!inst) continue;
-      const xp = typeof u.xp === "number" ? u.xp : 0;
-      const readiness =
-        typeof u.telemetryProfile?.predictedExamReadiness === "number"
-          ? u.telemetryProfile.predictedExamReadiness
-          : 68;
-      const name = u.displayName || u.username || "Scholar";
-
-      const key = inst.toLowerCase();
-      const cur = campusMap.get(key) || {
-        institution: inst,
-        studentCount: 0,
-        totalXp: 0,
-        readinessSum: 0,
-        topScholarName: name,
-        topScholarXp: -1,
-      };
-      cur.studentCount += 1;
-      cur.totalXp += xp;
-      cur.readinessSum += readiness;
-      if (xp > cur.topScholarXp) {
-        cur.topScholarXp = xp;
-        cur.topScholarName = name;
-      }
-      campusMap.set(key, cur);
-    }
-
-    const interUniStandings: InterUniStanding[] = Array.from(campusMap.values())
-      .sort((a, b) => b.totalXp - a.totalXp || b.studentCount - a.studentCount)
-      .slice(0, 20)
-      .map((item, idx) => ({
-        rank: idx + 1,
-        institution: item.institution,
-        studentCount: item.studentCount,
-        totalXp: item.totalXp,
-        avgXp: Math.round(item.totalXp / Math.max(1, item.studentCount)),
-        avgReadiness: Math.round(item.readinessSum / Math.max(1, item.studentCount)),
-        topScholarName: item.topScholarName,
-        topScholarXp: Math.max(0, item.topScholarXp),
-      }));
+    const [activeSchoolDoc, interUniStandings] = await Promise.all([
+      findActiveSchool(db, caller, callerSchoolId, requestedSchoolId),
+      standings(),
+    ]);
 
     let mySchool: Record<string, unknown> | null = null;
     if (activeSchoolDoc) {
-      const sd = activeSchoolDoc.data();
-      const isManager =
-        caller.role === "admin" ||
-        sd.principalUid === caller.uid ||
-        (Array.isArray(sd.teacherUids) && sd.teacherUids.includes(caller.uid));
+      const sd = activeSchoolDoc.data() || {};
+      const isManager = canManageSchool(caller, sd);
 
-      // Gather all students & teachers in this school
-      const schoolNameLower = String(sd.name || "").toLowerCase();
-      const schoolMembers = usersSnap.docs.filter((uDoc) => {
-        const u = uDoc.data() || {};
-        if (u.schoolId === activeSchoolDoc.id) return true;
-        if (schoolNameLower && String(u.institution || "").toLowerCase() === schoolNameLower) return true;
-        return false;
-      });
+      // Members are the accounts linked to this school id. A name typed into a profile does not make anyone a member.
+      const membersSnap = await db.collection("users").where("schoolId", "==", activeSchoolDoc.id).limit(MEMBER_READ_LIMIT).get();
 
-      const students: SchoolStudentRow[] = [];
-      for (const mDoc of schoolMembers) {
+      const students: SchoolStudentRow[] = membersSnap.docs.map((mDoc) => {
         const u = mDoc.data() || {};
         const tp = u.telemetryProfile || {};
         const cohortId = (tp.dominantCohort || "step_by_step_procedural") as LearningCohortId;
         const readiness = typeof tp.predictedExamReadiness === "number" ? tp.predictedExamReadiness : 65;
         const studyMs = typeof tp.totalStudyTimeMs === "number" ? tp.totalStudyTimeMs : 0;
-
-        students.push({
+        return {
           uid: mDoc.id,
           displayName: u.displayName || u.username || "Student",
           username: u.username || null,
@@ -259,13 +203,11 @@ export async function GET(req: NextRequest) {
           totalQuestionsAttempted: typeof tp.totalQuestionsAttempted === "number" ? tp.totalQuestionsAttempted : 0,
           totalStudyMinutes: Math.round(studyMs / 60_000),
           atRisk: readiness < 55,
-        });
-      }
-
+        };
+      });
       students.sort((a, b) => b.xp - a.xp);
 
-      const seatExpiresMs =
-        sd.seatExpiresAt?.toMillis?.() || (typeof sd.seatExpiresAt === "number" ? sd.seatExpiresAt : 0);
+      const seatExpiresMs = sd.seatExpiresAt?.toMillis?.() || (typeof sd.seatExpiresAt === "number" ? sd.seatExpiresAt : 0);
 
       mySchool = {
         id: activeSchoolDoc.id,
@@ -281,59 +223,48 @@ export async function GET(req: NextRequest) {
         seatExpiresAt: seatExpiresMs ? new Date(seatExpiresMs).toISOString() : null,
         isActiveLicense: seatExpiresMs > Date.now(),
         isManager,
-        avgReadiness:
-          students.length > 0
-            ? Math.round(students.reduce((acc, s) => acc + s.predictedReadiness, 0) / students.length)
-            : 68,
-        atRiskCount: students.filter((s) => s.role === "student" && s.atRisk).length,
+        avgReadiness: students.length > 0 ? Math.round(students.reduce((acc, s) => acc + s.predictedReadiness, 0) / students.length) : 68,
+        atRiskCount: isManager ? students.filter((s) => s.role === "student" && s.atRisk).length : 0,
         totalStudyMinutes: students.reduce((acc, s) => acc + s.totalStudyMinutes, 0),
-        roster: students,
+        // Per-student progress is for the people who run the school; a classmate only gets the totals above.
+        roster: isManager ? students : [],
       };
     }
 
-    const allSchools =
-      caller.role === "admin"
-        ? schoolsSnap.docs.map((d) => {
-            const sd = d.data();
-            const expMs = sd.seatExpiresAt?.toMillis?.() || 0;
-            return {
-              id: d.id,
-              name: sd.name,
-              kind: sd.kind || "university",
-              department: sd.department || "",
-              inviteCode: sd.inviteCode,
-              seatLimit: sd.seatLimit || 50,
-              studentCount: sd.studentCount || 0,
-              seatExpiresAt: expMs ? new Date(expMs).toISOString() : null,
-              isActiveLicense: expMs > Date.now(),
-            };
-          })
-        : [];
-
-    const registeredSchools = schoolsSnap.docs
-      .map((d) => {
-        const sd = d.data() || {};
+    let allSchools: Array<Record<string, unknown>> = [];
+    if (caller.role === "admin") {
+      const schoolsSnap = await db.collection("schools").orderBy("createdAt", "desc").limit(50).get();
+      allSchools = schoolsSnap.docs.map((d) => {
+        const sd = d.data();
+        const expMs = sd.seatExpiresAt?.toMillis?.() || 0;
         return {
           id: d.id,
-          name: String(sd.name || ""),
-          kind: String(sd.kind || "university"),
-          department: String(sd.department || ""),
+          name: sd.name,
+          kind: sd.kind || "university",
+          department: sd.department || "",
+          inviteCode: sd.inviteCode,
+          seatLimit: sd.seatLimit || 50,
+          studentCount: sd.studentCount || 0,
+          seatExpiresAt: expMs ? new Date(expMs).toISOString() : null,
+          isActiveLicense: expMs > Date.now(),
         };
-      })
-      .filter((s) => s.name.length > 0);
+      });
+    }
 
-    return NextResponse.json({
-      ok: true,
-      data: {
-        mySchool,
-        interUniStandings,
-        allSchools,
-        registeredSchools,
-      },
-    });
+    return NextResponse.json({ ok: true, data: { mySchool, interUniStandings, allSchools } });
   } catch (error) {
     return handleAuthError(error);
   }
+}
+
+/** An invite code that no other school has, so one code never opens two schools. */
+async function freshInviteCode(db: Db, name: string): Promise<string> {
+  for (let i = 0; i < 5; i++) {
+    const code = makeSchoolCode(name);
+    const clash = await db.collection("schools").where("inviteCode", "==", code).limit(1).get();
+    if (clash.empty) return code;
+  }
+  throw new ApiError(503, "TRY_AGAIN", "Could not create a unique school code. Please try again.");
 }
 
 export async function POST(req: NextRequest) {
@@ -341,17 +272,13 @@ export async function POST(req: NextRequest) {
     const body = await parseJson(req, postSchema);
     const db = adminDb();
 
-    // Public self-registration from the Landing Page for Primary Schools, Secondary Schools, Universities & Academies
+    // Public self-registration from the landing page. Signed-out, so it is limited per IP and across all server instances.
     if (body.action === "public_register_school") {
-      const limited = await checkRateLimit(req, {
-        keyPrefix: "public_school_reg",
-        limit: 8,
-        windowMs: 60_000,
-      });
+      const limited = await checkRateLimit(req, { keyPrefix: "public_school_reg", limit: 3, windowMs: 3_600_000, shared: true });
       if (limited) return limited;
 
       const ref = db.collection("schools").doc();
-      const inviteCode = makeSchoolCode(body.name);
+      const inviteCode = await freshInviteCode(db, body.name);
       const pilotExpiry = Timestamp.fromMillis(Date.now() + 14 * 86_400_000);
       const seats = body.seatLimit ?? 100;
 
@@ -402,26 +329,27 @@ export async function POST(req: NextRequest) {
     }
 
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, {
-      uid: caller.uid,
-      keyPrefix: "schools_action",
-      limit: 15,
-      windowMs: 60_000,
-    });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "schools_action", limit: 15, windowMs: 60_000 });
     if (limited) return limited;
 
     if (body.action === "create_school") {
-      const callerSnap = await db.collection("users").doc(caller.uid).get();
-      const callerData = callerSnap.data() || {};
+      const costly = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "schools_create", limit: 3, windowMs: 3_600_000, shared: true });
+      if (costly) return costly;
+
+      const callerRef = db.collection("users").doc(caller.uid);
+      const callerData = (await callerRef.get()).data() || {};
+      if (membershipFor(callerData, "") !== "join") {
+        throw new ApiError(409, "ALREADY_IN_SCHOOL", "Your account already belongs to a school. One account can belong to one school.");
+      }
 
       const ref = db.collection("schools").doc();
-      const inviteCode = makeSchoolCode(body.name);
-      // 14-day pilot license by default so the school principal can test immediately during a live pitch;
-      // Admin can extend to 135-day full semester with 1 click once invoice is paid.
+      const inviteCode = await freshInviteCode(db, body.name);
+      // 14-day pilot licence by default; an admin extends to a full 135-day semester once the invoice is paid.
       const pilotExpiry = Timestamp.fromMillis(Date.now() + 14 * 86_400_000);
       const seats = body.seatLimit ?? 50;
 
-      await ref.set({
+      const batch = db.batch();
+      batch.set(ref, {
         id: ref.id,
         name: body.name,
         kind: body.kind ?? "university",
@@ -436,67 +364,13 @@ export async function POST(req: NextRequest) {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
-
-      // Upgrade the creator to school-sponsored plan & link schoolId
-      await db
-        .collection("users")
-        .doc(caller.uid)
-        .set(
-          {
-            schoolId: ref.id,
-            institution: body.name,
-            ...(body.department ? { department: body.department } : {}),
-            plan: "school",
-            planExpiresAt: pilotExpiry,
-            updatedAt: Timestamp.now(),
-          },
-          { merge: true }
-        );
-
-      return NextResponse.json({
-        ok: true,
-        data: {
+      batch.set(
+        callerRef,
+        {
           schoolId: ref.id,
-          inviteCode,
-          message: `School account created for ${body.name}! Share code ${inviteCode} or register students below.`,
-        },
-      });
-    }
-
-    if (body.action === "join_by_code") {
-      const code = body.inviteCode.trim().toUpperCase();
-      const snap = await db.collection("schools").where("inviteCode", "==", code).limit(1).get();
-      if (snap.empty) {
-        throw new ApiError(404, "NOT_FOUND", "No school found with that invite code. Check the code with your Principal or HOD.");
-      }
-
-      const schoolDoc = snap.docs[0];
-      const sd = schoolDoc.data();
-      const expMs = sd.seatExpiresAt?.toMillis?.() || 0;
-      if (expMs <= Date.now()) {
-        throw new ApiError(403, "LICENSE_EXPIRED", "This school's semester license has expired. Please ask your school administrator to renew.");
-      }
-      if ((sd.studentCount || 0) >= (sd.seatLimit || 50)) {
-        throw new ApiError(403, "SEATS_FULL", "All sponsored student seats for this school are currently filled.");
-      }
-
-      const batch = db.batch();
-      batch.set(
-        db.collection("users").doc(caller.uid),
-        {
-          schoolId: schoolDoc.id,
-          institution: sd.name,
-          ...(sd.department ? { department: sd.department } : {}),
-          plan: "school",
-          planExpiresAt: sd.seatExpiresAt,
-          updatedAt: Timestamp.now(),
-        },
-        { merge: true }
-      );
-      batch.set(
-        schoolDoc.ref,
-        {
-          studentCount: (sd.studentCount || 0) + 1,
+          institution: body.name,
+          ...(body.department ? { department: body.department } : {}),
+          ...sponsorshipPatch(callerData, pilotExpiry),
           updatedAt: Timestamp.now(),
         },
         { merge: true }
@@ -505,109 +379,155 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         ok: true,
-        data: {
-          schoolId: schoolDoc.id,
-          schoolName: sd.name,
-          message: `Joined ${sd.name}! Your account is now sponsored by your school.`,
-        },
+        data: { schoolId: ref.id, inviteCode, message: `School account created for ${body.name}! Share code ${inviteCode} or register students below.` },
+      });
+    }
+
+    if (body.action === "join_by_code") {
+      const guess = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "schools_join", limit: 8, windowMs: 600_000 });
+      if (guess) return guess;
+
+      const code = body.inviteCode.trim().toUpperCase();
+      const snap = await db.collection("schools").where("inviteCode", "==", code).limit(1).get();
+      if (snap.empty) {
+        throw new ApiError(404, "NOT_FOUND", "No school found with that invite code. Check the code with your Principal or HOD.");
+      }
+      const schoolRef = snap.docs[0].ref;
+      const userRef = db.collection("users").doc(caller.uid);
+
+      // Seat count and the one-school rule are checked and written together, so two students racing for the last seat cannot both get it.
+      const result = await db.runTransaction(async (tx) => {
+        const [schoolSnap, userSnap] = await Promise.all([tx.get(schoolRef), tx.get(userRef)]);
+        const sd = schoolSnap.data() || {};
+        const u = userSnap.data() || {};
+        const verdict = membershipFor(u, schoolSnap.id);
+        if (verdict === "other_school") {
+          throw new ApiError(409, "ALREADY_IN_SCHOOL", "Your account already belongs to another school. Ask your school administrator to move you.");
+        }
+        if (verdict === "already_here") return { id: schoolSnap.id, name: String(sd.name || "") };
+        const expMs = sd.seatExpiresAt?.toMillis?.() || 0;
+        if (expMs <= Date.now()) {
+          throw new ApiError(403, "LICENSE_EXPIRED", "This school's semester license has expired. Please ask your school administrator to renew.");
+        }
+        if ((sd.studentCount || 0) >= (sd.seatLimit || 50)) {
+          throw new ApiError(403, "SEATS_FULL", "All sponsored student seats for this school are currently filled.");
+        }
+        tx.set(
+          userRef,
+          {
+            schoolId: schoolSnap.id,
+            institution: sd.name,
+            ...(sd.department ? { department: sd.department } : {}),
+            ...sponsorshipPatch(u, sd.seatExpiresAt),
+            updatedAt: Timestamp.now(),
+          },
+          { merge: true }
+        );
+        tx.set(schoolRef, { studentCount: (sd.studentCount || 0) + 1, updatedAt: Timestamp.now() }, { merge: true });
+        return { id: schoolSnap.id, name: String(sd.name || "") };
+      });
+
+      return NextResponse.json({
+        ok: true,
+        data: { schoolId: result.id, schoolName: result.name, message: `Joined ${result.name}! Your account is now sponsored by your school.` },
       });
     }
 
     if (body.action === "register_members") {
       const schoolRef = db.collection("schools").doc(body.schoolId);
       const schoolSnap = await schoolRef.get();
-      if (!schoolSnap.exists) {
-        throw new ApiError(404, "NOT_FOUND", "School not found.");
-      }
-      const sd = schoolSnap.data()!;
-      const isAllowed =
-        caller.role === "admin" ||
-        sd.principalUid === caller.uid ||
-        (Array.isArray(sd.teacherUids) && sd.teacherUids.includes(caller.uid));
+      if (!schoolSnap.exists) throw new ApiError(404, "NOT_FOUND", "School not found.");
+      const sd = schoolSnap.data() || {};
 
-      if (!isAllowed) {
+      if (!canManageSchool(caller, sd)) {
         throw new ApiError(403, "FORBIDDEN", "Only the School Principal, Teachers, or Admin can register members.");
       }
+      const targetRole = body.role ?? "student";
+      if (targetRole === "teacher" && !canAssignTeachers(caller, sd)) {
+        throw new ApiError(403, "FORBIDDEN", "Only the Principal can add teachers.");
+      }
 
-      const cleaned = Array.from(
-        new Set(
-          body.identifiers
-            .map((x) => x.trim().toLowerCase().replace(/^@/, ""))
-            .filter((x) => x.length >= 2)
-        )
-      ).slice(0, 100);
+      const cleaned = Array.from(new Set(body.identifiers.map((x) => x.trim().toLowerCase().replace(/^@/, "")).filter((x) => x.length >= 2))).slice(0, 100);
 
-      const usersSnap = await db.collection("users").limit(600).get();
-      const matchedDocs = usersSnap.docs.filter((uDoc) => {
-        const u = uDoc.data() || {};
-        const uname = String(u.username || "").toLowerCase();
-        const email = String(u.email || "").toLowerCase();
-        return cleaned.includes(uname) || cleaned.includes(email);
-      });
-
-      if (matchedDocs.length === 0) {
-        throw new ApiError(
-          404,
-          "NO_MATCHING_USERS",
-          "No existing accounts matched those @usernames or emails. Ask students to sign up first or use your school invite code."
-        );
+      // Exact lookups (10 values per query is Firestore's limit), not a scan of the first 600 users.
+      const found = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+      for (let i = 0; i < cleaned.length; i += 10) {
+        const chunk = cleaned.slice(i, i + 10);
+        const [byName, byEmail] = await Promise.all([
+          db.collection("users").where("username", "in", chunk).limit(20).get(),
+          db.collection("users").where("email", "in", chunk).limit(20).get(),
+        ]);
+        for (const d of [...byName.docs, ...byEmail.docs]) found.set(d.id, d);
+      }
+      if (found.size === 0) {
+        throw new ApiError(404, "NO_MATCHING_USERS", "No existing accounts matched those @usernames or emails. Ask students to sign up first or use your school invite code.");
       }
 
       const batch = db.batch();
-      const targetRole = body.role ?? "student";
       const newTeacherUids = new Set<string>(Array.isArray(sd.teacherUids) ? sd.teacherUids : []);
       let addedStudents = 0;
+      let registered = 0;
+      let skipped = 0;
 
-      for (const mDoc of matchedDocs) {
+      for (const mDoc of found.values()) {
+        const u = mDoc.data() || {};
+        const verdict = membershipFor(u, schoolSnap.id);
+        // One school per account, and platform admins are never re-roled or sponsored.
+        if (verdict === "other_school" || u.role === "admin") {
+          skipped += 1;
+          continue;
+        }
         const updates: Record<string, unknown> = {
           schoolId: schoolSnap.id,
           institution: sd.name,
-          plan: "school",
-          planExpiresAt: sd.seatExpiresAt,
+          ...sponsorshipPatch(u, sd.seatExpiresAt),
           updatedAt: Timestamp.now(),
         };
         if (body.defaultLevel) updates.level = body.defaultLevel;
-        if (body.defaultDepartment || sd.department) {
-          updates.department = body.defaultDepartment || sd.department;
-        }
+        if (body.defaultDepartment || sd.department) updates.department = body.defaultDepartment || sd.department;
         if (targetRole === "teacher") {
           updates.role = "teacher";
           newTeacherUids.add(mDoc.id);
-        } else {
+        } else if (verdict === "join") {
           addedStudents += 1;
         }
+        registered += 1;
         batch.set(mDoc.ref, updates, { merge: true });
 
-        const notifRef = mDoc.ref.collection("notifications").doc();
-        batch.set(notifRef, {
-          type: "school_sponsored",
-          title: `${sd.name} Sponsored Your Account!`,
-          body: `You have been added to ${sd.name} with full School Plan AI access paid for by your institution.`,
-          href: "/schools",
-          icon: "school",
-          sproutMood: "dance",
-          read: false,
-          createdAt: Timestamp.now(),
-        });
+        if (verdict === "join") {
+          batch.set(mDoc.ref.collection("notifications").doc(), {
+            type: "school_sponsored",
+            title: `${sd.name} Sponsored Your Account!`,
+            body: `You have been added to ${sd.name} with full School Plan AI access paid for by your institution.`,
+            href: "/schools",
+            icon: "school",
+            sproutMood: "dance",
+            read: false,
+            createdAt: Timestamp.now(),
+          });
+        }
+      }
+
+      if ((sd.studentCount || 0) + addedStudents > (sd.seatLimit || 50)) {
+        throw new ApiError(403, "SEATS_FULL", "That would go over this school's sponsored seats. Ask an admin to raise the seat limit.");
+      }
+      if (registered === 0) {
+        throw new ApiError(409, "NOTHING_TO_REGISTER", "Those accounts already belong to another school, or cannot be added.");
       }
 
       batch.set(
         schoolRef,
-        {
-          teacherUids: Array.from(newTeacherUids),
-          studentCount: (sd.studentCount || 0) + addedStudents,
-          updatedAt: Timestamp.now(),
-        },
+        { teacherUids: Array.from(newTeacherUids), studentCount: FieldValue.increment(addedStudents), updatedAt: Timestamp.now() },
         { merge: true }
       );
-
       await batch.commit();
 
       return NextResponse.json({
         ok: true,
         data: {
-          registeredCount: matchedDocs.length,
-          message: `Successfully registered and sponsored ${matchedDocs.length} ${targetRole}${matchedDocs.length === 1 ? "" : "s"} under ${sd.name}.`,
+          registeredCount: registered,
+          skippedCount: skipped,
+          message: `Successfully registered and sponsored ${registered} ${targetRole}${registered === 1 ? "" : "s"} under ${sd.name}.${skipped ? ` ${skipped} could not be added (already in another school).` : ""}`,
         },
       });
     }
@@ -618,75 +538,49 @@ export async function POST(req: NextRequest) {
       }
       const schoolRef = db.collection("schools").doc(body.schoolId);
       const schoolSnap = await schoolRef.get();
-      if (!schoolSnap.exists) {
-        throw new ApiError(404, "NOT_FOUND", "School not found.");
-      }
+      if (!schoolSnap.exists) throw new ApiError(404, "NOT_FOUND", "School not found.");
 
       const days = body.days ?? TERM_DAYS;
       const newExpiry = Timestamp.fromMillis(Date.now() + days * 86_400_000);
-      await schoolRef.set(
-        {
-          seatLimit: body.seatLimit,
-          seatExpiresAt: newExpiry,
-          updatedAt: Timestamp.now(),
-        },
-        { merge: true }
-      );
+      await schoolRef.set({ seatLimit: body.seatLimit, seatExpiresAt: newExpiry, updatedAt: Timestamp.now() }, { merge: true });
 
-      // Also extend all members currently linked to this schoolId
+      // Also extend the members who are on the school's sponsorship (anyone who paid for their own plan keeps it)
       const membersSnap = await db.collection("users").where("schoolId", "==", body.schoolId).limit(450).get();
       if (!membersSnap.empty) {
         const batch = db.batch();
         for (const mDoc of membersSnap.docs) {
-          batch.set(mDoc.ref, { plan: "school", planExpiresAt: newExpiry, updatedAt: Timestamp.now() }, { merge: true });
+          batch.set(mDoc.ref, { ...sponsorshipPatch(mDoc.data() || {}, newExpiry), updatedAt: Timestamp.now() }, { merge: true });
         }
         await batch.commit();
       }
 
       return NextResponse.json({
         ok: true,
-        data: {
-          schoolId: body.schoolId,
-          seatLimit: body.seatLimit,
-          seatExpiresAt: newExpiry.toDate().toISOString(),
-          upgradedMembers: membersSnap.size,
-        },
+        data: { schoolId: body.schoolId, seatLimit: body.seatLimit, seatExpiresAt: newExpiry.toDate().toISOString(), upgradedMembers: membersSnap.size },
       });
     }
 
     if (body.action === "school_announce") {
       const schoolRef = db.collection("schools").doc(body.schoolId);
       const schoolSnap = await schoolRef.get();
-      if (!schoolSnap.exists) {
-        throw new ApiError(404, "NOT_FOUND", "School not found.");
-      }
-      const sd = schoolSnap.data()!;
-      const isAllowed =
-        caller.role === "admin" ||
-        sd.principalUid === caller.uid ||
-        (Array.isArray(sd.teacherUids) && sd.teacherUids.includes(caller.uid));
+      if (!schoolSnap.exists) throw new ApiError(404, "NOT_FOUND", "School not found.");
+      const sd = schoolSnap.data() || {};
 
-      if (!isAllowed) {
+      if (!canManageSchool(caller, sd)) {
         throw new ApiError(403, "FORBIDDEN", "Only the School Principal, Teachers, or Admin can send school-wide announcements.");
       }
+      // A broadcast writes one notification per member, so it is limited harder than other school actions.
+      const spam = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "schools_announce", limit: 5, windowMs: 600_000, shared: true });
+      if (spam) return spam;
 
-      const schoolNameLower = String(sd.name || "").toLowerCase();
-      const usersSnap = await db.collection("users").limit(600).get();
-      const recipients = usersSnap.docs.filter((uDoc) => {
-        const u = uDoc.data() || {};
-        if (u.schoolId === body.schoolId) return true;
-        if (schoolNameLower && String(u.institution || "").toLowerCase() === schoolNameLower) return true;
-        return false;
-      });
+      const recipients = (await db.collection("users").where("schoolId", "==", body.schoolId).limit(MEMBER_READ_LIMIT).get()).docs;
 
       const now = Timestamp.now();
       let sent = 0;
       for (let i = 0; i < recipients.length; i += 400) {
-        const chunk = recipients.slice(i, i + 400);
         const batch = db.batch();
-        for (const rDoc of chunk) {
-          const nRef = rDoc.ref.collection("notifications").doc();
-          batch.set(nRef, {
+        for (const rDoc of recipients.slice(i, i + 400)) {
+          batch.set(rDoc.ref.collection("notifications").doc(), {
             type: "school_announcement",
             title: `[${sd.name}] ${body.title}`,
             body: body.body,
@@ -704,10 +598,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         ok: true,
-        data: {
-          deliveredCount: sent,
-          message: `Announcement delivered to ${sent} member${sent === 1 ? "" : "s"} in ${sd.name}.`,
-        },
+        data: { deliveredCount: sent, message: `Announcement delivered to ${sent} member${sent === 1 ? "" : "s"} in ${sd.name}.` },
       });
     }
 

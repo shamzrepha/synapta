@@ -35,6 +35,7 @@ import { Sprout } from "@/components/bot/sprout";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { cn, formatNumber } from "@/lib/utils";
 import type { SchoolStudentRow, InterUniStanding } from "@/app/api/schools/route";
+import { csvCell } from "@/lib/schools/csv";
 
 interface SchoolView {
   id: string;
@@ -182,7 +183,7 @@ export default function SchoolsPortalPage() {
           name: schoolName.trim(),
           kind: schoolKind,
           department: schoolDept.trim(),
-          seatLimit: Math.max(10, Number(schoolSeats) || 50),
+          seatLimit: Math.min(500, Math.max(10, Number(schoolSeats) || 50)),
         }),
       });
       const j = await res.json();
@@ -202,6 +203,8 @@ export default function SchoolsPortalPage() {
       });
       setShowCreateModal(false);
       await loadData(j.data.schoolId);
+    } catch {
+      toast({ title: "No connection", description: "Check your internet and try again.", variant: "destructive" });
     } finally {
       setCreatingSchool(false);
     }
@@ -237,6 +240,8 @@ export default function SchoolsPortalPage() {
       });
       setJoinCode("");
       await loadData(j.data.schoolId);
+    } catch {
+      toast({ title: "No connection", description: "Check your internet and try again.", variant: "destructive" });
     } finally {
       setJoiningSchool(false);
     }
@@ -282,6 +287,8 @@ export default function SchoolsPortalPage() {
       setRegList("");
       setShowRegisterPanel(false);
       await loadData(mySchool.id);
+    } catch {
+      toast({ title: "No connection", description: "Check your internet and try again.", variant: "destructive" });
     } finally {
       setRegistering(false);
     }
@@ -308,7 +315,11 @@ export default function SchoolsPortalPage() {
           variant: "success",
         });
         await loadData(schoolId);
+      } else {
+        toast({ title: "Could not grant the licence", description: j?.error?.message || "Try again", variant: "destructive" });
       }
+    } catch {
+      toast({ title: "No connection", description: "Check your internet and try again.", variant: "destructive" });
     } finally {
       setGrantingSchoolId(null);
     }
@@ -356,6 +367,8 @@ export default function SchoolsPortalPage() {
       setAnnounceTitle("");
       setAnnounceBody("");
       setShowAnnouncePanel(false);
+    } catch {
+      toast({ title: "No connection", description: "Check your internet and try again.", variant: "destructive" });
     } finally {
       setSendingAnnounce(false);
     }
@@ -379,10 +392,6 @@ export default function SchoolsPortalPage() {
       "Total XP",
       "Weak Topics",
     ];
-    const escapeCsv = (val: string | number | null | undefined) => {
-      const s = String(val ?? "");
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
     const lines = [
       headers.join(","),
       ...mySchool.roster.map((r) =>
@@ -402,11 +411,11 @@ export default function SchoolsPortalPage() {
           r.xp,
           r.weakTopics.join("; "),
         ]
-          .map(escapeCsv)
+          .map(csvCell)
           .join(",")
       ),
     ];
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -804,6 +813,7 @@ export default function SchoolsPortalPage() {
                 </div>
 
                 {/* Physical Lecture Hall Check-In Code & Faculty/Department Breakdown */}
+                {mySchool.isManager && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 pt-1">
                   <div className="p-3.5 rounded-xl border border-brand-500/30 bg-brand-500/5 flex items-center justify-between gap-3">
                     <div className="space-y-0.5">
@@ -847,9 +857,11 @@ export default function SchoolsPortalPage() {
                     </div>
                   </div>
                 </div>
+                )}
               </Card>
 
               {/* Cross-Class Student Progress Roster (Principal & Teacher View) */}
+              {mySchool.isManager && (
               <Card className="p-5 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
@@ -1031,6 +1043,7 @@ export default function SchoolsPortalPage() {
                   </table>
                 </div>
               </Card>
+              )}
             </div>
           ) : (
             <Card className="p-8 text-center space-y-3">
@@ -1249,7 +1262,7 @@ export default function SchoolsPortalPage() {
                   <Input
                     type="number"
                     min={10}
-                    max={10000}
+                    max={500}
                     value={schoolSeats}
                     onChange={(e) => setSchoolSeats(Math.max(10, Number(e.target.value) || 50))}
                     className="text-xs h-9"

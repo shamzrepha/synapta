@@ -24,7 +24,9 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams;
     const scope = sp.get("scope") || "global";
     const before = sp.get("before");
-    const cursor = before ? Timestamp.fromDate(new Date(before)) : null;
+    const beforeDate = before ? new Date(before) : null;
+    if (beforeDate && Number.isNaN(beforeDate.getTime())) throw new ApiError(400, "VALIDATION", "Bad cursor");
+    const cursor = beforeDate ? Timestamp.fromDate(beforeDate) : null;
     const posts = adminDb().collection("posts");
     let channel = "feed:global";
     let docs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
@@ -52,24 +54,10 @@ export async function GET(req: NextRequest) {
       const meSnap = await adminDb().collection("users").doc(caller.uid).get();
       const meData = meSnap.data() || {};
       const mySchoolId = typeof meData.schoolId === "string" ? meData.schoolId.trim() : "";
-      const myInst = typeof meData.institution === "string" ? meData.institution.trim().toLowerCase() : "";
-      const recentPublic = await page(posts.where("visibility", "==", "public"));
-      if (mySchoolId || myInst) {
-        const instAcronymMatch = myInst.match(/\(([^)]+)\)/);
-        const instAcronym = instAcronymMatch ? instAcronymMatch[1].toLowerCase() : "";
-        docs = recentPublic.filter((d) => {
-          const pd = d.data() || {};
-          if (mySchoolId && pd.schoolId === mySchoolId) return true;
-          const postInst = String(pd.authorInstitution || "").toLowerCase();
-          if (myInst && postInst) {
-            if (postInst.includes(myInst) || myInst.includes(postInst)) return true;
-            if (instAcronym && postInst.includes(instAcronym)) return true;
-          }
-          return false;
-        });
-      } else {
-        docs = [];
-      }
+      // A campus feed is the posts of members of YOUR school (by school id), queried directly. Matching the free-text
+      // institution name loaded one page of everyone's posts, filtered it in memory (mostly empty), and let anyone read a
+      // school's feed by typing a short or matching name into their profile.
+      docs = mySchoolId ? await page(posts.where("schoolId", "==", mySchoolId).where("visibility", "==", "public")) : [];
       channel = "feed:global";
     } else if (scope === "following") {
       const following = await adminDb().collection("users").doc(caller.uid).collection("following").limit(300).get();

@@ -82,7 +82,7 @@ export default function ChallengesPage() {
       setEvents(d?.events || []);
       setChannels(d?.channels || []);
     });
-    fetch("/api/schools")
+    fetch("/api/schools?mode=standings")
       .then((r) => r.json())
       .then((j) => {
         if (j.ok && Array.isArray(j.data?.interUniStandings)) {
