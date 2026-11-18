@@ -5,11 +5,11 @@ import { Card } from "@/components/ui/card";
 import { TutorChat } from "@/components/tutor/tutor-chat";
 
 export default function TutorPage() {
-  // ?class=&topic= deep links (e.g. from a class page)
-  const [ctx, setCtx] = useState<{ classId: string; kcId: string } | null>(null);
+  // ?class=&topic=&q= deep links (e.g. from Start Learning or a class page)
+  const [ctx, setCtx] = useState<{ classId: string; kcId: string; q: string } | null>(null);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    const t = setTimeout(() => setCtx({ classId: p.get("class") || "", kcId: p.get("topic") || "" }), 0);
+    const t = setTimeout(() => setCtx({ classId: p.get("class") || "", kcId: p.get("topic") || "", q: p.get("q") || p.get("prompt") || "" }), 0);
     return () => clearTimeout(t);
   }, []);
 
@@ -20,7 +20,7 @@ export default function TutorPage() {
         <p className="text-sm text-slate-500">Ask about any subject, or focus on one of your classes or topics.</p>
       </div>
       <Card className="overflow-hidden h-[calc(100dvh-14rem)] md:h-[calc(100dvh-12rem)] min-h-[420px]">
-        {ctx && <TutorChat key={`${ctx.classId}:${ctx.kcId}`} initialClassId={ctx.classId} initialKcId={ctx.kcId} />}
+        {ctx && <TutorChat key={`${ctx.classId}:${ctx.kcId}`} initialClassId={ctx.classId} initialKcId={ctx.kcId} initialPrompt={ctx.q} />}
       </Card>
     </div>
   );

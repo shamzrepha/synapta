@@ -55,23 +55,58 @@ export async function GET(req: NextRequest) {
       b.period.localeCompare(a.period)
     );
 
-    // 2. Fetch platform counts
-    const [usersSnap, classesSnap, evidenceSnap] = await Promise.all([
+    // 2. Fetch platform counts & North-Star KPI metrics
+    const [usersSnap, classesSnap, evidenceSnap, designsSnap, cacheSnap] = await Promise.all([
       adminDb().collection("users").get(),
       adminDb().collection("classes").get(),
       adminDb().collection("evidence").limit(500).get(),
+      adminDb().collection("designs").limit(500).get(),
+      adminDb().collection("aiCache").limit(500).get(),
     ]);
 
     let studentCount = 0;
     let teacherCount = 0;
     let adminCount = 0;
+    let retainedUsers7d = 0;
+    const sevenDaysAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
     for (const doc of usersSnap.docs) {
-      const role = doc.data().role;
+      const u = doc.data();
+      const role = u.role;
       if (role === "admin") adminCount++;
       else if (role === "teacher") teacherCount++;
       else studentCount++;
+
+      const lastActive = u.lastActiveDate || u.updatedAt || u.createdAt;
+      const lastActiveMs = typeof lastActive === "string" ? Date.parse(lastActive) : (lastActive?.toMillis?.() ?? 0);
+      if (lastActiveMs >= sevenDaysAgoMs || (typeof u.streakDays === "number" && u.streakDays > 0)) {
+        retainedUsers7d++;
+      }
     }
+
+    const activeLearnersWithEvidence = new Set<string>();
+    let verifiedMasteryEvents = 0;
+    for (const doc of evidenceSnap.docs) {
+      const ev = doc.data();
+      if (typeof ev.uid === "string" && ev.uid) activeLearnersWithEvidence.add(ev.uid);
+      if (ev.correct === true || (typeof ev.pLAfter === "number" && ev.pLAfter >= 0.8)) {
+        verifiedMasteryEvents++;
+      }
+    }
+
+    let completedLabs = 0;
+    for (const doc of designsSnap.docs) {
+      const d = doc.data();
+      if ((typeof d.commitCount === "number" && d.commitCount > 1) || d.verified === true) {
+        completedLabs++;
+      }
+    }
+
+    const totalUsers = usersSnap.size;
+    const activeLearnerCount = Math.max(1, activeLearnersWithEvidence.size || studentCount || 1);
+    const costPerLearnerUsd = parseFloat((totalCostUsd / activeLearnerCount).toFixed(4));
+    const retentionRatePct = totalUsers > 0 ? Math.round((retainedUsers7d / totalUsers) * 100) : 0;
+    const labCompletionRatePct = designsSnap.size > 0 ? Math.round((completedLabs / designsSnap.size) * 100) : 0;
 
     return NextResponse.json({
       ok: true,
@@ -82,6 +117,17 @@ export async function GET(req: NextRequest) {
           totalTokensOut,
           totalCalls,
           totalCostUsd: parseFloat(totalCostUsd.toFixed(4)),
+        },
+        northStar: {
+          weeklyVerifiedLearners: activeLearnersWithEvidence.size,
+          verifiedMasteryEvents,
+          retentionRatePct,
+          retainedUsers7d,
+          totalDesigns: designsSnap.size,
+          completedLabs,
+          labCompletionRatePct,
+          costPerLearnerUsd,
+          cachedPromptsCount: cacheSnap.size,
         },
         monthlyBreakdown,
         counts: {

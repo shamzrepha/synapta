@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import confetti from "canvas-confetti";
-import { CheckCircle2, XCircle, RotateCw, ArrowRight, Trophy, HelpCircle, Flame } from "lucide-react";
+import { CheckCircle2, XCircle, RotateCw, ArrowRight, Trophy, HelpCircle, Flame, LifeBuoy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -451,6 +452,27 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
           >
             Where is this in my notes?
           </button>
+          {!answered.correct && (
+            <div className="mt-3 pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1 mr-1">
+                <LifeBuoy className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" /> Stuck?
+              </span>
+              {[
+                { label: "Explain why I got this wrong", q: `In my quiz on "${q.question}", I picked "${q.options[answered.selected]}" instead of "${q.options[answered.correctIndex]}". Explain why my choice was wrong and the intuition behind the right answer.` },
+                { label: "Explain it simpler", q: `Explain the concept behind "${q.question}" in much simpler terms without jargon.` },
+                { label: "Give me a real-life example", q: `Give me a concrete real-life example for "${q.question}".` },
+                { label: "Let me try a similar question", q: `Give me one similar practice question to "${q.question}" so I can verify I understand.` },
+              ].map((item) => (
+                <Link
+                  key={item.label}
+                  href={`/tutor?class=${encodeURIComponent(classId)}&topic=${encodeURIComponent(kcId)}&q=${encodeURIComponent(item.q)}`}
+                  className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-slate-800 dark:text-slate-200 hover:border-brand-600 hover:text-brand-700 dark:hover:border-brand-400 dark:hover:text-brand-300 transition-colors"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

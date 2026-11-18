@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { Send, Sparkles, Volume2, Square, Trash2, Loader2, GraduationCap, Calculator } from "lucide-react";
+import { Send, Sparkles, Volume2, Square, Trash2, Loader2, GraduationCap, Calculator, LifeBuoy } from "lucide-react";
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
 import { asArray } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,16 @@ const SUGGESTIONS = [
   "Make me a 5-question practice quiz",
   "Help me plan a study session for tonight",
   "What are the most common mistakes on this?",
+];
+
+export const STUCK_OPTIONS = [
+  { id: "simpler", label: "Explain it simpler", prompt: "I'm stuck. Please explain this concept in much simpler terms, step by step, without jargon." },
+  { id: "example", label: "Give me a real-life example", prompt: "I'm stuck. Give me a concrete real-life example or analogy that makes this intuition click." },
+  { id: "visual", label: "Show me visually", prompt: "I'm stuck. Show me this visually using an ASCII diagram, mental model, or step-by-step trace." },
+  { id: "steps", label: "Break it into smaller steps", prompt: "I'm stuck. Break this down into small, bite-sized steps and walk me through step 1 first." },
+  { id: "hint", label: "Give me a hint, not the answer", prompt: "I'm stuck. Give me a Socratic hint that points me in the right direction without giving away the answer." },
+  { id: "similar", label: "Let me try a similar question", prompt: "Give me a similar practice question at a slightly easier level so I can test my understanding." },
+  { id: "wrong", label: "Explain why I got this wrong", prompt: "Help me diagnose my misconception: explain the most likely reason a student gets this wrong and how to fix it." },
 ];
 
 function storageKey(classId: string, kcId: string) {
@@ -104,6 +114,7 @@ export function TutorChat({
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [stuckOpen, setStuckOpen] = useState(false);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [level, setLevel] = useExplainLevel();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -364,6 +375,43 @@ export function TutorChat({
         <div ref={bottomRef} />
       </div>
 
+      {stuckOpen && (
+        <div
+          role="dialog"
+          aria-label="I'm stuck rescue options"
+          className="px-3 py-2.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 space-y-2 shrink-0"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <LifeBuoy className="h-3.5 w-3.5 text-brand-600 dark:text-brand-400" /> Stuck? Pick how you want me to help:
+            </span>
+            <button
+              type="button"
+              onClick={() => setStuckOpen(false)}
+              className="text-[11px] font-medium text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+            >
+              Hide
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {STUCK_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setStuckOpen(false);
+                  send(opt.prompt);
+                }}
+                className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-2.5 py-1 text-xs font-medium text-slate-800 dark:text-slate-200 hover:border-brand-600 hover:text-brand-700 dark:hover:border-brand-400 dark:hover:text-brand-300 disabled:opacity-40 transition-colors"
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -371,6 +419,22 @@ export function TutorChat({
         }}
         className="flex gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0"
       >
+        <button
+          type="button"
+          onClick={() => setStuckOpen((v) => !v)}
+          aria-expanded={stuckOpen}
+          aria-label="I'm stuck — show help options"
+          title="I'm stuck — show help options"
+          className={cn(
+            "h-11 px-3 shrink-0 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors",
+            stuckOpen
+              ? "border-brand-600 bg-brand-600 text-white"
+              : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:border-brand-600 hover:text-brand-700 dark:hover:border-brand-400"
+          )}
+        >
+          <LifeBuoy className="h-4 w-4" />
+          <span className="hidden sm:inline">I&apos;m stuck</span>
+        </button>
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}

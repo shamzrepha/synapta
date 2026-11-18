@@ -62,6 +62,10 @@ export default function StudioHome() {
 
   useEffect(() => {
     fetchTemplates().then(setTemplates);
+    if (typeof window !== "undefined") {
+      const q = new URLSearchParams(window.location.search).get("q");
+      if (q) setPrompt(q);
+    }
   }, []);
 
   useEffect(() => {

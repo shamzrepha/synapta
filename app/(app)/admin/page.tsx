@@ -108,6 +108,17 @@ interface PlatformUsageData {
     totalCalls: number;
     totalCostUsd: number;
   };
+  northStar?: {
+    weeklyVerifiedLearners: number;
+    verifiedMasteryEvents: number;
+    retentionRatePct: number;
+    retainedUsers7d: number;
+    totalDesigns: number;
+    completedLabs: number;
+    labCompletionRatePct: number;
+    costPerLearnerUsd: number;
+    cachedPromptsCount: number;
+  };
   monthlyBreakdown: {
     period: string;
     tokensIn: number;
@@ -880,6 +891,69 @@ export default function AdminConsolePage() {
         <div className="space-y-4">
           <AutonomousCeoDigest />
           <AdminBroadcastCard />
+          <Card className="p-6 space-y-4 border-brand-500/30">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <p className="text-[11px] font-mono font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
+                  NORTH-STAR KPI DASHBOARD
+                </p>
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                  Verified Learning, Retention, Lab Completion &amp; Unit Economics
+                </h3>
+              </div>
+              <Badge variant="emerald" className="w-fit text-[10px]">Live Firestore Telemetry</Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-500">
+                  Weekly Verified Learning
+                </span>
+                <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
+                  {usageData?.northStar?.verifiedMasteryEvents ?? usageData?.counts.evidenceLogs ?? 0}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {usageData?.northStar?.weeklyVerifiedLearners ?? 0} active learners proving mastery
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-500">
+                  7-Day Learner Retention
+                </span>
+                <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                  {usageData?.northStar?.retentionRatePct ?? 0}%
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {usageData?.northStar?.retainedUsers7d ?? 0} of {usageData?.counts.totalUsers ?? asArray(users).length} returning
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-500">
+                  Maker-Studio Lab Completion
+                </span>
+                <p className="text-2xl font-black text-brand-600 dark:text-brand-400">
+                  {usageData?.northStar?.labCompletionRatePct ?? 0}%
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {usageData?.northStar?.completedLabs ?? 0} of {usageData?.northStar?.totalDesigns ?? 0} designs iterated
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-500">
+                  AI Cost per Active Learner
+                </span>
+                <p className="text-2xl font-black text-slate-900 dark:text-slate-100">
+                  ${(usageData?.northStar?.costPerLearnerUsd ?? 0).toFixed(4)}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {usageData?.northStar?.cachedPromptsCount ?? 0} cached responses saved
+                </p>
+              </div>
+            </div>
+          </Card>
           <Card className="p-6 space-y-4">
             <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
               Platform Health & Invariants Status

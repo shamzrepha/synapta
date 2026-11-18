@@ -1,12 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import { Box } from "lucide-react";
-import { Viewer3D as RealViewer3D, type Viewer3DProps } from "@/components/studio/viewer3d";
+import type { Viewer3DProps } from "@/components/studio/viewer3d";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDataSaver } from "@/components/settings/use-prefs";
 import { cn } from "@/lib/utils";
 
-/** Drop-in Viewer3D: in data-saver mode it shows a "Tap to load 3D" placeholder until tapped. */
+const RealViewer3D = dynamic(() => import("@/components/studio/viewer3d").then((m) => m.Viewer3D), {
+  ssr: false,
+  loading: () => <Skeleton className="min-h-40 h-full w-full rounded-lg" />,
+});
+
+/** Drop-in Viewer3D: lazy-loads Three.js on demand, and in data-saver mode shows a "Tap to load 3D" placeholder until tapped. */
 export function Viewer3D(props: Viewer3DProps) {
   const dataSaver = useDataSaver();
   const [loaded, setLoaded] = useState(false);

@@ -163,6 +163,24 @@ export function GuidePanel({ designId, spec, progress, live, gaps, mode, onMode,
         </p>
         <div className="max-h-80 overflow-y-auto px-3 py-2 space-y-2">
           {msgs.length === 0 && <p className="text-xs text-slate-500">Ask about your wiring, code, gears or forces. The tutor sees your current design and test results.</p>}
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {[
+              { label: "Explain it simpler", q: `I'm stuck on "${current?.title || "this build"}". Explain what I need to do in simpler terms.` },
+              { label: "Give me a hint, not the answer", q: `Give me a hint for "${current?.title || "this step"}" without giving away the full answer.` },
+              { label: "Break it into smaller steps", q: `Break "${current?.title || "this step"}" into smaller sub-steps I can check one by one.` },
+              { label: "Explain why my check failed", q: "Look at my current wiring, code, and test results and explain why my build isn't passing yet." },
+            ].map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                disabled={asking}
+                onClick={() => ask(chip.q)}
+                className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1 text-[11px] font-medium text-slate-700 dark:text-slate-200 hover:border-brand-600 hover:text-brand-700 dark:hover:border-brand-400 dark:hover:text-brand-300 disabled:opacity-40 transition-colors"
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
           {msgs.map((m, i) => (
             <div key={i} className={cn("rounded-xl px-3 py-2 text-sm", m.role === "user" ? "bg-brand-600 text-white ml-8" : "bg-slate-50 dark:bg-slate-900 mr-4")}>
               {m.role === "user" ? m.text : <MarkdownRenderer content={m.text} />}
