@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { generateWithFallback } from "@/lib/ai/router";
 import { CATALOG_BY_TYPE } from "./circuit/catalog";
@@ -251,6 +252,16 @@ Return ONLY JSON: {"ideas":[{"title":"…","pitch":"…","kind":"circuit","level
 THE SHOP
 ${shopIndex()}`;
 
+/**
+ * Stable cache key for a topic's idea list: the same topic (any case or spacing), description and level is generated once
+ * and every later request reads the saved list instead of spending AI credit.
+ */
+export function ideasCacheKey(p: { topic: string; description?: string; level?: string }): string {
+  const norm = (v?: string) => (v || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const hash = createHash("sha256").update([norm(p.topic), norm(p.description), norm(p.level) || "beginner"].join("\u0001")).digest("hex").slice(0, 32);
+  return `studio_ideas:v1:${hash}`;
+}
+
 export async function suggestLabIdeas(params: {
   topic: string;
   description?: string;
@@ -279,6 +290,7 @@ ${params.description ? `Description: ${params.description.slice(0, 400)}\n` : ""
     schema: ideasSchema,
     temperature: 0.5,
     userId: params.userId,
+    cacheKey: ideasCacheKey(params),
   });
   const valid = res.data!.ideas
     .map((i) => ({ ...i, parts: i.parts.filter((t) => !!CATALOG_BY_TYPE[t]) }))

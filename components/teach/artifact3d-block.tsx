@@ -586,6 +586,7 @@ export function Artifact3DBlock({ b }: { b: Artifact3DData }) {
         }
       });
       renderer.dispose();
+      renderer.domElement.remove(); // otherwise every reset or slider-driven rebuild stacks another dead canvas
     };
   }, [b.preset, b.parts, b.sliders, resetTick, webglFailed]);
 

@@ -62,13 +62,16 @@ export function AppUpdateBanner() {
       }
       const now = Date.now();
       if (!force && !shouldRecheck(readNum(CHECKED_KEY), now)) return;
-      try {
-        window.localStorage.setItem(CHECKED_KEY, String(now));
-      } catch {}
       const raw = await fetch("/app-version.json", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null);
       const l = parseLatest(raw);
+      // only a check that reached the server counts: an offline attempt is retried on the next visit, not six hours later
+      if (l) {
+        try {
+          window.localStorage.setItem(CHECKED_KEY, String(now));
+        } catch {}
+      }
       if (!l) {
         if (force) toast({ title: "Couldn't check right now", description: "Check your connection and try again.", variant: "amber" });
         return;

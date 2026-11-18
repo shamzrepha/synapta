@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { clamp, isValidExpression } from "./math";
 import { isAllowedImageUrl } from "@/lib/images/commons";
-import { parseFormula } from "./chem";
+import { isBalanced, parseFormula } from "./chem";
 
 /**
  * A lesson script: the AI writes JSON that picks blocks from a fixed set and fills in their numbers. The browser only ever
@@ -130,10 +130,15 @@ function sanitizeBlock(b: Block): Block | null {
     case "artifact3d": {
       const sliders = sanitizeSliders(b.sliders);
       if (b.preset === "custom" && b.parts.length === 0 && sliders.length === 0) return null;
-      return { ...b, sliders };
+      // a readout whose formula can't be evaluated would show "NaN" for ever: keep only the ones that work
+      const names = sliders.map((s) => s.key);
+      return { ...b, sliders, readouts: b.readouts.filter((r) => isValidExpression(r.expr, names)) };
     }
-    case "equation_steps":
-      return b.steps.every((s) => s.expr) ? b : null;
+    case "equation_steps": {
+      // "$" would end the math block that wraps the step and let the rest render as markdown
+      const steps = b.steps.map((s) => ({ ...s, expr: s.expr.replace(/\$/g, "").trim() })).filter((s) => s.expr);
+      return steps.length ? { ...b, steps } : null;
+    }
     case "triangle":
     case "motion":
       return b;
@@ -146,7 +151,7 @@ function sanitizeBlock(b: Block): Block | null {
     case "check":
       return b.answer < b.options.length ? b : null;
     case "balance":
-      return [...b.reactants, ...b.products].every((t) => parseFormula(t.formula)) ? b : null;
+      return [...b.reactants, ...b.products].every((t) => parseFormula(t.formula)) && isBalanced(b.reactants, b.products) ? b : null;
     default:
       return b;
   }

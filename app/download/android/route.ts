@@ -24,7 +24,7 @@ export async function GET() {
     // fallback below
   }
 
-  return NextResponse.redirect("https://sunrootlearn.vercel.app/sunroot-3.1.apk", {
+  return NextResponse.redirect("https://github.com/shamzrepha/synapta/releases/latest", {
     status: 302,
     headers: {
       "Cache-Control": "no-store, max-age=0",
