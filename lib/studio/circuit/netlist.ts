@@ -59,6 +59,9 @@ export interface OutputState {
   watts?: number;
 }
 
+/** A 5 mm LED's rated continuous current; the dynamic resistance the solver uses once it conducts. */
+export const LED_MAX_MA = 20;
+const LED_SLOPE_OHMS = 15;
 const VF: Record<string, number> = { red: 2, yellow: 2.1, amber: 2.1, green: 2.2, blue: 3, white: 3 };
 
 export function term(part: string, pin: string): string {
@@ -552,10 +555,22 @@ export function evaluateOutputs(nl0: Netlist, pins: PinState): Record<string, Ou
       const amps = ohms > 0 ? drop / ohms : 1;
       const duty = hi.pwmDuty ?? 1;
       const level = Math.max(0.15, Math.min(1, amps / 0.015)) * duty;
+      // real LED current from the solved network (Vf source + ~15 ohm slope), else the series-ohms estimate
+      let currentMa = amps * 1000;
+      let overcurrent = ohms < 60;
+      if (p.type === "led") {
+        const va = dcV.get(nl.netOf(term(p.id, aPin)));
+        const vc = dcV.get(nl.netOf(term(p.id, cPin)));
+        if (va !== undefined && vc !== undefined) {
+          currentMa = Math.max(0, ((va - vc - vf) / LED_SLOPE_OHMS) * 1000) * duty;
+          overcurrent = currentMa > LED_MAX_MA;
+        }
+      }
       out[p.id] = {
         on: duty > 0.02,
         level,
-        fault: p.type === "led" && ohms < 60 ? "overcurrent" : undefined,
+        fault: p.type === "led" && overcurrent ? "overcurrent" : undefined,
+        currentMa: p.type === "led" ? currentMa : undefined,
         toneHz: p.type === "buzzer" ? hi.toneHz || 2000 : undefined,
       };
     } else if (p.type === "servo") {

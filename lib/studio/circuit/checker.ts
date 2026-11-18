@@ -1,5 +1,5 @@
 import { CATALOG_BY_TYPE, boardPinName, pinDef, isButtonLike } from "./catalog";
-import { Netlist, emptyPinState, evaluateOutputs, i2cWired, netPotential, scanCode, term, type Circuit, type PinState } from "./netlist";
+import { LED_MAX_MA, Netlist, emptyPinState, evaluateOutputs, splitTerm, type OutputState, i2cWired, netPotential, scanCode, term, type Circuit, type PinState } from "./netlist";
 
 /**
  * Wiring and code checks. Like SunRoot's GraphChecker, bad wiring is allowed (that's how people
@@ -60,6 +60,106 @@ function staticPins(code: string): PinState {
   return s;
 }
 
+
+/** Nets joined by a part other than `skip`, ignoring sources (battery) when `withSources` is false. */
+function adjacency(nl: Netlist, skip: string, withSources: boolean): Map<string, Set<string>> {
+  const adj = new Map<string, Set<string>>();
+  const link = (a: string, b: string) => {
+    if (a === b) return;
+    adj.set(a, (adj.get(a) || new Set()).add(b));
+    adj.set(b, (adj.get(b) || new Set()).add(a));
+  };
+  for (const q of nl.circuit.parts) {
+    if (q.id === skip) continue;
+    const pair: Record<string, [string, string]> = {
+      resistor: ["a", "b"], bulb: ["a", "b"], dc_motor: ["a", "b"], led: ["anode", "cathode"], buzzer: ["pos", "neg"], ammeter: ["in", "out"],
+      ...(withSources ? { battery: ["plus", "minus"] as [string, string] } : {}),
+    };
+    const pr = pair[q.type];
+    if (pr) link(nl.netOf(term(q.id, pr[0])), nl.netOf(term(q.id, pr[1])));
+  }
+  return adj;
+}
+
+function reachable(adj: Map<string, Set<string>>, from: string, to: string): boolean {
+  const seen = new Set([from]);
+  const stack = [from];
+  while (stack.length) {
+    const n = stack.pop()!;
+    if (n === to) return true;
+    for (const m of adj.get(n) || []) if (!seen.has(m)) { seen.add(m); stack.push(m); }
+  }
+  return false;
+}
+
+/** How many terminals of OTHER parts sit on the net of `t`. */
+function otherTerms(nl: Netlist, t: string): string[] {
+  const me = splitTerm(t).part;
+  return nl.peers(t).filter((x) => splitTerm(x).part !== me && nl.termWired(x));
+}
+
+function ammeterInParallel(nl: Netlist, id: string): boolean {
+  const inN = nl.netOf(term(id, "in"));
+  const outN = nl.netOf(term(id, "out"));
+  return nl.termWired(term(id, "in")) && nl.termWired(term(id, "out")) && inN !== outN && reachable(adjacency(nl, id, false), inN, outN);
+}
+
+/** Ammeters must sit in series and voltmeters across a part; say so with the numbers when they don't. */
+function meterIssues(nl: Netlist, circuit: Circuit, out: Record<string, OutputState>): Issue[] {
+  const issues: Issue[] = [];
+  for (const p of circuit.parts) {
+    if (p.type === "ammeter" && nl.termWired(term(p.id, "in")) && nl.termWired(term(p.id, "out"))) {
+      if (ammeterInParallel(nl, p.id)) {
+        const mA = Math.round(Math.abs(out[p.id]?.currentMa ?? 0));
+        issues.push({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} is wired in parallel with a part: it has only 0.05 Ω, so it would carry about ${mA} mA and bypass that part.`, why: "An ammeter measures the current that passes THROUGH it, so it has to be in series, in the loop.", prompt: "Which wire could you cut so all of the current has to go through the ammeter?" });
+      }
+    }
+    if (p.type === "voltmeter" && nl.termWired(term(p.id, "plus")) && nl.termWired(term(p.id, "minus"))) {
+      const a = otherTerms(nl, term(p.id, "plus"));
+      const b = otherTerms(nl, term(p.id, "minus"));
+      if (a.length === 1 && b.length === 1 && splitTerm(a[0]).part !== splitTerm(b[0]).part && !nl.connected(a[0], b[0])) {
+        issues.push({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} is wired in series: its 10 MΩ resistance lets less than 0.001 mA through, so the rest of the loop gets about 0 mA.`, why: "A voltmeter has huge resistance. It must go ACROSS (in parallel with) the part you measure, not in the loop.", prompt: "Which two points should the voltmeter's probes touch to read the drop across the part?" });
+      }
+    }
+  }
+  return issues;
+}
+
+/** The plain-language verdict (with numbers) for a part whose live state shows a fault, or null when it is fine. */
+export function faultIssue(nl: Netlist, p: Circuit["parts"][number], st: OutputState | undefined): Issue | null {
+  if (!st) return null;
+  const mA = Math.round(Math.abs(st.currentMa ?? 0));
+  if (p.type === "battery" && st.fault === "short") {
+    const volts = Number(p.props?.volts ?? 6);
+    return ({ severity: "error", system: "POWER", parts: [p.id], message: `Short circuit: ${label(nl, p.id)} (${volts} V) would push about ${(mA / 1000).toFixed(1)} A through almost 0 Ω. The wires and battery would overheat.`, why: "Current is flowing from battery + to − with almost zero resistance, so Ohm's law (I = V / R) gives a huge current.", prompt: "What load or resistor is missing in this loop?" });
+  } else if (p.type === "ammeter" && st.fault === "short" && !ammeterInParallel(nl, p.id)) {
+    return ({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} would carry about ${(mA / 1000).toFixed(1)} A: it acts like a wire (0.05 Ω) across the supply.`, why: "An ammeter has almost no resistance, so it only belongs in series with the load, never straight across a source.", prompt: "Which wire should you break so the current has to pass through the ammeter?" });
+  } else if (p.type === "led" && st.fault === "overcurrent") {
+    const limit = LED_MAX_MA;
+    return ({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} current would be ${mA} mA, its limit is ${limit} mA, so it burns out (add or enlarge the series resistor).`, why: "An LED doesn't limit its own current: I = (V − Vf) / R. Add or enlarge a series resistor.", prompt: "Ohm's law: what resistor lets only about 15 mA flow from this supply?" });
+  } else if (st.fault === "reversed") {
+    return ({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} is wired backwards, so 0 mA flows and it stays dark.`, why: "Current only lights an LED from anode (+) to cathode (−).", prompt: "Which leg is the anode (+)?" });
+  } else if (p.type === "bulb" && st?.fault === "overvoltage") {
+    const maxV = Number(p.props?.maxVolts ?? 9);
+    return ({ severity: "error", system: "POWER", parts: [p.id], message: `${label(nl, p.id)} gets ${(st.volts ?? 0).toFixed(1)} V, its limit is ${maxV} V, so the filament burned out.`, why: "Lower the battery voltage or add a series resistor to share the voltage drop.", prompt: "How could you lower the voltage across the bulb?" });
+  } else if (st.fault === "overvoltage") {
+    return ({ severity: "warning", system: "POWER", parts: [p.id], message: `${label(nl, p.id)} is above its safe voltage (${(st.volts ?? 0).toFixed(1)} V) and burned out.`, why: "Lower the battery voltage or add a series resistor to share the voltage drop.", prompt: "How could you lower the voltage across the bulb?" });
+  }
+  return null;
+}
+
+/** Faults visible in the live outputs (e.g. after a switch is closed), ready to show as warnings. */
+export function liveFaultIssues(circuit: Circuit, outputs: Record<string, OutputState>): Issue[] {
+  const nl = new Netlist(circuit);
+  const out: Issue[] = [];
+  for (const p of circuit.parts) {
+    const f = faultIssue(nl, p, outputs[p.id]);
+    if (f) out.push(f);
+  }
+  out.push(...meterIssues(nl, circuit, outputs));
+  return out;
+}
+
 export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
   const nl = new Netlist(circuit);
   const issues: Issue[] = [];
@@ -89,15 +189,15 @@ export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
       if (["oled", "dht11", "mpu6050", "servo", "stepper", "hc_sr04", "ir_sensor", "l298n", "tb6612"].includes(p.type)) {
         issues.push({ severity: "warning", system: "STRUCTURE", parts: [p.id], message: `${label(nl, p.id)} needs a Starter board and code to operate.`, why: "Sensors, drivers, displays and servos speak over signals from a microcontroller.", prompt: "Should this circuit include a Starter board?" });
       }
-      const st = out[p.id];
-      if (st?.fault === "short") {
-        issues.push({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `Short circuit across ${label(nl, p.id)}!`, why: "Current is flowing from battery + to − with almost zero resistance.", prompt: "What load or resistor is missing in this loop?" });
-      } else if (st?.fault === "overcurrent") {
-        issues.push({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} has no current-limiting resistor and will burn out.`, why: "A battery pushes too much current straight through an LED unless a series resistor limits it.", prompt: "Where should a 220 Ω resistor sit in series?" });
-      } else if (st?.fault === "reversed") {
-        issues.push({ severity: "error", system: "ELECTRICAL", parts: [p.id], message: `${label(nl, p.id)} is wired backwards.`, why: "Current only lights an LED from anode (+) to cathode (−).", prompt: "Which leg is the anode (+)?" });
-      } else if (st?.fault === "overvoltage") {
-        issues.push({ severity: "warning", system: "POWER", parts: [p.id], message: `${label(nl, p.id)} is above its safe voltage and burned out.`, why: "Lower the battery voltage or add a series resistor to share the voltage drop.", prompt: "How could you lower the voltage across the bulb?" });
+      const f = faultIssue(nl, p, out[p.id]);
+      if (f) issues.push(f);
+    }
+    issues.push(...meterIssues(nl, circuit, out));
+    const bat = batteries.find((b) => nl.isWired(b.id));
+    if (bat && !issues.some((i) => i.severity === "error")) {
+      const bi = Math.abs(out[bat.id]?.currentMa ?? 0);
+      if (bi < 0.5 && circuit.parts.some((q) => !["battery", "voltmeter"].includes(q.type) && nl.isWired(q.id))) {
+        issues.push({ severity: "info", system: "STRUCTURE", parts: [bat.id], message: `0 mA flows: the loop from battery + to − is open somewhere (or a switch is off).`, why: "Current needs a complete closed path. One gap stops it everywhere in a series loop.", prompt: "Follow the wire from + around to −. Where does it break?" });
       }
     }
     return issues;
@@ -282,6 +382,7 @@ export function checkCircuit(circuit: Circuit, code = ""): Issue[] {
   } else if (circuit.parts.length > 1) {
     issues.push({ severity: "info", system: "SOFTWARE", parts: [], message: "No code yet.", why: "The board does nothing until you program it.", prompt: "What should happen first when the board powers on?" });
   }
+  issues.push(...meterIssues(nl, circuit, evaluateOutputs(nl, pins)));
   return issues;
 }
 
