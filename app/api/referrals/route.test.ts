@@ -6,7 +6,8 @@ vi.mock("@/lib/firebase/admin", () => ({ Timestamp: fakeTimestamp, FieldValue: f
 let uid = "c1";
 vi.mock("@/lib/auth/requireUser", async () => {
   const errors = await import("@/lib/api/errors");
-  return { requireUser: async () => ({ uid, role: "student", email: "s@x.y" }), handleAuthError: errors.toErrorResponse };
+  const real = await vi.importActual<typeof import("@/lib/auth/requireUser")>("@/lib/auth/requireUser");
+  return { requireUser: async () => ({ uid, role: "student", email: "s@x.y", emailVerified: true }), requireVerifiedEmail: real.requireVerifiedEmail, handleAuthError: errors.toErrorResponse };
 });
 vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: async () => null }));
 
