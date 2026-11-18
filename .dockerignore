@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.claude
+.agent
+.env
+.env.*
+!.env.example
+*.log
+coverage
+docs/marketing
+public/*.apk
+public/pitch

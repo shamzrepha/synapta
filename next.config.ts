@@ -49,6 +49,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Self-hosting (Docker): a small standalone server. Vercel builds are untouched because SELF_HOST is only set in the Dockerfile.
+  ...(process.env.SELF_HOST === "1" ? { output: "standalone" as const } : {}),
   // each deployment knows its own id, so an open page can tell when the site has been updated under it (see /api/version)
   env: { NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA || "dev" },
   // Worlds reads its prompt and Subject Pack files at run time; without this they are missing from the serverless bundle
