@@ -12,7 +12,7 @@ import {
   stripHostInjection,
   type ParsedSimulation,
 } from "./build";
-import { decideSimulationMedium, generateStudioSimulation } from "./studio-mode";
+import { decideSimulationMedium, generateStudioSimulation, isUsableStudioSpec } from "./studio-mode";
 import { editDesign } from "@/lib/studio/design-ai";
 import type { DesignSpec } from "@/lib/studio/spec";
 
@@ -202,6 +202,7 @@ export async function generateAndStoreSimulation(params: {
   };
 
   try {
+    const startedAt = Date.now();
     await checkRateLimitAndQuota(params.userId, mode === "edit" ? 20000 : 12000);
     const ctx = await loadKcGroundingContext(params.classId, params.kcId, { materialBudget: 6000 });
 
@@ -242,26 +243,35 @@ export async function generateAndStoreSimulation(params: {
         userId: params.userId,
       });
       if (medium.medium === "studio") {
-        const studio = await generateStudioSimulation({
-          kcTitle: ctx.kcTitle,
-          subject: ctx.subject,
-          level: ctx.level,
-          contextText: ctx.contextText,
-          objectives: ctx.objectives,
-          instructions: [params.instructions, restartNote].filter(Boolean).join("\n\n") || undefined,
-          kind: medium.kind,
-          userId: params.userId,
-        });
-        modelUsed = "studio";
-        nextContent = {
-          html: null,
-          studioSpec: studio.studioSpec,
-          title: studio.title,
-          goal: studio.goal,
-          howTo: studio.howTo,
-          concepts: studio.concepts,
-          checkQuestion: studio.checkQuestion,
-        };
+        // One studio try (1 design + 1 fix). Any failure or unusable result falls through to the HTML path.
+        try {
+          const studio = await generateStudioSimulation({
+            kcTitle: ctx.kcTitle,
+            subject: ctx.subject,
+            level: ctx.level,
+            contextText: ctx.contextText,
+            objectives: ctx.objectives,
+            instructions: [params.instructions, restartNote].filter(Boolean).join("\n\n") || undefined,
+            kind: medium.kind,
+            userId: params.userId,
+          });
+          if (isUsableStudioSpec(studio.studioSpec)) {
+            modelUsed = "studio";
+            nextContent = {
+              html: null,
+              studioSpec: studio.studioSpec,
+              title: studio.title,
+              goal: studio.goal,
+              howTo: studio.howTo,
+              concepts: studio.concepts,
+              checkQuestion: studio.checkQuestion,
+            };
+          } else {
+            console.warn("[sim] studio build returned nothing usable; falling back to HTML");
+          }
+        } catch (e) {
+          console.warn("[sim] studio build failed; falling back to HTML:", e instanceof Error ? e.message : e);
+        }
       }
     }
 
@@ -269,7 +279,7 @@ export async function generateAndStoreSimulation(params: {
       let parsed: ParsedSimulation | null = null;
       let weak: ParsedSimulation | null = null;
       let weakIssues: string[] = [];
-      const deadlineAt = Date.now() + 230_000;
+      const deadlineAt = Math.min(startedAt + 270_000, Date.now() + 230_000);
       let lastWhy = "";
       for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
         const remaining = deadlineAt - Date.now();

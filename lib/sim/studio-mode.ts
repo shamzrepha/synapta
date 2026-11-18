@@ -29,24 +29,29 @@ const STRONG_STUDIO_CIRCUIT_RE =
 const STRONG_STUDIO_MECH_RE =
   /\b(gear\s*trains?|gear\s*ratios?|spur\s*gears?|bevel\s*gears?|worm\s*gears?|rack\s*and\s*pinion|mechanical\s*advantage\s*of\s*(?:gears|pulleys|levers)|pulley\s*systems?|winch\s*mechanism|crane\s*boom)\b/i;
 
-const MAYBE_STUDIO_RE =
-  /\b(resistor|led\b|push\s*button|switch|capacitor|diode|relay|solenoid|dc\s*motor|multimeter|voltmeter|ammeter|ohmmeter|circuit|wiring|gear|pulley|lever|linkage|robotics?|sensor|actuator|servo|buzzer)\b/i;
-
 const HARDWARE_TERMS_RE =
   /\b(arduino|starter\s*board|circuit|resistor|wire|wiring|blockly|robot|gear\s*train|potentiometer|servo|breadboard|ultrasonic)\b/i;
 
 const EXPLICIT_HTML_OPT_OUT_RE =
   /\b(html5?|canvas\s*game|2d\s*graph\s*only|plot\s*only|chart\s*only|no\s*circuit|without\s*(?:circuit|arduino|wiring|blockly|3d))\b/i;
 
+/** The teacher/learner literally asks for a workbench (not just mentions a topic word). */
+const EXPLICIT_STUDIO_REQUEST_RE =
+  /\b(sunroot\s*studio|maker\s*studio|studio\s*(?:lab|bench|workbench)|(?:circuit|arduino|breadboard|blockly|gear(?:\s*train)?|mechanism)\s*(?:bench|workbench|builder|simulator|editor|lab)|(?:use|with|build|make|wire|program)\s+(?:an?\s+|the\s+)?(?:arduino|breadboard|blockly|circuit\s*bench|gear\s*train))\b/i;
+
 const BIO_METAPHOR_RE =
   /\b(neural\s*circuit|brain\s*circuit|memory\s*circuit|anatomy|nervous\s*system|neuron|synapse|physiology|cell\s*biology|genetics|ecosystem)\b/i;
 
-const NON_HARDWARE_SUBJECT_RE =
-  /\b(biology|chemistry|organic\s*chemistry|biochemistry|literature|history|geography|economics|finance|accounting|language|french|spanish|english|calculus|statistics|algebra|geometry)\b/i;
+/** Subjects where a hardware topic really is a hardware lab (physics/science stay on HTML). */
+const HARDWARE_SUBJECT_RE =
+  /\b(electronics?|electrical|engineering|robotics?|mechatronics?|embedded|arduino|microcontrollers?|technology|design\s*(?:and|&)\s*tech(?:nology)?|computer\s*engineering)\b/i;
 
 /**
- * Fast heuristic pre-classifier deciding whether a classroom topic/prompt belongs in the
- * interactive SunRoot Studio workbench (circuit bench + Blockly/C++ + 3D/mechanisms) vs HTML5 canvas.
+ * Pure heuristic router (no AI call). The HTML simulation is the DEFAULT for every topic.
+ * The studio medium is used ONLY when
+ *  (a) the instructions explicitly ask for a circuit/Arduino/Blockly/breadboard/gear workbench, or
+ *  (b) the topic is unmistakably hardware (strong circuit/mechanism term) AND the subject is
+ *      electronics/engineering/robotics/technology.
  */
 export function classifySimulationMediumHeuristic(input: {
   kcTitle: string;
@@ -57,47 +62,37 @@ export function classifySimulationMediumHeuristic(input: {
 }): SimulationMediumDecision {
   const instr = (input.instructions || "").trim();
   const focus = [input.kcTitle, input.objective || "", instr].filter(Boolean).join("\n");
-  const full = `${focus}\n${input.subject || ""}`;
+  const html = (reason: string): SimulationMediumDecision => ({ medium: "html", kind: null, confident: true, reason });
 
   if (instr && EXPLICIT_HTML_OPT_OUT_RE.test(instr) && !HARDWARE_TERMS_RE.test(instr.replace(new RegExp(EXPLICIT_HTML_OPT_OUT_RE.source, "gi"), ""))) {
-    return { medium: "html", kind: null, confident: true, reason: "Teacher instructions requested an HTML/2D canvas format" };
+    return html("Teacher instructions requested an HTML/2D canvas format");
   }
 
-  // Avoid misrouting biological "neural circuits" to the electronics workbench unless hardware terms appear.
-  const looksBiological = BIO_METAPHOR_RE.test(full) && !/\b(arduino|resistor|breadboard|ohm|voltage|blockly|voltmeter)\b/i.test(focus);
-  if (looksBiological) {
-    return { medium: "html", kind: null, confident: true, reason: "Biological context uses custom 2D/HTML simulation" };
+  if (instr && EXPLICIT_STUDIO_REQUEST_RE.test(instr)) {
+    const mechanical = /\b(gear|pulley|rack|mechanism)\b/i.test(instr) && !/\b(arduino|circuit|breadboard|blockly)\b/i.test(instr);
+    return { medium: "studio", kind: mechanical ? "mechanism" : "circuit", confident: true, reason: "Instructions explicitly ask for a circuit/Arduino/gear workbench" };
   }
 
-  if (STRONG_STUDIO_CIRCUIT_RE.test(focus)) {
-    return { medium: "studio", kind: "circuit", confident: true, reason: "Topic involves circuits, wiring, electronics, microcontrollers, Blockly coding, or robotics" };
+  const strongCircuit = STRONG_STUDIO_CIRCUIT_RE.test(focus);
+  const strongMech = STRONG_STUDIO_MECH_RE.test(focus);
+  if ((strongCircuit || strongMech) && input.subject && HARDWARE_SUBJECT_RE.test(input.subject)) {
+    const looksBiological = BIO_METAPHOR_RE.test(focus) && !/\b(arduino|resistor|breadboard|ohm|voltage|blockly|voltmeter)\b/i.test(focus);
+    if (!looksBiological) {
+      return {
+        medium: "studio",
+        kind: strongCircuit ? "circuit" : "mechanism",
+        confident: true,
+        reason: "Unmistakably hardware topic in an electronics/engineering subject",
+      };
+    }
   }
 
-  if (STRONG_STUDIO_MECH_RE.test(focus)) {
-    return { medium: "studio", kind: "mechanism", confident: true, reason: "Topic involves gears or mechanical drive trains" };
-  }
-
-  if (MAYBE_STUDIO_RE.test(focus)) {
-    const kind: DesignKind = /\b(gear|pulley|lever|linkage)\b/i.test(focus) && !/\b(led|resistor|circuit|sensor|motor|arduino)\b/i.test(focus) ? "mechanism" : "circuit";
-    return { medium: "studio", kind, confident: false, reason: "Contains engineering/electronics terms; confirm best format" };
-  }
-
-  if (input.subject && NON_HARDWARE_SUBJECT_RE.test(input.subject) && !MAYBE_STUDIO_RE.test(instr)) {
-    return { medium: "html", kind: null, confident: true, reason: "Non-hardware subject best served by bespoke HTML5 simulation" };
-  }
-
-  return { medium: "html", kind: null, confident: false, reason: "No obvious hardware trigger; consult AI classifier" };
+  return html("Default: bespoke HTML simulation");
 }
 
-const mediumDecisionSchema = z.object({
-  medium: z.enum(["studio", "html"]),
-  kind: z.enum(["circuit", "mechanism", "assembly"]).nullable().optional(),
-  reason: z.string().default(""),
-});
-
 /**
- * Picks whether a newly built classroom simulation/piece lab should run on the interactive
- * SunRoot Studio workbench (CircuitBench + Hardware-Synced Blockly/C++ + 3D Stage) or a bespoke HTML5 page.
+ * Picks the medium for a new lab. Heuristics only: never spends an AI call on classification.
+ * HTML is the default; "studio" is returned only for an explicit request or an unmistakable hardware topic.
  */
 export async function decideSimulationMedium(params: {
   kcTitle: string;
@@ -108,47 +103,14 @@ export async function decideSimulationMedium(params: {
   instructions?: string;
   userId: string;
 }): Promise<SimulationMediumDecision> {
-  const heuristic = classifySimulationMediumHeuristic(params);
-  if (heuristic.confident) return heuristic;
+  const d = classifySimulationMediumHeuristic(params);
+  return d.medium === "studio" && !d.confident ? { medium: "html", kind: null, confident: true, reason: d.reason } : d;
+}
 
-  try {
-    const res = await executeStructuredAiTask({
-      learnerLanguage: false,
-      task: "structured_spec",
-      systemInstruction: `Decide whether an interactive learning lab for this topic should use SunRoot Studio ("studio") or a custom HTML5 canvas simulation ("html").
-
-Choose "studio" ONLY when the lab truly centers on one of SunRoot Studio's interactive engines:
-1. "circuit": Electrical / DC circuits (Ohm's law, series/parallel resistors/bulbs, batteries, switches, multimeters), digital electronics / sensors / actuators (LEDs, relays, servos, stepper motors, ultrasonic HC-SR04, DHT11, LDR, IR), Arduino / Starter board programming with Scratch-style Blockly blocks or C++, OR wheeled robotics (line followers, obstacle-avoiding robots).
-2. "mechanism": 3D gear trains, rack & pinion, bevel/worm gears, belt/pulley drives, winches, cranes, levers.
-3. "assembly": 3D CAD engineering structures or physical enclosures where interactive 3D exploded assembly teaches the topic best.
-
-Choose "html" for ALL other topics (kinematics/projectiles, optics/lenses/waves, chemistry/titration/pH, biology/anatomy/ecosystems, economics, mathematics/graphing, computing algorithms without Arduino/circuit hardware, or when custom 2D plots/games are clearer).
-
-Return JSON: {"medium":"studio"|"html","kind":"circuit"|"mechanism"|"assembly"|null,"reason":"short reason"}.`,
-      userPrompt: [
-        `Subtopic: ${params.kcTitle}`,
-        params.objective ? `Specific piece objective: ${params.objective}` : "",
-        `Subject: ${params.subject} · Level: ${params.level}`,
-        params.instructions ? `Teacher instructions: ${params.instructions}` : "",
-        `Material summary: ${params.contextText.slice(0, 1200)}`,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-      schema: mediumDecisionSchema,
-      userId: params.userId,
-      estimatedTokens: 600,
-      isPrivileged: true,
-    });
-    const out = res.data!;
-    return {
-      medium: out.medium,
-      kind: out.medium === "studio" ? out.kind || heuristic.kind || "circuit" : null,
-      confident: true,
-      reason: out.reason || heuristic.reason,
-    };
-  } catch {
-    return { ...heuristic, confident: true };
-  }
+/** A studio spec is usable only if it actually contains something to build or run. */
+export function isUsableStudioSpec(spec: DesignSpec | null | undefined): boolean {
+  if (!spec) return false;
+  return !!(spec.circuit?.parts?.length || spec.mechanism || spec.parts?.length);
 }
 
 const studioMetaSchema = z.object({
@@ -276,6 +238,8 @@ export async function generateStudioSimulation(params: {
     kind: params.kind ?? undefined,
     level: params.level,
     userId: params.userId,
+    // studio budget: one design attempt + at most one simulator fix
+    maxAttempts: 1,
   });
 
   // Normalize interactive studio spec defaults: board labs with block programs open in Blocks mode so
