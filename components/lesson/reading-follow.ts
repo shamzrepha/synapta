@@ -27,6 +27,9 @@ function pageWords(root: HTMLElement): DomWord[] {
   return out;
 }
 
+/** how far ahead of the voice (in clip time) Sprout stands */
+export const LEAD_MS = 190;
+
 const hasHighlights = (): boolean => typeof CSS !== "undefined" && "highlights" in CSS && typeof Highlight !== "undefined";
 
 function setHighlight(name: string, range: Range | null) {
@@ -150,6 +153,7 @@ export function followReading(opts: {
     next = again.next;
     follower.next = next;
     last = -2;
+    lastDomIdx = -1;
     perch = -1;
     return dom.length > 0;
   };
@@ -165,8 +169,8 @@ export function followReading(opts: {
       }
       const ms = audio.currentTime * 1000;
 
-      // Keep the word highlight, line highlight, and Sprout's landing target locked to the same spoken word so Sprout and the lit line never diverge
-      const idx = ms < 40 ? 0 : wordAt(words, ms + 90);
+      // the word being said glows
+      const idx = wordAt(words, ms);
       if (idx !== last && idx >= 0) {
         last = idx;
         const j = pageIndex(idx);
@@ -187,7 +191,9 @@ export function followReading(opts: {
         }
       }
 
-      const lead = idx;
+      // Sprout is a little ahead of the voice, so it has landed on a word by the time it is said (even at the start of a new line);
+      // before the voice has started it stands on the very first word, not on one a little way in
+      const lead = ms < 40 ? 0 : wordAt(words, ms + LEAD_MS);
       if (lead !== lastLead && lead >= 0) {
         lastLead = lead;
         const j = pageIndex(lead);
@@ -200,7 +206,7 @@ export function followReading(opts: {
             // the voice may be sped up, so a word takes less real time than its length in the clip
             hopTo(
               to,
-              Math.max(85, hopMs(from, to, Math.max(110, words[lead].e - words[lead].s)) / Math.max(0.5, audio.playbackRate)),
+              Math.max(90, hopMs(from, to, Math.max(120, words[lead].e - words[lead].s)) / Math.max(0.5, audio.playbackRate)),
               wRect.top
             );
           }

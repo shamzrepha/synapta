@@ -655,8 +655,11 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       if (direct || viewMode !== "flip") return direct ?? topic();
       const mine = flipPages.map((p, i) => ({ p, i })).filter(({ p }) => p.section.id === kcId);
       const pagesMd = mine.map(({ p }) => `${p.pageTitle}\n${p.subtopic || ""}\n${p.pageBody}`);
-      let at = pageHolding(pagesMd, blockText);
-      if (at < 0 && pageAnchor) at = pageHolding(pagesMd, pageAnchor);
+      // reading goes forward from the page on screen. A title or heading (it carries a pageAnchor) is only looked for from here on, so it never sends the
+      // reader back to the topic's first page; a paragraph is unique, so it is found on any page (skipping back works)
+      const cur = Math.max(0, mine.findIndex(({ i }) => i === safeFlipIdx));
+      let at = pageHolding(pagesMd, blockText, cur, !pageAnchor);
+      if (at < 0 && pageAnchor) at = pageHolding(pagesMd, pageAnchor, cur, false);
       const idx = at >= 0 ? mine[at].i : -1;
       if (idx < 0) return topic();
 
@@ -677,22 +680,30 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         const startPt = bot.where();
         bot.say("Next page!", 1300);
         // 1. Sprout walks/runs from wherever it currently is down to the bottom of the page
-        await bot.path(
-          (u) => ({
-            x: startPt.x + (bottomPt.x - startPt.x) * u,
-            y: startPt.y + (bottomPt.y - startPt.y) * u - Math.sin(u * Math.PI) * 14,
-          }),
-          { duration: 540, pose: "point", face: bottomPt.x < startPt.x ? -1 : 1 }
+        // a run that cannot finish (hidden tab, a bot that was switched off) must never hold the voice: give it its time plus a little
+        const run = (p: Promise<void>, ms: number) => Promise.race([p, new Promise<void>((r) => window.setTimeout(r, ms + 400))]).catch(() => {});
+        await run(
+          bot.path(
+            (u) => ({
+              x: startPt.x + (bottomPt.x - startPt.x) * u,
+              y: startPt.y + (bottomPt.y - startPt.y) * u - Math.sin(u * Math.PI) * 14,
+            }),
+            { duration: 540, pose: "point", face: bottomPt.x < startPt.x ? -1 : 1 }
+          ),
+          540
         );
         // 2. Flip / tear open the new page while Sprout runs from the bottom up to the top of the new page
         setSproutTearFlip(true);
         goToPage(idx);
-        await bot.path(
-          (u) => ({
-            x: bottomPt.x + (topPt.x - bottomPt.x) * u - Math.sin(u * Math.PI) * 26,
-            y: bottomPt.y + (topPt.y - bottomPt.y) * u,
-          }),
-          { duration: 620, pose: "pull", face: topPt.x <= bottomPt.x ? -1 : 1 }
+        await run(
+          bot.path(
+            (u) => ({
+              x: bottomPt.x + (topPt.x - bottomPt.x) * u - Math.sin(u * Math.PI) * 26,
+              y: bottomPt.y + (topPt.y - bottomPt.y) * u,
+            }),
+            { duration: 620, pose: "pull", face: topPt.x <= bottomPt.x ? -1 : 1 }
+          ),
+          620
         );
         window.setTimeout(() => setSproutTearFlip(false), 260);
       } else {
@@ -718,7 +729,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         );
         const curPt = bot.where();
         if (Math.hypot(perchPt.x - curPt.x, perchPt.y - curPt.y) > 2) {
-          await bot.path(hopPath(curPt, perchPt), { duration: 230, pose: "idle" });
+          await Promise.race([bot.path(hopPath(curPt, perchPt), { duration: 230, pose: "idle" }), new Promise<void>((r) => window.setTimeout(r, 630))]).catch(() => {});
         }
         bot.stick(perchPt.x, perchPt.y);
         await new Promise((r) => window.setTimeout(r, 160));

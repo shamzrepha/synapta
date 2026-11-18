@@ -21,21 +21,9 @@ export async function POST(req: NextRequest) {
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tts_read", limit: 60, windowMs: 60_000 });
     if (limited) return limited;
     const { text } = await parseJson(req, z.object({ text: z.string().trim().min(1).max(700) }));
-    const out = await synthesizeEdgeWithWords(text, READ_VOICE, { rate: "-8%", pitch: "+38Hz" });
+    const out = await synthesizeEdgeWithWords(text, READ_VOICE, { rate: "+0%", pitch: "+45Hz" });
     if (!out) return NextResponse.json({ ok: false, error: { code: "TTS_UNAVAILABLE", message: "Sprout's voice is busy right now." } }, { status: 503 });
-    return NextResponse.json(
-      {
-        ok: true,
-        data: {
-          audioBase64: out.audio.toString("base64"),
-          mimeType: "audio/mpeg",
-          words: out.words,
-          estimated: out.estimated,
-          fallbackCartoon: out.fallbackCartoon === true,
-        },
-      },
-      { headers: { "Cache-Control": "private, max-age=3600" } }
-    );
+    return NextResponse.json({ ok: true, data: { audioBase64: out.audio.toString("base64"), mimeType: "audio/mpeg", words: out.words, estimated: out.estimated } }, { headers: { "Cache-Control": "private, max-age=3600" } });
   } catch (error) {
     return handleAuthError(error);
   }

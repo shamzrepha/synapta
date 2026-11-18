@@ -17,7 +17,7 @@ const PREFIX = 26;
 /** True when the element's text begins with, or contains near its start, the same words as the paragraph. */
 export function textHasBlock(elementText: string, blockMarkdown: string): boolean {
   const want = alnum(plainBlock(blockMarkdown)).slice(0, PREFIX);
-  if (want.length < 2) return false;
+  if (want.length < 4) return false;
   return alnum(elementText).includes(want);
 }
 
@@ -44,19 +44,20 @@ export function findBlockElement(root: Element, blockMarkdown: string): HTMLElem
   };
   const found = scan();
   if (found) return found;
-  // If the block is inside a collapsed "Reveal answers" spoiler, open it so Sprout can read and hop on it
-  const closedSpoiler = root.querySelector<HTMLButtonElement>('[data-spoiler-toggle="closed"]');
-  if (closedSpoiler) {
-    closedSpoiler.click();
-  }
   return null;
 }
 
 /** Which of several pages (their markdown) holds the paragraph; -1 when none does. */
-export function pageHolding(pagesMarkdown: string[], blockMarkdown: string): number {
+export function pageHolding(pagesMarkdown: string[], blockMarkdown: string, from = 0, wrap = true): number {
   const want = alnum(plainBlock(blockMarkdown)).slice(0, PREFIX);
-  if (want.length < 2) return -1;
-  return pagesMarkdown.findIndex((p) => alnum(plainBlock(p)).includes(want));
+  if (want.length < 4) return -1;
+  const has = (p: string) => alnum(plainBlock(p)).includes(want);
+  const start = Math.min(Math.max(0, from), pagesMarkdown.length);
+  // the voice reads forward from the page on screen: look there first, so a title or heading that every page repeats never sends it back to page 1
+  for (let i = start; i < pagesMarkdown.length; i++) if (has(pagesMarkdown[i])) return i;
+  if (!wrap) return -1;
+  for (let i = 0; i < start; i++) if (has(pagesMarkdown[i])) return i;
+  return -1;
 }
 
 /** Returns the bounding box of the very first visible word inside `el` (or `el`'s own box). */

@@ -95,7 +95,7 @@ export function alignSpoken(spoken: string[], dom: string[], from = 0, reach = 8
     if (first && i === firstAt && anchor >= 0) {
       hit = anchor;
     } else {
-      const limit = first ? Math.min(d.length, j + Math.max(reach, 12)) : Math.min(d.length, j + reach);
+      const limit = first ? d.length : Math.min(d.length, j + reach);
       for (let k = j; k < limit; k++) {
         if (same(d[k], s)) {
           hit = k;
