@@ -20,4 +20,10 @@ describe("firestore.rules", () => {
   it("starts from deny-all", () => {
     expect(rules).toMatch(/match \/\{document=\*\*\} \{\s*allow read, write: if false;/);
   });
+
+  it("explicitly denies client access to aiSpend, avatars, systemConfig, and secrets", () => {
+    for (const col of ["aiSpend", "avatars", "systemConfig", "secrets"]) {
+      expect(rules).toMatch(new RegExp(`match \\/${col}\\/\\{[A-Za-z0-9_]+\\} \\{\\s*allow read, write: if false;`));
+    }
+  });
 });

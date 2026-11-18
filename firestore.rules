@@ -253,5 +253,17 @@ service cloud.firestore {
     match /quotaReservations/{id} {
       allow read, write: if false;
     }
+    match /aiSpend/{id} {
+      allow read, write: if false;
+    }
+    match /avatars/{id} {
+      allow read, write: if false;
+    }
+    match /systemConfig/{id} {
+      allow read, write: if false;
+    }
+    match /secrets/{id} {
+      allow read, write: if false;
+    }
   }
 }
