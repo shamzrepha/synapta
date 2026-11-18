@@ -88,10 +88,14 @@ export function PartArt({ p, def, out, pressed }: { p: CircuitPart; def: Compone
     }
     case "led": {
       const col = LED_COLORS[String(p.props?.color || "red")] || "#ef4444";
+      const burning = out?.fault === "overcurrent";
       const lvl = out?.on ? out.level : 0;
       return (
         <g>
-          {lvl > 0 && <circle cx={w / 2} cy={22} r={30} fill={col} opacity={0.28 * lvl + 0.12} />}
+          {burning && (
+            <animate attributeName="opacity" values="1;0.25;1;0.1;1" dur="0.5s" repeatCount="indefinite" />
+          )}
+          {lvl > 0 && <circle cx={w / 2} cy={22} r={burning ? 40 : 30} fill={burning ? "#fff7ed" : col} opacity={burning ? 0.7 : 0.28 * lvl + 0.12} />}
           <path d={`M${w / 2 - 13},39 L${w / 2 - 13},18 A13,13 0 0 1 ${w / 2 + 13},18 L${w / 2 + 13},39 Z`} fill={col} fillOpacity={0.28 + 0.72 * lvl} stroke={col} strokeWidth={2} />
           {/* Internal post & anvil */}
           <path d={`M${w / 2 - 5},39 L${w / 2 - 5},23 L${w / 2 - 1},23`} fill="none" stroke="#94a3b8" strokeWidth={1.6} opacity={0.8} />
@@ -101,7 +105,7 @@ export function PartArt({ p, def, out, pressed }: { p: CircuitPart; def: Compone
           <line x1={0.3 * w} y1={42} x2={0.3 * w} y2={h} stroke="#cbd5e1" strokeWidth={2.2} />
           <line x1={0.7 * w} y1={42} x2={0.7 * w} y2={h - 6} stroke="#94a3b8" strokeWidth={2.2} />
           <text x={0.3 * w - 9} y={h - 8} fontSize={10} fill="#ef4444" fontWeight={700}>+</text>
-          {out?.fault === "overcurrent" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={11} fill="#ef4444" fontWeight={700}>burning out</text>}
+          {out?.fault === "overcurrent" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={11} fill="#ef4444" fontWeight={700}>{`burning out · ${Math.round(out.currentMa ?? 0)} mA`}</text>}
           {out?.fault === "reversed" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={11} fill="#f59e0b" fontWeight={700}>reversed</text>}
         </g>
       );
@@ -332,8 +336,8 @@ export function PartArt({ p, def, out, pressed }: { p: CircuitPart; def: Compone
           <line x1={0.25 * w} y1={h - 10} x2={0.25 * w} y2={h} stroke="#ef4444" strokeWidth={3} />
           <line x1={0.75 * w} y1={h - 10} x2={0.75 * w} y2={h} stroke="#94a3b8" strokeWidth={3} />
           <text x={w / 2} y={13} textAnchor="middle" fontSize={8.5} fill="#0f172a" fontWeight={800}>BATTERY</text>
-          <text x={w / 2} y={32} textAnchor="middle" fontSize={12} fill="#fde68a" fontWeight={800} fontFamily="monospace">{`${volts} V`}</text>
-          {out?.fault === "short" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={10} fill="#ef4444" fontWeight={700}>short circuit</text>}
+          <text x={w / 2} y={32} textAnchor="middle" fontSize={12} fill={out?.fault === "short" ? "#f87171" : "#fde68a"} fontWeight={800} fontFamily="monospace">{`${out?.fault === "short" ? Math.max(0, out.volts ?? 0).toFixed(1) : volts} V`}</text>
+          {out?.fault === "short" && <text x={w / 2} y={-6} textAnchor="middle" fontSize={10} fill="#ef4444" fontWeight={700}>{`short circuit · ${((Math.abs(out.currentMa ?? 0)) / 1000).toFixed(1)} A`}</text>}
         </g>
       );
     }

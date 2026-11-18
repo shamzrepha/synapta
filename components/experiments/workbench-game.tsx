@@ -16,7 +16,6 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
-import { useUserStore } from "@/lib/store/use-user-store";
 import {
   REAGENTS,
   LAB_VERIFICATION_ORDERS,
@@ -29,7 +28,6 @@ import { cn } from "@/lib/utils";
 
 export function ScienceWorkbenchGame() {
   const { toast } = useToast();
-  const { user, updateUser } = useUserStore();
 
   const [reagents, setReagents] = useState<ReagentId[]>([]);
   const [burner, setBurner] = useState<BurnerSetting>("off");
@@ -427,6 +425,7 @@ export function ScienceWorkbenchGame() {
     setHeatingSeconds(0);
     setFlameLoopActive(false);
     setMicroscopeSlideTaken(false);
+    setMicroscopeZoom(100);
   };
 
   const handleCompleteOrder = () => {
@@ -440,12 +439,9 @@ export function ScienceWorkbenchGame() {
     }
     if (!completedOrders.includes(activeOrder.id)) {
       setCompletedOrders((prev) => [...prev, activeOrder.id]);
-      if (user) {
-        updateUser({ xp: (user.xp || 0) + activeOrder.xpReward });
-      }
     }
     toast({
-      title: `Verified! +${activeOrder.xpReward} XP Earned`,
+      title: `Order verified! +${activeOrder.xpReward} practice points`,
       description: `${activeOrder.title} completed and verified!`,
       variant: "success",
     });
@@ -508,7 +504,7 @@ export function ScienceWorkbenchGame() {
         <div className="space-y-0.5 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500 text-slate-950">
-              {activeOrder.client} • +{activeOrder.xpReward} XP
+              {activeOrder.client} • +{activeOrder.xpReward} practice pts
             </span>
             <h3 className="text-xs sm:text-sm font-extrabold text-foreground truncate">{activeOrder.title}</h3>
           </div>
@@ -526,7 +522,7 @@ export function ScienceWorkbenchGame() {
           )}
         >
           <CheckCircle2 className="mr-1.5 h-4 w-4" />
-          {orderCheck.passed ? `Verify & Claim +${activeOrder.xpReward} XP!` : "Check Order"}
+          {orderCheck.passed ? `Verify order (+${activeOrder.xpReward} practice pts)` : "Check Order"}
         </Button>
       </div>
 
@@ -649,7 +645,7 @@ export function ScienceWorkbenchGame() {
                 onClick={() => setHeatingSeconds((s) => Math.min(60, s + 4))}
                 className="flex-1 h-8 text-[11px] font-semibold"
               >
-                <Flame className="mr-1 h-3.5 w-3.5 text-amber-500" /> Heat +50°C Faster
+                <Flame className="mr-1 h-3.5 w-3.5 text-amber-500" /> Heat Faster
               </Button>
               <Button
                 type="button"

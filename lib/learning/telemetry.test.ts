@@ -84,3 +84,14 @@ describe("TikTok/FYP Learning Telemetry, Completion Queue & Self-Healing Engine"
     expect(next?.id).toBe("q3");
   });
 });
+
+describe("telemetry profile stays small", () => {
+  it("caps the per-topic history so a client cannot grow the user document without limit", () => {
+    let profile = createDefaultTelemetryProfile();
+    for (let i = 0; i < 400; i++) {
+      profile = applyTelemetryEvent(profile, { questionId: `q${i}`, topic: `Topic ${i}`, dwellMs: 60_000, peerMedianMs: 90_000, correct: true, scorePercent: 90 });
+    }
+    expect(Object.keys(profile.topicProgress).length).toBeLessThanOrEqual(60);
+    expect(profile.topicProgress["Topic 399"]).toBeDefined();
+  });
+});

@@ -150,15 +150,19 @@ export async function POST(
       typeof targetQuestion.question === "string" && /[=^/*]|sin|cos|tan|sqrt|log/i.test(targetQuestion.question)
         ? [targetQuestion.question.slice(0, 75)]
         : undefined;
-    void recordAdaptiveSignal({
-      uid: caller.uid,
-      classId: sessionData.classId,
-      kcId: sessionData.kcId,
-      questionId: targetQuestion.id || `${sessionId}:${questionIndex}`,
-      correct: isCorrect,
-      activity: "quiz",
-      formulas: formulaHint,
-    });
+    // A credited answer was already counted by applyEvidenceIfEnrolled; counting it again doubled the learner's
+    // question count and skewed their pace and readiness.
+    if (!evidenceResult) {
+      void recordAdaptiveSignal({
+        uid: caller.uid,
+        classId: sessionData.classId,
+        kcId: sessionData.kcId,
+        questionId: targetQuestion.id || `${sessionId}:${questionIndex}`,
+        correct: isCorrect,
+        activity: "quiz",
+        formulas: formulaHint,
+      });
+    }
 
     return NextResponse.json({
       ok: true,

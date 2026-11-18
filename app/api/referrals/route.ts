@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
+import { requireUser, requireVerifiedEmail, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -42,6 +42,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
+    // An unconfirmed email can be made in seconds, so unverified accounts cannot farm referral XP or the free exam pass.
+    requireVerifiedEmail(caller);
     const limited = await checkRateLimit(req, {
       uid: caller.uid,
       keyPrefix: "referral_claim",
@@ -53,85 +55,71 @@ export async function POST(req: NextRequest) {
     const body = await parseJson(req, claimReferralSchema);
     const handle = body.referrerUsername.toLowerCase().replace(/^@/, "");
 
-    const callerRef = adminDb().collection("users").doc(caller.uid);
-    const callerSnap = await callerRef.get();
-    const callerData = callerSnap.data() || {};
+    const db = adminDb();
+    const callerRef = db.collection("users").doc(caller.uid);
 
-    if (callerData.referredBy) {
-      throw new ApiError(400, "ALREADY_CLAIMED", "You have already claimed a campus referral code.");
-    }
-    if ((callerData.username || "").toLowerCase() === handle) {
-      throw new ApiError(400, "SELF_REFERRAL", "You cannot use your own referral handle.");
-    }
-
-    const refQuery = await adminDb().collection("users").where("username", "==", handle).limit(1).get();
+    const refQuery = await db.collection("users").where("username", "==", handle).limit(1).get();
     if (refQuery.empty) {
       throw new ApiError(404, "NOT_FOUND", "No student or Class Rep found with that @username.");
     }
-
     const referrerDoc = refQuery.docs[0];
     if (referrerDoc.id === caller.uid) {
       throw new ApiError(400, "SELF_REFERRAL", "You cannot use your own referral handle.");
     }
 
-    const referrerData = referrerDoc.data() || {};
-    const nextCount = (typeof referrerData.referralCount === "number" ? referrerData.referralCount : 0) + 1;
-    const hitMilestone = nextCount >= 10 && !referrerData.referralExamPassGranted;
+    // The "already claimed" check and the XP are one transaction: two parallel requests can no longer both pass the check and double the reward.
+    const out = await db.runTransaction(async (tx) => {
+      const [callerSnap, referrerSnap] = await Promise.all([tx.get(callerRef), tx.get(referrerDoc.ref)]);
+      const callerData = callerSnap.data() || {};
+      const referrerData = referrerSnap.data() || {};
+      if (callerData.referredBy) {
+        throw new ApiError(400, "ALREADY_CLAIMED", "You have already claimed a campus referral code.");
+      }
+      if ((callerData.username || "").toLowerCase() === handle) {
+        throw new ApiError(400, "SELF_REFERRAL", "You cannot use your own referral handle.");
+      }
+      const nextCount = (typeof referrerData.referralCount === "number" ? referrerData.referralCount : 0) + 1;
+      const hitMilestone = nextCount >= 10 && !referrerData.referralExamPassGranted;
 
-    const batch = adminDb().batch();
+      tx.set(
+        callerRef,
+        { referredBy: referrerDoc.id, referredByHandle: handle, xp: FieldValue.increment(250), updatedAt: Timestamp.now() },
+        { merge: true }
+      );
 
-    // 1. Update caller (+250 XP)
-    batch.set(
-      callerRef,
-      {
-        referredBy: referrerDoc.id,
-        referredByHandle: handle,
+      const referrerUpdates: Record<string, unknown> = {
+        referralCount: nextCount,
         xp: FieldValue.increment(250),
         updatedAt: Timestamp.now(),
-      },
-      { merge: true }
-    );
-
-    // 2. Update referrer (+250 XP, referralCount + 1, and 14-day Exam Pass if milestone reached)
-    const referrerUpdates: Record<string, unknown> = {
-      referralCount: nextCount,
-      xp: FieldValue.increment(250),
-      updatedAt: Timestamp.now(),
-    };
-
-    if (hitMilestone) {
-      const currentPlan = referrerData.plan || "free";
-      const existingExpiryMs =
-        referrerData.planExpiresAt?.toMillis?.() ||
-        (typeof referrerData.planExpiresAt === "number" ? referrerData.planExpiresAt : 0);
-      const baseMs = Math.max(Date.now(), existingExpiryMs);
-      referrerUpdates.referralExamPassGranted = true;
-      if (currentPlan === "free" || currentPlan === "exam") {
-        referrerUpdates.plan = "exam";
-        referrerUpdates.planExpiresAt = Timestamp.fromMillis(baseMs + 14 * 86_400_000);
+      };
+      if (hitMilestone) {
+        const currentPlan = referrerData.plan || "free";
+        const existingExpiryMs =
+          referrerData.planExpiresAt?.toMillis?.() || (typeof referrerData.planExpiresAt === "number" ? referrerData.planExpiresAt : 0);
+        const baseMs = Math.max(Date.now(), existingExpiryMs);
+        referrerUpdates.referralExamPassGranted = true;
+        if (currentPlan === "free" || currentPlan === "exam") {
+          referrerUpdates.plan = "exam";
+          referrerUpdates.planExpiresAt = Timestamp.fromMillis(baseMs + 14 * 86_400_000);
+        }
       }
-    }
+      tx.set(referrerDoc.ref, referrerUpdates, { merge: true });
 
-    batch.set(referrerDoc.ref, referrerUpdates, { merge: true });
-
-    // 3. Notify referrer
-    const notifRef = referrerDoc.ref.collection("notifications").doc();
-    batch.set(notifRef, {
-      type: "referral",
-      title: hitMilestone
-        ? "10 Coursemates Referred — 14-Day Exam Pass Unlocked!"
-        : `New Campus Referral (+250 XP)! (${nextCount}/10)`,
-      body: hitMilestone
-        ? "You hit 10 campus referrals! Your 14-day Exam Pass for Past Questions & CBT is now active."
-        : `${callerData.displayName || "A coursemate"} joined with your invite link. ${Math.max(0, 10 - nextCount)} more for a free 14-Day Exam Pass!`,
-      href: "/dashboard",
-      icon: "gift",
-      sproutMood: "dance",
-      read: false,
-      createdAt: Timestamp.now(),
+      tx.set(referrerDoc.ref.collection("notifications").doc(), {
+        type: "referral",
+        title: hitMilestone ? "10 Coursemates Referred — 14-Day Exam Pass Unlocked!" : `New Campus Referral (+250 XP)! (${nextCount}/10)`,
+        body: hitMilestone
+          ? "You hit 10 campus referrals! Your 14-day Exam Pass for Past Questions & CBT is now active."
+          : `${callerData.displayName || "A coursemate"} joined with your invite link. ${Math.max(0, 10 - nextCount)} more for a free 14-Day Exam Pass!`,
+        href: "/dashboard",
+        icon: "gift",
+        sproutMood: "dance",
+        read: false,
+        createdAt: Timestamp.now(),
+      });
+      return { hitMilestone };
     });
-
-    await batch.commit();
+    const hitMilestone = out.hitMilestone;
 
     return NextResponse.json({
       ok: true,

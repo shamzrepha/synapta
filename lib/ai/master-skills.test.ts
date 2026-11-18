@@ -46,4 +46,17 @@ describe("AI model master skills", () => {
     const twice = withModelMasterSkill(once, { task: "tutor_chat", model: "openai/gpt-4o" });
     expect(twice).toBe(once);
   });
+
+  it("stays small and never throws, whatever the task or model", () => {
+    for (const task of ["tutor_chat", "sim_build", "grading_high_stakes", "", "no-such-task", undefined]) {
+      for (const model of ["gemini-2.5-pro", "deepseek/deepseek-r1", "weird/model:free", "", undefined]) {
+        for (const jsonMode of [true, false]) {
+          const out = withModelMasterSkill("Base", { task, model, jsonMode });
+          expect(out.startsWith("Base")).toBe(true);
+          expect(out.length).toBeLessThan(2500);
+        }
+      }
+    }
+    expect(() => withModelMasterSkill(undefined, {})).not.toThrow();
+  });
 });

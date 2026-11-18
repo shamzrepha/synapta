@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
       uid: caller.uid,
       keyPrefix: "institution_inquiry",
       limit: 5,
-      windowMs: 60_000,
+      windowMs: 3_600_000,
+      shared: true, // counted across all server instances: each request writes a record the sales team has to read
     });
     if (limited) return limited;
 

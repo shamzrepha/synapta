@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
     await requireUser(req, ["admin"]);
 
     // 1. Fetch usage documents
-    const usageSnap = await adminDb().collection("usage").get();
+    const usageSnap = await adminDb().collection("usage").limit(5000).get();
 
     let totalTokensIn = 0;
     let totalTokensOut = 0;
@@ -57,8 +57,8 @@ export async function GET(req: NextRequest) {
 
     // 2. Fetch platform counts & North-Star KPI metrics
     const [usersSnap, classesSnap, evidenceSnap, designsSnap, cacheSnap] = await Promise.all([
-      adminDb().collection("users").get(),
-      adminDb().collection("classes").get(),
+      adminDb().collection("users").limit(5000).get(),
+      adminDb().collection("classes").limit(5000).get(),
       adminDb().collection("evidence").limit(500).get(),
       adminDb().collection("designs").limit(500).get(),
       adminDb().collection("aiCache").limit(500).get(),

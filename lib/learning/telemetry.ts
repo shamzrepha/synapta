@@ -130,6 +130,8 @@ export interface CohortClarityFeedback {
 
 export const DEFAULT_PEER_MEDIAN_MS = 90_000; // 1.5 minutes baseline per past question
 
+const MAX_TOPIC_PROGRESS = 60;
+
 export function createDefaultTelemetryProfile(): LearnerTelemetryProfile {
   return {
     dominantCohort: "step_by_step_procedural",
@@ -365,9 +367,10 @@ export function applyTelemetryEvent(
   }
   const completedQuestionIds = Array.from(completedSet).slice(-200);
 
-  const topicProgress = { ...base.topicProgress };
+  let topicProgress = { ...base.topicProgress };
   if (topicLabel) {
     const prevTopic = topicProgress[topicLabel];
+    delete topicProgress[topicLabel]; // re-added below, so it counts as the most recent
     const prevCount = prevTopic?.completedCount || 0;
     const prevAvg = prevTopic?.avgScorePercent || 70;
     const nextCount = prevCount + 1;
@@ -377,6 +380,16 @@ export function applyTelemetryEvent(
       avgScorePercent: Math.round((prevAvg * prevCount + scorePct) / nextCount),
       lastStudiedAt: new Date().toISOString(),
     };
+    // keep the 60 most recently studied topics: the profile lives in the user's document and topic names come from the client
+    const keys = Object.keys(topicProgress);
+    if (keys.length > MAX_TOPIC_PROGRESS) {
+      topicProgress = Object.fromEntries(
+        Object.entries(topicProgress)
+          .reverse()
+          .sort((a, b) => String(b[1].lastStudiedAt).localeCompare(String(a[1].lastStudiedAt)))
+          .slice(0, MAX_TOPIC_PROGRESS)
+      );
+    }
   }
 
   // 4. Update Study Time, Rolling Dwell Ratio & Predicted Improvement

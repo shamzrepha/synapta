@@ -8,6 +8,7 @@ import { quizBankForStudents } from "@/lib/classes/live";
 import { classOwner, ensureQuizBank, pickForLearner, readQuizBank, reshuffleOptions } from "@/lib/practice/bank";
 import { getSeen, setSeen } from "@/lib/practice/history";
 import { loadLearnerDna, pickAdaptiveQuizFocus } from "@/lib/adaptive/learner-dna";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -28,7 +29,10 @@ const quizInputSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const body = await req.json();
+    // each quiz writes a session document, and the first one for a topic builds its question bank with the AI
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "ai_quiz", limit: 20, windowMs: 60_000 });
+    if (limited) return limited;
+    const body = await req.json().catch(() => ({}));
     const parsed = quizInputSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(

@@ -36,15 +36,20 @@ export async function POST(req: NextRequest) {
     const clash = await adminDb().collection("users").where("username", "==", name.username).limit(2).get();
     if (clash.docs.some((d) => d.id !== caller.uid)) throw new ApiError(409, "USERNAME_TAKEN", "Someone already uses that name. Try another.");
 
+    const userRef = adminDb().collection("users").doc(caller.uid);
+    const existing = (await userRef.get()).data() || {};
+    // A school-linked account keeps the school's name and department: they are set by the school, not typed into a form, and the
+    // roster, campus feed and announcements are keyed to them. Fields the form left out are never wiped (older accounts run this too).
+    const inSchool = typeof existing.schoolId === "string" && existing.schoolId.trim() !== "";
     const updates: Record<string, unknown> = {
       username: name.username,
       profileSetup: true,
-      institution: b.institution?.trim() || null,
-      department: b.department?.trim() || null,
-      level: b.level?.trim() || null,
-      interests: b.interests || [],
       updatedAt: Timestamp.now(),
     };
+    if (!inSchool && b.institution) updates.institution = b.institution;
+    if (!inSchool && b.department) updates.department = b.department;
+    if (b.level) updates.level = b.level;
+    if (b.interests) updates.interests = b.interests;
     if (b.avatar.kind === "preset") {
       const url = presetAvatarUrl(b.avatar.index);
       if (!url) throw new ApiError(400, "BAD_AVATAR", "Pick one of the starter pictures.");
@@ -57,16 +62,16 @@ export async function POST(req: NextRequest) {
       await adminDb().collection("avatars").doc(caller.uid).set({ data: m[1], updatedAt: Timestamp.now() });
       updates.photoURL = `/api/avatar/${caller.uid}?v=${Date.now()}`;
     }
-    await adminDb().collection("users").doc(caller.uid).set(updates, { merge: true });
+    await userRef.set(updates, { merge: true });
     return NextResponse.json({
       ok: true,
       data: {
         username: name.username,
         photoURL: (updates.photoURL as string | undefined) ?? null,
-        institution: updates.institution ?? null,
-        department: updates.department ?? null,
-        level: updates.level ?? null,
-        interests: updates.interests ?? [],
+        institution: (updates.institution as string | undefined) ?? existing.institution ?? null,
+        department: (updates.department as string | undefined) ?? existing.department ?? null,
+        level: (updates.level as string | undefined) ?? existing.level ?? null,
+        interests: (updates.interests as string[] | undefined) ?? existing.interests ?? [],
       },
     });
   } catch (error) {

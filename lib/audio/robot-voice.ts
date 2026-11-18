@@ -1,6 +1,6 @@
 /**
- * Sprout's reading voice plays through one shared audio element with formant shifting (preservesPitch = false)
- * so the vocal tract formants and pitch sound like a lively, high-pitched child cartoon character.
+ * Sprout's reading voice plays through one shared audio element. There is no sound effect on it any more: Sprout reads in a plain,
+ * very high child's voice (the voice itself is chosen on the server). The name stays so the callers keep working.
  */
 export interface RobotAudio {
   el: HTMLAudioElement;
@@ -10,28 +10,10 @@ export interface RobotAudio {
 
 let shared: RobotAudio | null = null;
 
-export function applyCartoonVoice(el: HTMLAudioElement, userRate = 1, isFallbackAdult = false): void {
-  try {
-    const pitchable = el as HTMLAudioElement & {
-      preservesPitch?: boolean;
-      mozPreservesPitch?: boolean;
-      webkitPreservesPitch?: boolean;
-    };
-    pitchable.preservesPitch = false;
-    pitchable.mozPreservesPitch = false;
-    pitchable.webkitPreservesPitch = false;
-    const formantLift = isFallbackAdult ? 1.28 : 1.18;
-    el.playbackRate = Math.max(0.65, Math.min(2.2, userRate * formantLift));
-  } catch {
-    /* ignore in unsupported environments */
-  }
-}
-
 export function robotAudio(): RobotAudio {
   if (shared) return shared;
   const el = new Audio();
   el.preload = "auto";
-  applyCartoonVoice(el, 1);
   shared = { el, wake: () => {} };
   return shared;
 }

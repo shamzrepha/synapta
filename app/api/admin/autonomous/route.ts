@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
-import { parseJson } from "@/lib/api/errors";
+import { ApiError, parseJson } from "@/lib/api/errors";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { DEFAULT_PEER_MEDIAN_MS, type LearningCohortId } from "@/lib/learning/telemetry";
 
 export const runtime = "nodejs";
@@ -108,8 +109,6 @@ export async function GET(req: NextRequest) {
         institutionalLeads,
         cohortCounts,
         paidSubscribers,
-        estimatedGrossMarginPercent: 89,
-        cacheHitSavingsPercent: 84,
       },
     });
   } catch (error) {
@@ -120,7 +119,22 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req, ["admin"]);
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "admin_autonomous", limit: 5, windowMs: 60_000 });
+    if (limited) return limited;
     const body = await parseJson(req, seedSchema);
+
+    // one seeded pack per campus, department and level: a double click must not publish (and notify) twice
+    const already = await adminDb()
+      .collection("classes")
+      .where("autoSeeded", "==", true)
+      .where("institution", "==", body.institution)
+      .where("department", "==", body.department)
+      .where("level", "==", body.level)
+      .limit(1)
+      .get();
+    if (!already.empty) {
+      throw new ApiError(409, "ALREADY_SEEDED", "A starter pack for this campus, department and level already exists.");
+    }
 
     const joinCode = `${body.department.slice(0, 3).toUpperCase()}${Math.floor(100 + Math.random() * 900)}`;
     const classRef = adminDb().collection("classes").doc();
@@ -138,6 +152,7 @@ export async function POST(req: NextRequest) {
       teacherId: caller.uid,
       ownerId: caller.uid,
       teacherName: "Sprout Autonomous Curriculum",
+      autoSeeded: true,
       visibility: "public",
       status: "published",
       joinCode,
@@ -225,7 +240,13 @@ export async function POST(req: NextRequest) {
 
     let notifiedCount = 0;
     if (matchedStudents) {
+      const wantInst = body.institution.toLowerCase();
+      const wantAcronym = wantInst.match(/\(([^)]+)\)/)?.[1] ?? "";
       for (const sDoc of matchedStudents.docs) {
+        // the department alone is not enough: the pack is for one campus
+        const inst = String(sDoc.data()?.institution || "").toLowerCase();
+        const sameCampus = inst.length >= 3 && (inst.includes(wantInst) || wantInst.includes(inst) || (wantAcronym !== "" && inst.includes(wantAcronym)));
+        if (!sameCampus) continue;
         const nRef = sDoc.ref.collection("notifications").doc();
         batch.set(nRef, {
           type: "course_seeded",

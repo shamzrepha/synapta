@@ -244,6 +244,8 @@ interface AskOptions {
   /** run the simulator's checks on the result and let the model fix what they find (once) */
   verify?: boolean;
   research?: Research | null;
+  /** design attempts (each may add one simulator fix call); default 2 */
+  maxAttempts?: number;
 }
 
 async function askForDesign(prompt: string, userId: string, system: string, opts: AskOptions = {}): Promise<{ title: string; message?: string; spec: DesignSpec; removed: string[]; problems: string[] }> {
@@ -259,7 +261,7 @@ async function askForDesign(prompt: string, userId: string, system: string, opts
     }
     return parseSpec(repairSpec(raw));
   };
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < (opts.maxAttempts ?? 2); attempt++) {
     const remaining = deadlineAt - Date.now();
     if (attempt > 0 && remaining < 25_000) break;
     const res = await generateWithFallback({
@@ -323,7 +325,7 @@ CHOOSE THE KIND TO FIT WHAT IS BEING BUILT, never force electronics:
 - When in doubt, build the smallest design that teaches the idea; leave out anything the learner didn't ask for.
 Return ONLY JSON: {"title": "...", "message": "one-line commit message", "spec": {design}}.`;
 
-export async function generateDesign(params: { prompt: string; kind?: DesignKind; level?: string; userId: string; parts?: PartSelection[]; research?: Research | null }) {
+export async function generateDesign(params: { prompt: string; kind?: DesignKind; level?: string; userId: string; parts?: PartSelection[]; research?: Research | null; maxAttempts?: number }) {
   const prompt = `Create a ${params.kind ? `${params.kind} ` : ""}design for: ${params.prompt.slice(0, 1500)}
 Learner level: ${params.level || "beginner"}. Choose the kind that fits best if not given (electronics/wiring/robotics → circuit; gears/levers/lifting with no electronics → mechanism; physical product/enclosure/structure → assembly).
 - Pure DC wire circuits (Ohm's law, battery + bulb + resistor + switch + ammeter/voltmeter, series/parallel circuits): use kind "circuit" WITHOUT a Starter "board", WITHOUT "code"/"blocks", and WITHOUT any "code" step check — students wire it directly in the interactive circuit bench.
@@ -331,7 +333,7 @@ Learner level: ${params.level || "beginner"}. Choose the kind that fits best if 
   const selected = params.parts?.length ? params.parts.map((p) => p.type) : undefined;
   const bom = params.parts?.length ? `\nBILL OF MATERIALS the learner will build with: ${params.parts.map((p) => `${p.qty} × ${p.type}`).join(", ")}. Use these quantities.` : "";
   const system = `${SYSTEM}\n\n${groundingBlock({ types: selected || [], research: params.research })}`;
-  return askForDesign(prompt + bom, params.userId, system, { selected, verify: true, research: params.research });
+  return askForDesign(prompt + bom, params.userId, system, { selected, verify: true, research: params.research, maxAttempts: params.maxAttempts });
 }
 
 const editSchema = z.object({

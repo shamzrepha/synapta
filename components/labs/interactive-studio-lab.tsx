@@ -25,6 +25,8 @@ import { CodeEditor } from "@/components/studio/code-editor";
 import { MechPanel } from "@/components/studio/mech-panel";
 import { TrackView } from "@/components/studio/track-view";
 import { useStudioSim } from "@/components/studio/use-studio-sim";
+import { TutorBubble, type TutorMessage } from "@/components/labs/tutor-bubble";
+import { liveFaultIssues } from "@/lib/studio/circuit/checker";
 import { compileBlocks } from "@/lib/studio/blocks";
 import { emptyBlockly } from "@/lib/studio/blockly/convert";
 import { cppProblems, looksLikeCpp } from "@/lib/studio/cpp";
@@ -124,8 +126,9 @@ function InteractiveStudioLabInner({
   // For open-ended explorer labs without scripted behavior tests, award goal completion once
   // the circuit/mechanism runs cleanly with no error-severity wiring issues.
   const errorCount = issues.filter((i) => i.severity === "error").length;
+  const liveFault = !!(work.circuit && running && liveFaultIssues(work.circuit, sim.liveOutputs).some((i) => i.severity === "error"));
   useEffect(() => {
-    if (!running || runError || completedRef.current || work.tests.length > 0 || errorCount > 0) return;
+    if (!running || runError || completedRef.current || work.tests.length > 0 || errorCount > 0 || liveFault) return;
     const t = setTimeout(() => {
       if (!completedRef.current) {
         completedRef.current = true;
@@ -133,7 +136,18 @@ function InteractiveStudioLabInner({
       }
     }, 1500);
     return () => clearTimeout(t);
-  }, [running, runError, errorCount, work.tests.length]);
+  }, [running, runError, errorCount, liveFault, work.tests.length]);
+
+  // Physics verdict as a short tutor bubble: it never blocks the bench, can be dismissed and fades by itself.
+  // The same fault is not re-announced until it has gone away and come back.
+  const [warnKey, setWarnKey] = useState({ text: "", id: 0 });
+  const warnText = useMemo(() => {
+    if (!running || !work.circuit) return "";
+    const top = liveFaultIssues(work.circuit, sim.liveOutputs)[0] ?? issues.find((i) => i.severity === "error");
+    return top ? `${top.message} ${top.why}` : "";
+  }, [running, work.circuit, sim.liveOutputs, issues]);
+  if (warnText !== warnKey.text) setWarnKey({ text: warnText, id: warnKey.id + 1 });
+  const warning: TutorMessage | null = warnText ? { id: warnKey.id, text: warnText, tone: "warn" } : null;
 
   const edit = (patch: Partial<DesignSpec>) => {
     setWork((cur) => ({ ...cur, ...patch }));
@@ -201,7 +215,7 @@ function InteractiveStudioLabInner({
   const showSplit = split && canSplit && !pureWireCircuit;
 
   const benchNode = work.circuit ? (
-    <div className={cn("h-full flex flex-col gap-2", full ? "min-h-0" : compact ? "min-h-[340px]" : "min-h-[420px]")}>
+    <div className={cn("relative h-full flex flex-col gap-2", full ? "min-h-0" : compact ? "min-h-[340px]" : "min-h-[420px]")}>
       <div className="flex-1 min-h-0">
         <CircuitBench
           circuit={work.circuit}
@@ -216,6 +230,7 @@ function InteractiveStudioLabInner({
           fit={full}
         />
       </div>
+      <TutorBubble message={warning} className="absolute left-2 right-2 bottom-2 z-10 max-w-none sm:max-w-xl" />
       {runError && (
         <p className="rounded-xl bg-rose-500/10 text-rose-700 dark:text-rose-300 text-xs px-3 py-2 font-mono">{runError}</p>
       )}

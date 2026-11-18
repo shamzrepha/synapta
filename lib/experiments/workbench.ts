@@ -96,7 +96,7 @@ export const REAGENTS: ReagentDef[] = [
     colorHex: "#f8fafc",
     defaultPh: 6.8,
     flameColor: { name: "Apple Green (Ba²⁺)", hex: "#4ade80", wavelengthNm: 524 },
-    description: "Sulfate test reagent; forms dense white BaSO₄ precipitate with SO₄²⁻.",
+    description: "Toxic if swallowed. Sulfate test reagent; forms dense white BaSO₄ precipitate with SO₄²⁻.",
   },
   {
     id: "caco3",
@@ -199,7 +199,9 @@ export function evaluateWorkbench(state: VesselState): ReactionResult {
     tempC += 16; // Exothermic neutralization ΔH = -57.3 kJ/mol
   }
   const burnerRate = state.burner === "roaring" ? 18 : state.burner === "safety" ? 7 : 0;
-  tempC = Math.min(920, tempC + state.heatingSeconds * burnerRate);
+  // An aqueous vessel boils at about 100°C and cannot get hotter; only dry solid (marble chips alone) can reach furnace heat.
+  const aqueous = state.reagents.some((r) => r !== "caco3");
+  tempC = Math.min(aqueous ? 100 : 920, tempC + state.heatingSeconds * burnerRate);
 
   // 2. Acid-base pH calculation
   const acidUnits = countOf("hcl");
@@ -241,9 +243,12 @@ export function evaluateWorkbench(state: VesselState): ReactionResult {
   if (has("fecl3")) liquidColorHex = "#f59e0b";
   if (has("iodine")) liquidColorHex = "#d97706";
 
+  // A metal hydroxide only precipitates while alkali is in excess: acid at least equal to the NaOH neutralises it or dissolves it again.
+  const alkaliExcess = baseUnits > acidUnits;
+
   // Reaction A: Copper(II) Sulfate + Sodium Hydroxide -> Cu(OH)2 (sky blue ppt)
   // And if heated above 80°C -> thermal dehydration to black CuO!
-  if (has("cuso4") && has("naoh")) {
+  if (has("cuso4") && has("naoh") && alkaliExcess) {
     if (tempC >= 80) {
       liquidColorHex = "#cbd5e1";
       precipitate = {
@@ -270,7 +275,7 @@ export function evaluateWorkbench(state: VesselState): ReactionResult {
     }
   }
   // Reaction B: Iron(II) Sulfate + NaOH -> Dirty-green Fe(OH)2
-  else if (has("feso4") && has("naoh")) {
+  else if (has("feso4") && has("naoh") && alkaliExcess) {
     liquidColorHex = "#bbf7d0";
     precipitate = {
       present: true,
@@ -283,7 +288,7 @@ export function evaluateWorkbench(state: VesselState): ReactionResult {
     observation = "Dirty-green gelatinous precipitate of Iron(II) Hydroxide formed.";
   }
   // Reaction C: Iron(III) Chloride + NaOH -> Reddish-brown Fe(OH)3
-  else if (has("fecl3") && has("naoh")) {
+  else if (has("fecl3") && has("naoh") && alkaliExcess) {
     liquidColorHex = "#fde68a";
     precipitate = {
       present: true,
@@ -307,6 +312,19 @@ export function evaluateWorkbench(state: VesselState): ReactionResult {
     };
     equation = "Ag⁺(aq) + Cl⁻(aq) → AgCl(s)↓";
     observation = "Dense curdy white precipitate of Silver Chloride (AgCl) formed — positive test for Cl⁻ halide ions.";
+  }
+  // Reaction D2: Silver Nitrate + NaOH (no chloride) -> brown Ag2O
+  else if (has("agno3") && has("naoh") && alkaliExcess) {
+    liquidColorHex = "#e7e5e4";
+    precipitate = {
+      present: true,
+      formula: "Ag₂O(s)",
+      name: "Silver(I) Oxide",
+      colorHex: "#78350f",
+      crystalShape: "granular",
+    };
+    equation = "2Ag⁺(aq) + 2OH⁻(aq) → Ag₂O(s)↓ + H₂O(l)";
+    observation = "Brown precipitate of Silver(I) Oxide formed (AgOH is unstable and loses water at once).";
   }
   // Reaction E: Barium Chloride + Sulfate (CuSO4 or FeSO4) -> White BaSO4 precipitate
   else if (has("bacl2") && (has("cuso4") || has("feso4"))) {
@@ -333,8 +351,8 @@ export function evaluateWorkbench(state: VesselState): ReactionResult {
     equation = "CaCO₃(s) + 2HCl(aq) → CaCl₂(aq) + H₂O(l) + CO₂(g)↑";
     observation = "Vigorous effervescence! Colorless, odorless CO₂ gas bubbles rapidly escape the solution.";
   }
-  // Reaction G: Thermal decomposition of CaCO3 at high heat (>= 200°C sim threshold)
-  else if (has("caco3") && tempC >= 200) {
+  // Reaction G: Thermal decomposition of CaCO3 needs furnace heat (about 840°C and above)
+  else if (has("caco3") && tempC >= 840) {
     precipitate = {
       present: true,
       formula: "CaO(s)",
@@ -397,7 +415,9 @@ export function evaluateWorkbench(state: VesselState): ReactionResult {
     wavelengthNm: 0,
   };
   if (state.burner !== "off" && state.flameLoopActive) {
-    const flameReagent = REAGENTS.find((r) => state.reagents.includes(r.id) && r.flameColor);
+    // Sodium's yellow masks every other colour; iron salts give no clean flame colour so they come last.
+    const order: ReagentId[] = ["naoh", "bacl2", "cuso4", "caco3", "fecl3", "feso4"];
+    const flameReagent = order.map((id) => REAGENTS.find((r) => r.id === id)).find((r) => r && r.flameColor && state.reagents.includes(r.id));
     if (flameReagent?.flameColor) {
       flameTest = {
         active: true,
