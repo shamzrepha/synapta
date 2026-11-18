@@ -110,7 +110,7 @@ export function SchoolRegisterSection() {
           contactName: contactName.trim(),
           contactEmail: contactEmail.trim(),
           contactPhone: contactPhone.trim(),
-          seatLimit: Math.max(10, Number(seatLimit) || 100),
+          seatLimit: Math.min(200, Math.max(10, Number(seatLimit) || 100)),
         }),
       });
       const j = await res.json().catch(() => null);
@@ -357,9 +357,9 @@ export function SchoolRegisterSection() {
                   <Input
                     type="number"
                     min={10}
-                    max={10000}
+                    max={200}
                     value={seatLimit}
-                    onChange={(e) => setSeatLimit(Math.max(10, Number(e.target.value) || 100))}
+                    onChange={(e) => setSeatLimit(Math.min(200, Math.max(10, Number(e.target.value) || 100)))}
                     className="h-10 text-xs"
                   />
                 </div>

@@ -184,16 +184,23 @@ export function ProfileSetup() {
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Only load the school list when the setup screen is actually open, not on every page of the app
+  const wantsSetup = Boolean(user && (user.profileSetup === false || forceOpen));
   useEffect(() => {
+    if (!wantsSetup) return;
+    let live = true;
     fetch("/api/schools?mode=directory")
       .then((r) => r.json())
       .then((j) => {
-        if (j?.ok && Array.isArray(j.data?.registeredSchools)) {
+        if (live && j?.ok && Array.isArray(j.data?.registeredSchools)) {
           setRegisteredSchools(j.data.registeredSchools);
         }
       })
       .catch(() => null);
-  }, []);
+    return () => {
+      live = false;
+    };
+  }, [wantsSetup]);
 
   useEffect(() => {
     const onOpen = () => {
@@ -230,6 +237,13 @@ export function ProfileSetup() {
       .then((j) => {
         if (j?.ok && j?.data?.xpAwarded) {
           updateUser({ xp: (user.xp || 0) + Number(j.data.xpAwarded) });
+        } else if (j?.error?.code === "EMAIL_UNVERIFIED") {
+          // try again after they confirm their email
+          try {
+            window.localStorage.setItem("sunroot:pending_ref", pending);
+          } catch {
+            // ignore storage errors
+          }
         }
       })
       .catch(() => null);
@@ -310,7 +324,7 @@ export function ProfileSetup() {
       setForceOpen(false);
       setDismissedForSession(true);
       if (redirectToPlan) {
-        router.push("/settings?tab=plan");
+        router.push("/plans");
       }
     } catch {
       setError("No connection. Try again.");
@@ -545,7 +559,7 @@ export function ProfileSetup() {
               {registeredSchools.length > 0 && (
                 <>
                   <p className="text-xs font-semibold text-muted-foreground pt-1">
-                    Registered Schools on SunRoot (Tap to join):
+                    Schools on SunRoot (tap to pick yours; your school gives you an invite code to join it):
                   </p>
                   <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
                     {registeredSchools.map((sch) => (
