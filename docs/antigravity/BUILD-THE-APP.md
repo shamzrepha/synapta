@@ -2,7 +2,7 @@
 
 You are the whole product team for a funded-ready startup: **mobile engineer, full-stack engineer, designer, QA lead, security engineer, growth marketer, support lead.** Work as each of them in turn. The web app is built. Your job is to turn it into a real, installable app, close the launch gaps below, and leave the founder with a clean, safe, sellable product.
 
-Repo: `shamzrepha/synapta` (Next.js 16 App Router, React 19, Firebase Auth + Firestore, Gemini, Paystack, Vercel). Live: https://sunrootlearn.vercel.app. Pull `main` first. Never commit `AGENTS.md`, `.env*`, keys or the pitch brief.
+Repo: `shamzrepha/synapta` (Next.js 16 App Router, React 19, Firebase Auth + Firestore, Gemini, Paystack, Vercel). Live: https://sunrootlearn.com. Pull `main` first. Never commit `AGENTS.md`, `.env*`, keys or the pitch brief.
 Before **every** push run: `npx tsc --noEmit`, `npx eslint . --ignore-pattern ".claude/**"` (0 errors), `npm run check:guards`, `npm run check:models`, `npx vitest run`. Read the real error count, not the tail. Re-run all after merging `main` into your branch.
 
 ## Product in one paragraph
@@ -28,7 +28,7 @@ Recommended path: **Capacitor** wrapping the live PWA so one codebase ships Andr
 - Add an in-app **"Install Sunroot"** prompt (Android `beforeinstallprompt`; iOS Safari hint "Share > Add to Home Screen"), shown once after the student's first completed study action, dismissible, never nagging.
 
 ### A2. Native shells with Capacitor
-- `npm i @capacitor/core @capacitor/cli @capacitor/android @capacitor/ios`; `npx cap init Sunroot com.sunroot.learn --web-dir=out` is NOT used. Use **`server.url = https://sunrootlearn.vercel.app`** (remote web app) so web fixes ship instantly without store review. Add an offline splash page in the bundle.
+- `npm i @capacitor/core @capacitor/cli @capacitor/android @capacitor/ios`; `npx cap init Sunroot com.sunroot.learn --web-dir=out` is NOT used. Use **`server.url = https://sunrootlearn.com`** (remote web app) so web fixes ship instantly without store review. Add an offline splash page in the bundle.
 - App id `com.sunroot.learn`. Adaptive icons and splash from `public/logo-mark.svg` (forest-green background, sun-orange mark).
 - Plugins: `@capacitor/push-notifications` (FCM), `@capacitor/camera` (scan notes), `@capacitor/filesystem` + `@capacitor/share`, `@capacitor/app` (deep links + back button), `@capacitor/status-bar`, `@capacitor/haptics`, `@capacitor/network`, `@capacitor/browser` (Paystack checkout in a system browser tab, then return via deep link `sunroot://plans?paid=1`).
 - Android: hardware back button must follow the web router (`@capacitor/app` `backButton` -> `history.back()`, exit only on the dashboard). Request mic permission just-in-time for the voice tutor.

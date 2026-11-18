@@ -76,7 +76,7 @@ export async function openRouterKeyInfo(): Promise<OpenRouterKeyInfo> {
 const headers = (key: string) => ({
   Authorization: `Bearer ${key}`,
   "Content-Type": "application/json",
-  "HTTP-Referer": "https://sunrootlearn.vercel.app",
+  "HTTP-Referer": "https://sunrootlearn.com",
   "X-Title": "SunRootLearn",
 });
 

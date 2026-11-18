@@ -1,6 +1,6 @@
 # Android app: stop needing a new APK for every change, and never get stuck on "Failed to load chunk" (for Antigravity)
 
-Project: `sunroot-mobile` (Capacitor). The website is at https://sunrootlearn.vercel.app and deploys on every merge to `main`.
+Project: `sunroot-mobile` (Capacitor). The website is at https://sunrootlearn.com (with https://sunrootlearn.vercel.app kept as fallback) and deploys on every merge to `main`.
 
 ## What the founder sees
 1. Every fix needs a new APK download.
@@ -11,7 +11,7 @@ Project: `sunroot-mobile` (Capacitor). The website is at https://sunrootlearn.ve
 
 ## Target design (do this)
 **The app is a thin shell that always opens the live site.** Web fixes then reach every phone the moment they deploy, with no new APK.
-1. `capacitor.config`: `server: { url: "https://sunrootlearn.vercel.app", allowNavigation: [...] }`. Keep the same `allowNavigation` list as before.
+1. `capacitor.config`: `server: { url: "https://sunrootlearn.com", allowNavigation: [...] }`. Keep `sunrootlearn.com` and `sunrootlearn.vercel.app` in the `allowNavigation` list.
 2. `webDir` holds only a tiny `index.html`/`offline.html` (logo, "No connection", a **Try again** button that reloads). Do **not** copy `.next`, `out`, or any `/_next/static` files into `android/app/src/main/assets/public`.
 3. Remove the "continuous-cache" layer: no `shouldInterceptRequest` caching of pages, scripts or `/_next/static/*`; no custom file cache. The site already has its own offline worker (`public/sw.js`); do not duplicate it.
 4. WebView cache mode: default (`LOAD_DEFAULT`). Never `LOAD_CACHE_ELSE_NETWORK` or `LOAD_CACHE_ONLY`.
@@ -20,7 +20,7 @@ Project: `sunroot-mobile` (Capacitor). The website is at https://sunrootlearn.ve
 7. Add `@capacitor/app` (the website's update banner reads `App.getInfo().build`), and keep `android/app/build.gradle` `versionCode` equal to `versionCode` in `public/app-version.json`. **Increment it on every APK you publish.**
 
 ## The update banner (already built into the website)
-`components/shell/app-update-banner.tsx`: inside the app only, it reads `/app-version.json` (served `no-store`), compares `versionCode` with the installed build, and shows "A new version of Sunroot is ready. [Update]". The link must be an `.apk` hosted on `https://sunrootlearn.vercel.app/` **or** `https://github.com/shamzrepha/synapta/releases/download/<tag>/<file>.apk`; anything else is ignored.
+`components/shell/app-update-banner.tsx`: inside the app only, it reads `/app-version.json` (served `no-store`), compares `versionCode` with the installed build, and shows "A new version of Sunroot is ready. [Update]". The link must be an `.apk` hosted on `https://sunrootlearn.com/`, `https://sunrootlearn.vercel.app/`, **or** `https://github.com/shamzrepha/synapta/releases/download/<tag>/<file>.apk`; anything else is ignored.
 Android does not allow an app to install itself silently outside Google Play, so this is one tap, not zero.
 
 ## Real automatic updates: Google Play

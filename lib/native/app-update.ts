@@ -13,7 +13,7 @@ export interface LatestApp {
   notes: string;
 }
 
-const URL_OK = /^https:\/\/(sunrootlearn\.vercel\.app\/|github\.com\/shamzrepha\/synapta\/releases\/download\/[A-Za-z0-9._-]+\/)[A-Za-z0-9._-]+\.apk$/;
+const URL_OK = /^https:\/\/(sunrootlearn\.com\/|sunrootlearn\.vercel\.app\/|github\.com\/shamzrepha\/synapta\/releases\/download\/[A-Za-z0-9._-]+\/)[A-Za-z0-9._-]+\.apk$/;
 
 export function isAllowedApkUrl(url: string): boolean {
   if (URL_OK.test(url)) return true;

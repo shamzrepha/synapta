@@ -38,7 +38,7 @@ export function ReadinessShareModal({
   const cohortId = telemetry?.dominantCohort ?? "step_by_step_procedural";
   const cohortLabel = LEARNING_COHORTS[cohortId]?.label ?? "Micro-Step Formula Breakdown";
   const handle = username || "scholar";
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://sunrootlearn.vercel.app";
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://sunrootlearn.com";
   const referralUrl = `${origin}/login?ref=${encodeURIComponent(handle)}`;
 
   const shareText = [

@@ -1,7 +1,7 @@
 /**
  * Publishes a new Android app version to the phones: writes public/app-version.json after checking it can't strand anyone.
  *
- *   npm run release:app -- --code 10 --name 3.0 --url https://sunrootlearn.vercel.app/sunroot-3.0.apk \
+ *   npm run release:app -- --code 10 --name 3.0 --url https://sunrootlearn.com/sunroot-3.0.apk \
  *     --notes "Sprout everywhere, live 3D labs, smoother keyboard and one-tap updates." [--min 9] [--dry]
  *
  * --min makes every installed build below that number update (a required update). Leave it out for an optional one.

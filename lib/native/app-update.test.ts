@@ -16,6 +16,8 @@ describe("app update check", () => {
     expect(parseLatest(null)).toBeNull();
     const release = { ...ok, url: "https://github.com/shamzrepha/synapta/releases/download/v2.5/sunroot-2.5.apk" };
     expect(parseLatest(release)).toEqual({ ...release, minVersionCode: 0, notes: "" });
+    const ownDomain = { ...ok, url: "https://sunrootlearn.com/sunroot-3.4.apk" };
+    expect(parseLatest(ownDomain)).toEqual({ ...ownDomain, minVersionCode: 0, notes: "" });
     expect(parseLatest({ ...ok, url: "https://github.com/someone-else/x/releases/download/v1/a.apk" })).toBeNull();
     const prevEnv = process.env.NEXT_PUBLIC_APP_URL;
     process.env.NEXT_PUBLIC_APP_URL = "https://sunroot.africa";

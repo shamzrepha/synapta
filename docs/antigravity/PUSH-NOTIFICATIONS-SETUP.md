@@ -28,7 +28,7 @@ The app now checks these itself and says which one looks wrong when you press th
 
 ## 3. The browser API key (APIs & Services > Credentials > the key named in `NEXT_PUBLIC_FIREBASE_API_KEY`)
 - API restrictions: either "Don't restrict key", or the list must include the two APIs above.
-- Website restrictions: must include `sunrootlearn.vercel.app` (and `*.vercel.app` if you test previews).
+- Website restrictions: must include `sunrootlearn.com`, `www.sunrootlearn.com`, and `sunrootlearn.vercel.app` (and `*.vercel.app` if you test previews).
 
 ## 4. Test
 Open the site in a fresh tab, toggle notifications on, allow the browser prompt. If it still fails, open DevTools > Console

@@ -38,9 +38,12 @@ RUN npm run build
 
 FROM node:24-bookworm-slim AS run
 WORKDIR /app
+ARG SOURCE_COMMIT=self-hosted
 ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
+    VERCEL_GIT_COMMIT_SHA=$SOURCE_COMMIT \
+    NEXT_PUBLIC_BUILD_ID=$SOURCE_COMMIT \
     NEXT_TELEMETRY_DISABLED=1
 # curl is for the health check and for the scheduled jobs (streak and goal reminders)
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/* \

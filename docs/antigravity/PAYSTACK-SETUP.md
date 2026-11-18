@@ -22,7 +22,7 @@ settings, in the right places, without ever putting the key in git or in a log.*
    - Dashboard: Project > Settings > Environment Variables, or
    - CLI: `vercel env add PAYSTACK_SECRET_KEY production` (and `preview`), pasting the value when prompted.
 4. In the Paystack dashboard: Settings > API Keys & Webhooks > set the **Test webhook URL** to
-   `https://sunrootlearn.vercel.app/api/billing/webhook` (and the **Live webhook URL** the same, when going live).
+   `https://sunrootlearn.com/api/billing/webhook` (and the **Live webhook URL** the same, when going live).
 5. Redeploy (Vercel > Deployments > Redeploy) so the new variables are picked up.
 6. Test a payment as a normal (non-admin) account:
    - Open `/plans`, choose Student Plus > Monthly. Pay with Paystack's published **test card** (see Paystack docs, "Test payments").

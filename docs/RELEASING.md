@@ -20,12 +20,12 @@ Android does not let an app install itself silently outside Google Play, so the 
 
 ## `public/app-version.json`
 ```json
-{ "versionCode": 10, "versionName": "3.0", "url": "https://sunrootlearn.vercel.app/sunroot-3.0.apk", "notes": "Sprout everywhere, live 3D labs, smoother keyboard and one-tap updates." }
+{ "versionCode": 10, "versionName": "3.0", "url": "https://sunrootlearn.com/sunroot-3.0.apk", "notes": "Sprout everywhere, live 3D labs, smoother keyboard and one-tap updates." }
 ```
 - `versionCode`: what the app compares with its installed build. Must go up with every APK.
 - `minVersionCode` (optional): installed builds below this get a **required** update (no "later"). Use it for a breaking server change or a security fix. Leave it out for a normal update.
 - `notes` (optional, 160 characters): shown in the banner.
-- `url`: only `sunrootlearn.vercel.app/*.apk` or this project's GitHub release downloads are accepted; anything else is ignored by the app.
+- `url`: only `sunrootlearn.com/*.apk`, `sunrootlearn.vercel.app/*.apk`, or this project's GitHub release downloads are accepted; anything else is ignored by the app.
 
 ## Rolling back
 - Web: promote the previous deployment in Vercel (Deployments, the older one, Promote). Open pages offer a refresh by themselves.
