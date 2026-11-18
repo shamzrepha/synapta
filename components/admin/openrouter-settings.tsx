@@ -21,6 +21,12 @@ interface ClassRow {
   pick: string;
 }
 
+interface SpendInfo {
+  cap: number;
+  days: Array<{ day: string; usd: number; calls: number }>;
+  topModels: Array<{ name: string; usd: number }>;
+  topTasks: Array<{ name: string; usd: number }>;
+}
 interface VoiceChoice {
   model: string;
   label: string;
@@ -46,6 +52,8 @@ export function OpenRouterSettings({ onChanged }: { onChanged?: () => void }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [spend, setSpend] = useState<SpendInfo | null>(null);
+  const [capDraft, setCapDraft] = useState("");
   const [voice, setVoice] = useState<VoicePrefRow | null>(null);
   const [choices, setChoices] = useState<VoiceChoice[]>([]);
 
@@ -57,6 +65,14 @@ export function OpenRouterSettings({ onChanged }: { onChanged?: () => void }) {
         if (!j.ok) return;
         setClasses(j.data.classes);
         setDrafts(Object.fromEntries((j.data.classes as ClassRow[]).map((c) => [c.id, c.pick])));
+      })
+      .catch(() => null);
+    fetch("/api/admin/system/openrouter-spend")
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j.ok) return;
+        setSpend(j.data);
+        setCapDraft(String(j.data.cap));
       })
       .catch(() => null);
     fetch("/api/admin/system/voice")
@@ -111,6 +127,14 @@ export function OpenRouterSettings({ onChanged }: { onChanged?: () => void }) {
     if (j?.ok) load();
   };
 
+  const saveCap = async () => {
+    const v = Number(capDraft);
+    if (!Number.isFinite(v) || v < 0) return;
+    const j = await fetch("/api/admin/system/openrouter-spend", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dailyCapUsd: v }) }).then((r) => r.json()).catch(() => null);
+    setMsg(j?.ok ? { ok: true, text: `Daily limit set to $${v.toFixed(2)}.` } : { ok: false, text: j?.error?.message || "Couldn't save the limit." });
+    if (j?.ok) load();
+  };
+
   const saveVoice = async (next: VoicePrefRow) => {
     setVoice(next);
     const j = await fetch("/api/admin/system/voice", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(next) }).then((r) => r.json()).catch(() => null);
@@ -156,6 +180,32 @@ export function OpenRouterSettings({ onChanged }: { onChanged?: () => void }) {
       )}
       {info?.source === "admin" && (
         <button type="button" onClick={remove} disabled={busy} className="text-xs font-semibold text-muted-foreground underline hover:text-foreground">Remove this OpenRouter key</button>
+      )}
+
+      {spend && (
+        <div className="pt-3 border-t border-border space-y-2">
+          <p className="font-bold text-sm text-foreground">What OpenRouter costs</p>
+          <p className="text-xs text-muted-foreground">
+            Today: <b className="text-foreground">${(spend.days[0]?.usd ?? 0).toFixed(2)}</b> of a <b className="text-foreground">${spend.cap.toFixed(2)}</b> daily limit. Past the limit OpenRouter is paused and the app falls back to Gemini. Every call counts, including failed ones.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Input value={capDraft} onChange={(e) => setCapDraft(e.target.value)} inputMode="decimal" className="sm:w-32 font-mono text-sm" aria-label="Daily limit in dollars" />
+            <Button size="sm" variant="outline" onClick={saveCap} disabled={capDraft === String(spend.cap)}>Save daily limit</Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground font-mono break-words" translate="no">
+            Last 7 days: {asArray<{ day: string; usd: number }>(spend.days).map((d) => `${d.day.slice(5)} $${d.usd.toFixed(2)}`).join("  ·  ")}
+          </p>
+          {spend.topModels.length > 0 && (
+            <p className="text-[11px] text-muted-foreground font-mono break-words" translate="no">
+              Today by model: {asArray<{ name: string; usd: number }>(spend.topModels).map((m) => `${m.name} $${m.usd.toFixed(2)}`).join("  ·  ")}
+            </p>
+          )}
+          {spend.topTasks.length > 0 && (
+            <p className="text-[11px] text-muted-foreground font-mono break-words" translate="no">
+              Today by job: {asArray<{ name: string; usd: number }>(spend.topTasks).map((m) => `${m.name} $${m.usd.toFixed(2)}`).join("  ·  ")}
+            </p>
+          )}
+        </div>
       )}
 
       {voice && (

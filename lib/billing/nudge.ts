@@ -29,7 +29,7 @@ const ratio = (used: number, limit: number | null) => (limit === null ? 0 : limi
 export function pickNudge(me: NudgeInfo, uid: string): Nudge | null {
   if (!me.enforced) return null;
   const real = PLANS[me.plan.id as PlanId];
-  let up = real ? nextTier(me.plan.label === "Free (teacher trial)" ? { ...real, label: me.plan.label } : real) : null;
+  const up = real ? nextTier(me.plan.label === "Free (teacher trial)" ? { ...real, label: me.plan.label } : real) : null;
 
   let worst: { f: FeatureKey; r: number } | null = null;
   for (const f of FEATURES) {
