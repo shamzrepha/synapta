@@ -64,6 +64,7 @@ export default function StudioHome() {
     fetchTemplates().then(setTemplates);
     if (typeof window !== "undefined") {
       const q = new URLSearchParams(window.location.search).get("q");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (q) setPrompt(q);
     }
   }, []);

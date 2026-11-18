@@ -48,8 +48,8 @@ export const OR_CLASS_INFO: Record<OrClass, OrClassInfo> = {
   },
   code: {
     label: "Labs and simulations (code)",
-    chain: ["qwen/qwen3-coder", "anthropic/claude-sonnet-5.5", "deepseek/deepseek-v4-flash", "deepseek/deepseek-v4-pro"],
-    why: "fast, reliable HTML and JavaScript first, with strong reasoning coders as fallbacks",
+    chain: ["qwen/qwen3-coder", "deepseek/deepseek-v4-flash", "anthropic/claude-sonnet-5.5", "deepseek/deepseek-v4-pro"],
+    why: "cheap, fast HTML and JavaScript first; the dear models come last and are only reached if the admin puts them first (a call tries two models at most)",
     needsImages: false,
   },
   chat: {

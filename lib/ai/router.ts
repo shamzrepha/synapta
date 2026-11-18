@@ -9,6 +9,7 @@ import {
 import { groqModelFor } from "@/lib/ai/groq-assign";
 import { activeOpenRouterKey, callOpenRouterChat, OpenRouterError, refreshOpenRouterKey } from "@/lib/ai/openrouter";
 import { openRouterChainFor } from "@/lib/ai/openrouter-assign";
+import { overDailyCap } from "@/lib/ai/openrouter-spend";
 import { orClassFor } from "@/lib/ai/openrouter-models";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { languageDirective, type LanguageCode } from "@/lib/i18n/languages";
@@ -556,10 +557,14 @@ async function viaOpenRouter<T>(a: {
   startTime: number;
   fallbackTriggered: boolean;
 }): Promise<GenerateWithFallbackResult<T>> {
-  const chain = (await openRouterChainFor(String(a.task))).slice(0, 4);
+  // at most two models per call (the first choice and one backup): a long lab that fails on four models in a row costs four times
+  const chain = (await openRouterChainFor(String(a.task))).slice(0, 2);
   const cls = orClassFor(String(a.task));
   let lastErr: unknown = null;
   for (const model of chain) {
+    // the daily spending limit (Admin, OpenRouter): over it, nothing more is sent until tomorrow or the limit is raised
+    const budget = await overDailyCap();
+    if (budget.over) throw new OpenRouterError(`OpenRouter's daily spending limit is reached ($${budget.spent.toFixed(2)} of $${budget.cap.toFixed(2)}). Raise it in Admin, OpenRouter, or try again tomorrow.`, 402);
     const remaining = a.maxWaitMs !== undefined ? a.maxWaitMs - (Date.now() - a.startTime) : 200_000;
     if (a.maxWaitMs !== undefined && remaining < 12_000) break;
     const timeoutMs = Math.min(75_000, Math.max(12_000, remaining));
@@ -580,6 +585,7 @@ async function viaOpenRouter<T>(a: {
         maxTokens,
         reasoningEffort,
         timeoutMs,
+        task: String(a.task),
       });
       let parsedData: T | undefined = undefined;
       if (a.schema) {

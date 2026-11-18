@@ -271,7 +271,7 @@ export async function generateAndStoreSimulation(params: {
       let weakIssues: string[] = [];
       const deadlineAt = Date.now() + 230_000;
       let lastWhy = "";
-      for (let attempt = 0; attempt < 3 && !parsed; attempt++) {
+      for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
         const remaining = deadlineAt - Date.now();
         if (attempt > 0 && weak && remaining < 85_000) break;
         if (remaining < 20_000) break;
@@ -326,7 +326,7 @@ export async function generateAndStoreSimulation(params: {
           temperature: mode === "edit" ? 0.2 : restartNote ? 0.9 : 0.6,
           isPrivileged: true,
           // a whole page with a 3D scene is long; without this some providers stop early (or reserve too little) and the page is cut off
-          maxOutputTokens: 24_000,
+          maxOutputTokens: 16_000,
           maxWaitMs: Math.max(20_000, deadlineAt - Date.now()),
         });
         modelUsed = result.modelUsed;

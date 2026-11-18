@@ -1,3 +1,4 @@
+import { recordSpend } from "@/lib/ai/openrouter-spend";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { cleanApiKey } from "@/lib/ai/api-key";
 
@@ -148,6 +149,8 @@ export interface OpenRouterCall {
   maxTokens?: number;
   reasoningEffort?: OpenRouterReasoningEffort;
   timeoutMs?: number;
+  /** what the call is for, so the spend can be broken down by task */
+  task?: string;
   signal?: AbortSignal;
 }
 export interface OpenRouterResult {
@@ -208,6 +211,8 @@ export async function callOpenRouterChat(opts: OpenRouterCall): Promise<OpenRout
   if (openRouterSupportsReasoning(opts.model)) {
     payload.reasoning = { effort: opts.reasoningEffort ?? "low", exclude: true };
   }
+  // ask OpenRouter for what the call really cost
+  payload.usage = { include: true };
   if (opts.json) {
     payload.response_format = { type: "json_object" };
     // only route to providers that really support a JSON answer
@@ -233,9 +238,13 @@ export async function callOpenRouterChat(opts: OpenRouterCall): Promise<OpenRout
       message?: { content?: unknown; refusal?: string | null };
     }>;
     model?: string;
-    usage?: { prompt_tokens?: number; completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number } };
+    usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number; completion_tokens_details?: { reasoning_tokens?: number } };
     error?: { message?: string };
   } | null;
+  // every answer is charged, including an empty one: count it before judging it
+  if (res.ok && data?.usage) {
+    void recordSpend({ task: opts.task || "other", model: data.model || opts.model, costUsd: data.usage.cost, tokensIn: data.usage.prompt_tokens || 0, tokensOut: data.usage.completion_tokens || 0 });
+  }
   if (!res.ok || data?.error) throw new OpenRouterError(data?.error?.message || `OpenRouter error (HTTP ${res.status})`, res.status);
   const choice = data?.choices?.[0];
   if (choice?.error) {
