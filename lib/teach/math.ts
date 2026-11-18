@@ -75,6 +75,6 @@ export function projectileSummary(v0: number, angleDeg: number, g: number) {
 /** A fraction as a reduced fraction and a decimal. */
 export function fractionFacts(num: number, den: number) {
   const gcd = (x: number, y: number): number => (y === 0 ? Math.abs(x) : gcd(y, x % y));
-  const d = gcd(num, den) || 1;
+  const d = (gcd(num, den) || 1) * (den < 0 ? -1 : 1); // keep the minus sign on the top
   return { reduced: `${num / d}/${den / d}`, decimal: den === 0 ? 0 : round(num / den, 3), percent: den === 0 ? 0 : round((num / den) * 100, 1) };
 }
