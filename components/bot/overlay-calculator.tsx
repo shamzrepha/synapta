@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Calculator, X, Minus, Maximize2, Delete, Sparkles, LineChart, RotateCcw } from "lucide-react";
-import { evaluate } from "@/lib/studio/expr";
+import { evaluateCalculatorInput, formatNumber } from "@/lib/pet/calc-eval";
 import { sampleFunction } from "@/lib/teach/math";
 import { CALC_EVENT, type CalcEventDetail } from "@/lib/pet/calc-intent";
 import { cn } from "@/lib/utils";
@@ -14,15 +14,6 @@ interface HistoryEntry {
 }
 
 const ASK_EVENT = "sunroot:ask-ai";
-
-function formatNumber(n: number): string {
-  if (!Number.isFinite(n)) return "Error";
-  if (Math.abs(n) < 1e-12) return "0";
-  if (Math.abs(n) >= 1e10 || (Math.abs(n) > 0 && Math.abs(n) < 1e-6)) {
-    return n.toExponential(6).replace(/\.?0+e/, "e");
-  }
-  return Number(n.toPrecision(12)).toString();
-}
 
 export function OverlayCalculator() {
   const [open, setOpen] = useState(false);
@@ -42,28 +33,27 @@ export function OverlayCalculator() {
   const runEval = useCallback(
     (raw: string, record = true) => {
       const target = raw.trim();
-      if (!target) {
+      const out = evaluateCalculatorInput(target, { ans, radians });
+      if (out.kind === "empty") {
         setResultText("0");
         setErrorText(null);
         return;
       }
-      if (/\bx\b/i.test(target)) {
+      if (out.kind === "graph") {
         setShowGraph(true);
         setErrorText(null);
         setResultText("f(x) plotted");
         return;
       }
-      const val = evaluate(target, { ans, Ans: ans, ANS: ans }, { radians });
-      if (!Number.isFinite(val)) {
-        setErrorText("Check syntax or domain");
+      if (out.kind === "error") {
+        setErrorText(out.message);
         return;
       }
-      const formatted = formatNumber(val);
       setErrorText(null);
-      setResultText(formatted);
-      setAns(val);
+      setResultText(out.text);
+      setAns(out.value);
       if (record) {
-        setHistory((prev) => [{ expr: target, result: formatted, numeric: val }, ...prev.slice(0, 14)]);
+        setHistory((prev) => [{ expr: target, result: out.text, numeric: out.value }, ...prev.slice(0, 14)]);
       }
     },
     [ans, radians]

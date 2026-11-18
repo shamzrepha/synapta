@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { parseJson } from "@/lib/api/errors";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { getClassAccess } from "@/lib/auth/classAccess";
 import {
   applyTelemetryEvent,
   createDefaultTelemetryProfile,
@@ -62,6 +64,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "telemetry", limit: 90, windowMs: 60_000 });
+    if (limited) return limited;
     const body = await parseJson(req, telemetryEventSchema);
 
     let peerMedianMs = DEFAULT_PEER_MEDIAN_MS;
@@ -74,7 +78,9 @@ export async function POST(req: NextRequest) {
       | undefined;
 
     // 1. If tied to a class past question, update rolling peer median AND cohort clarity feedback (Self-Healing Loop)
-    if (body.classId) {
+    // Only a member of the class may feed its shared numbers (peer median, clarity votes)
+    const inClass = body.classId ? await getClassAccess(caller, body.classId).then((a) => a.canView).catch(() => false) : false;
+    if (body.classId && inClass) {
       const qRef = adminDb()
         .collection("classes")
         .doc(body.classId)
@@ -89,10 +95,17 @@ export async function POST(req: NextRequest) {
         const activeCohort =
           body.preferredCohort || prevProfile?.dominantCohort || "step_by_step_procedural";
         const prevFeedback = qData.cohortFeedback?.[activeCohort] || { mastered: 0, reExplain: 0 };
+        // one clarity vote per learner per explanation version: repeated "didn't get it" must not force the AI to rewrite it
+        const healedCount = prevFeedback.healedCount || 0;
+        const voteRef = qRef.collection("clarityVotes").doc(`${caller.uid}_${activeCohort}`);
+        const prevVote = await voteRef.get();
+        const alreadyVoted = prevVote.exists && prevVote.data()?.healedCount === healedCount;
+        const votes = body.correct !== undefined && !alreadyVoted;
+        if (votes) await voteRef.set({ healedCount, correct: body.correct, at: Timestamp.now() });
         const updatedFeedback = {
-          mastered: prevFeedback.mastered + (body.correct === true ? 1 : 0),
-          reExplain: prevFeedback.reExplain + (body.correct === false ? 1 : 0),
-          healedCount: prevFeedback.healedCount || 0,
+          mastered: prevFeedback.mastered + (votes && body.correct === true ? 1 : 0),
+          reExplain: prevFeedback.reExplain + (votes && body.correct === false ? 1 : 0),
+          healedCount,
         };
         const health = evaluateCohortHealth(updatedFeedback);
         selfHealTriggered = health.needsHeal;

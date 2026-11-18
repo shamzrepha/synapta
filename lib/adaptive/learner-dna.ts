@@ -67,7 +67,8 @@ function clampPct(v: number): number {
 
 function cleanText(raw: unknown, max = 90): string {
   if (typeof raw !== "string") return "";
-  return raw.replace(/\s+/g, " ").trim().slice(0, max);
+  // markup characters out: the text goes into a prompt inside <PERSONAL_LEARNER_DNA> tags and must not be able to close them
+  return raw.replace(/[<>[\]]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
 export function isValidCohortId(v: unknown): v is LearningCohortId {
@@ -116,6 +117,8 @@ export function inferRecommendedScaffold(opts: {
   return "stretch_challenge";
 }
 
+const MAX_DNA_CHARS = 1100;
+
 export function formatAdaptationDirective(dna: Omit<LearnerDna, "adaptationDirective">): string {
   const scaffoldInstructions: Record<RecommendedScaffold, string> = {
     socratic_micro_steps: "Break concepts into 1-2 micro-steps with quick verification checks before moving forward.",
@@ -155,9 +158,9 @@ export function formatAdaptationDirective(dna: Omit<LearnerDna, "adaptationDirec
   if (dna.recentMistakeTopics.length > 0) {
     lines.push(`Recent Mistake Patterns: ${dna.recentMistakeTopics.slice(0, 3).join("; ")}`);
   }
-  lines.push("</PERSONAL_LEARNER_DNA>");
-
-  return lines.join("\n").slice(0, 1100);
+  // Stay small, but always close the tag: cut the body, never the end
+  const CLOSE = "\n</PERSONAL_LEARNER_DNA>";
+  return lines.join("\n").slice(0, MAX_DNA_CHARS - CLOSE.length) + CLOSE;
 }
 
 /**
@@ -310,6 +313,7 @@ export function pickAdaptiveQuizFocus(dna: LearnerDna): "calculation" | "concept
 }
 
 const DNA_CACHE_TTL_MS = 90_000;
+const DNA_CACHE_MAX = 500;
 const dnaCache = new Map<string, { dna: LearnerDna; expiresAt: number }>();
 
 export function invalidateLearnerDnaCache(uid: string): void {
@@ -369,6 +373,11 @@ export async function loadLearnerDna(uid: string, opts?: { forceFresh?: boolean 
       nowMs: now,
     });
 
+    if (dnaCache.size >= DNA_CACHE_MAX) {
+      // a serverless instance serves many learners: drop expired entries, then the oldest, so the map cannot grow forever
+      for (const [k, v] of dnaCache) if (v.expiresAt <= now) dnaCache.delete(k);
+      while (dnaCache.size >= DNA_CACHE_MAX) dnaCache.delete(dnaCache.keys().next().value as string);
+    }
     dnaCache.set(uid, { dna, expiresAt: now + DNA_CACHE_TTL_MS });
     return dna;
   } catch {

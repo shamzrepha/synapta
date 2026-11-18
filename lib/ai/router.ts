@@ -49,6 +49,21 @@ const PERSONALIZED_AI_TASKS = new Set<string>([
   "lesson_notes",
   "assignment_reviewer",
 ]);
+/**
+ * One learner's DNA goes only into that learner's own, uncached prompt. Anything cached for others (a cacheKey), shared
+ * class content (learnerLanguage: false) or teacher class-building (isPrivileged) never gets it.
+ */
+export function shouldInjectLearnerDna(opts: {
+  task?: unknown;
+  cacheKey?: string;
+  learnerLanguage?: boolean;
+  personalize?: boolean;
+  isPrivileged?: boolean;
+}): boolean {
+  if (opts.cacheKey || opts.learnerLanguage === false || opts.isPrivileged || opts.personalize === false) return false;
+  return opts.personalize === true || PERSONALIZED_AI_TASKS.has(String(opts.task));
+}
+
 import { ApiError } from "@/lib/api/errors";
 import { getSiteConfig } from "@/lib/config/site";
 
@@ -503,12 +518,7 @@ export async function generateWithFallback<T>(opts: GenerateWithFallbackOptions<
   if (opts.learnerLanguage !== false) opts = withLearnerLanguage(opts, await getUserLanguage(userId));
 
   // Inject real-time personal Learner DNA into individualized user-facing tasks (never polluting shared caches)
-  const shouldPersonalize =
-    !opts.cacheKey &&
-    opts.learnerLanguage !== false &&
-    opts.personalize !== false &&
-    (opts.personalize === true || PERSONALIZED_AI_TASKS.has(String(opts.task)));
-  if (shouldPersonalize) {
+  if (shouldInjectLearnerDna(opts)) {
     const dnaPrompt = await buildLearnerPromptInjection(userId).catch(() => null);
     if (dnaPrompt) {
       opts = {

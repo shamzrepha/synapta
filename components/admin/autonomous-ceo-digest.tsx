@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sparkles, School, TrendingUp, Zap, PlusCircle, CheckCircle2, Layers, Building2, Mail, Phone } from "lucide-react";
+import { Sparkles, School, Zap, PlusCircle, CheckCircle2, Layers, Building2, Mail, Phone } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sprout } from "@/components/bot/sprout";
@@ -35,8 +35,6 @@ interface AutonomousDigestData {
   institutionalLeads?: InstitutionalLead[];
   cohortCounts: Record<LearningCohortId, number>;
   paidSubscribers: number;
-  estimatedGrossMarginPercent: number;
-  cacheHitSavingsPercent: number;
 }
 
 export function AutonomousCeoDigest() {
@@ -103,15 +101,12 @@ export function AutonomousCeoDigest() {
               <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-600 text-white flex items-center gap-1">
                 <Sparkles className="h-3 w-3" /> Semi-Autonomous CEO Digest
               </span>
-              <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
-                <TrendingUp className="h-3.5 w-3.5" /> {data.estimatedGrossMarginPercent}% Gross Margin
-              </span>
             </div>
             <h3 className="text-base font-extrabold text-foreground mt-0.5">
               Autonomous Curriculum Seeder & Cohort Intelligence
             </h3>
             <p className="text-xs text-muted-foreground">
-              Cohort pre-storage is saving ~{data.cacheHitSavingsPercent}% of repeat AI token calls across past questions.
+              Cohort pre-storage serves repeat past-question explanations without a new AI call.
             </p>
           </div>
         </div>

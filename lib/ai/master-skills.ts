@@ -308,6 +308,11 @@ export function withModelMasterSkill(
 ): string {
   const base = (systemInstruction || "").trim();
   if (base.includes(MARKER)) return base;
-  const skill = getModelMasterSkill(opts);
-  return base ? `${base}\n\n${skill}` : skill;
+  // an extra hint must never be the reason a request fails
+  try {
+    const skill = getModelMasterSkill(opts);
+    return base ? `${base}\n\n${skill}` : skill;
+  } catch {
+    return base;
+  }
 }

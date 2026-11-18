@@ -164,7 +164,9 @@ export function evaluate(expr: string, vars: Record<string, number> = {}, opts?:
     if (tk.t === "id") {
       p++;
       if (peek()?.t === "op" && peek()!.v === "(") {
-        const fn = funcs[tk.v.toLowerCase()];
+        const fname = tk.v.toLowerCase();
+        // own keys only: "constructor" and friends live on every object's prototype
+        const fn = Object.prototype.hasOwnProperty.call(funcs, fname) ? funcs[fname] : undefined;
         if (!fn) throw new Error(`Unknown function ${tk.v}`);
         take("(");
         const args: number[] = [];
