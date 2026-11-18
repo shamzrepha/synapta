@@ -1,6 +1,7 @@
 import { adminDb } from "@/lib/firebase/admin";
 import { isPublished } from "@/lib/classes/published";
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { parseJson } from "@/lib/api/errors";
@@ -39,6 +40,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const { id: classId, kcId } = await params;
     const caller = await requireUser(req);
     const access = await assertClassAccess(caller, classId, "view");
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "piece-build", limit: 20, windowMs: 60 * 60_000 });
+    if (limited) return limited;
     const { index } = await parseJson(req, buildSchema);
     if (!access.canMutate) {
       return NextResponse.json(

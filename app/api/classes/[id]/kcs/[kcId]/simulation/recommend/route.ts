@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { recommendSimulation } from "@/lib/teacher/recommend";
@@ -12,6 +13,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id: classId, kcId } = await params;
     const caller = await requireUser(req, ["teacher", "admin"]);
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "sim-ideas", limit: 8, windowMs: 60_000 });
+    if (limited) return limited;
     await assertClassAccess(caller, classId, "mutate");
     const sim = await getStoredSimulation(classId, kcId);
     const ideas = await recommendSimulation({

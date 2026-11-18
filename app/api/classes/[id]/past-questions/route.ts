@@ -5,6 +5,7 @@ import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { planOf } from "@/lib/billing/plans";
 import { generateWithFallback } from "@/lib/ai/router";
+import { checkRateLimit } from "@/lib/rateLimit";
 import {
   applyTelemetryEvent,
   createDefaultTelemetryProfile,
@@ -199,6 +200,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // ACTION A: HANDWRITTEN PAPER SNAP & AI EXAM GRADER
     // =========================================================================
     if (body.action === "grade_handwritten") {
+      const gradeLimited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "pastq-grade", limit: 10, windowMs: 60 * 60_000 });
+      if (gradeLimited) return gradeLimited;
       if (!isSubscriber) {
         const historySnap = await userRef.collection("pastQuestionAttempts").limit(3).get();
         if (historySnap.size >= 1) {
@@ -346,6 +349,8 @@ ${body.writtenWork ? `Student's Typed/Additional Notes:\n${body.writtenWork}` : 
     }
 
     // 3. FIRST-TIME OR SELF-HEALING COHORT GENERATION
+    const solveLimited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "pastq-solve", limit: 20, windowMs: 60 * 60_000 });
+    if (solveLimited) return solveLimited;
     const healNote = health.needsHeal
       ? "\nIMPORTANT SELF-HEALING DIRECTIVE: Previous students in this cohort found the earlier explanation hard to follow. Make every step twice as clear, add a concrete intuitive bridge, and highlight why each formula applies."
       : "";
@@ -460,6 +465,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // MODE 1: BULK EXAM PAPER SCANNER (PHOTO OR RAW EXAM TEXT -> TOPIC-TAGGED BANK)
     // =========================================================================
     if (body.mode === "bulk_scan") {
+      const scanLimited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "pastq-scan", limit: 10, windowMs: 60 * 60_000 });
+      if (scanLimited) return scanLimited;
       const inlineImg = parseDataUrl(body.examImageDataUrl);
       if (!inlineImg && (!body.questionText || body.questionText.length < 10)) {
         throw new ApiError(

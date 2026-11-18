@@ -229,6 +229,14 @@ export function TutorChat({
   useEffect(() => {
     if (initialPrompt && !sentInitial.current && !busy) {
       sentInitial.current = true;
+      // a reload or back-navigation with ?q= in the URL must not ask (and pay for) the same question again
+      const sentKey = `sunroot:tutor-initial:${key}:${initialPrompt}`;
+      try {
+        if (sessionStorage.getItem(sentKey)) return;
+        sessionStorage.setItem(sentKey, "1");
+      } catch {
+        /* storage unavailable: send once per page load */
+      }
       const t = setTimeout(() => {
         void send(initialPrompt);
       }, 350);

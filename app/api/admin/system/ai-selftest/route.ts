@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { generateWithFallback, resolveModelChain } from "@/lib/ai/router";
 import { synthesizeEdgeVoice, synthesizeGeminiTts, geminiTtsModels } from "@/lib/ai/voice";
@@ -34,7 +35,9 @@ async function timed(name: string, fn: () => Promise<string | { detail: string; 
  */
 export async function POST(req: NextRequest) {
   try {
-    await requireUser(req, ["admin"]);
+    const caller = await requireUser(req, ["admin"]);
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "ai-selftest", limit: 3, windowMs: 10 * 60_000 });
+    if (limited) return limited;
     const checks = await Promise.all([
       timed("Tutor / chat (light models)", async () => {
         const chain = await resolveModelChain("tutor_chat");

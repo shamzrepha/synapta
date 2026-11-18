@@ -2,6 +2,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { isPublished } from "@/lib/classes/published";
 import { simulationForStudents } from "@/lib/classes/live";
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { parseJson } from "@/lib/api/errors";
@@ -62,6 +63,8 @@ export async function POST(
     const { id: classId, kcId } = await params;
     const caller = await requireUser(req);
     const access = await assertClassAccess(caller, classId, "view");
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "sim-build", limit: 10, windowMs: 60 * 60_000 });
+    if (limited) return limited;
     const body = await parseJson(req, generateSchema);
 
     const canManage = access.canMutate;
