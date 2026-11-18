@@ -17,4 +17,13 @@ describe("finding a paragraph", () => {
     expect(pageHolding(pages, "Something else entirely.")).toBe(1);
     expect(pageHolding(pages, "Nowhere to be found in these pages")).toBe(-1);
   });
+  it("never sends a repeated title back to the first page", () => {
+    const pages = ["# Circuits\n\nCurrent flows round a loop.", "# Circuits\n\nVoltage pushes the current.", "# Circuits\n\nResistance slows it down."];
+    // the first page holds it too, but reading forward from page 2 stays on page 2
+    expect(pageHolding(pages, "Circuits", 1)).toBe(1);
+    expect(pageHolding(pages, "Circuits", 2, false)).toBe(2);
+    // a paragraph on an earlier page is still found (skipping back), unless looking forward only
+    expect(pageHolding(pages, "Current flows round a loop.", 2)).toBe(0);
+    expect(pageHolding(pages, "Current flows round a loop.", 2, false)).toBe(-1);
+  });
 });

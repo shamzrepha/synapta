@@ -5,7 +5,7 @@ import { Loader2, Pause, Play, SkipBack, SkipForward, Square } from "lucide-reac
 import { buildReadQueue, type ReadChunk } from "@/lib/study/read-queue";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { useBot } from "@/components/bot/bot-provider";
-import { applyCartoonVoice, robotAudio } from "@/lib/audio/robot-voice";
+import { robotAudio } from "@/lib/audio/robot-voice";
 import { clearReadingHighlights, followReading, type Follower } from "./reading-follow";
 import { textHasBlock } from "./find-block";
 import { estimateWordTimings, type WordTiming } from "@/lib/voice/word-timing";
@@ -23,8 +23,6 @@ interface Clip {
   words: WordTiming[] | null;
   /** the times were worked out from the text, not measured: they are re-spread over the clip's real length before use */
   estimated?: boolean;
-  /** true when fallback adult voice was used, so formant lift is boosted for child cartoon timbre */
-  fallbackCartoon?: boolean;
 }
 
 function base64ToUrl(b64: string, mime: string): string {
@@ -149,12 +147,7 @@ export function useReadThrough(opts: {
                   if (j?.ok && typeof j.data?.audioBase64 === "string") {
                     const url = base64ToUrl(j.data.audioBase64, j.data.mimeType || "audio/mpeg");
                     urls.current.push(url);
-                    return {
-                      url,
-                      words: Array.isArray(j.data.words) ? (j.data.words as WordTiming[]) : null,
-                      estimated: j.data.estimated === true,
-                      fallbackCartoon: j.data.fallbackCartoon === true,
-                    };
+                    return { url, words: Array.isArray(j.data.words) ? (j.data.words as WordTiming[]) : null, estimated: j.data.estimated === true };
                   }
                 } catch {
                   /* fall back below */
@@ -165,7 +158,7 @@ export function useReadThrough(opts: {
                 if (!r.ok) return null;
                 const u = URL.createObjectURL(await r.blob());
                 urls.current.push(u);
-                return { url: u, words: null, fallbackCartoon: true };
+                return { url: u, words: null };
               } catch {
                 return null;
               }
@@ -206,7 +199,7 @@ export function useReadThrough(opts: {
           }
           if (mine !== token.current) return;
         }
-        // one shared audio element, tuned to Sprout's high-pitched child cartoon voice
+        // one shared audio element, played as it is (no sound effect)
         const ra = robotAudio();
         ra.wake();
         const a = (audio.current = ra.el);
@@ -216,7 +209,7 @@ export function useReadThrough(opts: {
         a.onerror = null;
         a.onloadedmetadata = null;
         a.src = url;
-        applyCartoonVoice(a, rateRef.current, got.fallbackCartoon);
+        a.playbackRate = rateRef.current;
         a.onended = () => void play(k + 1);
         a.onerror = () => {
           if (mine !== token.current) return;
@@ -333,7 +326,7 @@ export function useReadThrough(opts: {
     const next = RATES[(RATES.indexOf(rateRef.current) + 1) % RATES.length];
     rateRef.current = next;
     setRateState(next);
-    if (audio.current) applyCartoonVoice(audio.current, next);
+    if (audio.current) audio.current.playbackRate = next;
   }, []);
   const setAutoNext = useCallback((v: boolean) => {
     autoRef.current = v;

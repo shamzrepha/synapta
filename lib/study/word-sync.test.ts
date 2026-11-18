@@ -47,4 +47,18 @@ describe("word sync", () => {
     expect(splitDomWords("a chest-tightness feeling").map((x) => x.word)).toEqual(["a", "chest", "tightness", "feeling"]);
     expect(alignSpoken(["a", "chesttightness", "feeling"], ["a", "chest", "tightness", "feeling"]).map).toEqual([0, 1, 3]);
   });
+
+  it("anchors on the opening three words, not an earlier repeat of the first word", () => {
+    const dom = ["Heart", "Heart", "rate", "is", "how", "fast", "the", "heart", "beats"];
+    expect(alignSpoken(["Heart", "rate", "is", "how"], dom).map).toEqual([1, 2, 3, 4]);
+  });
+
+  it("finds the very first word anywhere ahead on the page", () => {
+    const dom = [..."abcdefghijklmnopqrst"].map((c) => c.repeat(4)).concat(["target", "word", "here"]);
+    expect(alignSpoken(["target"], dom).map).toEqual([20]);
+  });
+
+  it("anchors on a two-word pair when the opening is a symbol", () => {
+    expect(alignSpoken(["alpha", "plus", "beta", "equals", "gamma"], ["x", "plus", "beta", "equals", "gamma"]).map.slice(1)).toEqual([1, 2, 3, 4]);
+  });
 });
