@@ -105,6 +105,9 @@ export async function POST(req: NextRequest) {
 
     let questionCount: number | null = null;
     if (body.kind === "quiz_sprint") {
+      // A sprint can spend AI credit (a fresh question set per event): cap it per teacher per day, across instances
+      const dayLimited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "event_create_day", limit: 12, windowMs: 24 * 60 * 60 * 1000, shared: true });
+      if (dayLimited) return dayLimited;
       // Prepare and verify the question set up front so the sprint starts instantly
       const count = body.questionCount ?? 10;
       let questions: NormalizedQuizQuestion[];

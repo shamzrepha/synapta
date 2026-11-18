@@ -3,13 +3,15 @@ import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { parseJson } from "@/lib/api/errors";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
 const broadcastSchema = z.object({
   title: z.string().trim().min(2).max(120),
   body: z.string().trim().min(2).max(500),
-  href: z.string().trim().max(200).optional().default("/dashboard"),
+  // an in-app path only: never another site
+  href: z.string().trim().max(200).regex(/^\/(?!\/)\S*$/, "href must be a path inside the app, like /dashboard").optional().default("/dashboard"),
   icon: z.string().trim().max(40).optional().default("bell"),
   sproutMood: z.enum(["idle", "wave", "jump", "dance", "think", "search"]).optional().default("jump"),
   target: z.enum(["all", "selective"]).default("all"),
@@ -30,6 +32,8 @@ const broadcastSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req, ["admin"]);
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "admin_broadcast", limit: 6, windowMs: 60_000 });
+    if (limited) return limited;
     const b = await parseJson(req, broadcastSchema);
 
     const snap = await adminDb().collection("users").where("disabled", "==", false).limit(1000).get();

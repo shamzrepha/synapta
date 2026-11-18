@@ -9,6 +9,7 @@ import {
   generateWithFallback,
   extractJsonPayload,
   withLearnerLanguage,
+  shouldInjectLearnerDna,
 } from "./router";
 import { z } from "zod";
 import { sanitizeModelId, parseModelChain, DEFAULT_MODEL_CONFIG } from "./models";
@@ -287,5 +288,18 @@ describe("withLearnerLanguage", () => {
     expect(o.systemInstruction).toMatch(/^Be kind\.\n\nLANGUAGE: .*French/);
     expect(o.cacheKey).toBe("k:lang=fr");
     expect(withLearnerLanguage({ task: "tutor_chat", userPrompt: "hi" }, "ha").systemInstruction).toContain("Hausa");
+  });
+});
+
+describe("Learner DNA never leaks into shared output", () => {
+  it("personalizes only a learner's own uncached prompt", () => {
+    expect(shouldInjectLearnerDna({ task: "tutor_chat" })).toBe(true);
+    expect(shouldInjectLearnerDna({ task: "tutor_chat", cacheKey: "shared:key" })).toBe(false);
+    expect(shouldInjectLearnerDna({ task: "lesson_notes", learnerLanguage: false })).toBe(false);
+    expect(shouldInjectLearnerDna({ task: "lesson_notes", isPrivileged: true })).toBe(false);
+    expect(shouldInjectLearnerDna({ task: "quiz_gen" })).toBe(false);
+    expect(shouldInjectLearnerDna({ task: "tutor_chat", personalize: false })).toBe(false);
+    expect(shouldInjectLearnerDna({ task: "quiz_gen", personalize: true })).toBe(true);
+    expect(shouldInjectLearnerDna({ task: "quiz_gen", personalize: true, cacheKey: "k" })).toBe(false);
   });
 });
