@@ -4,7 +4,7 @@ import { generateWithFallback, AiGenerationError } from "@/lib/ai/router";
 import { checkRateLimitAndQuota } from "@/lib/quota/guard";
 import { loadKcGroundingContext } from "@/lib/kc/context";
 import { buildSimulationPrompt, parseGeneratedSimulation, interactionIssues, type ParsedSimulation } from "./build";
-import { decideSimulationMedium, generateStudioSimulation } from "./studio-mode";
+import { decideSimulationMedium, generateStudioSimulation, isUsableStudioSpec } from "./studio-mode";
 import type { DesignSpec } from "@/lib/studio/spec";
 
 /**
@@ -100,6 +100,7 @@ export async function generatePieceLab(params: { classId: string; kcId: string; 
   });
 
   try {
+    const startedAt = Date.now();
     await checkRateLimitAndQuota(userId, 12000);
     const medium = await decideSimulationMedium({
       kcTitle: ctx.kcTitle,
@@ -112,30 +113,39 @@ export async function generatePieceLab(params: { classId: string; kcId: string; 
 
     let nextContent: (Omit<ParsedSimulation, "html"> & { html: string | null; studioSpec: DesignSpec | null }) | null = null;
     if (medium.medium === "studio") {
-      const studio = await generateStudioSimulation({
-        kcTitle: ctx.kcTitle,
-        subject: ctx.subject,
-        level: ctx.level,
-        contextText: ctx.contextText,
-        objective,
-        instructions:
-          "This is ONE piece of a larger topic. Build a compact, focused interactive lab that isolates just this learning objective.",
-        kind: medium.kind,
-        userId,
-      });
-      nextContent = {
-        html: null,
-        studioSpec: studio.studioSpec,
-        title: studio.title,
-        goal: studio.goal,
-        howTo: studio.howTo,
-        concepts: studio.concepts,
-        checkQuestion: studio.checkQuestion,
-      };
+      // One studio try (1 design + 1 fix). Any failure or unusable result falls through to the HTML path.
+      try {
+        const studio = await generateStudioSimulation({
+          kcTitle: ctx.kcTitle,
+          subject: ctx.subject,
+          level: ctx.level,
+          contextText: ctx.contextText,
+          objective,
+          instructions:
+            "This is ONE piece of a larger topic. Build a compact, focused interactive lab that isolates just this learning objective.",
+          kind: medium.kind,
+          userId,
+        });
+        if (isUsableStudioSpec(studio.studioSpec)) {
+          nextContent = {
+            html: null,
+            studioSpec: studio.studioSpec,
+            title: studio.title,
+            goal: studio.goal,
+            howTo: studio.howTo,
+            concepts: studio.concepts,
+            checkQuestion: studio.checkQuestion,
+          };
+        } else {
+          console.warn("[sim] studio piece returned nothing usable; falling back to HTML");
+        }
+      } catch (e) {
+        console.warn("[sim] studio piece failed; falling back to HTML:", e instanceof Error ? e.message : e);
+      }
     }
 
     if (!nextContent) {
-      const deadlineAt = Date.now() + 220_000;
+      const deadlineAt = Math.min(startedAt + 270_000, Date.now() + 220_000);
       let parsed: ParsedSimulation | null = null;
       let weak: ParsedSimulation | null = null;
       let weakIssues: string[] = [];

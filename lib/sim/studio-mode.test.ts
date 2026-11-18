@@ -19,76 +19,61 @@ describe("classroom studio medium classification", () => {
     vi.clearAllMocks();
   });
 
-  it("picks studio circuit synchronously for electronics, Ohm's law, Blockly, and robotics", () => {
-    expect(classifySimulationMediumHeuristic({ kcTitle: "Ohm's Law and Resistance", subject: "Physics" })).toMatchObject({
-      medium: "studio",
-      kind: "circuit",
-      confident: true,
-    });
+  it("defaults to HTML for ordinary and physics topics, even with circuit words, outside hardware subjects", () => {
+    for (const input of [
+      { kcTitle: "Projectile Motion", subject: "Physics" },
+      { kcTitle: "Ohm's Law and Resistance", subject: "Physics" },
+      { kcTitle: "Series and Parallel Circuits", subject: "Physics" },
+      { kcTitle: "Gear ratios", subject: "Physics" },
+      { kcTitle: "Resistors and LEDs", subject: "Science" },
+      { kcTitle: "Neural circuits and synaptic plasticity", subject: "Biology" },
+      { kcTitle: "Acid-Base Titration Curves", subject: "Chemistry" },
+    ]) {
+      expect(classifySimulationMediumHeuristic(input)).toMatchObject({ medium: "html", kind: null, confident: true });
+    }
+  });
+
+  it("uses studio for unmistakable hardware topics in an electronics/engineering subject", () => {
     expect(classifySimulationMediumHeuristic({ kcTitle: "Ultrasonic HC-SR04 Obstacle Sensor with Arduino & Blockly", subject: "Robotics" })).toMatchObject({
       medium: "studio",
       kind: "circuit",
       confident: true,
     });
-    expect(classifySimulationMediumHeuristic({ kcTitle: "Series and Parallel Circuits", subject: "Physics" })).toMatchObject({
-      medium: "studio",
-      kind: "circuit",
-      confident: true,
-    });
-  });
-
-  it("picks studio mechanism synchronously for gear trains and winches", () => {
+    expect(classifySimulationMediumHeuristic({ kcTitle: "Ohm's Law and Resistance", subject: "Electronics" })).toMatchObject({ medium: "studio", kind: "circuit" });
     expect(classifySimulationMediumHeuristic({ kcTitle: "Compound Gear Ratios & Torque", subject: "Mechanical Engineering" })).toMatchObject({
       medium: "studio",
       kind: "mechanism",
-      confident: true,
     });
   });
 
-  it("does not misroute biology neural circuits or chemistry/calculus topics to hardware studio", () => {
-    expect(classifySimulationMediumHeuristic({ kcTitle: "Neural circuits and synaptic plasticity", subject: "Biology" })).toMatchObject({
-      medium: "html",
-      confident: true,
+  it("uses studio when the instructions explicitly ask for a workbench, in any subject", () => {
+    expect(classifySimulationMediumHeuristic({ kcTitle: "Ohm's Law", subject: "Physics", instructions: "Let students wire it on a circuit bench" })).toMatchObject({
+      medium: "studio",
+      kind: "circuit",
     });
-    expect(classifySimulationMediumHeuristic({ kcTitle: "Acid-Base Titration Curves", subject: "Chemistry" })).toMatchObject({
-      medium: "html",
-      confident: true,
+    expect(classifySimulationMediumHeuristic({ kcTitle: "Simple machines", subject: "Physics", instructions: "Use a gear train workbench" })).toMatchObject({
+      medium: "studio",
+      kind: "mechanism",
     });
+    expect(classifySimulationMediumHeuristic({ kcTitle: "Loops", subject: "Computing", instructions: "build with Blockly on an Arduino" })).toMatchObject({ medium: "studio" });
   });
 
   it("respects explicit teacher request for 2D/HTML simulation", () => {
     expect(
       classifySimulationMediumHeuristic({
         kcTitle: "Ohm's Law",
+        subject: "Electronics",
         instructions: "Build a 2D graph only plotting V vs I without circuit bench",
       })
-    ).toMatchObject({
-      medium: "html",
-      confident: true,
-    });
+    ).toMatchObject({ medium: "html", confident: true });
   });
 
-  it("consults structured AI for ambiguous topics and normalizes fallback on error", async () => {
-    h.exec.mockResolvedValueOnce({ data: { medium: "studio", kind: "circuit", reason: "Interactive relay bench fits best" } });
-    const res = await decideSimulationMedium({
-      kcTitle: "Switching Systems Lab",
-      subject: "Technology",
-      level: "high school",
-      contextText: "Learn how switches and relays control lamps.",
-      userId: "u1",
-    });
-    expect(h.exec).toHaveBeenCalledTimes(1);
-    expect(res).toMatchObject({ medium: "studio", kind: "circuit" });
-
-    h.exec.mockRejectedValueOnce(new Error("AI timeout"));
-    const fallback = await decideSimulationMedium({
-      kcTitle: "Projectile Motion Parabolas",
-      subject: "Physics",
-      level: "high school",
-      contextText: "Launch velocity and gravity trajectories.",
-      userId: "u1",
-    });
-    expect(fallback.medium).toBe("html");
+  it("never spends an AI call on classification", async () => {
+    const hw = await decideSimulationMedium({ kcTitle: "Arduino LED", subject: "Electronics", level: "x", contextText: "", userId: "u" });
+    const other = await decideSimulationMedium({ kcTitle: "Switching Systems Lab", subject: "Technology", level: "x", contextText: "switches and relays", userId: "u" });
+    expect(hw.medium).toBe("studio");
+    expect(other.medium).toBe("html");
+    expect(h.exec).not.toHaveBeenCalled();
   });
 
   it("normalizes generated board labs to open in Blocks mode when a block program exists and generates checkQuestion", async () => {
