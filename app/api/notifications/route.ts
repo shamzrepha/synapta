@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
         body: n.body || "",
         href: n.href || null,
         icon: n.icon || null,
+        sproutMood: n.sproutMood || "wave",
         read: !!n.read,
         createdAt: n.createdAt?.toDate?.().toISOString() || null,
       };

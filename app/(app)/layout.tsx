@@ -19,6 +19,7 @@ import { DeviceReporter } from "@/components/shell/device-reporter";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { BotProvider } from "@/components/bot/bot-provider";
 import { ProfileSetup } from "@/components/profile/profile-setup";
+import { HeadsUpNotice } from "@/components/notifications/heads-up-notice";
 
 export default function AppLayout({
   children,
@@ -36,6 +37,7 @@ export default function AppLayout({
         Skip to content
       </a>
       <Sidebar />
+      <HeadsUpNotice />
       <div className="flex flex-1 flex-col min-w-0">
         <Topbar />
         <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none px-3 py-4 sm:p-5 md:p-6 lg:p-8 max-w-[1200px] mx-auto w-full pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-8 overflow-x-hidden">

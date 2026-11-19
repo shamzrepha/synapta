@@ -117,6 +117,18 @@ export function AdminBroadcastCard() {
         description: j.data?.message || `Delivered to ${j.data?.deliveredCount ?? 0} students.`,
         variant: "success",
       });
+      // Trigger heads-up preview notification immediately on dispatch
+      window.dispatchEvent(
+        new CustomEvent("sunroot:show-notice", {
+          detail: {
+            id: "broadcast_" + Date.now(),
+            title: title.trim(),
+            body: body.trim(),
+            href: href.trim() || "/dashboard",
+            sproutMood,
+          },
+        })
+      );
       setTitle("");
       setBody("");
     } catch {

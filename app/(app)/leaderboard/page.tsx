@@ -267,7 +267,7 @@ export default function LeaderboardPage() {
             </ul>
           </Card>
 
-          {data?.me && data.me.rank > 3 && (
+          {data?.me && data.me.rank > 3 ? (
             <div className="sticky bottom-20 md:bottom-4 z-10">
               <Card className="flex items-center gap-3 px-4 py-3 border-brand-500/50 shadow-xl">
                 <span className="w-7 text-center text-sm font-extrabold text-brand-600">#{data.me.rank}</span>
@@ -276,7 +276,17 @@ export default function LeaderboardPage() {
                 <span className="text-sm font-bold">{formatNumber(showScore(data.me))} XP</span>
               </Card>
             </div>
-          )}
+          ) : !data?.me && rows.length > 0 ? (
+            <div className="sticky bottom-20 md:bottom-4 z-10">
+              <Card className="flex items-center gap-3 px-4 py-3 border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md shadow-xl">
+                <span className="w-7 text-center text-sm font-bold text-slate-400">—</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Unranked (0 XP)</p>
+                  <p className="text-xs text-slate-500">Complete a quiz or study session to get ranked on the leaderboard!</p>
+                </div>
+              </Card>
+            </div>
+          ) : null}
         </>
       )}
 

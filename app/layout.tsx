@@ -73,7 +73,12 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/sprout-favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    shortcut: "/sprout-favicon.svg",
+    apple: "/logo-mark.svg",
   },
   ...(googleVerification ? { verification: { google: googleVerification } } : {}),
 };

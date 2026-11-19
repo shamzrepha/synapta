@@ -29,6 +29,8 @@ function toRows(
 ): Row[] {
   return items
     .filter((i) => {
+      // Learners with 0 score / 0 XP are not ranked on the leaderboard
+      if (!i.score || i.score <= 0) return false;
       const p = profiles.get(i.uid);
       // People who opted out are hidden from everyone but themselves
       return p && (p.showOnLeaderboard || i.uid === me);
@@ -113,7 +115,10 @@ export async function GET(req: NextRequest) {
       const myInst = String(mySnap.data()?.institution || "").trim().toLowerCase();
       // Shared, cached, bounded campus totals (people who hid themselves from leaderboards are never named or shown)
       const campuses = await loadCampuses();
-      rows = campuses.slice(0, 40).map((c, idx) => ({
+      rows = campuses
+        .filter((c) => c.totalXp > 0)
+        .slice(0, 40)
+        .map((c, idx) => ({
         rank: idx + 1,
         uid: `school_${idx}_${c.topScholarUid || "none"}`,
         displayName: `${c.institution} (${c.studentCount} scholar${c.studentCount === 1 ? "" : "s"})`,

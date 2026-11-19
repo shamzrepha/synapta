@@ -1,5 +1,84 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14b8a6"/><stop offset="1" stop-color="#0d9488"/></linearGradient></defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <g transform="translate(96 96) scale(13.33)" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M9 13a4.5 4.5 0 0 0 3-4"/><path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M12 13h4"/><path d="M12 18h6a2 2 0 0 1 2 2v1"/><path d="M12 8h8"/><path d="M16 8V5a2 2 0 0 1 2-2"/><circle cx="16" cy="13" r=".5"/><circle cx="18" cy="3" r=".5"/><circle cx="20" cy="21" r=".5"/><circle cx="20" cy="8" r=".5"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="leafGradLeft" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="leafGradRight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <style>
+    @keyframes sproutSway {
+      0%, 100% { transform: rotate(-6deg); }
+      50% { transform: rotate(7deg); }
+    }
+    @keyframes sproutBlink {
+      0%, 90%, 100% { transform: scaleY(1); }
+      95% { transform: scaleY(0.12); }
+    }
+    @keyframes sproutBob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-2.5px); }
+    }
+    .leaf-sway {
+      transform-box: fill-box;
+      transform-origin: 50% 95%;
+      animation: sproutSway 3s ease-in-out infinite;
+    }
+    .eyes-blink {
+      transform-box: fill-box;
+      transform-origin: 50% 50%;
+      animation: sproutBlink 3.8s ease-in-out infinite;
+    }
+    .body-bob {
+      animation: sproutBob 2.6s ease-in-out infinite;
+    }
+  </style>
+
+  <!-- Clean dark squircle badge -->
+  <rect width="100" height="100" rx="26" fill="#0f172a" />
+
+  <g class="body-bob">
+    <!-- Animated Sprout leaf -->
+    <g class="leaf-sway">
+      <path d="M50 34 C50 24 49 18 47 11" stroke="#10b981" stroke-width="3.2" stroke-linecap="round" fill="none" />
+      <path d="M47 12 C38 5 29 10 28 18 C38 21 45 19 47 12 Z" fill="url(#leafGradLeft)" />
+      <path d="M48 13 C57 4 67 7 69 16 C60 20 51 19 48 13 Z" fill="url(#leafGradRight)" />
+    </g>
+
+    <!-- Arms -->
+    <rect x="15" y="58" width="13" height="8" rx="4" fill="#2563eb" transform="rotate(8 21 62)" />
+    <rect x="72" y="58" width="13" height="8" rx="4" fill="#2563eb" transform="rotate(-8 79 62)" />
+
+    <!-- Sprout Bot Body -->
+    <rect x="22" y="32" width="56" height="56" rx="25" fill="url(#bodyGrad)" />
+
+    <!-- Face Screen -->
+    <rect x="28" y="39" width="44" height="32" rx="14" fill="#f8fafc" />
+
+    <!-- Eyes (Animated Blink) -->
+    <g class="eyes-blink">
+      <ellipse cx="41" cy="53" rx="4.5" ry="5.5" fill="#0f172a" />
+      <ellipse cx="59" cy="53" rx="4.5" ry="5.5" fill="#0f172a" />
+      <circle cx="42.5" cy="51.2" r="1.5" fill="#ffffff" />
+      <circle cx="60.5" cy="51.2" r="1.5" fill="#ffffff" />
+    </g>
+
+    <!-- Cheeks -->
+    <circle cx="35" cy="60.5" r="3" fill="#fda4af" opacity="0.8" />
+    <circle cx="65" cy="60.5" r="3" fill="#fda4af" opacity="0.8" />
+
+    <!-- Smile -->
+    <path d="M44 61.5 Q50 66.5 56 61.5" stroke="#0f172a" stroke-width="2.4" stroke-linecap="round" fill="none" />
+
+    <!-- Feet -->
+    <ellipse cx="38" cy="88" rx="8" ry="4.5" fill="#2563eb" />
+    <ellipse cx="62" cy="88" rx="8" ry="4.5" fill="#2563eb" />
+  </g>
 </svg>

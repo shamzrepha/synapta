@@ -32,10 +32,10 @@ export function Sprout({ pose = "idle", facing = 1, className, mood = "calm", pa
         <path d="M48 16 C58 6 70 9 72 18 C62 22 52 21 48 16 Z" fill="#0d9488" />
       </g>
       {/* arms (behind the body edge) */}
-      <g data-arm="left" style={{ transformOrigin: "26px 66px" }}>
+      <g data-arm="left" style={{ transformOrigin: "26px 66px", transformBox: "view-box" }}>
         <rect x="14" y="62" width="14" height="9" rx="4.5" fill={pal.arm} />
       </g>
-      <g data-arm="right" style={{ transformOrigin: "74px 66px" }}>
+      <g data-arm="right" style={{ transformOrigin: "74px 66px", transformBox: "view-box" }}>
         <rect x="72" y="62" width="14" height="9" rx="4.5" fill={pal.arm} />
         {/* the rope launcher strapped to the hand: only seen while pulling */}
         <g className="sprout-launcher">

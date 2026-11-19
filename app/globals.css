@@ -693,17 +693,20 @@ html[data-typing="true"] .sunroot-bot { display: none; }
   transition: translate 0.22s ease-out; -webkit-font-smoothing: antialiased; backface-visibility: hidden;
 }
 @keyframes sprout-pop { from { opacity: 0; transform: translateY(6px) scale(0.9); } to { opacity: 1; transform: none; } }
-.sprout { display: block; width: 100%; height: 100%; overflow: visible; transform-origin: 50% 90%; transform: scaleX(var(--sx, 1)); will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
-.sprout-eyes { transform-origin: 50px 58px; animation: sprout-blink 4.6s infinite; }
-@keyframes sprout-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
-.sprout-leaf { transform-origin: 50px 36px; animation: sprout-sway 3.2s ease-in-out infinite; }
-@keyframes sprout-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(5deg); } }
-.sprout { animation: sprout-bob 2.8s ease-in-out infinite; }
-@keyframes sprout-bob { 0%, 100% { transform: translateY(0) scaleX(var(--sx, 1)); } 50% { transform: translateY(-2px) scaleX(var(--sx, 1)); } }
+.sprout { display: block; width: 100%; height: 100%; overflow: visible; transform-origin: 50% 90%; transform: scaleX(var(--sx, 1)); will-change: transform; -webkit-backface-visibility: hidden; backface-visibility: hidden; animation: sprout-bob 2.4s ease-in-out infinite; }
+.sprout-eyes { transform-box: view-box; transform-origin: 50px 58px; animation: sprout-blink 3.8s infinite; }
+@keyframes sprout-blink { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(0.12); } }
+.sprout-leaf { transform-box: view-box; transform-origin: 48px 36px; animation: sprout-sway 2.6s ease-in-out infinite; }
+@keyframes sprout-sway { 0%, 100% { transform: rotate(-7deg); } 50% { transform: rotate(8deg); } }
+@keyframes sprout-bob { 0%, 100% { transform: translateY(0) scaleX(var(--sx, 1)); } 50% { transform: translateY(-4px) scaleX(var(--sx, 1)) scale(1.02, 0.98); } }
 .sprout-mouth-open, .sprout-lens, .sprout-sparkles { opacity: 0; }
-.sprout [data-arm] { transition: transform 0.25s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); }
+.sprout [data-arm] { transform-box: view-box; transition: transform 0.25s var(--ease-out-expo, cubic-bezier(0.16, 1, 0.3, 1)); }
 .sprout [data-arm="left"] { transform: rotate(8deg); }
 .sprout [data-arm="right"] { transform: rotate(-8deg); }
+.sprout[data-pose="idle"] [data-arm="left"] { animation: sprout-arm-sway-l 2.4s ease-in-out infinite; }
+.sprout[data-pose="idle"] [data-arm="right"] { animation: sprout-arm-sway-r 2.4s ease-in-out infinite; }
+@keyframes sprout-arm-sway-l { 0%, 100% { transform: rotate(8deg); } 50% { transform: rotate(14deg) translateY(-1px); } }
+@keyframes sprout-arm-sway-r { 0%, 100% { transform: rotate(-8deg); } 50% { transform: rotate(-14deg) translateY(-1px); } }
 .sprout[data-pose="search"] [data-arm="right"] { transform: rotate(-35deg); }
 .sprout[data-pose="search"] .sprout-lens { opacity: 1; animation: sprout-scan 1.1s ease-in-out infinite; transform-origin: 88px 46px; }
 @keyframes sprout-scan { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-3px, 2px) scale(1.12); } }
