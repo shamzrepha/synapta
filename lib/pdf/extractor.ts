@@ -1,4 +1,5 @@
 import { readDocx, readPptx } from "@/lib/documents/office";
+import { friendlyReadError, pageText } from "@/lib/pdf/page-text";
 import { isUpgradeCode, promptUpgrade } from "@/lib/billing/upgrade-event";
 import { MAX_VISION_PAGES, VISION_BATCH, cleanVisionText, mergePages, pageNeedsVision, type ReadPage } from "@/lib/documents/pages";
 
@@ -74,8 +75,7 @@ export async function readPdf(file: File, onProgress?: ReadProgress): Promise<st
   const scans: number[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const text = content.items.map((it: unknown) => (it && typeof it === "object" && "str" in it ? (it as { str: string }).str : "")).join(" ");
+    const text = await pageText(page);
     if (pageNeedsVision(text)) {
       scans.push(i);
       pages.push({ page: i, text: "", source: "unreadable" });
@@ -122,6 +122,16 @@ export async function extractTextFromPdf(file: File): Promise<string> {
 }
 
 export async function extractTextFromFile(file: File, onProgress?: ReadProgress): Promise<string> {
+  try {
+    return await readAnyFile(file, onProgress);
+  } catch (err) {
+    console.warn("Reading the file failed:", err);
+    // a raw browser error ("undefined is not a function...") means nothing to a student
+    throw friendlyReadError(err);
+  }
+}
+
+async function readAnyFile(file: File, onProgress?: ReadProgress): Promise<string> {
   if (isPdf(file)) return readPdf(file, onProgress);
   if (isImage(file)) return readImageFile(file, onProgress);
   const lower = file.name.toLowerCase();
@@ -154,8 +164,7 @@ export async function needsVisionReading(file: File): Promise<boolean> {
     const n = Math.min(pdf.numPages, 4);
     let scanned = 0;
     for (let i = 1; i <= n; i++) {
-      const content = await (await pdf.getPage(i)).getTextContent();
-      const text = content.items.map((it: unknown) => (it && typeof it === "object" && "str" in it ? (it as { str: string }).str : "")).join(" ");
+      const text = await pageText(await pdf.getPage(i));
       if (pageNeedsVision(text)) scanned++;
     }
     return scanned * 2 > n;
