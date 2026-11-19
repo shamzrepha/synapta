@@ -6,6 +6,7 @@
 const dec = new TextDecoder("utf-8");
 
 async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
+  if (typeof DecompressionStream === "undefined") throw new Error("This phone's browser can't open Word or PowerPoint files. Save the file as a PDF and upload that.");
   const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
