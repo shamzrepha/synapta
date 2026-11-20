@@ -49,7 +49,7 @@ export const QUERY_COLLECTIONS: ReadonlyArray<readonly [collection: string, fiel
 ];
 
 /** Top-level documents whose id is exactly the uid. */
-export const UID_DOCS = ["learnerProfiles", "avatars", "dailyStreaks"] as const;
+export const UID_DOCS = ["learnerProfiles", "learnerMirror", "avatars", "dailyStreaks"] as const;
 
 /** Subcollections of users/{uid}. */
 export const USER_SUBCOLLECTIONS = [

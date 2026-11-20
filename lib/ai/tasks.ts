@@ -29,6 +29,11 @@ export const AI_TASK_DEFINITIONS = {
     label: "Student Evaluation",
     description: "Reads a learner's wrong answers and mastery scores, names their knowledge gaps and misconceptions, and writes a short study plan.",
   },
+  mirror_summary: {
+    key: "mirror_summary",
+    label: "Learner Mirror Summary",
+    description: "Two plain sentences describing a learner's study habits from their own opted-in Mirror profile. Cached, at most once a week per learner.",
+  },
   grading_high_stakes: {
     key: "grading_high_stakes",
     label: "High-Stakes Grading",
