@@ -1,0 +1,40 @@
+name: Deploy to Coolify
+
+# After the CI Quality Gate passes on main, ask Coolify to rebuild and deploy sunrootlearn.com.
+# One-time setup (GitHub, Settings, Secrets and variables, Actions): add two secrets
+#   COOLIFY_DEPLOY_URL  the full "Deploy Webhook" URL shown in Coolify on the app's Webhooks tab
+#   COOLIFY_TOKEN       a Coolify API token (Keys & Tokens, API tokens) with deploy rights
+# Without the secrets this workflow does nothing, so it is safe to leave on.
+
+on:
+  workflow_run:
+    workflows: ["CI Quality Gate"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-coolify
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Ask Coolify to deploy main
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger the deploy
+        env:
+          COOLIFY_DEPLOY_URL: ${{ secrets.COOLIFY_DEPLOY_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: |
+          if [ -z "$COOLIFY_DEPLOY_URL" ] || [ -z "$COOLIFY_TOKEN" ]; then
+            echo "::notice::COOLIFY_DEPLOY_URL or COOLIFY_TOKEN is not set. Skipping the deploy."
+            exit 0
+          fi
+          code=$(curl -sS -o /tmp/out.txt -w "%{http_code}" --max-time 60 -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_DEPLOY_URL" || echo 000)
+          echo "Coolify answered HTTP $code"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            echo "::error::Coolify did not accept the deploy request (HTTP $code)."
+            exit 1
+          fi
