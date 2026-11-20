@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Camera,
@@ -180,6 +181,9 @@ export function ProfileSetup() {
   const [levelDraft, setLevelDraft] = useState<string | null>(null);
   const [interestsDraft, setInterestsDraft] = useState<string[] | null>(null);
 
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [ageOk, setAgeOk] = useState(false);
+  const alreadyAccepted = !!(user as { acceptedTermsAt?: unknown } | null)?.acceptedTermsAt;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -293,6 +297,11 @@ export function ProfileSetup() {
       setError(name.message);
       return;
     }
+    if (!alreadyAccepted && !(agreeTerms && ageOk)) {
+      setStep(5);
+      setError("Please tick both boxes to continue: the Terms and Privacy Policy, and the age statement.");
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/profile/setup", {
@@ -305,6 +314,7 @@ export function ProfileSetup() {
           department: department.trim() || undefined,
           level: level.trim() || undefined,
           interests,
+          ...(!alreadyAccepted ? { acceptedTerms: true, ageConfirmed: true } : {}),
         }),
       });
       const j = await res.json().catch(() => null);
@@ -750,6 +760,22 @@ export function ProfileSetup() {
                 <span className="font-semibold text-foreground">₦0 Free</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Consent: shown once. Accounts that already accepted are not asked again, and old accounts are never blocked elsewhere. */}
+        {step === 5 && !alreadyAccepted && (
+          <div className="space-y-2 rounded-lg border border-border p-3 text-xs">
+            <label className="flex items-start gap-2">
+              <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="mt-0.5" />
+              <span>
+                I agree to the <Link href="/terms" target="_blank" className="underline">Terms</Link> and <Link href="/privacy" target="_blank" className="underline">Privacy Policy</Link>.
+              </span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input type="checkbox" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} className="mt-0.5" />
+              <span>I am 16 or older, or a parent/guardian agrees.</span>
+            </label>
           </div>
         )}
 

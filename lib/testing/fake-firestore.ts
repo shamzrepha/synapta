@@ -73,6 +73,7 @@ export function makeFakeDb(store: Store) {
     set: (ref: { path: string }, v: Obj, opts?: { merge?: boolean }) =>
       void sink.push(() => store.set(ref.path, opts?.merge ? merge(store.get(ref.path) || {}, v) : v)),
     update: (ref: { path: string }, v: Obj) => void sink.push(() => store.set(ref.path, merge(store.get(ref.path) || {}, v))),
+    delete: (ref: { path: string }) => void sink.push(() => void store.delete(ref.path)),
   });
   return {
     collection: (name: string) => colRef(name),

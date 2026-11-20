@@ -232,6 +232,9 @@ function LoginForm() {
             Sign up
           </Link>
         </p>
+        <p className="ml-3 text-xs text-slate-500">
+          <Link href="/terms" className="underline">Terms</Link> · <Link href="/privacy" className="underline">Privacy</Link>
+        </p>
       </CardFooter>
     </Card>
   );
