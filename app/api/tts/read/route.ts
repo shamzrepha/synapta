@@ -4,6 +4,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { synthesizeEdgeWithWords } from "@/lib/ai/voice";
+import { assertAiActive } from "@/lib/ai/guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
     const caller = await requireUser(req);
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tts_read", limit: 60, windowMs: 60_000, shared: true });
     if (limited) return limited;
+    await assertAiActive({ spend: true });
     const { text } = await parseJson(req, z.object({ text: z.string().trim().min(1).max(700) }));
     const out = await synthesizeEdgeWithWords(text, READ_VOICE, { rate: "+0%", pitch: "+45Hz" });
     if (!out) return NextResponse.json({ ok: false, error: { code: "TTS_UNAVAILABLE", message: "Sprout's voice is busy right now." } }, { status: 503 });

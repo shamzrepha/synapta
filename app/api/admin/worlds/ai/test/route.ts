@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
     const attempts: Array<{ modelId: string; ok: boolean; repairs: number; latencyMs: number; reason?: string }> = [];
     try {
       const r = await generateStructured({
+        system: true,
         task,
         promptName: "ping",
         promptVars: { word: "heart" },

@@ -19,6 +19,7 @@ export function getGeminiClient(): GoogleGenAI {
 }
 
 import { generateWithFallback, type AiTask, getChainForTask } from "@/lib/ai/router";
+import { assertAiActive } from "@/lib/ai/guard";
 
 export function getGeminiModel(task?: AiTask): string {
   return getChainForTask(task || "structured_spec")[0];
@@ -30,6 +31,8 @@ interface GenerateStructuredOptions<T> {
   userPrompt: string;
   schema: z.ZodType<T>;
   maxRetries?: number;
+  /** The learner this is for: when given, the admin AI pause switch is respected (token quota stays with the calling route). */
+  userId?: string;
 }
 
 /**
@@ -41,7 +44,9 @@ export async function generateStructuredJson<T>({
   systemInstruction,
   userPrompt,
   schema,
+  userId,
 }: GenerateStructuredOptions<T>): Promise<{ data: T; tokensIn: number; tokensOut: number }> {
+  if (userId) await assertAiActive({ spend: true });
   const apiKey = activeGeminiKey();
 
   if (!apiKey || apiKey.startsWith("mock-") || apiKey === "demo") {
