@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mirror-reset", limit: 5, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mirror-reset", limit: 5, windowMs: 60_000, shared: true });
     if (limited) return limited;
     await resetMirror(caller.uid);
     return NextResponse.json({ ok: true, data: { reset: true } });
