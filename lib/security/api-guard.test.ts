@@ -19,14 +19,25 @@ describe("isCrossSiteWrite", () => {
 });
 
 describe("clientKey", () => {
-  it("prefers the session credential and never keeps the whole token", () => {
-    const token = "x".repeat(100) + "TAIL1234567890ABCDEFGHIJ";
-    const k = clientKey(headers({}), token);
-    expect(k.signedIn).toBe(true);
-    expect(k.key.length).toBeLessThan(40);
+  it("keys by client IP, never by the token, so junk tokens cannot mint new buckets", () => {
+    const a = clientKey(headers({ "x-forwarded-for": "1.2.3.4" }), "junk-one");
+    const b = clientKey(headers({ "x-forwarded-for": "1.2.3.4" }), "junk-two");
+    expect(a.key).toBe("ip:1.2.3.4");
+    expect(b.key).toBe(a.key);
+    expect(JSON.stringify(a)).not.toContain("junk");
   });
-  it("falls back to the first forwarded IP", () => {
+  it("uses the first forwarded hop, then x-real-ip, then a shared fallback", () => {
     expect(clientKey(headers({ "x-forwarded-for": "1.2.3.4, 10.0.0.1" }), undefined)).toEqual({ key: "ip:1.2.3.4", signedIn: false });
+    expect(clientKey(headers({ "x-real-ip": "5.6.7.8" }), undefined).key).toBe("ip:5.6.7.8");
+    expect(clientKey(headers({}), undefined).key).toBe("ip:unknown");
+  });
+  it("ignores malformed forwarded values", () => {
+    expect(clientKey(headers({ "x-forwarded-for": "<script>, 1.1.1.1" }), undefined).key).toBe("ip:unknown");
+  });
+  it("treats a credential only as a hint for the higher per-IP limit (it is not verified here)", () => {
+    expect(clientKey(headers({}), "abc").signedIn).toBe(true);
+    expect(clientKey(headers({ authorization: "Bearer abc" }), undefined).signedIn).toBe(true);
+    expect(clientKey(headers({}), undefined).signedIn).toBe(false);
   });
 });
 
