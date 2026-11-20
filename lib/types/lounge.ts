@@ -1,11 +1,11 @@
+export type MasteryBand = "strong" | "solid" | "building";
+
+/** A classmate in a class the caller is enrolled in: name, username and a coarse band only. No email, XP or exact score. */
 export interface PeerMatch {
   uid: string;
   displayName: string;
-  email: string;
-  xp: number;
-  streakDays: number;
-  pL: number;
-  masteryPercentage: number;
+  username?: string;
+  band: MasteryBand;
   isMastered: boolean;
   matchReason: string;
 }

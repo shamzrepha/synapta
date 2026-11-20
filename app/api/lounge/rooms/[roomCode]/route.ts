@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { assertClassAccess } from "@/lib/auth/classAccess";
+import { ApiError } from "@/lib/api/errors";
 
 export const runtime = "nodejs";
 
@@ -23,39 +25,13 @@ export async function GET(
     }
 
     const roomData = roomDoc.data()!;
-    let memberIds: string[] = Array.isArray(roomData.memberIds) ? roomData.memberIds : [];
-    let participants: { uid: string; displayName: string; role: string; joinedAt?: string }[] =
+    const memberIds: string[] = Array.isArray(roomData.memberIds) ? roomData.memberIds : [];
+    const participants: { uid: string; displayName: string; role: string; joinedAt?: string }[] =
       Array.isArray(roomData.participants) ? roomData.participants : [];
 
-    // Auto-join room if caller is not yet recorded as a member
-    if (!memberIds.includes(caller.uid)) {
-      const userDoc = await adminDb().collection("users").doc(caller.uid).get();
-      const displayName = userDoc.exists ? userDoc.data()?.displayName || "Student" : "Student";
-
-      memberIds = [...memberIds, caller.uid];
-      participants = [
-        ...participants,
-        {
-          uid: caller.uid,
-          displayName,
-          role: "learner",
-          joinedAt: new Date().toISOString(),
-        },
-      ];
-
-      await roomRef.update({
-        memberIds,
-        participants,
-        updatedAt: Timestamp.now(),
-      });
-
-      // Post join notification message
-      await roomRef.collection("messages").add({
-        uid: "system",
-        displayName: "Sunroot Lounge",
-        text: `${displayName} joined the study session.`,
-        createdAt: Timestamp.now(),
-      });
+    // Reading never joins: a non-member has to join by code with POST.
+    if (!memberIds.includes(caller.uid) && caller.role !== "admin") {
+      throw new ApiError(403, "NOT_MEMBER", "Join this room with its code first.");
     }
 
     // Fetch messages subcollection
@@ -92,6 +68,43 @@ export async function GET(
         messages,
       },
     });
+  } catch (error) {
+    return handleAuthError(error);
+  }
+}
+
+/** Join a room by its code. The caller must be able to see the room's class. */
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ roomCode: string }> }
+) {
+  try {
+    const { roomCode } = await params;
+    const caller = await requireUser(req);
+    const roomRef = adminDb().collection("rooms").doc(roomCode);
+    const roomDoc = await roomRef.get();
+    if (!roomDoc.exists) throw new ApiError(404, "NOT_FOUND", `Room ${roomCode} does not exist.`);
+    const roomData = roomDoc.data()!;
+    await assertClassAccess(caller, String(roomData.classId || ""), "view");
+
+    const memberIds: string[] = Array.isArray(roomData.memberIds) ? roomData.memberIds : [];
+    if (memberIds.includes(caller.uid)) return NextResponse.json({ ok: true, data: { roomCode, joined: false } });
+
+    const userDoc = await adminDb().collection("users").doc(caller.uid).get();
+    const displayName = userDoc.exists ? userDoc.data()?.displayName || "Student" : "Student";
+    const participants = Array.isArray(roomData.participants) ? roomData.participants : [];
+    await roomRef.update({
+      memberIds: [...memberIds, caller.uid],
+      participants: [...participants, { uid: caller.uid, displayName, role: "learner", joinedAt: new Date().toISOString() }],
+      updatedAt: Timestamp.now(),
+    });
+    await roomRef.collection("messages").add({
+      uid: "system",
+      displayName: "Sunroot Lounge",
+      text: `${displayName} joined the study session.`,
+      createdAt: Timestamp.now(),
+    });
+    return NextResponse.json({ ok: true, data: { roomCode, joined: true } });
   } catch (error) {
     return handleAuthError(error);
   }
