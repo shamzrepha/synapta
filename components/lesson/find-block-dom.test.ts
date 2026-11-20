@@ -19,4 +19,13 @@ describe("finding a block element", () => {
     expect(findBlockElement(root, "Nothing like this anywhere on the page")).toBeNull();
     expect(clicked).toBe(false);
   });
+  it("walks to a spoken heading by its marker, even a very short one, or one drawn as a chip", () => {
+    const root = document.createElement("div");
+    root.innerHTML =
+      '<span data-read-heading="">Circuits</span><h2 data-read-heading="">DC</h2><p>DC is direct current, flowing one way.</p><h3 data-read-heading="">Overview</h3>';
+    expect(findBlockElement(root, "Circuits", true)?.tagName).toBe("SPAN");
+    expect(findBlockElement(root, "DC", true)?.tagName).toBe("H2");
+    expect(findBlockElement(root, "Overview", true)?.tagName).toBe("H3");
+    expect(findBlockElement(root, "Nothing here", true)).toBeNull();
+  });
 });

@@ -251,7 +251,8 @@ export function splitTextbookPages(markdown: string, opts?: { maxWords?: number;
     const subtopics = pk.units.map((u) => u.subtopic).filter((x): x is string => !!x);
     const kind = classifyKind(first.sectionTitle, first.subtopic || first.title, pIdx);
     const base = { sectionTitle: first.sectionTitle, title: first.title, subtopic: multi ? null : first.subtopic, subtopics, sectionIndex: first.sectionIndex, kind, synthetic: first.synthetic };
-    if (cost(body) <= maxWords * flex || multi) {
+    // with a line budget a page never runs over: a combined page that is too long is cut like any long one
+    if (cost(body) <= maxWords * flex || (multi && !budget)) {
       pages.push({ id: `tp-${pIdx}-0`, ...base, partIndex: 0, partTotal: 1, body });
       return;
     }
@@ -263,8 +264,23 @@ export function splitTextbookPages(markdown: string, opts?: { maxWords?: number;
     const groups: string[] = [];
     let cur: string[] = [];
     let curW = 0;
-    for (const blk of blocks) {
+    const queue = [...blocks];
+    while (queue.length > 0) {
+      const blk = queue.shift() as string;
       const bw = bcost(blk);
+      // a splittable block (paragraph, list, table) fills what is left of the page instead of leaving a gap, and its rest goes on
+      if (budget && cur.length > 0 && curW + bw > maxWords && maxWords - curW >= maxWords * 0.3) {
+        const parts = splitOversize(blk, maxWords - curW, budget.charsPerLine);
+        if (parts.length > 1 && bcost(parts[0]) <= maxWords - curW) {
+          cur.push(parts[0]);
+          curW += bcost(parts[0]);
+          const rest = parts.slice(1);
+          // a table's parts each keep their header row, so they go back as separate blocks; text is joined again
+          if (/^\s*\|/.test(blk)) queue.unshift(...rest);
+          else queue.unshift(rest.join(/^\s*([-*+]|\d+[.)])\s/.test(blk) ? "\n" : " "));
+          continue;
+        }
+      }
       if (cur.length > 0 && curW + bw > maxWords) {
         // a heading is never left alone at the bottom of a page: it moves over with what it introduces
         let carry: string[] = [];

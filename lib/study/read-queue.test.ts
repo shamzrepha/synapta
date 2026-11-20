@@ -9,6 +9,11 @@ describe("buildReadQueue", () => {
     expect(q[1].block).toBe("Basics");
     expect(q[2].block).toContain("LED");
   });
+  it("marks every title and heading chunk so Sprout can walk to its element", () => {
+    const q = buildReadQueue("LEDs", "Intro text here.\n\n## Basics\nAn LED glows.\n\n### DC\nCurrent.");
+    expect(q.filter((c) => c.heading).map((c) => c.block)).toEqual(["LEDs", "Basics", "DC"]);
+    expect(q.filter((c) => !c.heading).every((c) => !c.pageAnchor)).toBe(true);
+  });
   it("splits long paragraphs into chunks that keep the same block", () => {
     const long = "This is a sentence about diodes. ".repeat(40);
     const q = buildReadQueue("T", long, 200);

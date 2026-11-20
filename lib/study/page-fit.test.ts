@@ -77,14 +77,52 @@ describe("splitTextbookPages with a line budget", () => {
 });
 
 describe("budgetFor", () => {
-  it("a tall screen holds more lines than a short one, and bigger text fewer", () => {
-    expect(budgetFor(390, 900).maxLines).toBeGreaterThan(budgetFor(390, 640).maxLines);
+  it("a page has the same lines whatever the window height, more on a bigger screen, fewer with bigger text", () => {
+    expect(budgetFor(390, 900).maxLines).toBe(24);
+    expect(budgetFor(390, 500).maxLines).toBe(budgetFor(390, 900).maxLines);
+    expect(budgetFor(800, 900).maxLines).toBeGreaterThan(24);
+    expect(budgetFor(1600, 900).maxLines).toBeGreaterThan(budgetFor(800, 900).maxLines);
     expect(budgetFor(390, 800, 1.4).maxLines).toBeLessThan(budgetFor(390, 800, 1).maxLines);
   });
-  it("stays within sane limits", () => {
+  it("gives the ruled line height and sane limits", () => {
     const b = budgetFor(360, 300);
-    expect(b.maxLines).toBeGreaterThanOrEqual(11);
-    expect(budgetFor(1600, 2000).maxLines).toBeLessThanOrEqual(30);
+    expect(b.lineH).toBeGreaterThan(20);
     expect(b.charsPerLine).toBeGreaterThanOrEqual(22);
+    expect(budgetFor(1600, 2000, 1.6).maxLines).toBeGreaterThanOrEqual(12);
+  });
+});
+
+describe("splitter keeps a consistent line budget", () => {
+  const long = ["# Book", "Intro words for the overview.", "## Motors", para(30), "### Brushed", para(9), "- a\n- b\n- c", "### Brushless", para(25),
+    "| a | b |\n|---|---|\n" + Array.from({ length: 40 }, (_, i) => `| ${i} | ${i * 2} |`).join("\n"),
+    "$$\nx = 1\n$$", "## Key terms", para(3), "## Wiring", para(60)].join("\n\n");
+  for (const lines of [12, 16, 24, 32]) {
+    it(`no page runs over ${lines} lines and continuation pages are well filled`, () => {
+      const budget = { maxLines: lines, charsPerLine: CPL };
+      const { pages } = splitTextbookPages(long, { budget });
+      for (const pg of pages) {
+        const blocks = splitAtomicBlocks(pg.body);
+        const total = blocks.reduce((a, b) => a + blockLines(b, CPL), 0);
+        if (blocks.length > 1) expect(total).toBeLessThanOrEqual(lines + 0.01);
+        if (blocks.length > 1) expect(/^#{1,6}\s/.test(blocks[blocks.length - 1])).toBe(false);
+      }
+      // a section that runs over several pages fills every page but the last to at least half
+      const byKey = new Map<string, typeof pages>();
+      for (const pg of pages) if (pg.partTotal > 1) byKey.set(pg.id.split("-")[1], [...(byKey.get(pg.id.split("-")[1]) || []), pg]);
+      for (const group of byKey.values()) {
+        for (const pg of group.slice(0, -1)) {
+          const total = splitAtomicBlocks(pg.body).reduce((a, b) => a + blockLines(b, CPL), 0);
+          expect(total).toBeGreaterThanOrEqual(lines * 0.45);
+        }
+      }
+    });
+  }
+  it("a page made of several short sections is cut instead of overflowing", () => {
+    const md = Array.from({ length: 6 }, (_, i) => `## Part ${i}\n\n${para(2)}`).join("\n\n");
+    const { pages } = splitTextbookPages(md, { budget: { maxLines: 12, charsPerLine: CPL } });
+    for (const pg of pages) {
+      const blocks = splitAtomicBlocks(pg.body);
+      if (blocks.length > 1) expect(blocks.reduce((a, b) => a + blockLines(b, CPL), 0)).toBeLessThanOrEqual(12.01);
+    }
   });
 });

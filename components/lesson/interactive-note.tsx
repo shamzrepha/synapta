@@ -134,7 +134,12 @@ function NoteTable(props: React.ComponentPropsWithoutRef<"table">) {
 
 // single "~" stays plain text ("about ~5 V"); only "~~text~~" strikes through
 const MD_PLUGINS = [remarkMath, [remarkGfm, { singleTilde: false }]] as NonNullable<React.ComponentProps<typeof ReactMarkdown>["remarkPlugins"]>;
-const MD_COMPONENTS = { strong: Term, p: Para, li: Item, table: NoteTable };
+/** Every heading carries the marker Sprout uses to walk to it while it is read aloud. */
+const mdHeading = (tag: "h1" | "h2" | "h3" | "h4" | "h5" | "h6") =>
+  function MdHeading({ node: _node, ...props }: React.ComponentPropsWithoutRef<"h1"> & { node?: unknown }) {
+    return React.createElement(tag, { ...props, "data-read-heading": "" });
+  };
+const MD_COMPONENTS = { strong: Term, p: Para, li: Item, table: NoteTable, h1: mdHeading("h1"), h2: mdHeading("h2"), h3: mdHeading("h3"), h4: mdHeading("h4"), h5: mdHeading("h5"), h6: mdHeading("h6") };
 
 const KIND_CALLOUT: Record<TextbookSectionKind, { label: string; tone: string } | null> = {
   overview: { label: "Big Picture", tone: "bg-brand-500/10 text-brand-700 dark:text-brand-300 border-brand-500/25" },
@@ -920,7 +925,7 @@ export function InteractiveNote({
               </span>
             )}
             {p.subtopic && p.sectionTitle && p.subtopic !== p.sectionTitle && (
-              <span data-read-heading className="font-semibold uppercase tracking-wide text-muted-foreground">
+              <span data-read-heading="" className="font-semibold uppercase tracking-wide text-muted-foreground">
                 {p.sectionTitle}
               </span>
             )}
@@ -932,7 +937,7 @@ export function InteractiveNote({
           </div>
         )}
         {(p.subtopic || p.title) && (
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight leading-snug">
+          <h2 data-read-heading="" className="text-xl sm:text-2xl font-bold tracking-tight leading-snug">
             {p.subtopic || p.title}
           </h2>
         )}
@@ -1105,7 +1110,7 @@ export function InteractiveNote({
           </>
         ) : (
           <article className="note-paper sunroot-paper space-y-6">
-            {note.title && <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight mb-2">{note.title}</h1>}
+            {note.title && <h1 data-read-heading="" className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight mb-2">{note.title}</h1>}
             {note.pages.map((p) => (
               <section key={p.id}>
                 {!p.synthetic && header(p)}

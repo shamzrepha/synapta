@@ -24,8 +24,23 @@ export function textHasBlock(elementText: string, blockMarkdown: string): boolea
 const BLOCK_SELECTOR =
   "h1, h2, h3, h4, h5, h6, [data-read-heading], p, li, td, th, blockquote, dd, dt, figcaption, div, section";
 
-/** The smallest block on the page that holds the paragraph or heading, or null. */
-export function findBlockElement(root: Element, blockMarkdown: string): HTMLElement | null {
+/** The heading element (marked `data-read-heading`) whose words are exactly the heading text, or null. Works for headings too short for the paragraph match. */
+export function findHeadingElement(root: Element, headingText: string): HTMLElement | null {
+  const want = alnum(plainBlock(headingText));
+  if (!want) return null;
+  const all = Array.from(root.querySelectorAll<HTMLElement>("[data-read-heading]"));
+  const exact = all.find((el) => alnum(el.textContent || "") === want);
+  if (exact) return exact;
+  if (want.length < 4) return null;
+  return all.find((el) => textHasBlock(el.textContent || "", headingText)) ?? null;
+}
+
+/** The smallest block on the page that holds the paragraph or heading, or null. Pass `heading` for a spoken heading: it is found by its marker first. */
+export function findBlockElement(root: Element, blockMarkdown: string, heading = false): HTMLElement | null {
+  if (heading) {
+    const h = findHeadingElement(root, blockMarkdown);
+    if (h) return h;
+  }
   const wantLen = alnum(plainBlock(blockMarkdown)).length;
   const limit = Math.max(wantLen * 3 + 400, 600);
   const scan = (): HTMLElement | null => {
