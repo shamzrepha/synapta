@@ -5,6 +5,7 @@ import { ApiError, parseJson } from "@/lib/api/errors";
 import { adminAuth, adminDb } from "@/lib/firebase/admin";
 import { billingEnforced } from "@/lib/billing/plans";
 import { getBillingConfig, saveBillingConfig, clearConfigCache, type BillingConfig } from "@/lib/billing/config";
+import { writeAudit } from "@/lib/security/audit";
 
 export const runtime = "nodejs";
 
@@ -59,6 +60,7 @@ export async function PUT(req: NextRequest) {
     if (body.removeUid) next.testers = next.testers.filter((t) => t !== body.removeUid);
     if (next.testers.length > 50) throw new ApiError(400, "VALIDATION", "Up to 50 test accounts.");
     await saveBillingConfig(next, admin.uid);
+    await writeAudit({ actorUid: admin.uid, actorEmail: admin.email, action: "billing.config_updated", targetType: "config", targetId: "billing", details: { mode: next.mode, testers: next.testers.length, addedEmail: !!body.addEmail, removedUid: body.removeUid ?? null } });
     return NextResponse.json({ ok: true, data: { mode: next.mode, testers: await describe(next), saved: true, envOn: billingEnforced(), paymentsReady: !!process.env.PAYSTACK_SECRET_KEY } });
   } catch (error) {
     return handleAuthError(error);

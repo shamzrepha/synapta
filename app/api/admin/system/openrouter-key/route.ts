@@ -5,6 +5,7 @@ import { ApiError, parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { cleanApiKey } from "@/lib/ai/api-key";
 import { clearOpenRouterKey, looksLikeOpenRouterKey, openRouterKeyInfo, saveOpenRouterKey, testOpenRouterKey } from "@/lib/ai/openrouter";
+import { writeAudit } from "@/lib/security/audit";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -31,6 +32,7 @@ export async function PUT(req: NextRequest) {
     const problem = await testOpenRouterKey(key);
     if (problem) throw new ApiError(400, "KEY_TEST_FAILED", problem);
     await saveOpenRouterKey(key, admin);
+    await writeAudit({ actorUid: admin.uid, actorEmail: admin.email, action: "ai_key.saved", targetType: "secret", targetId: "openrouter", details: { last4: key.slice(-4) } });
     return NextResponse.json({ ok: true, data: await openRouterKeyInfo() });
   } catch (error) {
     return handleAuthError(error);
@@ -40,8 +42,9 @@ export async function PUT(req: NextRequest) {
 /** Removes the key set here (the environment variable, if any, is used again). */
 export async function DELETE(req: NextRequest) {
   try {
-    await requireUser(req, ["admin"]);
+    const admin = await requireUser(req, ["admin"]);
     await clearOpenRouterKey();
+    await writeAudit({ actorUid: admin.uid, actorEmail: admin.email, action: "ai_key.removed", targetType: "secret", targetId: "openrouter" });
     return NextResponse.json({ ok: true, data: await openRouterKeyInfo() });
   } catch (error) {
     return handleAuthError(error);

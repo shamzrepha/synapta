@@ -9,6 +9,7 @@ import { PLANS, PLAN_IDS, currentPeriod, planOf, type PlanId } from "@/lib/billi
 import { getBillingConfig, saveBillingConfig } from "@/lib/billing/config";
 import { grantExpiry, matchesPerson, planFitsRole } from "@/lib/billing/admin-actions";
 import { matchesFilter, parseFilters, sortPeople } from "@/lib/billing/people-browse";
+import { writeAudit } from "@/lib/security/audit";
 
 export const runtime = "nodejs";
 
@@ -128,6 +129,7 @@ export async function POST(req: NextRequest) {
         await ref.update({ planGrant: FieldValue.delete() });
       }
     }
+    await writeAudit({ actorUid: admin.uid, actorEmail: admin.email, action: `billing.plan_${body.action}`, targetType: "user", targetId: body.uid, details: { kind: "kind" in body ? body.kind : null, plan: "plan" in body ? body.plan : null, days: "days" in body ? body.days : null } });
     const after = (await ref.get()).data()!;
     const testers = (await getBillingConfig())?.testers ?? [];
     return NextResponse.json({ ok: true, data: { person: describePerson(body.uid, after, testers) } });

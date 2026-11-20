@@ -5,6 +5,7 @@ import { parseJson } from "@/lib/api/errors";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { OR_TTS_CHOICES } from "@/lib/ai/openrouter-models";
 import { getVoicePref, normaliseVoicePref, setCachedVoicePref } from "@/lib/ai/voice-config";
+import { writeAudit } from "@/lib/security/audit";
 
 export const runtime = "nodejs";
 
@@ -34,6 +35,7 @@ export async function PUT(req: NextRequest) {
     const pref = normaliseVoicePref({ engine: b.engine, model: choice.model, female: b.female || choice.female, male: b.male || choice.male });
     await adminDb().collection("systemConfig").doc("voice").set({ ...pref, updatedBy: admin.email || admin.uid, updatedAt: Timestamp.now() });
     setCachedVoicePref(pref);
+    await writeAudit({ actorUid: admin.uid, actorEmail: admin.email, action: "voice.config_changed", targetType: "config", targetId: "voice", details: { engine: pref.engine, model: pref.model } });
     return NextResponse.json({ ok: true, data: { pref } });
   } catch (error) {
     return handleAuthError(error);

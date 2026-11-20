@@ -4,6 +4,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
+import { writeAudit } from "@/lib/security/audit";
 
 export const runtime = "nodejs";
 
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
       await batch.commit();
     }
 
+    await writeAudit({ actorUid: caller.uid, actorEmail: caller.email, action: "broadcast.sent", targetType: "notification", details: { deliveredCount: count, title: b.title } });
     return NextResponse.json({
       ok: true,
       data: {
