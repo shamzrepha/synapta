@@ -1,12 +1,18 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useSyncExternalStore, useCallback } from "react";
+import { usePrefs } from "@/components/settings/use-prefs";
+import { applyColorMode } from "@/lib/settings/mode";
+import type { ColorMode } from "@/lib/settings/accents";
 
 type Theme = "light" | "dark";
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  /** "system" follows the device; light/dark pin it. Saved locally at once and synced to the account (prefs.mode). */
+  mode: ColorMode;
+  setMode: (mode: ColorMode) => void;
   toggleTheme: () => void;
 }
 
@@ -31,24 +37,34 @@ function getSnapshot(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+/** The explicit choice stored on this device (older installs have one without prefs.mode), or "system". */
+function getModeSnapshot(): ColorMode {
+  const stored = localStorage.getItem("sunroot-theme") || localStorage.getItem("synapta-theme");
+  return stored === "light" || stored === "dark" ? stored : "system";
+}
+
 function getServerSnapshot(): Theme {
   return "dark";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const mode = useSyncExternalStore(subscribe, getModeSnapshot, () => "system" as ColorMode);
+  const [, updatePrefs] = usePrefs();
 
   // keep the page in step with the choice (also when the device's light/dark setting changes and no choice was saved)
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  const setTheme = useCallback((newTheme: Theme) => {
-    localStorage.setItem("sunroot-theme", newTheme);
-    localStorage.setItem("synapta-theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-    window.dispatchEvent(new Event("storage"));
-  }, []);
+  const setMode = useCallback(
+    (m: ColorMode) => {
+      applyColorMode(m);
+      updatePrefs({ mode: m });
+    },
+    [updatePrefs]
+  );
+  const setTheme = useCallback((t: Theme) => setMode(t), [setMode]);
 
   const toggleTheme = useCallback(() => {
     const nextTheme: Theme = theme === "dark" ? "light" : "dark";
@@ -56,7 +72,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme, setTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, mode, setMode }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -16,6 +16,7 @@ import { ROOT_PATHS } from "./nav-items";
 import { useT } from "@/components/settings/use-t";
 import { LanguageList, LanguageMenu } from "@/components/settings/language-picker";
 import { PlanChip } from "@/components/billing/plan-chip";
+import { ThemeMenu } from "@/components/settings/theme-panel";
 
 export function Topbar() {
   const t = useT();
@@ -47,7 +48,7 @@ export function Topbar() {
   }, [menuOpen]);
 
   return (
-    <header className="sticky top-0 z-[45] flex h-14 md:h-16 w-full items-center justify-between gap-2 border-b border-slate-200/80 bg-white px-3 md:px-4  dark:border-slate-800/80 dark:bg-slate-950">
+    <header className="sticky top-0 z-[45] flex h-14 md:h-16 w-full items-center justify-between gap-2 border-b border-border bg-card px-3 md:px-4">
       {/* Left: brand on phones (sidebar is hidden there), search from sm up */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
         {canGoBack && (
@@ -122,11 +123,11 @@ export function Topbar() {
           href="/messages"
           title="Messages"
           aria-label={`Messages${dmUnread ? `, ${dmUnread} unread` : ""}`}
-          className="relative hidden sm:flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-brand-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-brand-400"
+          className="relative hidden sm:flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-slate-700 hover:text-brand-600 dark:text-slate-300 dark:hover:text-brand-400"
         >
           <MessageSquare className="h-4 w-4" />
           {dmUnread > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-card">
               {dmUnread > 99 ? "99+" : dmUnread}
             </span>
           )}
@@ -140,19 +141,8 @@ export function Topbar() {
 
         {user && <NotificationBell />}
 
-        <button
-          type="button"
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border/70 bg-card/70 text-foreground hover:border-brand-500/40 hover:bg-muted transition-all  shadow-xs"
-        >
-          {theme === "dark" ? (
-            <Sun className="h-4 w-4 text-amber-400 transition-transform duration-300 " />
-          ) : (
-            <Moon className="h-4 w-4 text-brand-600 transition-transform duration-300 " />
-          )}
-        </button>
+        {/* one tap to the theme picker (Light / Dark / System and every colour theme); also in Settings */}
+        <ThemeMenu />
 
         {user && (
           <div className="relative" ref={menuRef}>
@@ -169,10 +159,10 @@ export function Topbar() {
               ) : (
                 (user.displayName || user.email || "U").charAt(0).toUpperCase()
               )}
-              {dmUnread > 0 && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-brand-500 ring-2 ring-white dark:ring-slate-950 sm:hidden" />}
+              {dmUnread > 0 && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-brand-500 ring-2 ring-card sm:hidden" />}
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-11 w-[min(14rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl py-2 z-50">
+              <div className="absolute right-0 top-11 w-[min(14rem,calc(100vw-1.5rem))] max-h-[calc(100dvh-5rem)] overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl py-2 z-50">
                 <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
                   <p className="text-sm font-semibold truncate">{user.displayName || user.email}</p>
                   <p className="text-xs text-slate-500">

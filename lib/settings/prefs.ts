@@ -1,5 +1,5 @@
 /** Device-level learning preferences (data saver, language etc.). Pure helpers so they can be unit tested. */
-import { DEFAULT_ACCENT, isAccentId, type AccentId } from "@/lib/settings/accents";
+import { DEFAULT_ACCENT, isAccentId, isColorMode, type AccentId, type ColorMode } from "@/lib/settings/accents";
 import { DEFAULT_LANGUAGE, isLanguageCode, type LanguageCode } from "@/lib/i18n/languages";
 
 export interface Prefs {
@@ -12,9 +12,11 @@ export interface Prefs {
   language: LanguageCode;
   /** UI accent palette (see lib/settings/accents.ts); "blue" is Sunroot blue */
   accent: AccentId;
+  /** light / dark / follow the device; synced to the account like the accent */
+  mode: ColorMode;
 }
 
-export const DEFAULT_PREFS: Prefs = { dataSaver: false, reduceMotion: false, noAutoplay: false, soundEffects: true, language: DEFAULT_LANGUAGE, accent: DEFAULT_ACCENT };
+export const DEFAULT_PREFS: Prefs = { dataSaver: false, reduceMotion: false, noAutoplay: false, soundEffects: true, language: DEFAULT_LANGUAGE, accent: DEFAULT_ACCENT, mode: "system" };
 export const PREFS_KEY = "sunroot.prefs";
 
 /** Accepts anything (JSON string, object, null) and returns a complete, valid Prefs. */
@@ -36,6 +38,7 @@ export function parsePrefs(raw: unknown): Prefs {
     soundEffects: o.soundEffects !== false,
     language: isLanguageCode(o.language) ? o.language : DEFAULT_LANGUAGE,
     accent: isAccentId(o.accent) ? o.accent : DEFAULT_ACCENT,
+    mode: isColorMode(o.mode) ? o.mode : "system",
   };
 }
 
