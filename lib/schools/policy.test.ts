@@ -20,7 +20,7 @@ describe("csvCell", () => {
 });
 
 describe("who may manage a school", () => {
-  const school = { principalUid: "p1", teacherUids: ["p1", "t1"] };
+  const school = { verified: true, principalUid: "p1", teacherUids: ["p1", "t1"] };
   it("allows the admin, the principal and listed teachers only", () => {
     expect(canManageSchool({ uid: "a", role: "admin" }, school)).toBe(true);
     expect(canManageSchool({ uid: "p1", role: "student" }, school)).toBe(true);

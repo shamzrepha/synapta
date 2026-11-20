@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { safeRedirect } from "@/lib/auth/redirect";
+import { SEEN_COOKIE, SEEN_MAX_AGE, landingRedirect } from "@/lib/auth/landing-route";
 import { API_WRITE_LIMIT, bodyTooLarge, clientKey, isCrossSiteWrite, isWrite, writeRetryAfter } from "@/lib/security/api-guard";
 
 const protectedPrefixes = [
@@ -69,11 +70,30 @@ function guardApi(req: NextRequest, sessionCookie: string | undefined): NextResp
   return NextResponse.next();
 }
 
+/** First-party "has been here before" marker: no personal data, 1 year. */
+function withSeenCookie(res: NextResponse): NextResponse {
+  res.cookies.set(SEEN_COOKIE, "1", { maxAge: SEEN_MAX_AGE, path: "/", sameSite: "lax", secure: process.env.NODE_ENV === "production" });
+  return res;
+}
+
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const sessionCookie = req.cookies.get("__session")?.value;
 
   if (pathname.startsWith("/api/")) return guardApi(req, sessionCookie);
+
+  // Home page: signed-in people go to the app, returning signed-out people to login, first-timers and crawlers see the landing page
+  if (pathname === "/") {
+    const target = landingRedirect({
+      path: pathname,
+      hasSession: !!sessionCookie,
+      hasSeen: req.cookies.get(SEEN_COOKIE)?.value === "1",
+      userAgent: req.headers.get("user-agent"),
+      query: req.nextUrl.searchParams,
+    });
+    if (target) return NextResponse.redirect(new URL(target, req.url));
+    return withSeenCookie(NextResponse.next());
+  }
 
   const isProtected = protectedPrefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
@@ -83,6 +103,7 @@ export function proxy(req: NextRequest) {
   );
 
   // Already signed in on an auth page: continue to where they were headed (e.g. a shared class link)
+  if (isAuthPage && !sessionCookie) return withSeenCookie(NextResponse.next());
   if (isAuthPage && sessionCookie) {
     return NextResponse.redirect(new URL(safeRedirect(req.nextUrl.searchParams.get("redirect")), req.url));
   }

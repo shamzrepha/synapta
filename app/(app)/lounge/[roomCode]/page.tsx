@@ -93,6 +93,8 @@ export default function LoungeRoomPage({
     let ignore = false;
     async function loadInitial() {
       try {
+        // Joining is explicit (by code); GET alone never adds you to a room.
+        await fetch(`/api/lounge/rooms/${roomCode}`, { method: "POST" });
         const res = await fetch(`/api/lounge/rooms/${roomCode}`);
         const json = await res.json();
         if (!ignore && json.ok) {

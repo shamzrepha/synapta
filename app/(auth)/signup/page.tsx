@@ -305,6 +305,10 @@ export default function SignupPage() {
                 Sign in
               </Link>
             </p>
+            <p className="mt-2 text-xs text-slate-500">
+              By continuing you accept our{" "}
+              <Link href="/terms" className="underline">Terms</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.
+            </p>
           </CardFooter>
         </Card>
       </div>

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "katex/dist/katex.min.css";
+@import "./accents.css";
 
 /* the theme toggle sets .dark on <html>; Tailwind dark: utilities follow it */
 @custom-variant dark (&:where(.dark, .dark *));

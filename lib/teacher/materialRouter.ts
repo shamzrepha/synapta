@@ -1,3 +1,4 @@
+import { draftMap } from "@/lib/classes/published";
 import { executeStructuredAiTask } from "@/lib/ai/router";
 import { sanitizeUntrustedPromptText } from "@/lib/ai/scrub";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
@@ -249,6 +250,8 @@ export async function applyMapProposal({
         prerequisiteIds: op.newKcData.prerequisiteIds,
         bkt: deriveBktPriors("intermediate", "undergrad"),
         status: "published",
+        // an AI-proposed topic stays hidden from students until the lecturer publishes it
+        contentPublished: draftMap(),
         source: "ai_material",
         sourceMaterialIds: [proposalData.materialId],
         aliases: [op.newKcData.title.toLowerCase()],

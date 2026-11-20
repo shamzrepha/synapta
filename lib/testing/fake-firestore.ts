@@ -44,17 +44,24 @@ export function makeFakeDb(store: Store) {
   }
   function query(path: string, filters: Array<[string, unknown]>, max: number): Obj {
     return {
-      where: (f: string, _op: string, v: unknown) => query(path, [...filters, [f, v]], max),
+      where: (f: string, op: string, v: unknown) => query(path, [...filters, [op === "array-contains" ? `${f}[]` : f, v]], max),
       orderBy: () => query(path, filters, max),
       limit: (n: number) => query(path, filters, n),
       get: async () => {
         const depth = path.split("/").length + 1;
+        const group = path.startsWith("@group:") ? path.slice(7) : "";
+        const pick = (o: Obj | undefined, f: string): unknown => f.split(".").reduce<unknown>((a, key) => (a as Obj | undefined)?.[key], o);
         const docs = [...store.keys()]
-          .filter((k) => k.startsWith(`${path}/`) && k.split("/").length === depth)
-          .filter((k) => filters.every(([f, v]) => store.get(k)?.[f] === v))
+          .filter((k) => (group ? k.split("/").length % 2 === 0 && k.split("/").at(-2) === group : k.startsWith(`${path}/`) && k.split("/").length === depth))
+          .filter((k) =>
+            filters.every(([f, v]) => {
+              const got = pick(store.get(k), f.replace(/\[\]$/, ""));
+              return f.endsWith("[]") ? Array.isArray(got) && got.includes(v) : got === v;
+            })
+          )
           .slice(0, max)
           .map(snap);
-        return { docs, size: docs.length, empty: docs.length === 0 };
+        return { docs, size: docs.length, empty: docs.length === 0, forEach: (fn: (d: unknown) => void) => docs.forEach(fn) };
       },
     };
   }
@@ -73,9 +80,11 @@ export function makeFakeDb(store: Store) {
     set: (ref: { path: string }, v: Obj, opts?: { merge?: boolean }) =>
       void sink.push(() => store.set(ref.path, opts?.merge ? merge(store.get(ref.path) || {}, v) : v)),
     update: (ref: { path: string }, v: Obj) => void sink.push(() => store.set(ref.path, merge(store.get(ref.path) || {}, v))),
+    delete: (ref: { path: string }) => void sink.push(() => void store.delete(ref.path)),
   });
   return {
     collection: (name: string) => colRef(name),
+    collectionGroup: (name: string) => query(`@group:${name}`, [], 1000),
     batch: () => {
       const ops: Array<() => void> = [];
       return { ...writer(ops), commit: async () => void ops.forEach((f) => f()) };

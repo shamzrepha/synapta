@@ -2,16 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { parseRange } from "@/lib/explainers/rules";
 import { loadMedia } from "@/lib/media/store";
+import { canReadMedia } from "@/lib/media/access";
 
 export const runtime = "nodejs";
 
-/** Serves stored user images to signed-in users (paths are unguessable and scoped by uploader). */
+/** Serves a stored file to its owner, an admin, or someone allowed to see what it is attached to (see lib/media/access). */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   try {
-    await requireUser(req);
+    const caller = await requireUser(req);
     const { path } = await params;
     const key = path.join("/");
     if (!/^(posts|explainers)\/[A-Za-z0-9_-]+\/[A-Za-z0-9_.-]+$/.test(key)) {
+      return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "Not found" } }, { status: 404 });
+    }
+    if (!(await canReadMedia(caller, key))) {
       return NextResponse.json({ ok: false, error: { code: "NOT_FOUND", message: "Not found" } }, { status: 404 });
     }
     const media = await loadMedia(key);

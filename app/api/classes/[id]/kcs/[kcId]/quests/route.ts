@@ -5,6 +5,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { ApiError, parseJson } from "@/lib/api/errors";
+import { questsForStudents } from "@/lib/classes/live";
 import { generateQuest, getStoredQuests, questRef, questStatus, MAX_QUEST_PIECES, type StoredQuest } from "@/lib/quest/store";
 import { toClientChallenge } from "@/lib/quest/schema";
 import { z } from "zod";
@@ -29,13 +30,12 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       const index = Number(indexParam);
       if (!Number.isInteger(index) || index < 0 || index >= objectives.length) throw new ApiError(400, "BAD_PIECE", "That piece does not exist.");
       if (!published) throw new ApiError(403, "NOT_PUBLISHED", "These challenges aren't published yet.");
-      const snap = await questRef(classId, kcId, index).get();
-      const q = snap.exists ? (snap.data() as StoredQuest) : null;
+      const q = access.canMutate ? ((await questRef(classId, kcId, index).get()).data() as StoredQuest | undefined) ?? null : (await questsForStudents(classId, kcId, kcData)).get(index) ?? null;
       if (!q || questStatus(q) !== "ready" || !q.challenges?.length) throw new ApiError(404, "NO_QUEST", "There are no challenges for this piece yet.");
       return NextResponse.json({ ok: true, data: { index, objective: q.objective, challenges: q.challenges.map((c) => toClientChallenge(c)) } });
     }
 
-    const stored = published ? await getStoredQuests(classId, kcId) : new Map<number, StoredQuest>();
+    const stored = !published ? new Map<number, StoredQuest>() : access.canMutate ? await getStoredQuests(classId, kcId) : await questsForStudents(classId, kcId, kcData);
     const quests = objectives.map((objective, index) => {
       const q = stored.get(index);
       return q ? { index, objective, status: questStatus(q), count: q.challenges?.length || 0, error: q.error || undefined } : { index, objective, status: "none" as const, count: 0 };

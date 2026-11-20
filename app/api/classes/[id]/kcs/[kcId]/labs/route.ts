@@ -1,3 +1,4 @@
+import { checkFeature, recordFeature } from "@/lib/billing/usage";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
@@ -114,12 +115,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (labs.length >= 12) throw new ApiError(409, "LIMIT", "Up to 12 labs per topic.");
       const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000 });
       if (limited) return limited;
+      await checkFeature(caller.uid, "studio_ai");
       const k = kc.data()!;
       const out = await generateDesign({
         prompt: `A hands-on lab for the class subtopic "${k.title}". It must teach ONLY this subtopic (not its parent topic, other topics or the wider course). ${body.focus || ""}\nLesson summary: ${String(k.lessonMarkdown || k.description || "").slice(0, 2500)}\nBreak it into small guided steps that each teach one idea of this topic.`,
         level: body.level,
         userId: caller.uid,
       });
+      await recordFeature(caller.uid, "studio_ai");
       const designId = await createDesign({ user: caller, title: out.title, spec: out.spec, source: "ai", message: `AI lab for “${k.title}”`, visibility: "class", classId, kcId });
       lab = { id: newLabId(), title: out.title, goal: out.spec.summary.slice(0, 500), templateId: null, designId, liveDesignId: null, kind: out.spec.kind, stepCount: out.spec.steps.length, dueAt: null, published: false, createdAt: nowIso() };
       await ref.update({ labs: [...labs, lab] });

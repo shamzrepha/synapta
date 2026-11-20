@@ -535,10 +535,10 @@ function LoungeHubContent() {
                               {peer.displayName}
                             </p>
                             <Badge
-                              variant={peer.isMastered ? "emerald" : peer.pL >= 0.7 ? "default" : "secondary"}
+                              variant={peer.isMastered ? "emerald" : peer.band === "solid" ? "default" : "secondary"}
                               className="text-[10px]"
                             >
-                              {peer.masteryPercentage}% mastery
+                              {peer.band === "strong" ? "Strong" : peer.band === "solid" ? "Solid" : "Building"}
                             </Badge>
                           </div>
                           <p className="text-[11px] text-slate-500">{peer.matchReason}</p>

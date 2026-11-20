@@ -444,7 +444,7 @@ export async function POST(req: NextRequest) {
       }
       const targetRole = body.role ?? "student";
       if (targetRole === "teacher" && !canAssignTeachers(caller, sd)) {
-        throw new ApiError(403, "FORBIDDEN", "Only the Principal can add teachers.");
+        throw new ApiError(403, "FORBIDDEN", "Only a platform admin, or the principal of a verified school, can add teachers.");
       }
 
       const cleaned = Array.from(new Set(body.identifiers.map((x) => x.trim().toLowerCase().replace(/^@/, "")).filter((x) => x.length >= 2))).slice(0, 100);
@@ -542,7 +542,7 @@ export async function POST(req: NextRequest) {
 
       const days = body.days ?? TERM_DAYS;
       const newExpiry = Timestamp.fromMillis(Date.now() + days * 86_400_000);
-      await schoolRef.set({ seatLimit: body.seatLimit, seatExpiresAt: newExpiry, updatedAt: Timestamp.now() }, { merge: true });
+      await schoolRef.set({ seatLimit: body.seatLimit, seatExpiresAt: newExpiry, verified: true, updatedAt: Timestamp.now() }, { merge: true });
 
       // Also extend the members who are on the school's sponsorship (anyone who paid for their own plan keeps it)
       const membersSnap = await db.collection("users").where("schoolId", "==", body.schoolId).limit(450).get();

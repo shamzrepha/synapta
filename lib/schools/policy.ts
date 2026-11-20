@@ -7,6 +7,8 @@ import { randomInt } from "node:crypto";
 export interface SchoolLike {
   principalUid?: unknown;
   teacherUids?: unknown;
+  /** Set only by a platform admin once the school is confirmed real (invoice paid / vetted). */
+  verified?: unknown;
 }
 
 export interface CallerLike {
@@ -24,7 +26,8 @@ export function canManageSchool(caller: CallerLike, school: SchoolLike): boolean
 /** Only the principal (or a platform admin) may make other people teachers: a teacher must not be able to promote friends. */
 export function canAssignTeachers(caller: CallerLike, school: SchoolLike): boolean {
   if (caller.role === "admin") return true;
-  return typeof school.principalUid === "string" && !!school.principalUid && school.principalUid === caller.uid;
+  // A self-created school is unverified, so its creator cannot promote themselves or friends to teacher.
+  return school.verified === true && typeof school.principalUid === "string" && !!school.principalUid && school.principalUid === caller.uid;
 }
 
 export type Membership = "join" | "already_here" | "other_school";

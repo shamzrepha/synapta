@@ -230,6 +230,18 @@ export function canBuy(plan: PlanId, role: unknown): boolean {
   return PLANS[plan].audience !== "teacher" || role === "teacher" || role === "admin";
 }
 
+/** The student ladder, lowest to highest. Anything from the Exam Pass up has the past-question solver and exam marking. */
+export const STUDENT_LADDER: PlanId[] = ["free", "exam", "plus", "pro", "promax", "ultra"];
+
+/** Past-question solver and handwritten marking. Every paid plan at or above the Exam Pass has it, so a higher plan never has less access. */
+export function hasExamAccess(planId: string, role?: string): boolean {
+  if (role === "teacher" || role === "admin") return true;
+  const rank = STUDENT_LADDER.indexOf(planId as PlanId);
+  if (rank >= 0) return rank >= STUDENT_LADDER.indexOf("exam");
+  const plan = PLANS[planId as PlanId];
+  return !!plan && plan.audience !== "student";
+}
+
 export const billingEnforced = () => process.env.BILLING_ENFORCED === "1";
 
 interface UserLike {

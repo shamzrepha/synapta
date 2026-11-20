@@ -99,6 +99,16 @@ export const AI_TASK_DEFINITIONS = {
     label: "Practice Test & Quiz Generator",
     description: "Active diagnostic quizzes, timed practice exams, and mastery probes.",
   },
+  theory_set: {
+    key: "theory_set",
+    label: "Written Practice Question Setter",
+    description: "Sets exam-style theory questions (define, explain, derive) with marks and a marking guide, shared per topic.",
+  },
+  theory_mark: {
+    key: "theory_mark",
+    label: "Written Practice Marker",
+    description: "Marks one learner's typed answer against a marking guide, per key point, on a cheap model.",
+  },
   flashcard_gen: {
     key: "flashcard_gen",
     label: "Flashcard Generator (Legacy)",

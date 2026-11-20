@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Camera, Download, FileText, Loader2, Plus, PlayCircle, Printer, Sparkles, Trash2, Upload, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -237,6 +238,7 @@ export default function StudyNotesPage() {
                       {k === "teach" && <PlayCircle className="inline h-3.5 w-3.5 mr-1 -mt-0.5" />}{label}
                     </button>
                   ))}
+                  <Link href={`/practice/written?noteId=${view.id}`} className="rounded-full border border-slate-300 dark:border-slate-700 px-4 py-1.5 text-xs font-bold hover:border-brand-500">Written practice</Link>
                 </div>
                 {mode === "teach" && <TeachPanel key={`${view.id}-${view.head}`} source={{ type: "note", id: view.id }} canRegenerate finish={{ label: "Quiz me on these notes →", onClick: () => setMode("quiz") }} />}
                 {mode === "cards" && <NoteFlashcards key={view.id} noteId={view.id} />}

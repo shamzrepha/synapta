@@ -5,6 +5,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { parseJson } from "@/lib/api/errors";
+import { piecesForStudents } from "@/lib/classes/live";
 import { deletePieceLab, generatePieceLab, getStoredPieces, toClientPiece, MAX_PIECES } from "@/lib/sim/pieces";
 import { bumpChannel } from "@/lib/live/server";
 import { z } from "zod";
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     const kcData = (await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get()).data() || {};
     const published = access.canMutate || isPublished(kcData, "simulation");
     const objectives: string[] = Array.isArray(kcData.objectives) ? kcData.objectives.slice(0, MAX_PIECES) : [];
-    const stored = published ? await getStoredPieces(classId, kcId) : new Map();
+    const stored = !published ? new Map() : access.canMutate ? await getStoredPieces(classId, kcId) : await piecesForStudents(classId, kcId, kcData);
     const pieces = objectives.map((objective, index) => {
       const p = stored.get(index);
       return p ? toClientPiece(p) : { index, objective, status: "none" as const };

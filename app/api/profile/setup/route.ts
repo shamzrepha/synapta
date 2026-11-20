@@ -21,6 +21,9 @@ const body = z.object({
   department: z.string().trim().max(100).optional(),
   level: z.string().trim().max(40).optional(),
   interests: z.array(z.string().trim().max(60)).max(15).optional(),
+  /** first-time consent; stored as a timestamp. Older clients and accounts simply omit these. */
+  acceptedTerms: z.boolean().optional(),
+  ageConfirmed: z.boolean().optional(),
 });
 
 /** The first-time profile step: a handle and a picture (keep the Google one, pick a starter, or upload one). Marks the profile as set up. */
@@ -48,6 +51,8 @@ export async function POST(req: NextRequest) {
     };
     if (!inSchool && b.institution) updates.institution = b.institution;
     if (!inSchool && b.department) updates.department = b.department;
+    if (b.acceptedTerms === true && !existing.acceptedTermsAt) updates.acceptedTermsAt = Timestamp.now();
+    if (b.ageConfirmed === true) updates.ageConfirmed = true;
     if (b.level) updates.level = b.level;
     if (b.interests) updates.interests = b.interests;
     if (b.avatar.kind === "preset") {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { z } from "zod";
+import { assertClassAccess } from "@/lib/auth/classAccess";
+import { ApiError } from "@/lib/api/errors";
 
 export const runtime = "nodejs";
 
@@ -26,14 +28,16 @@ export async function GET(req: NextRequest) {
   try {
     const caller = await requireUser(req);
 
-    // Fetch recent rooms
+    // Only the caller's own rooms: there is no global room listing.
     const roomsSnap = await adminDb()
       .collection("rooms")
-      .orderBy("updatedAt", "desc")
-      .limit(20)
+      .where("memberIds", "array-contains", caller.uid)
+      .limit(50)
       .get();
 
-    const rooms = roomsSnap.docs.map((doc) => {
+    const millis = (d: FirebaseFirestore.DocumentData) => (d.updatedAt?.toMillis ? d.updatedAt.toMillis() : 0);
+    const docs = [...roomsSnap.docs].sort((a, b) => millis(b.data()) - millis(a.data())).slice(0, 20);
+    const rooms = docs.map((doc) => {
       const data = doc.data();
       return {
         roomCode: doc.id,
@@ -69,6 +73,20 @@ export async function POST(req: NextRequest) {
     }
 
     const { title, classId, kcId, kcTitle, invitedUids = [] } = parsed.data;
+    await assertClassAccess(caller, classId, "view");
+
+    // Invitees must be classmates: active enrollees (or the teacher) of this same class.
+    const invitees = Array.from(new Set(invitedUids)).filter((u) => u !== caller.uid).slice(0, 20);
+    const classDoc = await adminDb().collection("classes").doc(classId).get();
+    const cd = classDoc.data() || {};
+    for (const uid of invitees) {
+      const isTeacher = cd.teacherId === uid || (Array.isArray(cd.coTeacherIds) && cd.coTeacherIds.includes(uid));
+      if (isTeacher) continue;
+      const enr = await adminDb().collection("enrollments").doc(`${classId}_${uid}`).get();
+      if (!enr.exists || enr.data()?.status !== "active") {
+        throw new ApiError(403, "NOT_CLASSMATE", "You can only invite classmates from this class.");
+      }
+    }
 
     // Fetch user name
     const userDoc = await adminDb().collection("users").doc(caller.uid).get();
@@ -84,7 +102,7 @@ export async function POST(req: NextRequest) {
       attempts++;
     }
 
-    const memberIds = Array.from(new Set([caller.uid, ...invitedUids]));
+    const memberIds = Array.from(new Set([caller.uid, ...invitees]));
     const initialParticipants = [
       {
         uid: caller.uid,

@@ -789,6 +789,9 @@ export default function TopicPage({
           {shownTab === "quiz" && (
             <Card className="p-4 md:p-6">
               <QuizPlayer classId={classId} kcId={kcId} onEvidence={applyEvidenceUpdate} viewLang={viewLang} />
+              <Link href={`/practice/written?classId=${classId}&kcId=${kcId}&title=${encodeURIComponent(kc.title)}`} className="mt-4 block rounded-lg border border-brand-600/30 p-3 text-sm font-semibold text-brand-600 hover:bg-brand-600/5">
+                Written practice: answer exam-style theory questions and get them marked →
+              </Link>
             </Card>
           )}
 
