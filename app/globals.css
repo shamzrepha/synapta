@@ -499,6 +499,14 @@ textarea, input { scroll-margin-block: 96px; }
   .note-paper::before { inset-inline-start: 3rem; }
   .note-paper::after { left: 1.1rem; }
 }
+/* a printed page: a fixed number of ruled lines (set by the reader), short pages are padded to the same height, nothing scrolls inside it */
+.note-ruled {
+  min-height: calc(var(--page-lines, 24) * var(--rule-h, 28px));
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--rule-h, 28px) - 1px), color-mix(in srgb, var(--color-brand-500, #3b6df6) 14%, transparent) calc(var(--rule-h, 28px) - 1px), color-mix(in srgb, var(--color-brand-500, #3b6df6) 14%, transparent) var(--rule-h, 28px));
+  background-position: 0 0;
+}
+.note-ruled .note-prose { line-height: var(--rule-h, 28px); }
+@media (prefers-reduced-transparency: reduce) { .note-ruled { background-image: none; } }
 .note-term {
   display: inline;
   padding: 0 0.15em;

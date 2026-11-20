@@ -56,6 +56,7 @@ export function Sidebar() {
         <button
           type="button"
           onClick={openAddMaterial}
+          data-tour="add"
           title="Add material"
           className={cn(
             "flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-brand-600 text-sm font-semibold text-white transition-colors hover:bg-brand-700 dark:bg-brand-500",
@@ -67,7 +68,7 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 p-2.5 overflow-y-auto space-y-4" aria-label="Main navigation">
+      <nav data-tour-nav className="flex-1 p-2.5 overflow-y-auto space-y-4" aria-label="Main navigation">
         {(["main", "account"] as const).map((group) => (
           <div key={group} className="space-y-1">
             <p className={cn("px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400", label)}>{GROUP_LABEL[group]}</p>

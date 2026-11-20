@@ -105,7 +105,12 @@ export default function FlashcardsPage() {
       <div className="space-y-2">
         <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Your decks</h2>
         {decks === null && <Skeleton className="h-24 w-full" />}
-        {decks && decks.length === 0 && <p className="text-sm text-slate-500 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 p-4">No decks yet. Make your first one above.</p>}
+        {decks && decks.length === 0 && (
+          <div className="flex flex-col items-start gap-3 rounded-2xl border border-dashed border-slate-300 p-4 dark:border-slate-700 sm:flex-row sm:items-center">
+            <p className="flex-1 text-sm text-slate-500">No flashcards yet. Make some from your notes, or build a deck above.</p>
+            <a href="/study/notes" className="inline-flex min-h-[44px] items-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-700 dark:bg-brand-500">Make some from notes</a>
+          </div>
+        )}
         {(decks || []).map((d) => (
           <Card key={d.id} className="p-4 space-y-3">
             <div className="flex items-start gap-2">

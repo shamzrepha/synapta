@@ -1,4 +1,7 @@
-import { evaluate } from "@/lib/studio/expr";
+import { evaluateRow, formatNumber, numFromNumber, resultText } from "@/lib/calculator/eval";
+import { rowFromText } from "@/lib/calculator/from-text";
+
+export { formatNumber };
 
 export type CalcOutcome =
   | { kind: "empty" }
@@ -6,29 +9,19 @@ export type CalcOutcome =
   | { kind: "value"; value: number; text: string }
   | { kind: "error"; message: string };
 
-export function formatNumber(n: number): string {
-  if (!Number.isFinite(n)) return "Error";
-  if (Math.abs(n) < 1e-12) return "0";
-  if (Math.abs(n) >= 1e10 || (Math.abs(n) > 0 && Math.abs(n) < 1e-6)) {
-    return n.toExponential(6).replace(/\.?0+e/, "e");
-  }
-  return Number(n.toPrecision(12)).toString();
-}
-
 /**
- * What the overlay calculator shows for the typed text. Maths goes through the safe expression parser (no eval, no
- * Function), and every failure, a typo, an unknown name or a division by nothing, comes back as an error value
- * instead of an exception, so one wrong key can never throw inside an event handler.
+ * Text entry point (used for Sprout pre-fills and tests). The text is converted to the calculator's expression
+ * tree with a fixed vocabulary and evaluated by the safe tree evaluator: no eval, no Function, and every
+ * failure comes back as a plain message instead of an exception.
  */
 export function evaluateCalculatorInput(raw: string, opts: { ans: number; radians: boolean }): CalcOutcome {
   const target = String(raw ?? "").trim();
   if (!target) return { kind: "empty" };
   if (/\bx\b/i.test(target)) return { kind: "graph" };
-  try {
-    const value = evaluate(target, { ans: opts.ans, Ans: opts.ans, ANS: opts.ans }, { radians: opts.radians });
-    if (typeof value !== "number" || !Number.isFinite(value)) return { kind: "error", message: "Check syntax or domain" };
-    return { kind: "value", value, text: formatNumber(value) };
-  } catch {
-    return { kind: "error", message: "Check syntax or domain" };
-  }
+  const row = rowFromText(target);
+  if (!row) return { kind: "error", message: "Syntax error" };
+  const out = evaluateRow(row, { radians: opts.radians, ans: numFromNumber(opts.ans) });
+  if (out.kind === "empty") return { kind: "empty" };
+  if (out.kind === "error") return { kind: "error", message: out.message };
+  return { kind: "value", value: out.value.v, text: resultText(out.value, false) };
 }

@@ -34,6 +34,7 @@ import { TextbookWriter } from "@/components/lesson/textbook-writer";
 import { ClassMindMap } from "@/components/classes/class-mind-map";
 import { readMinutes, splitTextbookPages, type TextbookSectionKind } from "@/lib/study/note-sections";
 import { budgetFor, DEFAULT_BUDGET, type PageBudget } from "@/lib/study/page-fit";
+import { ReadAlongOffer } from "@/components/lesson/read-along-offer";
 import { LISTEN_EVENT } from "@/components/bot/bot-provider";
 import { readPrefs } from "@/components/settings/use-prefs";
 import { fireCelebration } from "@/components/game/confetti";
@@ -88,10 +89,10 @@ function buildSections(kcs: Kc[]): Section[] {
 const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
 /** The block element inside a topic that holds the given paragraph (a paragraph, list item, table cell, quote or callout box). */
-function findBlockEl(kcId: string, blockText: string): HTMLElement | null {
+function findBlockEl(kcId: string, blockText: string, heading = false): HTMLElement | null {
   const root = document.querySelector(`[data-kc="${kcId}"]`);
   if (!root) return null;
-  return findBlockElement(root, blockText);
+  return findBlockElement(root, blockText, heading);
 }
 
 /** Scrolls to the paragraph (inside a topic) whose text begins like the given block text, and flashes it. */
@@ -651,7 +652,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     async (kcId: string, blockText: string, pageAnchor?: string): Promise<HTMLElement | null> => {
       // a paragraph drawn as bare text (no element of its own): the whole topic stands in, and the words are found by their order
       const topic = () => document.querySelector<HTMLElement>(`[data-kc="${kcId}"]`);
-      const direct = findBlockEl(kcId, blockText);
+      const direct = findBlockEl(kcId, blockText, !!pageAnchor);
       if (direct || viewMode !== "flip") return direct ?? topic();
       const mine = flipPages.map((p, i) => ({ p, i })).filter(({ p }) => p.section.id === kcId);
       const pagesMd = mine.map(({ p }) => `${p.pageTitle}\n${p.subtopic || ""}\n${p.pageBody}`);
@@ -713,7 +714,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
       let foundEl: HTMLElement | null = null;
       for (let i = 0; i < 20; i++) {
         await new Promise((r) => window.setTimeout(r, 65));
-        const el = findBlockEl(kcId, blockText) || (pageAnchor ? findBlockEl(kcId, pageAnchor) : null);
+        const el = findBlockEl(kcId, blockText, !!pageAnchor) || (pageAnchor ? findBlockEl(kcId, pageAnchor) : null);
         if (el) {
           foundEl = el;
           break;
@@ -764,6 +765,18 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
     window.addEventListener(LISTEN_EVENT, onListen);
     return () => window.removeEventListener(LISTEN_EVENT, onListen);
   }, [viewMode, currentFlip, active, readable]);
+
+  // the readable chapter on screen (the same one Sprout's "Listen" would read)
+  const offerSectionId = (viewMode === "flip" ? currentFlip?.section.id : active) || readable[0]?.id;
+  const offerReadable = !!offerSectionId && readable.some((r) => r.id === offerSectionId) && (viewMode !== "flip" || (currentFlip?.pageBody || "").trim().length >= 40);
+  const startOffered = useCallback(
+    (rate: number) => {
+      if (!offerSectionId) return;
+      voiceRef.current.setRate(rate);
+      voiceRef.current.start(offerSectionId, viewMode === "flip" ? currentFlip?.pageBody : undefined);
+    },
+    [offerSectionId, viewMode, currentFlip]
+  );
 
   // where am I: progress bar + saving reading position (works in both flipbook and scroll modes)
   useEffect(() => {
@@ -1228,7 +1241,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                           <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
                             <span>Chapter {currentFlip.sectionIdx + 1} of {sections.length}</span>
                             {currentFlip.subtopic && (
-                              <span className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] tracking-normal normal-case">
+                              <span data-read-heading="" className="rounded-full bg-brand-500/10 px-2 py-0.5 text-[10px] tracking-normal normal-case">
                                 {currentFlip.subtopic}
                               </span>
                             )}
@@ -1245,9 +1258,9 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                             <span className="text-muted-foreground font-medium">· {currentFlip.readMins} min read</span>
                           </div>
                           {currentFlip.section.depth === 0 ? (
-                            <h2 className="text-2xl font-bold tracking-tight truncate">{currentFlip.section.title}</h2>
+                            <h2 data-read-heading="" className="text-2xl font-bold tracking-tight truncate">{currentFlip.section.title}</h2>
                           ) : (
-                            <h3 className="text-xl font-bold tracking-tight truncate">{currentFlip.section.title}</h3>
+                            <h3 data-read-heading="" className="text-xl font-bold tracking-tight truncate">{currentFlip.section.title}</h3>
                           )}
                         </div>
                         <span className="flex items-center gap-3 shrink-0">
@@ -1276,6 +1289,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                       ) : (currentFlip.section.lessonMarkdown || "").trim().length < THIN ? (
                         <EmptyNote classId={classId} kcId={currentFlip.section.id} description={currentFlip.section.description} canManage={canManage} />
                       ) : (
+                        <div className="note-ruled" style={{ "--page-lines": budget.maxLines, "--rule-h": `${budget.lineH ?? 28}px` } as React.CSSProperties}>
                         <InteractiveNote
                           bare
                           lazy
@@ -1289,6 +1303,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
                             handleNoteSignal(currentFlip.section.id, sig, currentFlip.subtopic || undefined)
                           }
                         />
+                        </div>
                       )}
 
                       {currentFlip.pageIdxInSection === currentFlip.pageTotalInSection - 1 &&
@@ -1402,6 +1417,7 @@ export default function InteractiveReadingPage({ params }: { params: Promise<{ c
         </main>
       </div>
 
+      <ReadAlongOffer pageKey={viewMode === "flip" ? currentFlip?.key ?? "" : "scroll"} hasReadableText={offerReadable} voiceIdle={voice.state === "idle"} mode={viewMode} onStart={startOffered} />
       {voice.state !== "idle" && (
         <div data-floating data-dock className="fixed inset-x-3 bottom-[4.75rem] lg:bottom-4 lg:left-auto lg:right-6 lg:w-96 z-40">
           <ReadPlayer api={voice} title={listeningTitle} />

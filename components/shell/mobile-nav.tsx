@@ -45,7 +45,7 @@ export function MobileNav() {
   };
 
   return (
-    <nav data-mobile-nav data-dock className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
+    <nav data-mobile-nav data-dock className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation" data-tour-nav>
       <div className="grid h-16 grid-cols-5">
         {left.map(tab)}
         <div className="flex items-center justify-center">
@@ -53,6 +53,7 @@ export function MobileNav() {
             type="button"
             onClick={openAddMaterial}
             aria-label="Add material"
+            data-tour="add"
             className="flex h-11 w-11 items-center justify-center rounded-lg bg-brand-600 text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:bg-brand-500"
           >
             <Plus className="h-6 w-6" />

@@ -13,6 +13,7 @@ import { useRealtime } from "@/components/providers/realtime-provider";
 import { levelFromXp } from "@/lib/game/levels";
 import { formatNumber } from "@/lib/utils";
 import { ROOT_PATHS } from "./nav-items";
+import { openCommandPalette } from "./command-palette";
 import { useT } from "@/components/settings/use-t";
 import { LanguageList, LanguageMenu } from "@/components/settings/language-picker";
 import { PlanChip } from "@/components/billing/plan-chip";
@@ -57,9 +58,17 @@ export function Topbar() {
           </button>
         )}
         <Link href="/dashboard" className={`${canGoBack ? "hidden" : "md:hidden flex"} h-9 w-9 shrink-0 items-center justify-center`} aria-label="Home"><Image src="/logo-mark.svg" alt="" width={36} height={36} className="h-9 w-9" priority /></Link>
-        <Link href="/search" className="sm:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800" aria-label="Search">
+        <button
+          type="button"
+          onClick={openCommandPalette}
+          data-tour="jump"
+          aria-label="Search or jump to anything"
+          title="Search or jump to anything (Ctrl+K)"
+          className="flex h-11 w-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-slate-800 dark:hover:bg-slate-900 sm:h-10 sm:w-auto sm:px-3"
+        >
           <Search className="h-4 w-4" />
-        </Link>
+          <span className="hidden sm:inline">{t("Jump to")}</span>
+        </button>
         <form
           className="relative hidden sm:block w-full max-w-sm"
           onSubmit={(e) => {
@@ -187,7 +196,7 @@ export function Topbar() {
                   <Bookmark className="h-4 w-4" /> Saved
                 </Link>
                 <Link href="/more" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
-                  <LayoutGrid className="h-4 w-4" /> Everything
+                  <LayoutGrid className="h-4 w-4" /> All features
                 </Link>
                 <Link href="/plans" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-900">
                   <Sparkles className="h-4 w-4" /> Plans

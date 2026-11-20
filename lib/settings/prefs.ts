@@ -1,5 +1,6 @@
 /** Device-level learning preferences (data saver, language etc.). Pure helpers so they can be unit tested. */
 import { DEFAULT_ACCENT, isAccentId, isColorMode, type AccentId, type ColorMode } from "@/lib/settings/accents";
+import { DEFAULT_READ_PACE, parseReadPace, type ReadPace } from "@/lib/study/read-offer";
 import { DEFAULT_LANGUAGE, isLanguageCode, type LanguageCode } from "@/lib/i18n/languages";
 
 export interface Prefs {
@@ -14,9 +15,13 @@ export interface Prefs {
   accent: AccentId;
   /** light / dark / follow the device; synced to the account like the accent */
   mode: ColorMode;
+  /** how fast Sprout reads a page aloud: 0.85 Slow, 1 Normal, 1.25 Fast */
+  readPace: ReadPace;
+  /** Sprout offers to read a page along when a class book page opens (off after "Don't ask again") */
+  readOffer: boolean;
 }
 
-export const DEFAULT_PREFS: Prefs = { dataSaver: false, reduceMotion: false, noAutoplay: false, soundEffects: true, language: DEFAULT_LANGUAGE, accent: DEFAULT_ACCENT, mode: "system" };
+export const DEFAULT_PREFS: Prefs = { dataSaver: false, reduceMotion: false, noAutoplay: false, soundEffects: true, language: DEFAULT_LANGUAGE, accent: DEFAULT_ACCENT, mode: "system", readPace: DEFAULT_READ_PACE, readOffer: true };
 export const PREFS_KEY = "sunroot.prefs";
 
 /** Accepts anything (JSON string, object, null) and returns a complete, valid Prefs. */
@@ -39,6 +44,8 @@ export function parsePrefs(raw: unknown): Prefs {
     language: isLanguageCode(o.language) ? o.language : DEFAULT_LANGUAGE,
     accent: isAccentId(o.accent) ? o.accent : DEFAULT_ACCENT,
     mode: isColorMode(o.mode) ? o.mode : "system",
+    readPace: parseReadPace(o.readPace),
+    readOffer: o.readOffer !== false,
   };
 }
 
