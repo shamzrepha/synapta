@@ -343,6 +343,8 @@ export default function LandingPage() {
           </div>
           <nav className="flex flex-wrap gap-6" aria-label="Account">
             <Link href="/about" className={`${label} hover:text-foreground`}>About & Leadership</Link>
+            <Link href="/privacy" className={`${label} hover:text-foreground`}>Privacy</Link>
+            <Link href="/terms" className={`${label} hover:text-foreground`}>Terms</Link>
             <Link href="/login" className={`${label} hover:text-foreground`}>Log in</Link>
             <Link href="/signup" className={`${label} hover:text-foreground`}>Create account</Link>
           </nav>
