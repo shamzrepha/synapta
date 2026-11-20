@@ -12,7 +12,7 @@ export const maxDuration = 90;
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_plan", limit: 10, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_plan", limit: 10, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, z.object({ prompt: z.string().trim().min(4).max(1500), level: z.string().max(20).optional() }));
     const plan = await planProject({ prompt: body.prompt, level: body.level, userId: caller.uid });

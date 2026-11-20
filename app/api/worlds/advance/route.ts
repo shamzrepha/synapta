@@ -13,7 +13,7 @@ export const maxDuration = 120;
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-advance", limit: 120, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-advance", limit: 120, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { jobId } = await parseJson(req, z.object({ jobId: z.string().min(1).max(128) }));
     const snap = await col.jobs().doc(jobId).get();

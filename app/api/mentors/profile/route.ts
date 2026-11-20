@@ -35,7 +35,7 @@ const schema = z.object({
 export async function PUT(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mentor_profile", limit: 20, windowMs: 3600_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mentor_profile", limit: 20, windowMs: 3600_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, schema);
     const subjects = cleanSubjects(body.subjects);

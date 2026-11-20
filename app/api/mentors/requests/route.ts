@@ -46,7 +46,7 @@ const schema = z.object({ toUid: z.string().min(1).max(128), message: z.string()
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mentor_request", limit: 10, windowMs: 3600_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mentor_request", limit: 10, windowMs: 3600_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, schema);
     const col = adminDb().collection("mentorProfiles");

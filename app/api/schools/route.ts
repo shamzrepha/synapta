@@ -329,7 +329,7 @@ export async function POST(req: NextRequest) {
     }
 
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "schools_action", limit: 15, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "schools_action", limit: 15, windowMs: 60_000, shared: true });
     if (limited) return limited;
 
     if (body.action === "create_school") {
@@ -384,7 +384,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.action === "join_by_code") {
-      const guess = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "schools_join", limit: 8, windowMs: 600_000 });
+      const guess = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "schools_join", limit: 8, windowMs: 600_000, shared: true });
       if (guess) return guess;
 
       const code = body.inviteCode.trim().toUpperCase();

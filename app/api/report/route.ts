@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "report-ai", limit: 5, windowMs: 60 * 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "report-ai", limit: 5, windowMs: 60 * 60_000, shared: true });
     if (limited) return limited;
     const numbers = await buildReportNumbers(caller.uid);
     const narrative = await writeNarrative(caller.uid, numbers);

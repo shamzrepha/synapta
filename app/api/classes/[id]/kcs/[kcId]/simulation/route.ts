@@ -63,7 +63,7 @@ export async function POST(
     const { id: classId, kcId } = await params;
     const caller = await requireUser(req);
     const access = await assertClassAccess(caller, classId, "view");
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "sim-build", limit: 10, windowMs: 60 * 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "sim-build", limit: 10, windowMs: 60 * 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, generateSchema);
 

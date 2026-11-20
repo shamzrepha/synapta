@@ -36,7 +36,7 @@ async function timed(name: string, fn: () => Promise<string | { detail: string; 
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req, ["admin"]);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "ai-selftest", limit: 3, windowMs: 10 * 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "ai-selftest", limit: 3, windowMs: 10 * 60_000, shared: true });
     if (limited) return limited;
     const checks = await Promise.all([
       timed("Tutor / chat (light models)", async () => {

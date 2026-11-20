@@ -30,7 +30,7 @@ const body = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "profile_setup", limit: 12, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "profile_setup", limit: 12, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const b = await parseJson(req, body);
 

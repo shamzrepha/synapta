@@ -33,7 +33,7 @@ const broadcastSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req, ["admin"]);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "admin_broadcast", limit: 6, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "admin_broadcast", limit: 6, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const b = await parseJson(req, broadcastSchema);
 

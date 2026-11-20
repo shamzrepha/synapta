@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cha
     const { chatId } = await params;
     const caller = await requireUser(req);
     requireVerifiedEmail(caller);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "chat_send", limit: 40, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "chat_send", limit: 40, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, schema);
     if (!body.text && !body.attachment) throw new ApiError(400, "VALIDATION", "Message is empty.");

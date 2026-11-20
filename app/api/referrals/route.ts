@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       uid: caller.uid,
       keyPrefix: "referral_claim",
       limit: 5,
-      windowMs: 60_000,
+      windowMs: 60_000, shared: true
     });
     if (limited) return limited;
 

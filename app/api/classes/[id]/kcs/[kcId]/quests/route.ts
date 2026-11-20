@@ -52,7 +52,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   try {
     const { id: classId, kcId } = await params;
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "quest-build", limit: 20, windowMs: 60 * 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "quest-build", limit: 20, windowMs: 60 * 60_000, shared: true });
     if (limited) return limited;
     const access = await assertClassAccess(caller, classId, "view");
     const { index } = await parseJson(req, buildSchema);

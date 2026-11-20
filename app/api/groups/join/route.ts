@@ -15,7 +15,7 @@ const schema = z.object({ code: z.string().trim().min(6).max(12) });
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "group_join", limit: 10, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "group_join", limit: 10, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { code } = await parseJson(req, schema);
     const found = await adminDb().collection("studyGroups").where("inviteCode", "==", code.toUpperCase()).limit(1).get();

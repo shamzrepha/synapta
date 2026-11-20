@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ wor
   try {
     const { worldId } = await params;
     const user = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-tutor", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-tutor", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { ok } = await canPlay(user.uid, worldId);
     if (!ok) throw new ApiError(404, "NOT_FOUND", "That world was not found.");

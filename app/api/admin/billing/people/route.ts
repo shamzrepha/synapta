@@ -43,7 +43,7 @@ const BROWSE_SHOWN = 50;
 export async function GET(req: NextRequest) {
   try {
     const admin = await requireUser(req, ["admin"]);
-    const limited = await checkRateLimit(req, { uid: admin.uid, keyPrefix: "admin_people", limit: 30, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: admin.uid, keyPrefix: "admin_people", limit: 30, windowMs: 60_000, shared: true });
     if (limited) return limited;
     // browse without typing: filter by account type and plan, sorted
     if (req.nextUrl.searchParams.get("browse") === "1") {

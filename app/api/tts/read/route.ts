@@ -18,7 +18,7 @@ const READ_VOICE = process.env.SPROUT_READ_VOICE || "en-US-AnaNeural";
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tts_read", limit: 60, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tts_read", limit: 60, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { text } = await parseJson(req, z.object({ text: z.string().trim().min(1).max(700) }));
     const out = await synthesizeEdgeWithWords(text, READ_VOICE, { rate: "+0%", pitch: "+45Hz" });

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { instruction } = await parseJson(req, z.object({ instruction: z.string().trim().min(3).max(1500) }));
     const { data } = await loadDesign(id, caller, "edit");

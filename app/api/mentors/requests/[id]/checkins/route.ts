@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mentor_checkin", limit: 20, windowMs: 3600_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mentor_checkin", limit: 20, windowMs: 3600_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, schema);
     const { ref, r } = await loadAccepted(id, caller.uid);

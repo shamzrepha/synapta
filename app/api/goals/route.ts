@@ -60,7 +60,7 @@ const CreateBody = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "goal-create", limit: 6, windowMs: 10 * 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "goal-create", limit: 6, windowMs: 10 * 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, CreateBody);
     const today = dayIdFor();

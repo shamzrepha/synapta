@@ -16,7 +16,7 @@ const schema = z.object({ index: z.number().int().min(0).max(9), selectedIndex: 
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "daily-answer", limit: 60, windowMs: 10 * 60 * 1000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "daily-answer", limit: 60, windowMs: 10 * 60 * 1000, shared: true });
     if (limited) return limited;
     const { index, selectedIndex } = await parseJson(req, schema);
     const today = utcDay();

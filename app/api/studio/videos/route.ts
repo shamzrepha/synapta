@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_videos", limit: 40, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_videos", limit: 40, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const q = req.nextUrl.searchParams.get("q") || "";
     const prefer = req.nextUrl.searchParams.get("prefer") || "";

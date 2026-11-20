@@ -25,7 +25,7 @@ export async function POST(
       keyPrefix: "class_join",
       limit: 10,
       windowMs: 60_000,
-      uid: caller.uid,
+      uid: caller.uid, shared: true
     });
     if (rateLimitRes) return rateLimitRes;
 

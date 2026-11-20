@@ -16,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_contest_vote", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_contest_vote", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { entryUid } = await parseJson(req, schema);
     if (entryUid === caller.uid) throw new ApiError(400, "OWN_ENTRY", "You can't vote for your own entry.");

@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const [snap, streak] = await Promise.all([ref.get(), readStreak(caller.uid)]);
     if (snap.exists) return NextResponse.json({ ok: true, data: toView(snap.data() as DailyDoc, streak, today) });
 
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "daily-build", limit: 5, windowMs: 10 * 60 * 1000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "daily-build", limit: 5, windowMs: 10 * 60 * 1000, shared: true });
     if (limited) return limited;
 
     const { questions, origin } = await buildDailyQuestions(caller.uid);

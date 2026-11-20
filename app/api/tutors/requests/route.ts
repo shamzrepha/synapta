@@ -81,7 +81,7 @@ const schema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tutor_request", limit: 8, windowMs: 3600_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tutor_request", limit: 8, windowMs: 3600_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, schema);
     if (countLinks(body.question) > 2) throw new ApiError(400, "VALIDATION", "At most 2 links allowed.");

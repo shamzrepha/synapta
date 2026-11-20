@@ -27,7 +27,7 @@ const bodySchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "snap", limit: 10, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "snap", limit: 10, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { imageDataUrl, guided: guidedRaw, note, level } = await parseJson(req, bodySchema);
     const guided = Boolean(guidedRaw);
