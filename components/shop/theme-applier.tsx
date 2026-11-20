@@ -15,6 +15,11 @@ function apply(themeId: string | null | undefined) {
   for (const [k, v] of Object.entries(vars)) root.style.setProperty(k, v);
 }
 
+/**
+ * Relationship to UI accents: shop themes recolour the TEAL scale (Sprout's wardrobe, success/reward-adjacent tints),
+ * while the student's UI accent (Settings > Colour theme, app/accents.css) recolours the BRAND scale. They are independent
+ * variables, so buying or equipping a shop theme never changes the interface accent and vice versa.
+ */
 /** Applies the equipped accent theme by overriding the teal scale CSS variables. Renders nothing. */
 export function ThemeApplier() {
   useEffect(() => {

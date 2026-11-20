@@ -1,0 +1,117 @@
+/*
+ * User-selectable accent palettes: overrides of the brand-* scale, switched by <html data-accent="...">.
+ * "blue" (Sunroot blue) has no block: it is the default scale in globals.css. Rewards stay gold and the mastery
+ * colours (--mastery-*) are separate tokens, so they do not change. Button text is white on brand-600, which every
+ * palette keeps at 4.5:1 or better (lib/settings/accents.test.ts parses this file and checks it).
+ * Dark mode lifts 300/400 (used for text and icons on dark surfaces).
+ * Shop themes (components/shop/theme-applier.tsx) override the teal scale instead (Sprout and success tints), so the two never clash.
+ */
+
+:root[data-accent="rose"] {
+  --color-brand-50: #fff1f2;
+  --color-brand-100: #ffe4e6;
+  --color-brand-200: #fecdd3;
+  --color-brand-300: #fda4af;
+  --color-brand-400: #fb7185;
+  --color-brand-500: #f43f5e;
+  --color-brand-600: #e11d48;
+  --color-brand-700: #be123c;
+  --color-brand-800: #9f1239;
+  --color-brand-900: #881337;
+  --color-brand-950: #4c0519;
+}
+:root[data-accent="rose"].dark {
+  --color-brand-300: #fda4af;
+  --color-brand-400: #fb7185;
+}
+
+:root[data-accent="lavender"] {
+  --color-brand-50: #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+  --color-brand-800: #5b21b6;
+  --color-brand-900: #4c1d95;
+  --color-brand-950: #2e1065;
+}
+:root[data-accent="lavender"].dark {
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+}
+
+:root[data-accent="emerald"] {
+  --color-brand-50: #ecfdf5;
+  --color-brand-100: #d1fae5;
+  --color-brand-200: #a7f3d0;
+  --color-brand-300: #6ee7b7;
+  --color-brand-400: #34d399;
+  --color-brand-500: #10b981;
+  --color-brand-600: #047857;
+  --color-brand-700: #065f46;
+  --color-brand-800: #064e3b;
+  --color-brand-900: #043d2e;
+  --color-brand-950: #022c22;
+}
+:root[data-accent="emerald"].dark {
+  --color-brand-300: #6ee7b7;
+  --color-brand-400: #34d399;
+}
+
+:root[data-accent="sunset"] {
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-200: #fed7aa;
+  --color-brand-300: #fdba74;
+  --color-brand-400: #fb923c;
+  --color-brand-500: #f97316;
+  --color-brand-600: #c2410c;
+  --color-brand-700: #9a3412;
+  --color-brand-800: #7c2d12;
+  --color-brand-900: #5f2410;
+  --color-brand-950: #431407;
+}
+:root[data-accent="sunset"].dark {
+  --color-brand-300: #fdba74;
+  --color-brand-400: #fb923c;
+}
+
+:root[data-accent="ocean"] {
+  --color-brand-50: #f0f9ff;
+  --color-brand-100: #e0f2fe;
+  --color-brand-200: #bae6fd;
+  --color-brand-300: #7dd3fc;
+  --color-brand-400: #38bdf8;
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0369a1;
+  --color-brand-700: #075985;
+  --color-brand-800: #0c4a6e;
+  --color-brand-900: #0b3a57;
+  --color-brand-950: #082f49;
+}
+:root[data-accent="ocean"].dark {
+  --color-brand-300: #7dd3fc;
+  --color-brand-400: #38bdf8;
+}
+
+:root[data-accent="slate"] {
+  --color-brand-50: #f8fafc;
+  --color-brand-100: #f1f5f9;
+  --color-brand-200: #e2e8f0;
+  --color-brand-300: #cbd5e1;
+  --color-brand-400: #94a3b8;
+  --color-brand-500: #64748b;
+  --color-brand-600: #475569;
+  --color-brand-700: #334155;
+  --color-brand-800: #1e293b;
+  --color-brand-900: #0f172a;
+  --color-brand-950: #020617;
+}
+:root[data-accent="slate"].dark {
+  --color-brand-300: #e2e8f0;
+  --color-brand-400: #cbd5e1;
+}
+
