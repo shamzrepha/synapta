@@ -687,6 +687,9 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
           <ArrowLeft className="h-4 w-4" /> Back to {classTitle}
         </Link>
         <div className="flex flex-wrap items-center gap-2">
+          <Link href={`/practice/written?classId=${classId}`} className="text-xs font-semibold text-brand-600 hover:underline">
+            Written practice
+          </Link>
           <Button
             size="sm"
             variant="outline"

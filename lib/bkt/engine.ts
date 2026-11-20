@@ -1,10 +1,12 @@
-export type Activity = "quiz" | "flashcard" | "lab" | "peer_explain";
+export type Activity = "quiz" | "flashcard" | "lab" | "peer_explain" | "theory";
 
 export const OMEGA: Record<Activity, number> = {
   quiz: 1.0,
   flashcard: 1.25,
   lab: 1.75,
   peer_explain: 2.0,
+  // written answers: marked by AI against a guide, so they move mastery less than a server-graded quiz
+  theory: 0.6,
 };
 
 export interface BktParameters {

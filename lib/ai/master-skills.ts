@@ -44,6 +44,7 @@ const CREATING_TASKS = new Set<string>([
   "assignment_architect",
   "assignment_author",
   "quiz_gen",
+  "theory_set",
   "card_gen",
   "flashcard_gen",
   "study_guide",
@@ -76,10 +77,10 @@ export function classifyTaskMode(task?: string): { mode: SkillMode; specialty: S
   if (t === "sim_build" || t === "studio_build" || t === "quest_build") {
     return { mode: "creating", specialty: "simulation_and_interactive_lab" };
   }
-  if (t === "quiz_gen" || t === "assignment_architect" || t === "assignment_author") {
+  if (t === "quiz_gen" || t === "theory_set" || t === "assignment_architect" || t === "assignment_author") {
     return { mode: "creating", specialty: "assessment_design" };
   }
-  if (t === "student_evaluation" || t === "grading_high_stakes" || t === "assignment_reviewer") {
+  if (t === "theory_mark" || t === "student_evaluation" || t === "grading_high_stakes" || t === "assignment_reviewer") {
     return { mode: "analyzing", specialty: "diagnostic_grading" };
   }
   if (t === "tutor_chat" || t === "notebook_chat" || t === "explain_selection") {
