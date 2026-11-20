@@ -239,9 +239,11 @@ export async function GET(req: NextRequest) {
       })
       .filter((c: Record<string, unknown>) => {
         // Show if published, or if caller is owner or admin
-        if (c.status === "published") return true;
         if (caller && (c.isOwner || caller.role === "admin")) return true;
-        return false;
+        if (c.status !== "published") return false;
+        // Private classes are reachable only by their join code; they are listed to enrolled members only.
+        if (c.visibility !== "private") return true;
+        return c.userEnrollmentStatus === "active" || c.userEnrollmentStatus === "pending";
       })
       .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
         // AI Recommendation Algorithm based on academic profile

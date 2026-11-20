@@ -93,7 +93,7 @@ const get = (qs = "") => GET(new NextRequest(`http://x/api/schools${qs}`));
 function seed() {
   store.clear();
   writes.length = 0;
-  store.set("schools/s1", { name: "Alpha High", principalUid: "p1", teacherUids: ["p1", "t1"], inviteCode: "SCH-ALPH-111111", seatLimit: 10, studentCount: 1, seatExpiresAt: exp() });
+  store.set("schools/s1", { name: "Alpha High", principalUid: "p1", verified: true, teacherUids: ["p1", "t1"], inviteCode: "SCH-ALPH-111111", seatLimit: 10, studentCount: 1, seatExpiresAt: exp() });
   store.set("schools/s2", { name: "Beta College", principalUid: "p2", teacherUids: ["p2"], inviteCode: "SCH-BETA-222222", seatLimit: 10, studentCount: 1, seatExpiresAt: exp() });
   store.set("users/p1", { role: "student", schoolId: "s1", displayName: "Pat Principal", email: "p1@alpha.edu", username: "pat" });
   store.set("users/t1", { role: "teacher", schoolId: "s1", displayName: "Tee", email: "t1@alpha.edu", username: "tee" });
@@ -153,6 +153,18 @@ describe("school portal authorization and privacy", () => {
     caller = { uid: "a1", role: "student", email: "" };
     expect((await post({ action: "school_announce", schoolId: "s1", title: "Hi", body: "there" })).status).toBe(403);
     expect((await post({ action: "register_members", schoolId: "s1", identifiers: ["free1"] })).status).toBe(403);
+  });
+
+  it("a school creator cannot promote themselves to teacher until an admin verifies the school", async () => {
+    caller = { uid: "free1", role: "student", email: "" };
+    expect((await post({ action: "create_school", name: "Fake Academy", kind: "secondary" })).status).toBe(200);
+    const sid = [...store.keys()].find((k) => k.startsWith("schools/auto"))!.split("/")[1];
+    const res = await post({ action: "register_members", schoolId: sid, role: "teacher", identifiers: ["free1"] });
+    expect(res.status).toBe(403);
+    expect(store.get("users/free1")?.role).toBe("student");
+    // a principal may still invite students
+    const ok = await post({ action: "register_members", schoolId: sid, role: "student", identifiers: ["typed"] });
+    expect(ok.status).toBe(200);
   });
 
   it("a teacher can register students but cannot make someone a teacher", async () => {

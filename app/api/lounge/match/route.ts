@@ -3,6 +3,8 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb } from "@/lib/firebase/admin";
 import { MASTERY_THRESHOLD } from "@/lib/bkt/engine";
 import { z } from "zod";
+import { assertClassAccess } from "@/lib/auth/classAccess";
+import type { PeerMatch } from "@/lib/types/lounge";
 
 export const runtime = "nodejs";
 
@@ -11,17 +13,7 @@ const matchInputSchema = z.object({
   kcId: z.string().min(1),
 });
 
-export interface PeerMatch {
-  uid: string;
-  displayName: string;
-  email: string;
-  xp: number;
-  streakDays: number;
-  pL: number;
-  masteryPercentage: number;
-  isMastered: boolean;
-  matchReason: string;
-}
+export type { PeerMatch } from "@/lib/types/lounge";
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,6 +29,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { classId, kcId } = parsed.data;
+    // Only people who can see the class may look up its classmates.
+    await assertClassAccess(caller, classId, "view");
 
     // 1. Fetch class & KC info
     const classDoc = await adminDb().collection("classes").doc(classId).get();
@@ -105,32 +99,30 @@ export async function POST(req: NextRequest) {
       const uid = uDoc.id;
       const pL = masteryMap.get(uid) ?? 0.20;
       const isMastered = pL >= MASTERY_THRESHOLD;
-      const masteryPercentage = Math.round(pL * 100);
+      const band = pL >= MASTERY_THRESHOLD ? "strong" : pL >= 0.7 ? "solid" : "building";
 
       let matchReason = "Available Study Partner";
       if (pL >= MASTERY_THRESHOLD) {
-        matchReason = `Mastered Topic (${masteryPercentage}% mastery) — High-impact peer mentor`;
+        matchReason = `Mastered Topic — High-impact peer mentor`;
       } else if (pL >= 0.70) {
-        matchReason = `Competent Concept Mastery (${masteryPercentage}% mastery) — Ready to explain`;
+        matchReason = `Competent Concept Mastery — Ready to explain`;
       } else {
-        matchReason = `Collaborative Co-Learner (${masteryPercentage}% mastery) — Study together`;
+        matchReason = `Collaborative Co-Learner — Study together`;
       }
 
       matches.push({
         uid,
         displayName: u.displayName || "Student",
-        email: u.email || "",
-        xp: u.xp || 0,
-        streakDays: u.streakDays || 1,
-        pL,
-        masteryPercentage,
+        username: u.username || undefined,
+        band,
         isMastered,
         matchReason,
       });
     }
 
     // 5. Rank matches: highest mastery first (ideal peer explainers)
-    matches.sort((a, b) => b.pL - a.pL);
+    const rank = { strong: 0, solid: 1, building: 2 } as const;
+    matches.sort((a, b) => rank[a.band] - rank[b.band]);
 
     return NextResponse.json({
       ok: true,
