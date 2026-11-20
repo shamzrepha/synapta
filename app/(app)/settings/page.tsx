@@ -10,6 +10,7 @@ import { PREFS_KEY, parsePrefs } from "@/lib/settings/prefs";
 import { parseAccessibility, type TtsSpeed } from "@/lib/settings/accessibility";
 import { cn } from "@/lib/utils";
 import { LanguageSettings } from "@/components/settings/language-picker";
+import { AccentPicker } from "@/components/settings/accent-picker";
 import { BotToggle } from "@/components/bot/bot-toggle";
 import { AppVersionCard } from "@/components/settings/app-version-card";
 
@@ -70,6 +71,10 @@ export default function SettingsPage() {
         <LanguageSettings />
       </Card>
 
+      <Card>
+        <AccentPicker />
+      </Card>
+
       <Card className="divide-y divide-slate-100 dark:divide-slate-800">
         {OPTIONS.map((o) => (
           <div key={o.key} className="flex items-center gap-3 p-4">
@@ -88,7 +93,7 @@ export default function SettingsPage() {
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500 px-1">Reading &amp; Dyslexia Comfort</p>
         <Card className="divide-y divide-slate-100 dark:divide-slate-800">
           <div className="flex items-center gap-3 p-4">
-            <span className="text-teal-600"><BookOpen className="h-5 w-5" /></span>
+            <span className="text-brand-600"><BookOpen className="h-5 w-5" /></span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm">Dyslexia-friendly reading font</p>
               <p className="text-xs text-slate-500">Open letter shapes and distinct character spacing inside notes and lessons.</p>
@@ -100,7 +105,7 @@ export default function SettingsPage() {
             />
           </div>
           <div className="flex items-center gap-3 p-4">
-            <span className="text-teal-600"><Sparkles className="h-5 w-5" /></span>
+            <span className="text-brand-600"><Sparkles className="h-5 w-5" /></span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm">Extra line &amp; letter spacing</p>
               <p className="text-xs text-slate-500">More breathing room between lines and words to stop text from crowding.</p>
@@ -116,7 +121,7 @@ export default function SettingsPage() {
             <Toggle on={a11y.warmPaper} onChange={(v) => updateA11y({ warmPaper: v })} label="Warm soft paper tint" />
           </div>
           <div className="flex items-center gap-3 p-4">
-            <span className="text-teal-600"><Eye className="h-5 w-5" /></span>
+            <span className="text-brand-600"><Eye className="h-5 w-5" /></span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm">Reading ruler focus guide</p>
               <p className="text-xs text-slate-500">Soft highlight band that follows your cursor or tap to keep your place.</p>
@@ -124,7 +129,7 @@ export default function SettingsPage() {
             <Toggle on={a11y.readingRuler} onChange={(v) => updateA11y({ readingRuler: v })} label="Reading ruler focus guide" />
           </div>
           <div className="flex flex-wrap items-center gap-3 p-4">
-            <span className="text-teal-600"><Volume2 className="h-5 w-5" /></span>
+            <span className="text-brand-600"><Volume2 className="h-5 w-5" /></span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm">Read-aloud voice speed</p>
               <p className="text-xs text-slate-500">Default playback speed when listening to notes and tutor replies.</p>
@@ -138,7 +143,7 @@ export default function SettingsPage() {
                   aria-pressed={a11y.ttsSpeed === s}
                   className={cn(
                     "px-2.5 h-8 text-xs font-bold transition-colors",
-                    a11y.ttsSpeed === s ? "bg-teal-600 text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    a11y.ttsSpeed === s ? "bg-brand-600 text-white" : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                   )}
                 >
                   {s}×
@@ -161,7 +166,7 @@ export default function SettingsPage() {
             <Toggle on={a11y.adhdFocus} onChange={(v) => updateA11y({ adhdFocus: v })} label="ADHD Focus Micro-Steps mode" />
           </div>
           <div className="flex items-center gap-3 p-4">
-            <span className="text-teal-600"><Bot className="h-5 w-5" /></span>
+            <span className="text-brand-600"><Bot className="h-5 w-5" /></span>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-sm">Clear literal explanations</p>
               <p className="text-xs text-slate-500">Direct, numbered facts without idioms, sarcasm, or vague figures of speech.</p>

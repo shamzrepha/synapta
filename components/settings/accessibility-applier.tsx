@@ -16,13 +16,16 @@ export function AccessibilityApplier() {
 
   useEffect(() => {
     const root = document.documentElement;
+    // UI accent palette (app/accents.css). Shop themes (theme-applier) recolour the teal scale, a separate thing.
+    if (prefs.accent === "blue") delete root.dataset.accent;
+    else root.dataset.accent = prefs.accent;
     root.dataset.reduceMotion = prefs.reduceMotion ? "true" : "false";
     root.dataset.readingFont = a11y.readingFont;
     root.dataset.wideSpacing = a11y.wideSpacing ? "true" : "false";
     root.dataset.warmPaper = a11y.warmPaper ? "true" : "false";
     root.dataset.kidsMode = a11y.kidsMode ? "true" : "false";
     root.dataset.adhdFocus = a11y.adhdFocus ? "true" : "false";
-  }, [prefs.reduceMotion, a11y]);
+  }, [prefs.reduceMotion, prefs.accent, a11y]);
 
   useEffect(() => {
     if (!a11y.readingRuler) return;
@@ -38,7 +41,7 @@ export function AccessibilityApplier() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-x-0 z-[45] h-11 -translate-y-1/2 border-y border-teal-500/35 bg-teal-400/10 dark:bg-teal-300/10 transition-[top] duration-75"
+      className="pointer-events-none fixed inset-x-0 z-[45] h-11 -translate-y-1/2 border-y border-brand-500/35 bg-brand-400/10 dark:bg-brand-300/10 transition-[top] duration-75"
       style={{ top: rulerY }}
     />
   );

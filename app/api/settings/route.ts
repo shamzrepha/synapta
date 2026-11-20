@@ -5,6 +5,7 @@ import { parseJson } from "@/lib/api/errors";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { parsePrefs } from "@/lib/settings/prefs";
 import { parseAccessibility } from "@/lib/settings/accessibility";
+import { ACCENT_IDS } from "@/lib/settings/accents";
 import { LANGUAGE_CODES } from "@/lib/i18n/languages";
 import { forgetUserLanguage } from "@/lib/i18n/server";
 
@@ -16,6 +17,7 @@ const schema = z.object({
   noAutoplay: z.boolean().optional(),
   soundEffects: z.boolean().optional(),
   language: z.enum(LANGUAGE_CODES).optional(),
+  accent: z.enum(ACCENT_IDS).optional(),
   accessibility: z.unknown().optional(),
 });
 
@@ -47,7 +49,8 @@ export async function PUT(req: NextRequest) {
       typeof rawPrefs.reduceMotion === "boolean" ||
       typeof rawPrefs.noAutoplay === "boolean" ||
       typeof rawPrefs.soundEffects === "boolean" ||
-      typeof rawPrefs.language === "string";
+      typeof rawPrefs.language === "string" ||
+      typeof rawPrefs.accent === "string";
 
     const update: Record<string, unknown> = { prefsUpdatedAt: Timestamp.now() };
     const prefs = hasPrefs ? parsePrefs(rawPrefs) : undefined;

@@ -7,6 +7,7 @@ import { QueryProvider } from "@/components/providers/query-provider";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { ClientErrorListener } from "@/components/providers/client-error-listener";
+import { ACCENT_BOOT_SCRIPT } from "@/lib/settings/accents";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, getSiteUrl } from "@/lib/site";
 
 // Sunroot's type: Instrument Sans for everything you read, Instrument Serif italic for one emphasised word in a headline, IBM Plex Mono for labels and numbers (see app/globals.css)
@@ -97,6 +98,8 @@ export default function RootLayout({
               "(function(){try{var t=localStorage.getItem('sunroot-theme')||localStorage.getItem('synapta-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}})()",
           }}
         />
+        {/* Saved UI accent palette (data-accent on <html>), applied before first paint too */}
+        <script dangerouslySetInnerHTML={{ __html: ACCENT_BOOT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col font-sans bg-background text-foreground">
         <QueryProvider>

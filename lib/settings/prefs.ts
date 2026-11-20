@@ -1,4 +1,5 @@
 /** Device-level learning preferences (data saver, language etc.). Pure helpers so they can be unit tested. */
+import { DEFAULT_ACCENT, isAccentId, type AccentId } from "@/lib/settings/accents";
 import { DEFAULT_LANGUAGE, isLanguageCode, type LanguageCode } from "@/lib/i18n/languages";
 
 export interface Prefs {
@@ -9,9 +10,11 @@ export interface Prefs {
   soundEffects: boolean;
   /** the learner's language: the AI writes and speaks in it, and the main menus use it */
   language: LanguageCode;
+  /** UI accent palette (see lib/settings/accents.ts); "blue" is Sunroot blue */
+  accent: AccentId;
 }
 
-export const DEFAULT_PREFS: Prefs = { dataSaver: false, reduceMotion: false, noAutoplay: false, soundEffects: true, language: DEFAULT_LANGUAGE };
+export const DEFAULT_PREFS: Prefs = { dataSaver: false, reduceMotion: false, noAutoplay: false, soundEffects: true, language: DEFAULT_LANGUAGE, accent: DEFAULT_ACCENT };
 export const PREFS_KEY = "sunroot.prefs";
 
 /** Accepts anything (JSON string, object, null) and returns a complete, valid Prefs. */
@@ -32,6 +35,7 @@ export function parsePrefs(raw: unknown): Prefs {
     noAutoplay: o.noAutoplay === true,
     soundEffects: o.soundEffects !== false,
     language: isLanguageCode(o.language) ? o.language : DEFAULT_LANGUAGE,
+    accent: isAccentId(o.accent) ? o.accent : DEFAULT_ACCENT,
   };
 }
 
