@@ -1,3 +1,4 @@
+import { checkFeature, recordFeature } from "@/lib/billing/usage";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
@@ -18,6 +19,7 @@ export async function POST(
     const access = await assertClassAccess(caller, id, "mutate");
     const classData = access.classData;
 
+    await checkFeature(caller.uid, "class_build");
     const body = await parseClassBuildRequest(req);
 
     // Notes given in the create-class wizard join the class library, so lessons, the tutor and later rebuilds use them too
@@ -35,6 +37,8 @@ export async function POST(
       seedInLibrary,
       userId: caller.uid,
     });
+
+    await recordFeature(caller.uid, "class_build");
 
     return NextResponse.json({
       ok: true,

@@ -1,3 +1,4 @@
+import { checkFeature, recordFeature } from "@/lib/billing/usage";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
@@ -35,7 +36,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pat
     } else {
       const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000 });
       if (limited) return limited;
+      await checkFeature(caller.uid, "studio_ai");
       const out = await generateDesign({ prompt: `${stage.buildPrompt || stage.title}. Context: this practises "${stage.title}" on the way to the goal "${p.goal}".`, level: p.level >= 4 ? "advanced" : p.level >= 2 ? "intermediate" : "beginner", userId: caller.uid });
+      await recordFeature(caller.uid, "studio_ai");
       designId = await createDesign({ user: caller, title: out.title, spec: out.spec, source: "ai", message: `Path “${p.title}” — ${stage.title}` });
     }
     await ref.update({ [`designs.${stageId}`]: designId });

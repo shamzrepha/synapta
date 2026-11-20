@@ -1,3 +1,4 @@
+import { draftMap } from "@/lib/classes/published";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
@@ -95,6 +96,7 @@ export async function POST(
         prerequisiteIds,
         bkt: kc.bkt,
         lab: kc.lab,
+        contentPublished: draftMap(),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };

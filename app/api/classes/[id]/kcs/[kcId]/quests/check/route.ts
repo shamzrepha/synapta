@@ -1,3 +1,4 @@
+import { questsForStudents } from "@/lib/classes/live";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
@@ -25,8 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { index, challengeId, answer } = await parseJson(req, checkSchema);
     const kc = (await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get()).data() || {};
     if (!access.canMutate && !isPublished(kc, "simulation")) throw new ApiError(403, "NOT_PUBLISHED", "These challenges aren't published yet.");
-    const snap = await questRef(classId, kcId, index).get();
-    const quest = snap.exists ? (snap.data() as StoredQuest) : null;
+    const quest = access.canMutate ? ((await questRef(classId, kcId, index).get()).data() as StoredQuest | undefined) ?? null : (await questsForStudents(classId, kcId, kc)).get(index) ?? null;
     const challenge = quest?.challenges?.find((c) => c.id === challengeId);
     if (!quest || !challenge) throw new ApiError(404, "NO_CHALLENGE", "That challenge no longer exists. Reload the page.");
 

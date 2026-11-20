@@ -3,11 +3,12 @@ import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { ApiError, parseJson } from "@/lib/api/errors";
-import { planOf } from "@/lib/billing/plans";
+import { hasExamAccess, planOf } from "@/lib/billing/plans";
 import { generateWithFallback } from "@/lib/ai/router";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { normalizeGrade } from "@/lib/exam/grade";
+import { pastQuestionSolutionSchema } from "@/lib/exam/solution";
 import { parseImageDataUrl } from "@/lib/snap/image";
 import { wrapUserInput } from "@/lib/study/topic-source";
 import {
@@ -178,10 +179,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   } catch (error) {
     return handleAuthError(error);
   }
-}
-
-function hasExamAccess(planId: string, role: string | undefined): boolean {
-  return planId === "plus" || planId === "exam" || planId === "teacher" || role === "teacher" || role === "admin";
 }
 
 /** Free learners get one past question. Opening it again stays free; a second one asks for the pass. */
@@ -414,6 +411,7 @@ Output clean JSON matching:
 
     const result = await generateWithFallback({
       task: "quiz_gen",
+      schema: pastQuestionSolutionSchema,
       systemInstruction: systemPrompt,
       userPrompt: `Course: ${body.courseCode || classId}\nTopic: ${questionTopic}\nQuestion:\n${wrapUserInput(questionText)}`,
       temperature: 0.3,
@@ -423,7 +421,7 @@ Output clean JSON matching:
     if (!result.data) {
       throw new ApiError(502, "AI_GENERATION_FAILED", "The AI couldn't write that solution. Please try again.");
     }
-    const solutionData = result.data as Record<string, unknown>;
+    const solutionData = { ...result.data, cohortStyle: result.data.cohortStyle || targetCohort } as Record<string, unknown>;
     const prevCohortSolutions = (existingData.cohortSolutions || {}) as Record<string, unknown>;
     const prevHealCount = cohortFeedbackAll[targetCohort]?.healedCount || 0;
 

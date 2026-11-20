@@ -1,3 +1,4 @@
+import { checkFeature, recordFeature } from "@/lib/billing/usage";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { parseJson } from "@/lib/api/errors";
@@ -43,7 +44,9 @@ export async function POST(req: NextRequest) {
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000 });
     if (limited) return limited;
     const body = await parseJson(req, schema);
+    await checkFeature(caller.uid, "studio_ai");
     const path = await generatePath({ goal: body.goal, level: body.level ?? 1, interests: body.interests ?? [], preference: body.preference ?? "", userId: caller.uid });
+    await recordFeature(caller.uid, "studio_ai");
     const ref = adminDb().collection("users").doc(caller.uid).collection("paths").doc();
     await ref.set({ ...path, goal: body.goal, level: body.level ?? 1, interests: body.interests ?? [], done: {}, designs: {}, createdAt: Timestamp.now() });
     // Remember the learner's level/interests for future paths and recommendations

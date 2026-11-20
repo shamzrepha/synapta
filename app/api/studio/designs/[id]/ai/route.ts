@@ -1,3 +1,4 @@
+import { checkFeature, recordFeature } from "@/lib/billing/usage";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
@@ -31,8 +32,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         throw new ApiError(403, "CHALLENGE_LIVE", "The AI can't build your challenge entry for you — design it yourself. The tutor can still give hints.");
       }
     }
+    await checkFeature(caller.uid, "studio_ai");
     const out = await editDesign({ spec: parseSpec(data.spec), instruction, userId: caller.uid });
     if (!out.changed) return NextResponse.json({ ok: true, data: { changed: false, note: out.cannot } });
+    await recordFeature(caller.uid, "studio_ai");
     const r = await commitDesign({ id, user: caller, spec: out.spec, parentId: data.headCommitId, message: `AI: ${out.message || instruction}`.slice(0, 200), source: "ai" });
     return NextResponse.json({ ok: true, data: { ...r, changed: true, note: out.cannot } });
   } catch (error) {

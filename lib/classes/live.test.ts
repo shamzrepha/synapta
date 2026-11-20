@@ -22,7 +22,7 @@ vi.mock("@/lib/sim/pieces", () => ({ getStoredPieces: async () => h.pieces }));
 vi.mock("@/lib/quest/store", () => ({ getStoredQuests: async () => h.quests, questStatus: (q: { status: string }) => q.status }));
 vi.mock("@/lib/practice/bank", () => ({ readQuizBank: async () => [], readFlashcardBank: async () => [], stableId: (s: string) => s }));
 
-import { lessonForStudents, liveMode, liveStatus, pushToStudents } from "./live";
+import { lessonForStudents, liveMode, liveStatus, piecesForStudents, pushToStudents, questsForStudents, quizBankForStudents, takeOffline } from "./live";
 import { publishMapOf } from "./published";
 
 describe("push to students", () => {
@@ -75,5 +75,37 @@ describe("push to students", () => {
     expect(live.sim).toBeNull();
     const upd = h.writes.find((w) => w.kind === "update")!.data as { contentPublished: Record<string, unknown> };
     expect(typeof upd.contentPublished.simulation).toBe("object");
+  });
+
+  it("a draft topic (draftMap) hides everything from students, and old topics without the map stay visible", async () => {
+    const draft = { contentPublished: { lesson: false, audio: false, simulation: false, practice: false } };
+    expect(liveMode(draft, "practice")).toBe("off");
+    expect(await quizBankForStudents("c", "k", draft)).toEqual([]);
+    expect((await piecesForStudents("c", "k", draft)).size).toBe(0);
+    expect((await questsForStudents("c", "k", draft)).size).toBe(0);
+    h.pieces = new Map([[0, { index: 0, status: "ready", html: "<p/>", version: 1 }]]);
+    h.quests = new Map([[0, { index: 0, status: "ready", challenges: [{}], version: 1 }]]);
+    expect((await piecesForStudents("c", "k", {})).size).toBe(1); // old topic: follows the working copy
+    expect((await questsForStudents("c", "k", {})).size).toBe(1);
+  });
+
+  it("pushing stores the pieces and quests with the simulation snapshot", async () => {
+    h.pieces = new Map([[0, { index: 0, status: "ready", html: "<p/>", version: 1, extra: undefined }]]);
+    h.quests = new Map([[0, { index: 0, status: "ready", challenges: [{}], version: 1 }]]);
+    h.kc = { contentPublished: { lesson: false, audio: false, simulation: false, practice: false } };
+    h.writes.length = 0;
+    await pushToStudents("c", "k", ["simulation"]);
+    const live = h.writes.find((w) => w.kind === "set")!.data as { pieces: unknown[]; quests: unknown[] };
+    expect(live.pieces).toHaveLength(1);
+    expect(live.quests).toHaveLength(1);
+    expect(JSON.stringify(live)).not.toContain("undefined");
+  });
+
+  it("take offline on an untouched old topic hides practice (and the rest) explicitly", async () => {
+    h.kc = { title: "old topic" };
+    h.writes.length = 0;
+    const next = (await takeOffline("c", "k", ["practice"])) as Record<string, unknown>;
+    expect(next).toMatchObject({ practice: false, lesson: true, audio: true, simulation: true });
+    expect(liveMode({ contentPublished: next }, "practice")).toBe("off");
   });
 });

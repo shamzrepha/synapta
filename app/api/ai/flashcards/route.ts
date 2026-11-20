@@ -4,7 +4,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
 import { adminDb } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
-import { flashcardBankForStudents } from "@/lib/classes/live";
+import { flashcardBankForStudents, liveMode } from "@/lib/classes/live";
 import { classOwner, ensureFlashcardBank, pickForLearner, readFlashcardBank } from "@/lib/practice/bank";
 import { getSeen, setSeen } from "@/lib/practice/history";
 import { z } from "zod";
@@ -39,9 +39,12 @@ export async function POST(req: NextRequest) {
     if (access.canMutate) bank = await ensureFlashcardBank({ classId, kcId, userId: caller.uid });
     else {
       const kcSnap = await adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId).get();
-      bank = await flashcardBankForStudents(classId, kcId, kcSnap.data() || {});
-      if (!bank.length) bank = await readFlashcardBank(classId, kcId);
-      if (!bank.length) bank = await ensureFlashcardBank({ classId, kcId, userId: classOwner(access.classData, caller.uid) });
+      const kcData = kcSnap.data() || {};
+      // "Take offline" (and a topic still in draft) hides practice from students
+      if (liveMode(kcData, "practice") === "off") throw new ApiError(403, "NOT_PUBLISHED", "Practice for this topic isn't published yet.");
+      bank = await flashcardBankForStudents(classId, kcId, kcData);
+      if (!bank.length && liveMode(kcData, "practice") === "follow") bank = await readFlashcardBank(classId, kcId);
+      if (!bank.length && liveMode(kcData, "practice") === "follow") bank = await ensureFlashcardBank({ classId, kcId, userId: classOwner(access.classData, caller.uid) });
       if (!bank.length) throw new ApiError(404, "NOT_READY", "Flashcards for this topic aren't ready yet. Try again in a minute.");
     }
     const seen = await getSeen(caller.uid, kcId, "cards");
