@@ -4,6 +4,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { parseJson } from "@/lib/api/errors";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { getDailyCap, setCachedDailyCap } from "@/lib/ai/openrouter-spend";
+import { writeAudit } from "@/lib/security/audit";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,7 @@ export async function PUT(req: NextRequest) {
     const b = await parseJson(req, body);
     await adminDb().collection("systemConfig").doc("orBudget").set({ dailyCapUsd: b.dailyCapUsd, updatedBy: admin.email || admin.uid, updatedAt: Timestamp.now() });
     setCachedDailyCap(b.dailyCapUsd);
+    await writeAudit({ actorUid: admin.uid, actorEmail: admin.email, action: "ai_spend.cap_changed", targetType: "config", targetId: "orBudget", details: { dailyCapUsd: b.dailyCapUsd } });
     return NextResponse.json({ ok: true, data: { cap: b.dailyCapUsd } });
   } catch (error) {
     return handleAuthError(error);

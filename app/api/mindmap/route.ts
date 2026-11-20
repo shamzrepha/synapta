@@ -15,7 +15,7 @@ const saveSchema = z.object({ title: z.string().trim().min(1).max(80), tree: raw
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mindmap-save", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mindmap-save", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { title, tree } = await parseJson(req, saveSchema);
     const clamped = clampTree(tree);

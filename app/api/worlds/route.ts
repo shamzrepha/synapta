@@ -48,7 +48,7 @@ const createSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-create", limit: 10, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-create", limit: 10, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const b = await parseJson(req, createSchema);
 

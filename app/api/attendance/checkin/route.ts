@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
     const caller = await requireUser(req);
     // Every attempt counts, successful or not.
     const limits = await Promise.all([
-      checkRateLimit(req, { uid: caller.uid, keyPrefix: "att-checkin-min", limit: 6, windowMs: 60_000 }),
-      checkRateLimit(req, { uid: caller.uid, keyPrefix: "att-checkin-hour", limit: 30, windowMs: 60 * 60_000 }),
-      checkRateLimit(req, { keyPrefix: "att-checkin-ip", limit: 60, windowMs: 60_000 }),
+      checkRateLimit(req, { uid: caller.uid, keyPrefix: "att-checkin-min", limit: 6, windowMs: 60_000, shared: true }),
+      checkRateLimit(req, { uid: caller.uid, keyPrefix: "att-checkin-hour", limit: 30, windowMs: 60 * 60_000, shared: true }),
+      checkRateLimit(req, { keyPrefix: "att-checkin-ip", limit: 60, windowMs: 60_000, shared: true }),
     ]);
     const blocked = limits.find(Boolean);
     if (blocked) return blocked;

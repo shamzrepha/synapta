@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
     // each quiz writes a session document, and the first one for a topic builds its question bank with the AI
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "ai_quiz", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "ai_quiz", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await req.json().catch(() => ({}));
     const parsed = quizInputSchema.safeParse(body);

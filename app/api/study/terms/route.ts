@@ -21,7 +21,7 @@ const resultSchema = z.object({ terms: z.array(z.string().trim().max(60)).max(80
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "study-terms", limit: 12, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "study-terms", limit: 12, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, bodySchema);
     await checkRateLimitAndQuota(caller.uid, 1500);

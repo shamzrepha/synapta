@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       keyPrefix: "reports",
       limit: 10,
       windowMs: 3600_000, // 1 hour
-      uid: caller.uid,
+      uid: caller.uid, shared: true
     });
     if (rateLimitRes) return rateLimitRes;
 

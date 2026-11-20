@@ -19,7 +19,7 @@ const DAILY_XP_BLOCKS = 12;
 export async function POST(req: NextRequest, { params }: { params: Promise<{ code: string }> }) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "focus_complete", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "focus_complete", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const code = normalizeCode((await params).code);
     if (!code) throw new ApiError(400, "VALIDATION", "Bad room code.");

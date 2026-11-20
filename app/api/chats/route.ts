@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
     requireVerifiedEmail(caller);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "chat_create", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "chat_create", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, createSchema);
     const id = body.type === "direct" ? await ensureDirectChat(caller.uid, body.uid) : await createGroupChat(caller.uid, body.name, body.memberUids);

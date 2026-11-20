@@ -4,6 +4,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { DEFAULT_PREFS, PREFS_KEY, parsePrefs, shouldAutoplay, type Prefs } from "@/lib/settings/prefs";
 import { parseAccessibility } from "@/lib/settings/accessibility";
 import { writeAccessibility } from "./use-accessibility";
+import { applyColorMode } from "@/lib/settings/mode";
 
 const EVENT = "sunroot:prefs";
 let cacheRaw: string | null | undefined;
@@ -85,6 +86,7 @@ export async function adoptAccountPrefs(uid: string): Promise<void> {
   }
   if (JSON.stringify(saved) === JSON.stringify(local)) return;
   writePrefs(saved);
+  if (saved.mode !== local.mode) applyColorMode(saved.mode); // the account's light/dark choice follows the learner to this device
   if (saved.language !== local.language) window.location.reload();
 }
 

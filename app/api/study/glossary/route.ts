@@ -62,7 +62,7 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (x: T) => Promise<R
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "study-glossary", limit: 40, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "study-glossary", limit: 40, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { classId, kcId } = await parseJson(req, bodySchema);
 

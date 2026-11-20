@@ -14,7 +14,7 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req, ["teacher", "admin"]);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ideas", limit: 8, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ideas", limit: 8, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(
       req,

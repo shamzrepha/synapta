@@ -42,7 +42,7 @@ export async function runExtractConformance(config: AiConfig, gen: Gen = generat
   const tier = (await resolveChain("extract", config))[0].tier;
   let repairs = 0;
   const counting = (async (o: Parameters<Gen>[0]) => {
-    const r = await gen({ ...o, config });
+    const r = await gen({ ...o, config, system: true });
     repairs += r.meta.repairs;
     return r;
   }) as unknown as Gen;

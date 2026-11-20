@@ -1,4 +1,5 @@
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { encryptionStatus, openFromStorage, resealField, sealForStorage } from "@/lib/security/secret-box";
 import { activeGeminiKey, refreshGeminiKey } from "@/lib/ai/api-key";
 import { activeGroqKey, listGroqModels, refreshGroqKey } from "@/lib/ai/groq";
 import { aiConfigSchema, EMPTY_AI_CONFIG, PROVIDER_PRESETS, AiRouteMissingError, type AiConfig, type ModelProfile, type ProviderAdapter, type ProviderKind, type ProviderMeta, type TaskName } from "./types";
@@ -45,7 +46,19 @@ export async function saveAiConfig(config: AiConfig, by: { uid: string; email: s
 
 async function readProviders(): Promise<Record<string, StoredProvider>> {
   const snap = await PROVIDERS_DOC().get().catch(() => null);
-  return ((snap?.data()?.providers as Record<string, StoredProvider> | undefined) ?? {}) as Record<string, StoredProvider>;
+  const raw = ((snap?.data()?.providers as Record<string, StoredProvider> | undefined) ?? {}) as Record<string, StoredProvider>;
+  const out: Record<string, StoredProvider> = {};
+  for (const [id, p] of Object.entries(raw)) {
+    const opened = openFromStorage(p?.key);
+    out[id] = { ...p, key: opened.value || undefined };
+    if (opened.needsReseal && opened.value) void resealField(PROVIDERS_DOC(), `providers.${id}.key`, opened.value); // legacy plaintext -> ciphertext
+  }
+  return out;
+}
+
+/** Warning for the admin screen when provider keys cannot be encrypted at rest (null when fine). */
+export function providerEncryptionWarning(): string | null {
+  return encryptionStatus().warning;
 }
 
 /** Providers for the admin screen: never includes keys, only the last 4 characters. */
@@ -65,7 +78,7 @@ export async function listProviders(): Promise<Array<ProviderMeta & { configured
 export async function saveProviderKey(input: { id: string; kind: ProviderKind; label: string; baseUrl?: string; key: string }): Promise<void> {
   const key = input.key.trim();
   if (key.length < 8) throw new Error("That key looks too short.");
-  const entry: StoredProvider = { kind: input.kind, label: input.label, baseUrl: input.baseUrl, key, last4: key.slice(-4), updatedAt: Timestamp.now() };
+  const entry: StoredProvider = { kind: input.kind, label: input.label, baseUrl: input.baseUrl, key: sealForStorage(key), last4: key.slice(-4), updatedAt: Timestamp.now() };
   await PROVIDERS_DOC().set({ providers: { [input.id]: JSON.parse(JSON.stringify(entry)) } }, { merge: true });
 }
 

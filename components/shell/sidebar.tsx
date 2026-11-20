@@ -31,7 +31,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "hidden md:flex sticky top-0 h-screen flex-col border-r border-slate-200/80 bg-white dark:border-slate-800/80 dark:bg-slate-950 transition-all duration-300 z-30 select-none shrink-0",
+        "hidden md:flex sticky top-0 h-screen flex-col border-r border-border bg-card transition-all duration-300 z-30 select-none shrink-0",
         isSidebarCollapsed ? "w-[72px]" : "w-[72px] lg:w-60"
       )}
       aria-label="Main navigation"

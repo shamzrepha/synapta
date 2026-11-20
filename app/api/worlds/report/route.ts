@@ -19,7 +19,7 @@ const schema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-report", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-report", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const b = await parseJson(req, schema);
     await adminDb().collection("reports").add({ ...b, reporterUid: user.uid, status: "open", createdAt: now() });

@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id: classId, kcId } = await params;
     const caller = await requireUser(req, ["teacher", "admin"]);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "sim-ideas", limit: 8, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "sim-ideas", limit: 8, windowMs: 60_000, shared: true });
     if (limited) return limited;
     await assertClassAccess(caller, classId, "mutate");
     const sim = await getStoredSimulation(classId, kcId);

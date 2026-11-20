@@ -6,6 +6,7 @@ import { buildPath, paceWeeks, KcPlanNode } from "@/lib/teacher/planner";
 import { generateStructuredJson } from "@/lib/gemini/client";
 import { recordTokenUsage } from "@/lib/quota/guard";
 import { z } from "zod";
+import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,8 @@ export async function GET(
 
     // Verify view permission
     await assertClassAccess(caller, classId, "view");
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "class_map", limit: 60, windowMs: 60_000, shared: true });
+    if (limited) return limited;
 
     // 1. Fetch Class and KCs
     const classDoc = await adminDb().collection("classes").doc(classId).get();
@@ -215,6 +218,7 @@ Open Misconceptions: ${misconceptionCountMap.get(topKc.kc.id) || 0}
 Target Deadline: ${classGoal?.targetDate || "Not set"}`;
 
         const { data, tokensIn, tokensOut } = await generateStructuredJson({
+          userId: caller.uid,
           systemInstruction,
           userPrompt,
           schema: teacherNoteSchema,

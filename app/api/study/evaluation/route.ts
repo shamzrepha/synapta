@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "evaluation", limit: 4, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "evaluation", limit: 4, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { force } = await parseJson(req, z.object({ force: z.boolean().optional() }));
     const summary = await gather(caller.uid);

@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "study_notes", limit: 6, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "study_notes", limit: 6, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, createSchema);
     const mine = await notesCol().where("uid", "==", caller.uid).limit(MAX_NOTES + 1).get();

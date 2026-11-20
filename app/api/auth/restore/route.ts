@@ -13,7 +13,7 @@ export const runtime = "nodejs";
  * It gives away nothing the cookie doesn't already: the cookie is already enough to use every API as that person.
  */
 export async function POST(req: NextRequest) {
-  const limited = await checkRateLimit(req, { keyPrefix: "auth_restore", limit: 20, windowMs: 60_000 });
+  const limited = await checkRateLimit(req, { keyPrefix: "auth_restore", limit: 20, windowMs: 60_000, shared: true });
   if (limited) return limited;
   const cookie = req.cookies.get("__session")?.value;
   if (!cookie) return NextResponse.json({ ok: false, error: { code: "NO_SESSION", message: "Not signed in." } }, { status: 401 });

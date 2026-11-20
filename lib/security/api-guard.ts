@@ -33,14 +33,20 @@ export function isCrossSiteWrite(method: string, origin: string | null, host: st
   }
 }
 
-/** Who to count a request against: the signed-in credential when there is one, else the client IP. */
+const IP_SHAPE = /^[0-9a-fA-F:.]{3,45}$/;
+
+/**
+ * Who to count a request against: always the client IP. The proxy cannot verify a session token (no Firebase Admin on
+ * this path), so a token is never used as a key and never trusted: a different junk token per request would otherwise
+ * mint a fresh bucket every time. `signedIn` only means "a credential was sent" and selects the higher per-IP limit;
+ * the real per-user limits live in the routes, after requireUser has verified the token.
+ * IP = first x-forwarded-for hop (set by Cloudflare/Coolify), then x-real-ip, else one shared "unknown" bucket.
+ */
 export function clientKey(headers: { get(name: string): string | null }, sessionCookie: string | undefined): { key: string; signedIn: boolean } {
-  const bearer = headers.get("authorization")?.match(/^Bearer\s+(.+)$/)?.[1];
-  const cred = sessionCookie || bearer;
-  // the tail of the credential is enough to tell people apart, and never the whole token in memory keys
-  if (cred) return { key: `c:${cred.slice(-24)}`, signedIn: true };
-  const ip = headers.get("x-forwarded-for")?.split(",")[0]?.trim() || headers.get("x-real-ip") || "unknown";
-  return { key: `ip:${ip}`, signedIn: false };
+  const hasCred = !!(sessionCookie || headers.get("authorization")?.match(/^Bearer\s+\S+/));
+  const candidates = [headers.get("x-forwarded-for")?.split(",")[0]?.trim(), headers.get("x-real-ip")?.trim()];
+  const ip = candidates.find((c): c is string => !!c && IP_SHAPE.test(c)) || "unknown";
+  return { key: `ip:${ip}`, signedIn: hasCred };
 }
 
 const hits = new Map<string, number[]>();

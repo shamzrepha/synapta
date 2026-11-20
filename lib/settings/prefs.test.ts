@@ -8,7 +8,7 @@ describe("prefs", () => {
     expect(parsePrefs(42)).toEqual(DEFAULT_PREFS);
   });
   it("parses strings and objects, coercing to booleans", () => {
-    expect(parsePrefs('{"dataSaver":true,"reduceMotion":"yes"}')).toEqual({ dataSaver: true, reduceMotion: false, noAutoplay: false, soundEffects: true, language: "en", accent: "blue" });
+    expect(parsePrefs('{"dataSaver":true,"reduceMotion":"yes"}')).toEqual({ dataSaver: true, reduceMotion: false, noAutoplay: false, soundEffects: true, language: "en", accent: "blue", mode: "system" });
     expect(parsePrefs({ accent: "rose" }).accent).toBe("rose");
     expect(parsePrefs({ accent: "<script>" }).accent).toBe("blue");
     expect(parsePrefs({ soundEffects: false }).soundEffects).toBe(false);

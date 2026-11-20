@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "billing_verify", limit: 10, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "billing_verify", limit: 10, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const reference = (req.nextUrl.searchParams.get("reference") || "").trim();
     if (!/^[A-Za-z0-9_.=-]{6,100}$/.test(reference)) throw new ApiError(400, "VALIDATION", "Missing payment reference.");

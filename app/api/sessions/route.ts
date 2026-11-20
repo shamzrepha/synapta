@@ -69,7 +69,7 @@ function roomCode(): string {
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "session_create", limit: 5, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "session_create", limit: 5, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, createSchema);
     const access = await assertClassAccess(caller, body.classId, "view");

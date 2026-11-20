@@ -18,6 +18,7 @@ const schema = z.object({
   soundEffects: z.boolean().optional(),
   language: z.enum(LANGUAGE_CODES).optional(),
   accent: z.enum(ACCENT_IDS).optional(),
+  mode: z.enum(["light", "dark", "system"]).optional(),
   accessibility: z.unknown().optional(),
 });
 
@@ -50,7 +51,8 @@ export async function PUT(req: NextRequest) {
       typeof rawPrefs.noAutoplay === "boolean" ||
       typeof rawPrefs.soundEffects === "boolean" ||
       typeof rawPrefs.language === "string" ||
-      typeof rawPrefs.accent === "string";
+      typeof rawPrefs.accent === "string" ||
+      typeof rawPrefs.mode === "string";
 
     const update: Record<string, unknown> = { prefsUpdatedAt: Timestamp.now() };
     const prefs = hasPrefs ? parsePrefs(rawPrefs) : undefined;

@@ -23,6 +23,7 @@ function seed(): Store {
   set("posts/p2", { authorUid: "u2" });
   set("avatars/u1", { data: "x" });
   set("learnerProfiles/u1", {});
+  set("learnerMirror/u1", { personalise: true });
   set("enrollments/c1_u1", { uid: "u1" });
   set("friend_requests/r1", { fromUid: "u1", toUid: "u2" });
   set("payments/ref1", { reference: "ref1", uid: "u1", email: "a@b.c", name: "Ada", plan: "pro", term: "month", amountKobo: 100 });
@@ -46,7 +47,7 @@ describe("deleteUserData", () => {
     const r = await deleteUserData(makeFakeDb(s), "u1");
     expect(r.errors).toEqual([]);
     expect([...s.keys()].filter((k) => k.startsWith("evidence/") && s.get(k)?.uid === "u1")).toEqual([]);
-    for (const gone of ["users/u1", "users/u1/friends/u2", "users/u2/friends/u1", "mastery/u1_kc1", "studyNotes/n1", "studyNotes/n1/versions/1", "notebooks/nb1", "posts/p1", "avatars/u1", "learnerProfiles/u1", "enrollments/c1_u1", "friend_requests/r1", "users/u1/pushTokens/t1"]) {
+    for (const gone of ["users/u1", "users/u1/friends/u2", "users/u2/friends/u1", "mastery/u1_kc1", "studyNotes/n1", "studyNotes/n1/versions/1", "notebooks/nb1", "posts/p1", "avatars/u1", "learnerProfiles/u1", "learnerMirror/u1", "enrollments/c1_u1", "friend_requests/r1", "users/u1/pushTokens/t1"]) {
       expect(s.has(gone), gone).toBe(false);
     }
     for (const kept of ["users/u2", "mastery/u2_kc1", "evidence/other", "studyNotes/n2", "posts/p2", "classes/c9"]) expect(s.has(kept), kept).toBe(true);

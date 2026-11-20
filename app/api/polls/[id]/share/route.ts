@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "poll_share", limit: 6, windowMs: 3600_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "poll_share", limit: 6, windowMs: 3600_000, shared: true });
     if (limited) return limited;
     const s = await adminDb().collection("polls").doc(id).get();
     if (!s.exists || s.data()!.deleted) throw new ApiError(404, "NOT_FOUND", "Poll not found");

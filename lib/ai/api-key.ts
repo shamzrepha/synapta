@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
+import { encryptionStatus, openFromStorage, resealField, sealForStorage } from "@/lib/security/secret-box";
 
 /**
  * The Gemini API key in use. An admin can set a new key from the Admin Console (stored server-side in the
@@ -20,6 +21,8 @@ export interface ApiKeyInfo {
   last4: string | null;
   updatedAt: string | null;
   updatedBy: string | null;
+  /** Set when SECRETS_ENCRYPTION_KEY is missing/invalid: keys are then stored unencrypted. */
+  encryptionWarning?: string | null;
 }
 
 /** The key to call Gemini with right now (synchronous; refreshed in the background). */
@@ -34,8 +37,9 @@ export function refreshGeminiKey(force = false): Promise<void> {
   if (refreshing) return refreshing;
   refreshing = (async () => {
     try {
-      const key = (await DOC().get()).data()?.key;
-      override = typeof key === "string" && key.trim() ? key.trim() : null;
+      const opened = openFromStorage((await DOC().get()).data()?.key);
+      override = opened.value.trim() || null;
+      if (opened.needsReseal && override) void resealField(DOC(), "key", override); // legacy plaintext -> ciphertext
     } catch {
       /* keep the current key */
     } finally {
@@ -60,7 +64,7 @@ export function looksLikeGeminiKey(key: string): boolean {
 
 export async function saveGeminiKey(key: string, by: { uid: string; email: string | null }) {
   const k = cleanApiKey(key);
-  await DOC().set({ key: k, last4: k.slice(-4), updatedAt: Timestamp.now(), updatedBy: by.email || by.uid });
+  await DOC().set({ key: sealForStorage(k), last4: k.slice(-4), updatedAt: Timestamp.now(), updatedBy: by.email || by.uid });
   override = k;
   checkedAt = Date.now();
 }
@@ -76,10 +80,10 @@ export async function geminiKeyInfo(): Promise<ApiKeyInfo> {
   const snap = await DOC().get().catch(() => null);
   const d = snap?.data();
   if (d?.key) {
-    return { source: "admin", last4: String(d.last4 || String(d.key).slice(-4)), updatedAt: d.updatedAt?.toDate?.().toISOString?.() ?? null, updatedBy: d.updatedBy ?? null };
+    return { encryptionWarning: encryptionStatus().warning, source: "admin", last4: String(d.last4 || openFromStorage(d.key).value.slice(-4) || ""), updatedAt: d.updatedAt?.toDate?.().toISOString?.() ?? null, updatedBy: d.updatedBy ?? null };
   }
   const env = process.env.GEMINI_API_KEY || "";
-  return env ? { source: "environment", last4: env.slice(-4), updatedAt: null, updatedBy: null } : { source: "none", last4: null, updatedAt: null, updatedBy: null };
+  return env ? { encryptionWarning: encryptionStatus().warning, source: "environment", last4: env.slice(-4), updatedAt: null, updatedBy: null } : { source: "none", last4: null, updatedAt: null, updatedBy: null };
 }
 
 /** Proves a key works with one tiny real request. Returns null when it works, else a plain reason for the admin. */

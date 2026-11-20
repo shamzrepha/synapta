@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
     requireVerifiedEmail(caller);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "upload_image", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "upload_image", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { dataUrl, scope } = await parseJson(req, schema);
     const m = dataUrl.match(/^data:image\/[a-z+.-]+;base64,([A-Za-z0-9+/=]+)$/);

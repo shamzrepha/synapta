@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pat
     if (t) {
       designId = await createDesign({ user: caller, title: `${stage.title}`.slice(0, 80), spec: templateStart(t, true), source: "template", message: `Path “${p.title}” — ${stage.title}`, templateId: t.id });
     } else {
-      const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000 });
+      const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000, shared: true });
       if (limited) return limited;
       await checkFeature(caller.uid, "studio_ai");
       const out = await generateDesign({ prompt: `${stage.buildPrompt || stage.title}. Context: this practises "${stage.title}" on the way to the goal "${p.goal}".`, level: p.level >= 4 ? "advanced" : p.level >= 2 ? "intermediate" : "beginner", userId: caller.uid });

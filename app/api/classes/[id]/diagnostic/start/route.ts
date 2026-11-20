@@ -104,6 +104,7 @@ ${kcsSummary}
 Generate ${sampleKcs.length} diagnostic questions.`;
 
     const { data, tokensIn, tokensOut } = await generateStructuredJson({
+      userId: caller.uid,
       systemInstruction,
       userPrompt,
       schema: quizResponseSchema,

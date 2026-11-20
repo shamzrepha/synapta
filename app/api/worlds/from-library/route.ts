@@ -54,7 +54,7 @@ const body = z.object({
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser(req, ["teacher", "admin"]);
-    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-from-library", limit: 10, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-from-library", limit: 10, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const b = await parseJson(req, body);
     await assertClassAccess(user, b.classId, "mutate");

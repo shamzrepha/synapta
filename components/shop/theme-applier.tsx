@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { getItem, themeVariables, THEME_SHADES } from "@/lib/shop/catalog";
 
-const STORAGE_KEY = "sunroot-theme";
+// own key: "sunroot-theme" holds the light/dark choice (components/providers/theme-provider.tsx), so the two must not share it
+const STORAGE_KEY = "sunroot-shop-theme";
 export const THEME_EVENT = "sunroot:theme";
 
 function apply(themeId: string | null | undefined) {

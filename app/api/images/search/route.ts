@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export async function GET(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "img_search", limit: 30, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "img_search", limit: 30, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const sp = req.nextUrl.searchParams;
     const q = (sp.get("q") || "").trim().slice(0, 120);

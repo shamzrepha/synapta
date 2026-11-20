@@ -37,7 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const caller = await requireUser(req);
     requireVerifiedEmail(caller);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "poll_comment", limit: 20, windowMs: 600_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "poll_comment", limit: 20, windowMs: 600_000, shared: true });
     if (limited) return limited;
     const { text } = await parseJson(req, schema);
     if (countLinks(text) > 1) throw new ApiError(400, "VALIDATION", "At most 1 link per comment.");

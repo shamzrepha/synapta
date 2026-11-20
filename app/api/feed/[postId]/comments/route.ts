@@ -61,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pos
     const { postId } = await params;
     const caller = await requireUser(req);
     requireVerifiedEmail(caller);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "feed_comment", limit: 15, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "feed_comment", limit: 15, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { text, parentId } = await parseJson(req, schema);
     const { ref, post } = await loadVisiblePost(caller, postId);

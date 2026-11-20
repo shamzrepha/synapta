@@ -14,7 +14,7 @@ const schema = z.object({ plan: z.string().min(1).max(20), term: z.enum(["month"
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "billing_checkout", limit: 6, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "billing_checkout", limit: 6, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { plan, term } = await parseJson(req, schema);
     const secret = process.env.PAYSTACK_SECRET_KEY;

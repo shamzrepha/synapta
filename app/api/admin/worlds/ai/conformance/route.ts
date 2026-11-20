@@ -12,7 +12,7 @@ export const maxDuration = 120;
 export async function POST(req: NextRequest) {
   try {
     const admin = await requireUser(req, ["admin"]);
-    const limited = await checkRateLimit(req, { uid: admin.uid, keyPrefix: "worlds-conformance", limit: 5, windowMs: 300_000 });
+    const limited = await checkRateLimit(req, { uid: admin.uid, keyPrefix: "worlds-conformance", limit: 5, windowMs: 300_000, shared: true });
     if (limited) return limited;
     try {
       return NextResponse.json({ ok: true, data: { report: await runExtractConformance(await getAiConfig(true)) } });

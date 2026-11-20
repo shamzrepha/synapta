@@ -5,6 +5,7 @@ import { isLanguageCode } from "@/lib/i18n/languages";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { z } from "zod";
+import { assertAiActive } from "@/lib/ai/guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
     const caller = await requireUser(req);
     const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "voice_line", limit: 90, windowMs: 60_000 });
     if (limited) return limited;
+    await assertAiActive({ spend: true });
     const parsed = schema.safeParse(await req.json().catch(() => ({})));
     if (!parsed.success) {
       return NextResponse.json({ ok: false, error: { code: "VALIDATION", message: "Provide text and a speaker." } }, { status: 400 });
