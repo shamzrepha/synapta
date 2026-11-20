@@ -56,6 +56,7 @@ export async function POST(
     });
 
     const { data, tokensIn, tokensOut } = await generateStructuredJson({
+      userId: caller.uid,
       systemInstruction,
       userPrompt,
       schema: syllabusSynthesisResponseSchema,

@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
     requireVerifiedEmail(caller);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "shoutout", limit: 12, windowMs: 3600_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "shoutout", limit: 12, windowMs: 3600_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, schema);
     const msg = validateMessage(body.message);

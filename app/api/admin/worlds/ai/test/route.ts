@@ -13,12 +13,13 @@ export const maxDuration = 60;
 export async function POST(req: NextRequest) {
   try {
     const admin = await requireUser(req, ["admin"]);
-    const limited = await checkRateLimit(req, { uid: admin.uid, keyPrefix: "worlds-ai-test", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: admin.uid, keyPrefix: "worlds-ai-test", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { task } = await parseJson(req, z.object({ task: z.enum(TASKS) }));
     const attempts: Array<{ modelId: string; ok: boolean; repairs: number; latencyMs: number; reason?: string }> = [];
     try {
       const r = await generateStructured({
+        system: true,
         task,
         promptName: "ping",
         promptVars: { word: "heart" },

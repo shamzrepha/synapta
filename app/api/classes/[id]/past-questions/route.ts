@@ -193,7 +193,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const caller = await requireUser(req);
     const { id: classId } = await params;
-    const burst = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "pastq", limit: 30, windowMs: 60_000 });
+    const burst = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "pastq", limit: 30, windowMs: 60_000, shared: true });
     if (burst) return burst;
     // Members only: the shared bank must not be readable or writable by anyone with a link
     await assertClassAccess(caller, classId, "view");

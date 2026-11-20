@@ -7,6 +7,7 @@ import { cleanApiKey, clearGeminiKey, geminiKeyInfo, looksLikeGeminiKey, saveGem
 import { clearAllModelExhaustion } from "@/lib/ai/health";
 import { resetVoiceBreakers } from "@/lib/ai/voice";
 import { resolveModelChain } from "@/lib/ai/router";
+import { writeAudit } from "@/lib/security/audit";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -36,6 +37,7 @@ export async function PUT(req: NextRequest) {
     const problem = await testGeminiKey(key, model);
     if (problem) throw new ApiError(400, "KEY_TEST_FAILED", problem);
     await saveGeminiKey(key, admin);
+    await writeAudit({ actorUid: admin.uid, actorEmail: admin.email, action: "ai_key.saved", targetType: "secret", targetId: "gemini", details: { last4: key.slice(-4) } });
     // a fresh key has its own quota: forget the old key's "exhausted" marks and voice cool-downs
     await clearAllModelExhaustion().catch(() => null);
     resetVoiceBreakers();
@@ -48,8 +50,9 @@ export async function PUT(req: NextRequest) {
 /** Goes back to the GEMINI_API_KEY environment variable. */
 export async function DELETE(req: NextRequest) {
   try {
-    await requireUser(req, ["admin"]);
+    const admin = await requireUser(req, ["admin"]);
     await clearGeminiKey();
+    await writeAudit({ actorUid: admin.uid, actorEmail: admin.email, action: "ai_key.removed", targetType: "secret", targetId: "gemini" });
     await clearAllModelExhaustion().catch(() => null);
     resetVoiceBreakers();
     return NextResponse.json({ ok: true, data: await geminiKeyInfo() });

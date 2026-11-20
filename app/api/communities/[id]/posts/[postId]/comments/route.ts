@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   try {
     const caller = await requireUser(req);
     requireVerifiedEmail(caller);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "community_comment", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "community_comment", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { id, postId } = await params;
     await requireMember(id, caller.uid);

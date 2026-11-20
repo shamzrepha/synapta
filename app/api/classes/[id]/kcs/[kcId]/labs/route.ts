@@ -113,7 +113,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await ref.update({ labs: [...labs, lab] });
     } else {
       if (labs.length >= 12) throw new ApiError(409, "LIMIT", "Up to 12 labs per topic.");
-      const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000 });
+      const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000, shared: true });
       if (limited) return limited;
       await checkFeature(caller.uid, "studio_ai");
       const k = kc.data()!;

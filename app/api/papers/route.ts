@@ -25,7 +25,7 @@ const createSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "papers-create", limit: 5, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "papers-create", limit: 5, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, createSchema);
     if (!(body.classId && body.kcId) && !(body.text && body.text.length >= 3)) {

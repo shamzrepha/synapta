@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const { id } = await params;
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tutor_answer", limit: 30, windowMs: 3600_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tutor_answer", limit: 30, windowMs: 3600_000, shared: true });
     if (limited) return limited;
     const { answer } = await parseJson(req, schema);
     const profile = await adminDb().collection("tutorProfiles").doc(caller.uid).get();

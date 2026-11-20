@@ -43,4 +43,10 @@ describe("admin broadcast", () => {
     await post({});
     expect(limited).toContain("admin_broadcast");
   });
+  it("writes an audit entry for the broadcast", async () => {
+    await post({});
+    const logs = [...store.entries()].filter(([k]) => k.startsWith("auditLogs/"));
+    expect(logs).toHaveLength(1);
+    expect(logs[0][1]).toMatchObject({ actorUid: "admin1", action: "broadcast.sent", details: { deliveredCount: 2 } });
+  });
 });

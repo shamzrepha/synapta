@@ -7,6 +7,7 @@ import { isLanguageCode, needsTranslation } from "@/lib/i18n/languages";
 import { getUserLanguage } from "@/lib/i18n/server";
 import { translateOne } from "@/lib/i18n/translate";
 import { z } from "zod";
+import { assertAiActive } from "@/lib/ai/guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -15,8 +16,9 @@ export const maxDuration = 30;
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tts", limit: 40, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "tts", limit: 40, windowMs: 60_000, shared: true });
     if (limited) return limited;
+    await assertAiActive({ spend: true });
     const { text, voice, lang, reader } = await parseJson(
       req,
       z.object({ text: z.string().trim().min(1).max(1200), voice: z.enum(["female", "male"]).optional(), lang: z.string().optional(), reader: z.boolean().optional() })

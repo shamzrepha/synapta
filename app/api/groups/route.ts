@@ -42,7 +42,7 @@ const createSchema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "group_create", limit: 5, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "group_create", limit: 5, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, createSchema);
     const mine = await adminDb().collection("studyGroups").where("memberUids", "array-contains", caller.uid).limit(MAX_GROUPS_PER_USER + 1).get();

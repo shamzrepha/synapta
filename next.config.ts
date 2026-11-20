@@ -1,10 +1,16 @@
 import type { NextConfig } from "next";
 
-/** The site's content security policy. `extraScript` adds script hosts (used only for the push-notification worker). */
+const isProd = process.env.NODE_ENV === "production";
+
+/**
+ * The site's content security policy. 'unsafe-eval' is added only outside production: Next's dev runtime needs it and
+ * nothing the app ships does (no eval/new Function in our code; three.js, blockly, mermaid and katex do not need it;
+ * the sim iframe sets its own meta CSP). 'unsafe-inline' stays for scripts until Next inline scripts get nonces.
+ * `extraScript` adds script hosts (used only for the push-notification worker). */
 const contentSecurityPolicy = (extraScript: string[] = []) =>
   [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-eval' 'unsafe-inline' https://apis.google.com${extraScript.length ? ` ${extraScript.join(" ")}` : ""}`,
+    `script-src 'self'${isProd ? "" : " 'unsafe-eval'"} 'unsafe-inline' https://apis.google.com${extraScript.length ? ` ${extraScript.join(" ")}` : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "media-src 'self' blob:",
     "font-src 'self' data: https://fonts.gstatic.com",
@@ -17,6 +23,7 @@ const contentSecurityPolicy = (extraScript: string[] = []) =>
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
+    ...(isProd ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 
 const securityHeaders = [
@@ -38,8 +45,13 @@ const securityHeaders = [
   },
   {
     key: "Permissions-Policy",
-    // the voice tutor needs the microphone on our own pages; everything else stays off
-    value: "camera=(), microphone=(self), geolocation=()",
+    // camera and microphone on our own pages only (voice tutor, photo questions); everything else stays off
+    value: "camera=(self), microphone=(self), geolocation=()",
+  },
+  {
+    // lets Google/Firebase sign-in popups talk back to the opener (plain same-origin would break them)
+    key: "Cross-Origin-Opener-Policy",
+    value: "same-origin-allow-popups",
   },
   {
     key: "Content-Security-Policy",

@@ -12,7 +12,7 @@ const Body = z.object({ itemId: z.string().min(1).max(60) });
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "shop-buy", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "shop-buy", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { itemId } = await parseJson(req, Body);
     const result = await purchaseItem(caller.uid, itemId);

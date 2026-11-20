@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       id = await createDesign({ user: caller, title: body.title || t.title, spec: templateStart(t, body.guided), source: "template", message: `Started from “${t.title}”`, templateId: t.id, visibility: body.visibility, classId: body.classId, kcId: body.kcId, challengeId: body.challengeId });
     } else if (body.from === "prompt") {
       if (!body.prompt || body.prompt.length < 4) throw new ApiError(400, "VALIDATION", "Describe what you want to build.");
-      const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000 });
+      const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000, shared: true });
       if (limited) return limited;
       await checkFeature(caller.uid, "studio_ai");
       const parts = cleanSelection(body.parts);

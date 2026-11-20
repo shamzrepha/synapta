@@ -1,6 +1,7 @@
 import { recordSpend } from "@/lib/ai/openrouter-spend";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { cleanApiKey } from "@/lib/ai/api-key";
+import { encryptionStatus, openFromStorage, resealField, sealForStorage } from "@/lib/security/secret-box";
 
 /**
  * OpenRouter: one account and one key that reach Claude, DeepSeek, Qwen, GPT, Llama, Mistral, Gemini and many text-to-speech voices,
@@ -20,6 +21,8 @@ export interface OpenRouterKeyInfo {
   last4: string | null;
   updatedAt: string | null;
   updatedBy: string | null;
+  /** Set when SECRETS_ENCRYPTION_KEY is missing/invalid: keys are then stored unencrypted. */
+  encryptionWarning?: string | null;
 }
 
 export const looksLikeOpenRouterKey = (key: string): boolean => {
@@ -38,8 +41,9 @@ export function refreshOpenRouterKey(force = false): Promise<void> {
   refreshing = (async () => {
     try {
       const snap = await SECRET_DOC().get();
-      const key = snap.data()?.key;
-      cachedKey = typeof key === "string" && key.trim() ? cleanApiKey(key) : null;
+      const opened = openFromStorage(snap.data()?.key);
+      cachedKey = opened.value.trim() ? cleanApiKey(opened.value) : null;
+      if (opened.needsReseal && cachedKey) void resealField(SECRET_DOC(), "key", cachedKey);
     } catch {
       /* keep the cached key */
     } finally {
@@ -52,7 +56,7 @@ export function refreshOpenRouterKey(force = false): Promise<void> {
 
 export async function saveOpenRouterKey(key: string, by: { uid: string; email: string | null }) {
   const k = cleanApiKey(key);
-  await SECRET_DOC().set({ key: k, last4: k.slice(-4), updatedAt: Timestamp.now(), updatedBy: by.email || by.uid });
+  await SECRET_DOC().set({ key: sealForStorage(k), last4: k.slice(-4), updatedAt: Timestamp.now(), updatedBy: by.email || by.uid });
   cachedKey = k;
   checkedAt = Date.now();
 }
@@ -67,10 +71,10 @@ export async function openRouterKeyInfo(): Promise<OpenRouterKeyInfo> {
   const snap = await SECRET_DOC().get().catch(() => null);
   const d = snap?.data();
   if (d?.key) {
-    return { source: "admin", last4: String(d.last4 || String(d.key).slice(-4)), updatedAt: d.updatedAt?.toDate?.().toISOString?.() ?? null, updatedBy: d.updatedBy ?? null };
+    return { encryptionWarning: encryptionStatus().warning, source: "admin", last4: String(d.last4 || openFromStorage(d.key).value.slice(-4) || ""), updatedAt: d.updatedAt?.toDate?.().toISOString?.() ?? null, updatedBy: d.updatedBy ?? null };
   }
   const env = process.env.OPENROUTER_API_KEY || "";
-  return env ? { source: "environment", last4: env.slice(-4), updatedAt: null, updatedBy: null } : { source: "none", last4: null, updatedAt: null, updatedBy: null };
+  return env ? { encryptionWarning: encryptionStatus().warning, source: "environment", last4: env.slice(-4), updatedAt: null, updatedBy: null } : { source: "none", last4: null, updatedAt: null, updatedBy: null };
 }
 
 const headers = (key: string) => ({

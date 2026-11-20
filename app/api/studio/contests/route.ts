@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
     if (caller.role !== "teacher" && caller.role !== "admin") throw new ApiError(403, "FORBIDDEN", "Only teachers can create contests.");
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_contest", limit: 10, windowMs: 60 * 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_contest", limit: 10, windowMs: 60 * 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, contestSchema);
     if (Date.parse(body.deadline) <= Date.now()) throw new ApiError(400, "VALIDATION", "The deadline must be in the future.");

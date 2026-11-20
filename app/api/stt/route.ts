@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { transcribeAudioWithGroq } from "@/lib/ai/groq";
+import { assertAiActive } from "@/lib/ai/guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -23,6 +24,7 @@ export async function POST(req: NextRequest) {
       shared: true,
     });
     if (limited) return limited;
+    await assertAiActive({ spend: true });
 
     const form = await req.formData().catch(() => null);
     if (!form) {

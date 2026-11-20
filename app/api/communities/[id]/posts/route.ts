@@ -59,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const caller = await requireUser(req);
     requireVerifiedEmail(caller);
     const { id } = await params;
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "community_post", limit: 10, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "community_post", limit: 10, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const role = await requireMember(id, caller.uid);
     const body = await parseJson(req, postSchema);

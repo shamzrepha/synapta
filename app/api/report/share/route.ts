@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "report-share", limit: 10, windowMs: 60 * 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "report-share", limit: 10, windowMs: 60 * 60_000, shared: true });
     if (limited) return limited;
     const [numbers, userSnap] = await Promise.all([buildReportNumbers(caller.uid), adminDb().collection("users").doc(caller.uid).get()]);
     const narrative = await getStoredNarrative(caller.uid, numbers.to);

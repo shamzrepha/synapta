@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     const rateLimitRes = await checkRateLimit(req, {
       keyPrefix: "bootstrap",
       limit: 30,
-      windowMs: 60_000,
+      windowMs: 60_000, shared: true
     });
     if (rateLimitRes) return rateLimitRes;
 

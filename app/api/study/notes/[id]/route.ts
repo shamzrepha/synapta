@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   try {
     const { id } = await params;
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "study_notes_refine", limit: 10, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "study_notes_refine", limit: 10, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, refineSchema);
     const preset = REFINE_PRESETS.find((p) => p.id === body.preset);

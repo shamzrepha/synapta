@@ -12,7 +12,7 @@ const Body = z.object({ seasonId: z.string().min(1).max(80) });
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "season-claim", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "season-claim", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { seasonId } = await parseJson(req, Body);
     const result = await claimSeason(caller.uid, seasonId);

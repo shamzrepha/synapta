@@ -17,6 +17,7 @@ import { ALL_AI_TASK_KEYS } from "@/lib/ai/tasks";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { z } from "zod";
+import { writeAudit } from "@/lib/security/audit";
 
 export const runtime = "nodejs";
 
@@ -87,6 +88,8 @@ export async function PATCH(req: NextRequest) {
       },
       { merge: true }
     );
+
+    await writeAudit({ actorUid: caller.uid, actorEmail: caller.email, action: "ai_models.assigned", targetType: "config", targetId: "aiModels", details: { tasks: Object.keys(cleanAssignments).join(",") } });
 
     // Clear exhaustion for updated models so the user isn't stuck with old locks
     for (const modelId of Object.values(cleanAssignments)) {

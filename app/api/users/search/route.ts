@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
       keyPrefix: "user_search",
       limit: 20,
       windowMs: 60_000,
-      uid: caller.uid,
+      uid: caller.uid, shared: true
     });
     if (rateLimitRes) return rateLimitRes;
 

@@ -41,7 +41,7 @@ const schema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const body = await parseJson(req, schema);
     await checkFeature(caller.uid, "studio_ai");

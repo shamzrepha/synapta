@@ -23,7 +23,7 @@ const schema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "doc_read", limit: 30, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "doc_read", limit: 30, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { images } = await parseJson(req, schema);
     const parsed = images.map((i) => parseImageDataUrl(i));

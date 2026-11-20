@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const { worldId } = await params;
     const user = await requireUser(req);
     await ownWorld(worldId, user.uid);
-    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-images", limit: 6, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-images", limit: 6, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const lib = await loadLibrary(worldId);
     const have = new Set((await imagesCol(worldId).get()).docs.map((d) => d.id));

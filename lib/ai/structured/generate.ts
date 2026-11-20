@@ -4,6 +4,7 @@ import { buildRepairPrompt, describeZodError, parseJsonLoose } from "./json";
 import { loadPrompt, UNIVERSAL_PREAMBLE } from "./prompts";
 import { withModelMasterSkill } from "@/lib/ai/master-skills";
 import { AiChainExhaustedError, ProviderError, type AiConfig, type ModelProfile, type ProviderAdapter, type TaskName, type Tier } from "./types";
+import { assertAiActive } from "@/lib/ai/guard";
 
 export interface GenerateStructuredOptions<T> {
   task: TaskName;
@@ -15,6 +16,8 @@ export interface GenerateStructuredOptions<T> {
   /** Optional JSON Schema, sent only to models that declare the json_schema capability. */
   jsonSchema?: object;
   maxRepairs?: number;
+  /** Admin health checks and conformance runs set this so they still work while AI is paused for learners. */
+  system?: boolean;
   /** 0 to 0.3 for extraction and checking; up to 0.7 only for creative text. */
   temperature?: number;
   maxTokens?: number;
@@ -45,6 +48,7 @@ export function batchPlan(tier: Tier, config: AiConfig): { maxChunkTokens: numbe
  * fails, fail over to the next model; if the chain is exhausted, throw a typed error the pipeline turns into `needs_retry`.
  */
 export async function generateStructured<T>(opts: GenerateStructuredOptions<T>): Promise<GenerateStructuredResult<T>> {
+  if (!opts.system) await assertAiActive({ spend: true }); // admin pause switch + OpenRouter daily cap
   const config = opts.config ?? (await getAiConfig());
   const chain = await resolveChain(opts.task, config);
   const getAdapter = opts.adapterFor ?? adapterFor;

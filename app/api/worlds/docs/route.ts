@@ -23,7 +23,7 @@ const body = z
 export async function POST(req: NextRequest) {
   try {
     const user = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-docs", limit: 30, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: user.uid, keyPrefix: "worlds-docs", limit: 30, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const b = await parseJson(req, body);
     const total = (b.pageTexts ?? []).reduce((n, t) => n + t.length, 0);

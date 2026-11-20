@@ -21,7 +21,7 @@ const schema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mindmap-explain", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "mindmap-explain", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     const { path, level } = await parseJson(req, schema);
     await checkRateLimitAndQuota(caller.uid, 1200);

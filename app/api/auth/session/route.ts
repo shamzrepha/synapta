@@ -15,7 +15,7 @@ const sessionSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const limited = await checkRateLimit(req, { keyPrefix: "auth_session", limit: 20, windowMs: 60_000 });
+    const limited = await checkRateLimit(req, { keyPrefix: "auth_session", limit: 20, windowMs: 60_000, shared: true });
     if (limited) return limited;
     let body: unknown;
     try {
