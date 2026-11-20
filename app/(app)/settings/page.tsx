@@ -11,6 +11,7 @@ import { parseAccessibility, type TtsSpeed } from "@/lib/settings/accessibility"
 import { cn } from "@/lib/utils";
 import { LanguageSettings } from "@/components/settings/language-picker";
 import { AccentPicker } from "@/components/settings/accent-picker";
+import { READ_PACES } from "@/lib/study/read-offer";
 import { BotToggle } from "@/components/bot/bot-toggle";
 import { AppVersionCard } from "@/components/settings/app-version-card";
 import { PrivacyCard } from "@/components/settings/privacy-card";
@@ -88,6 +89,22 @@ export default function SettingsPage() {
           </div>
         ))}
         <BotToggle />
+        <div className="flex items-center gap-3 p-4">
+          <span className="text-brand-600"><Volume2 className="h-5 w-5" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-sm">Offer to read pages with me</p>
+            <p className="text-xs text-slate-500">When a class book page opens, Sprout asks if you want it read aloud.</p>
+          </div>
+          <Toggle on={prefs.readOffer} onChange={(v) => update({ readOffer: v })} label="Offer to read pages with me" />
+        </div>
+        <div className="flex items-center justify-between gap-3 p-4">
+          <p className="font-semibold text-sm">Reading pace</p>
+          <div className="inline-flex rounded-lg border border-border p-0.5 text-xs font-semibold" role="group" aria-label="Reading pace">
+            {READ_PACES.map((p) => (
+              <button key={p.rate} type="button" aria-pressed={prefs.readPace === p.rate} onClick={() => update({ readPace: p.rate })} className={cn("px-3 py-1.5 rounded-md", prefs.readPace === p.rate ? "bg-brand-600 text-white" : "text-muted-foreground")}>{p.label}</button>
+            ))}
+          </div>
+        </div>
       </Card>
 
       <div className="space-y-2">

@@ -8,6 +8,8 @@ export interface ReadChunk {
   block: string;
   /** optional anchor paragraph text used to locate which flipbook page holds this heading */
   pageAnchor?: string;
+  /** true for a title or heading: it is found on the page by its `data-read-heading` marker */
+  heading?: boolean;
 }
 
 /** Turns a topic's title and note into the pieces that are read aloud, in order, each tied to its heading or paragraph. */
@@ -15,13 +17,13 @@ export function buildReadQueue(title: string, markdown: string, maxChars = 480):
   const out: ReadChunk[] = [];
   const head = cleanForSpeech(title);
   const blocks = toBlocks(markdown);
-  if (head) out.push({ text: `${head}.`, block: title, pageAnchor: blocks[0]?.text || title });
+  if (head) out.push({ text: `${head}.`, block: title, pageAnchor: blocks[0]?.text || title, heading: true });
   let lastHeading = "";
   for (const b of blocks) {
     if (b.heading && b.heading !== lastHeading) {
       lastHeading = b.heading;
       const h = cleanForSpeech(b.heading);
-      if (h) out.push({ text: `${h}.`, block: b.heading, pageAnchor: b.text || b.heading });
+      if (h) out.push({ text: `${h}.`, block: b.heading, pageAnchor: b.text || b.heading, heading: true });
     }
     const spoken = cleanForSpeech(b.text);
     if (!spoken) continue;

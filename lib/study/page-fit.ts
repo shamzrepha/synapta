@@ -9,6 +9,8 @@ export interface PageBudget {
   maxLines: number;
   /** characters that fit on one line */
   charsPerLine: number;
+  /** height of one ruled line in px (the page is maxLines of these) */
+  lineH?: number;
 }
 
 export const DEFAULT_BUDGET: PageBudget = { maxLines: 22, charsPerLine: 44 };
@@ -101,18 +103,22 @@ export function splitOversize(block: string, maxLines: number, cpl: number): str
   return sentences.length > 1 ? pack(sentences, " ") : [block];
 }
 
+/** A printed page has the same number of lines wherever it is read: 24 on a phone, more on bigger screens. */
+export const PAGE_LINES = { phone: 24, tablet: 28, desktop: 32 } as const;
+
 /**
- * How many lines and characters fit on a page, from the screen and the text size. The reader keeps a toolbar, a chapter header
- * and page controls on screen, so only what is left is page.
+ * The page's lines and characters per line, from the screen width and the text size. The line count does not depend on the window
+ * height (so an address bar or keyboard never re-pages the book); bigger text means fewer lines on the same sheet.
  */
-export function budgetFor(width: number, height: number, scale = 1): PageBudget {
+export function budgetFor(width: number, _height?: number, scale = 1): PageBudget {
   const w = Math.max(280, width);
   const phone = w < 640;
-  const fontPx = (phone ? 15.5 : 16.6) * Math.min(1.6, Math.max(0.85, scale));
-  const lineH = fontPx * 1.8;
+  const s = Math.min(1.6, Math.max(0.85, scale));
+  const fontPx = (phone ? 15.5 : 16.6) * s;
+  const lineH = Math.round(fontPx * 1.8);
   const pageW = Math.min(w - 32, 768) - (phone ? 64 : 112);
   const charsPerLine = Math.max(22, Math.floor(pageW / (fontPx * 0.5)));
-  const chrome = phone ? 330 : 340;
-  const maxLines = Math.min(30, Math.max(11, Math.floor((height - chrome) / lineH)));
-  return { maxLines, charsPerLine };
+  const base = phone ? PAGE_LINES.phone : w < 1024 ? PAGE_LINES.tablet : PAGE_LINES.desktop;
+  const maxLines = Math.max(12, Math.round(base / Math.max(1, s)));
+  return { maxLines, charsPerLine, lineH };
 }

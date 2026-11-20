@@ -328,12 +328,17 @@ export function useReadThrough(opts: {
     setRateState(next);
     if (audio.current) audio.current.playbackRate = next;
   }, []);
+  const setRate = useCallback((r: number) => {
+    rateRef.current = r;
+    setRateState(r);
+    if (audio.current) audio.current.playbackRate = r;
+  }, []);
   const setAutoNext = useCallback((v: boolean) => {
     autoRef.current = v;
     setAutoNextState(v);
   }, []);
 
-  return { state, currentId, rate, autoNext, failed, start, stop, pause, resume, skip, cycleRate, setAutoNext };
+  return { state, currentId, rate, autoNext, failed, start, stop, pause, resume, skip, cycleRate, setRate, setAutoNext };
 }
 
 export function ReadPlayer({ api, title, className }: { api: ReturnType<typeof useReadThrough>; title: string; className?: string }) {

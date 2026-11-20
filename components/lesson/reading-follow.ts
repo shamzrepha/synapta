@@ -1,4 +1,5 @@
-import { perchOnWord, hopMs, hopPath, type Box } from "@/lib/pet/read-hop";
+import { perchOnWord, hopPath, type Box } from "@/lib/pet/read-hop";
+import { hopDuration, leadClipMs } from "@/lib/pet/read-timing";
 import { alignSpoken, splitDomWords } from "@/lib/study/word-sync";
 import { wordAt, type WordTiming } from "@/lib/voice/word-timing";
 import type { BotApi } from "@/components/bot/bot-provider";
@@ -26,9 +27,6 @@ function pageWords(root: HTMLElement): DomWord[] {
   }
   return out;
 }
-
-/** how far ahead of the voice (in clip time) Sprout stands */
-export const LEAD_MS = 190;
 
 const hasHighlights = (): boolean => typeof CSS !== "undefined" && "highlights" in CSS && typeof Highlight !== "undefined";
 
@@ -97,7 +95,7 @@ export function followReading(opts: {
     hopEnds = performance.now() + ms;
     hopWordTop = wordTop;
     // never wait on a hop that cannot finish (a hidden tab pauses animations): give it its time plus a little, then let the next one run
-    void Promise.race([bot.path(path, { duration: ms, pose: "idle" }), new Promise<void>((r) => window.setTimeout(r, ms + 400))]).catch(() => {});
+    void Promise.race([bot.path(path, { duration: ms, pose: "idle" }), new Promise<void>((r) => window.setTimeout(r, ms + 150))]).catch(() => {});
   };
 
   const rangeOf = (j: number): Range => {
@@ -193,7 +191,7 @@ export function followReading(opts: {
 
       // Sprout is a little ahead of the voice, so it has landed on a word by the time it is said (even at the start of a new line);
       // before the voice has started it stands on the very first word, not on one a little way in
-      const lead = ms < 40 ? 0 : wordAt(words, ms + LEAD_MS);
+      const lead = ms < 40 ? 0 : wordAt(words, ms + leadClipMs(audio.playbackRate));
       if (lead !== lastLead && lead >= 0) {
         lastLead = lead;
         const j = pageIndex(lead);
@@ -203,10 +201,11 @@ export function followReading(opts: {
           const to = perchOnWord(boxOf(wRect), { width: window.innerWidth, height: window.innerHeight });
           const from = bot.where();
           if (Math.hypot(to.x - from.x, to.y - from.y) > 1.5) {
-            // the voice may be sped up, so a word takes less real time than its length in the clip
+            // the hop is timed so it lands before the word starts, whatever the speed; a word on the same line is a short hop
+            const sameLine = Math.abs(to.y - from.y) < 14;
             hopTo(
               to,
-              Math.max(90, hopMs(from, to, Math.max(120, words[lead].e - words[lead].s)) / Math.max(0.5, audio.playbackRate)),
+              hopDuration({ from, to, wordMs: words[lead].e - words[lead].s, rate: audio.playbackRate, sameLine }),
               wRect.top
             );
           }
