@@ -1,3 +1,4 @@
+import { draftMap } from "@/lib/classes/published";
 import { designSpec } from "@/lib/ai/design-spec";
 import { executeStructuredAiTask, AiQuotaExhaustedError } from "@/lib/ai/router";
 import { sanitizeUntrustedPromptText } from "@/lib/ai/scrub";
@@ -399,6 +400,8 @@ Synthesize the concept map.`;
     .collection("kcs");
 
   const batch = adminDb().batch();
+  // Topics this build creates start as drafts; a re-run must never pull back what the lecturer already published
+  const existingIds = new Set((await kcsCollection.get()).docs.map((d) => d.id));
 
   nodesForDag.forEach((kc, idx) => {
     const kcRef = kcsCollection.doc(kc.id);
@@ -421,6 +424,7 @@ Synthesize the concept map.`;
       contentVersion: 1,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
+      ...(existingIds.has(kc.id) ? {} : { contentPublished: draftMap() }),
       // Eagerly draft first module starter lesson
       ...(idx < 3
         ? {

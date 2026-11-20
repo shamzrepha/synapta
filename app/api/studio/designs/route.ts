@@ -1,3 +1,4 @@
+import { checkFeature, recordFeature } from "@/lib/billing/usage";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
@@ -77,8 +78,10 @@ export async function POST(req: NextRequest) {
       if (!body.prompt || body.prompt.length < 4) throw new ApiError(400, "VALIDATION", "Describe what you want to build.");
       const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "studio_ai", limit: 8, windowMs: 60_000 });
       if (limited) return limited;
+      await checkFeature(caller.uid, "studio_ai");
       const parts = cleanSelection(body.parts);
       const out = await generateDesign({ prompt: body.prompt, kind: body.kind, level: body.level, userId: caller.uid, parts, research: body.research });
+      await recordFeature(caller.uid, "studio_ai");
       if (body.research) out.spec.research = body.research;
       id = await createDesign({ user: caller, title: body.title || out.title, spec: out.spec, source: "ai", message: out.message || `AI: ${body.prompt.slice(0, 80)}`, visibility: body.visibility, classId: body.classId, kcId: body.kcId, challengeId: body.challengeId });
     } else {

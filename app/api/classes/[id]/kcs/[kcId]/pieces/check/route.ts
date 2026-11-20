@@ -1,3 +1,4 @@
+import { piecesForStudents } from "@/lib/classes/live";
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { assertClassAccess } from "@/lib/auth/classAccess";
@@ -26,8 +27,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!access.canMutate && !isPublished(kc, "simulation")) {
       throw new ApiError(403, "NOT_PUBLISHED", "This lab isn't published yet.");
     }
-    const snap = await pieceRef(classId, kcId, index).get();
-    const q = snap.exists ? (snap.data() as StoredPiece).checkQuestion : null;
+    const piece = access.canMutate ? ((await pieceRef(classId, kcId, index).get()).data() as StoredPiece | undefined) : (await piecesForStudents(classId, kcId, kc)).get(index);
+    const q = piece?.checkQuestion ?? null;
     if (!q) throw new ApiError(404, "NO_CHECK", "This lab has no check question.");
     const correct = selectedOptionIndex === q.correctIndex;
     const evidence = access.isEnrolled

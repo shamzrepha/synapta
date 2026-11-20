@@ -2,8 +2,8 @@ import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { getAudioLesson, type AudioLessonMeta } from "@/lib/lesson/audio";
 import { getStoredSimulation, simulationRef, type StoredSimulation } from "@/lib/sim/store";
-import { getStoredPieces } from "@/lib/sim/pieces";
-import { getStoredQuests, questStatus } from "@/lib/quest/store";
+import { getStoredPieces, type StoredPiece } from "@/lib/sim/pieces";
+import { getStoredQuests, questStatus, type StoredQuest } from "@/lib/quest/store";
 import { readFlashcardBank, readQuizBank, stableId, type BankCard, type BankQuestion } from "@/lib/practice/bank";
 import { PUBLISH_KEYS, type PublishKey } from "./published";
 
@@ -56,6 +56,33 @@ export async function simulationForStudents(classId: string, kcId: string, kc: o
   if (mode === "follow") return getStoredSimulation(classId, kcId);
   const snap = await liveDoc(classId, kcId, "simulation").get();
   return snap.exists ? (snap.data()!.sim as StoredSimulation) : null;
+}
+
+/** Firestore rejects `undefined` anywhere in a document; a snapshot is plain data. */
+function plain<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v ?? null)) as T;
+}
+
+/**
+ * The piece labs a student may use. They share the simulation switch: off = none, follow = the working copy, snapshot = the
+ * copy pushed with the simulation. A snapshot pushed before pieces were part of it has no `pieces` field and keeps reading the working copy.
+ */
+export async function piecesForStudents(classId: string, kcId: string, kc: object): Promise<Map<number, StoredPiece>> {
+  const mode = liveMode(kc, "simulation");
+  if (mode === "off") return new Map();
+  if (mode === "follow") return getStoredPieces(classId, kcId);
+  const d = (await liveDoc(classId, kcId, "simulation").get()).data();
+  if (!Array.isArray(d?.pieces)) return getStoredPieces(classId, kcId);
+  return new Map((d!.pieces as StoredPiece[]).map((p) => [p.index, p]));
+}
+
+export async function questsForStudents(classId: string, kcId: string, kc: object): Promise<Map<number, StoredQuest>> {
+  const mode = liveMode(kc, "simulation");
+  if (mode === "off") return new Map();
+  if (mode === "follow") return getStoredQuests(classId, kcId);
+  const d = (await liveDoc(classId, kcId, "simulation").get()).data();
+  if (!Array.isArray(d?.quests)) return getStoredQuests(classId, kcId);
+  return new Map((d!.quests as StoredQuest[]).map((q) => [q.index, q]));
 }
 
 export async function quizBankForStudents(classId: string, kcId: string, kc: object): Promise<BankQuestion[]> {
@@ -165,7 +192,13 @@ export async function pushToStudents(classId: string, kcId: string, keys: Publis
     } else if (key === "simulation") {
       // null (not undefined, which Firestore rejects) when only piece labs or quests exist
       const sim = (await simulationRef(classId, kcId).get()).data() ?? null;
-      await liveDoc(classId, kcId, "simulation").set({ sim, at });
+      const [pieces, quests] = await Promise.all([
+        getStoredPieces(classId, kcId).catch(() => new Map<number, StoredPiece>()),
+        getStoredQuests(classId, kcId).catch(() => new Map<number, StoredQuest>()),
+      ]);
+      const readyPieces = [...pieces.values()].filter((p) => p.status === "ready" && !!(p.html || p.studioSpec));
+      const readyQuests = [...quests.values()].filter((q) => questStatus(q) === "ready" && !!q.challenges?.length);
+      await liveDoc(classId, kcId, "simulation").set({ sim, pieces: plain(readyPieces), quests: plain(readyQuests), at });
     } else {
       const [q, c] = await Promise.all([readQuizBank(classId, kcId), readFlashcardBank(classId, kcId)]);
       await Promise.all([liveDoc(classId, kcId, "quizBank").set({ questions: q, at }), liveDoc(classId, kcId, "flashcardBank").set({ cards: c, at })]);
