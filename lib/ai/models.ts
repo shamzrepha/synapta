@@ -179,6 +179,8 @@ export const TASK_GROUPS: Record<string, TaskGroup> = {
   explain_selection: "tutor",
   structured_spec: "structured",
   quiz_gen: "structured",
+  theory_set: "structured",
+  theory_mark: "structured",
   flashcard_gen: "structured",
   card_gen: "structured",
   material_route: "structured",

@@ -34,6 +34,9 @@ export interface ApplyEvidenceResult {
  */
 export const ACTIVE_ENROLLMENT = "active";
 
+/** Written (theory) answers that may move one topic's mastery per day. */
+export const THEORY_DAILY_CAP = 5;
+
 /**
  * Atomically updates Bayesian Knowledge Tracing (BKT) mastery, records
  * immutable evidence log, updates user XP, and manages streaks within a single transaction.
@@ -94,6 +97,15 @@ export async function applyEvidence({
       }
     }
 
+    // Anti-farming guard: written practice is marked by AI, so at most 5 credited answers per day per topic
+    if (activity === "theory") {
+      const todayStr = new Date().toISOString().split("T")[0];
+      const countToday = masteryData?.lastTheoryDate === todayStr ? (masteryData?.theoryCountToday ?? 0) : 0;
+      if (countToday >= THEORY_DAILY_CAP) {
+        throw new ApiError(429, "THEORY_RATE_LIMITED", "Written practice for this topic has counted 5 times today. Keep practising: it just won't change your mastery score until tomorrow.", { "Retry-After": "3600" });
+      }
+    }
+
     // Anti-farming guard: max 1 lab completion per 10 minutes per KC
     if (activity === "lab" && lastLabAt) {
       const lastLabMillis =
@@ -131,6 +143,8 @@ export async function applyEvidence({
           const lastDate = masteryData?.lastFlashcardDate;
           const countToday = lastDate === todayStr ? (masteryData?.flashcardCountToday ?? 0) : 0;
           xpEarned = countToday < 5 ? 5 : 1;
+        } else if (activity === "theory") {
+          xpEarned = 6; // below a quiz answer: it is self-paced and AI-marked
         } else if (activity === "lab") {
           xpEarned = 30;
         } else if (activity === "peer_explain") {
@@ -180,6 +194,11 @@ export async function applyEvidence({
       const countToday = lastDate === todayStr ? (masteryData?.flashcardCountToday ?? 0) : 0;
       masteryUpdates.flashcardCountToday = countToday + 1;
       masteryUpdates.lastFlashcardDate = todayStr;
+    }
+    if (activity === "theory") {
+      const lastDate = masteryData?.lastTheoryDate;
+      masteryUpdates.theoryCountToday = (lastDate === todayStr ? (masteryData?.theoryCountToday ?? 0) : 0) + 1;
+      masteryUpdates.lastTheoryDate = todayStr;
     }
     if (crossedMasteryFirstTime) {
       masteryUpdates.masteryBonusAwardedAt = Timestamp.now();
