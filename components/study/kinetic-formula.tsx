@@ -64,7 +64,7 @@ function StageShell({
   }
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-[#fbfaf6] dark:bg-[#0d1421] shadow-sm"
+      className="relative overflow-hidden rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-card shadow-sm"
       style={{
         backgroundImage:
           "radial-gradient(circle at 1px 1px, rgba(148,163,184,0.16) 1px, transparent 0)",

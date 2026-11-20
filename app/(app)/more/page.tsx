@@ -1,6 +1,7 @@
 "use client";
 
 import { FeatureIcon } from "@/components/shell/feature-icon";
+import { ThemeMenu } from "@/components/settings/theme-panel";
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
@@ -22,10 +23,13 @@ export default function MorePage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <p className="text-xs font-mono tracking-widest text-brand-600">SUNROOT</p>
-        <h1 className="text-2xl font-extrabold">All features</h1>
-        <p className="text-sm text-slate-500">{live} of {FEATURES.length} are live.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-mono tracking-widest text-brand-600">SUNROOT</p>
+          <h1 className="text-2xl font-extrabold">All features</h1>
+          <p className="text-sm text-slate-500">{live} of {FEATURES.length} are live.</p>
+        </div>
+        <ThemeMenu />
       </div>
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

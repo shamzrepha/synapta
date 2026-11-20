@@ -95,7 +95,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "(function(){try{var t=localStorage.getItem('sunroot-theme')||localStorage.getItem('synapta-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}})()",
+              "(function(){try{var t=localStorage.getItem('sunroot-theme')||localStorage.getItem('synapta-theme');var d=t==='dark'||t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}})()",
           }}
         />
         {/* Saved UI accent palette (data-accent on <html>), applied before first paint too */}
