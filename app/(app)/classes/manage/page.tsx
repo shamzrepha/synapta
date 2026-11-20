@@ -107,9 +107,10 @@ export default function TeacherClassesListPage() {
               </Button>
             </Link>
           ) : (
-            <Link href="/explore">
-              <Button size="sm">Find your class</Button>
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Link href="/explore"><Button size="sm" className="min-h-[44px]">Join with code</Button></Link>
+              <Link href="/study/notes"><Button size="sm" variant="outline" className="min-h-[44px]">Create notes instead</Button></Link>
+            </div>
           )}
         </Card>
       ) : (

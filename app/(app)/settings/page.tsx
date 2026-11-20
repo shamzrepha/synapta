@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import Link from "next/link";
 import { Settings as SettingsIcon, Gauge, Sparkles, VolumeX, BookOpen, Eye, Brain, Bot, Baby, Volume2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { startTour } from "@/components/shell/where-things-are";
 import { usePrefs, writePrefs } from "@/components/settings/use-prefs";
 import { useAccessibility, writeAccessibility } from "@/components/settings/use-accessibility";
 import { PREFS_KEY, parsePrefs } from "@/lib/settings/prefs";
@@ -68,6 +69,19 @@ export default function SettingsPage() {
         </h1>
         <p className="text-sm text-slate-500">Your language, reading comfort, AI teaching style, and data saving. Kept on this device and in your account.</p>
       </div>
+      <Card className="flex items-center gap-3 p-4">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-sm">Where things are</p>
+          <p className="text-xs text-slate-500">A 30-second tour of the main buttons.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => startTour()}
+          className="min-h-[44px] shrink-0 rounded-lg border border-slate-200 px-4 text-sm font-semibold hover:border-brand-500 dark:border-slate-700"
+        >
+          Show me around
+        </button>
+      </Card>
       <Card>
         <LanguageSettings />
       </Card>

@@ -12,6 +12,7 @@ import { VerifyEmailBanner } from "@/components/shell/verify-email-banner";
 import { UpgradeDialog } from "@/components/billing/upgrade-dialog";
 import { SiteNotice } from "@/components/shell/site-notice";
 import { AddMaterialSheet } from "@/components/shell/add-material";
+import { WhereThingsAre } from "@/components/shell/where-things-are";
 import { CommandPalette } from "@/components/shell/command-palette";
 import { AppUpdateBanner } from "@/components/shell/app-update-banner";
 import { NewVersionWatcher } from "@/components/shell/new-version-watcher";
@@ -51,6 +52,7 @@ export default function AppLayout({
       <MobileNav />
       <AddMaterialSheet />
       <CommandPalette />
+      <WhereThingsAre />
       <TutorLauncher />
       <OverlayCalculator />
       <OfflineManager />
