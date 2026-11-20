@@ -1,0 +1,5 @@
+.calc-caret { display: inline-block; vertical-align: middle; color: var(--color-brand-500, #4a6cf7); animation: calc-blink 1.05s steps(1) infinite; }
+.calc-caret .mord, .calc-caret .rule { border-color: currentColor; }
+.calc-slot { color: color-mix(in srgb, currentColor 35%, transparent); }
+@keyframes calc-blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .calc-caret { animation: none; } }
