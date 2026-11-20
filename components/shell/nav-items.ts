@@ -36,10 +36,10 @@ export const NAV_ITEMS: NavItem[] = [
     match: ["/classes", "/explore"],
   },
   {
-    label: "Notebook & Studio",
+    label: "Study & labs",
     short: "Study",
     href: "/study",
-    hint: "Study alone · build things",
+    hint: "Notes, practice, labs",
     icon: BookOpen,
     roles: ALL,
     group: "main",
@@ -58,7 +58,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
   { label: "Saved", href: "/saved", icon: Bookmark, roles: ALL, group: "account" },
   { label: "Profile", href: "/profile", icon: User, roles: ALL, group: "account" },
-  { label: "Everything", href: "/more", hint: "Every feature, searchable", icon: LayoutGrid, roles: ALL, group: "account" },
+  { label: "All features", href: "/more", hint: "Every feature, by what you want to do", icon: LayoutGrid, roles: ALL, group: "account" },
   { label: "Admin Console", href: "/admin", icon: ShieldCheck, roles: ["admin"], group: "account" },
 ];
 

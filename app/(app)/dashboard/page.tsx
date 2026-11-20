@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGameState } from "@/components/game/use-game";
 import { LevelCard, QuestsCard } from "@/components/game/widgets";
 import { AchievementPrompts } from "@/components/feed/achievement-prompts";
+import { QuickActions } from "@/components/home/quick-actions";
 import { HomeHero } from "@/components/home/home-hero";
 import { CampusStreakBanner } from "@/components/dashboard/campus-streak-banner";
 import { summarizeProgress } from "@/lib/home/next-action";
@@ -120,6 +121,9 @@ export default function DashboardPage() {
         )}
       </header>
 
+      {/* 1b. One tap to the things people use most */}
+      <QuickActions role={user?.role} classes={sessionClasses} />
+
       {/* Campus Setup & Streak Urgency Banner */}
       <CampusStreakBanner />
 
@@ -176,11 +180,16 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium">You haven&apos;t joined a class yet</p>
                 <p className="text-sm text-muted-foreground">Search for your class, or use the code your teacher gave you. You can also study on your own with anything you upload.</p>
               </div>
-              <Link href="/explore">
-                <Button size="sm" className="shrink-0">
-                  <Compass className="mr-1.5 h-4 w-4" /> Find a class
-                </Button>
-              </Link>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Link href="/explore">
+                  <Button size="sm" className="min-h-[44px]">
+                    <Compass className="mr-1.5 h-4 w-4" /> Join with code
+                  </Button>
+                </Link>
+                <Link href="/study/notes">
+                  <Button size="sm" variant="outline" className="min-h-[44px]">Create notes</Button>
+                </Link>
+              </div>
             </div>
           ) : (
             <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
