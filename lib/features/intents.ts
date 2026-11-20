@@ -22,6 +22,8 @@ const BY_ID: Record<string, Intent> = {
   evaluation: "Practice",
   flashcards: "Practice",
   daily: "Practice",
+  "for-you": "Learn",
+  "learning-map": "Learn",
   papers: "Practice",
   mistakes: "Practice",
   exams: "Plan",

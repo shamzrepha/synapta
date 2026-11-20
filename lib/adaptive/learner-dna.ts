@@ -354,10 +354,11 @@ export async function loadLearnerDna(uid: string, opts?: { forceFresh?: boolean 
       const data = d.data() as Record<string, unknown>;
       return {
         kcId: String(data.kcId || d.id),
-        title: typeof data.kcTitle === "string" ? data.kcTitle : typeof data.topic === "string" ? data.topic : undefined,
+        title: typeof data.kcTitle === "string" ? data.kcTitle : typeof data.title === "string" ? data.title : typeof data.topic === "string" ? data.topic : undefined,
         pL: typeof data.pL === "number" ? data.pL : 0.1,
-        correctCount: typeof data.correctCount === "number" ? data.correctCount : 0,
-        attemptCount: typeof data.attemptCount === "number" ? data.attemptCount : 0,
+        // applyEvidence writes `correct` / `attempts`; older code read `correctCount` / `attemptCount`: accept both
+        correctCount: typeof data.correct === "number" ? data.correct : typeof data.correctCount === "number" ? data.correctCount : 0,
+        attemptCount: typeof data.attempts === "number" ? data.attempts : typeof data.attemptCount === "number" ? data.attemptCount : 0,
       };
     });
     const misconceptionDocs = (misSnap?.docs || []).map((d) => d.data() as Record<string, unknown>);

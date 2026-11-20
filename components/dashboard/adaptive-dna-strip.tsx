@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { Cpu, Sparkles, SlidersHorizontal, Check } from "lucide-react";
 import { asArray } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
@@ -150,6 +151,11 @@ export function AdaptiveDnaStrip() {
           })}
         </div>
       )}
+      <p className="text-[11px] text-muted-foreground">
+        <Link href="/for-you" className="font-semibold text-brand-700 underline-offset-2 hover:underline dark:text-brand-300">For you</Link>
+        {" "}picks what to study next and says why.{" "}
+        <Link href="/my-learning-map" className="underline underline-offset-2">My learning map</Link>
+      </p>
     </div>
   );
 }
