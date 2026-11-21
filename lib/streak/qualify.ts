@@ -97,4 +97,4 @@ export function streakAnchorDate(u: { lastQualifiedDate?: unknown; lastActiveDat
 }
 
 /** First streak day counted by qualified learning; earlier days in the calendar still use old activity data. */
-export const QUALIFY_RULE_START = "2026-11-22";
+export const QUALIFY_RULE_START = "2026-11-21";
