@@ -15,6 +15,7 @@ import { useGameState } from "@/components/game/use-game";
 import { LevelCard, QuestsCard } from "@/components/game/widgets";
 import { AchievementPrompts } from "@/components/feed/achievement-prompts";
 import { HomeHero } from "@/components/home/home-hero";
+import { StreakProgress } from "@/components/game/streak-progress";
 import { CampusStreakBanner } from "@/components/dashboard/campus-streak-banner";
 import { summarizeProgress } from "@/lib/home/next-action";
 import { SessionsPanel } from "@/components/sessions/sessions-panel";
@@ -111,7 +112,7 @@ export default function DashboardPage() {
         </div>
         {game && (
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm" title="Days in a row you have studied">
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1.5 text-sm" title="Days in a row you earned 30 learning points">
               <Flame className="h-4 w-4 text-amber-500" aria-hidden="true" />
               <span className="font-mono font-medium">{game.streakDays}</span>
               <span className="text-xs text-muted-foreground">day streak</span>
@@ -119,6 +120,9 @@ export default function DashboardPage() {
           </div>
         )}
       </header>
+
+      {/* Streak strip: a day counts after real learning (30 points), not after opening the app */}
+      {game?.streakToday && <StreakProgress data={game.streakToday} />}
 
       {/* Campus Setup & Streak Urgency Banner */}
       <CampusStreakBanner />

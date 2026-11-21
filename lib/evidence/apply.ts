@@ -2,7 +2,8 @@ import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { updateMastery, Activity, OMEGA, MASTERY_THRESHOLD, safeBktParams } from "@/lib/bkt/engine";
 import { ApiError } from "@/lib/api/errors";
 import { trackProgress } from "@/lib/game/progress";
-import { nextStreak } from "@/lib/game/streak";
+import { recordLearning } from "@/lib/streak/server";
+import type { LearningKind } from "@/lib/streak/qualify";
 import { notify } from "@/lib/notifications/server";
 import { shareAchievement } from "@/lib/social/feed";
 
@@ -34,6 +35,15 @@ export interface ApplyEvidenceResult {
  */
 export const ACTIVE_ENROLLMENT = "active";
 
+/** Which streak learning kind each evidence activity earns (diagnostics are excluded at the call site). */
+const LEARNING_KIND_FOR: Partial<Record<Activity, LearningKind>> = {
+  quiz: "quiz",
+  flashcard: "flashcard",
+  theory: "theory",
+  lab: "lab",
+  peer_explain: "peer_explain",
+};
+
 /** Written (theory) answers that may move one topic's mastery per day. */
 export const THEORY_DAILY_CAP = 5;
 
@@ -56,8 +66,6 @@ export async function applyEvidence({
   const kcRef = adminDb().collection("classes").doc(classId).collection("kcs").doc(kcId);
   const enrollmentRef = adminDb().collection("enrollments").doc(`${classId}_${uid}`);
 
-  // Set inside the transaction; read after it commits
-  const streakHolder: { value: ReturnType<typeof nextStreak> | null } = { value: null };
   const result = await adminDb().runTransaction(async (t): Promise<ApplyEvidenceResult> => {
     // 0. Authorization: only an active student of this class earns evidence (checked in the same transaction)
     const enrollment = await t.get(enrollmentRef);
@@ -161,17 +169,8 @@ export async function applyEvidence({
     const userData = userDoc.exists ? userDoc.data() : null;
 
     const currentXp = (userData?.xp ?? 0) + xpEarned;
-    const currentStreak = Math.max(1, userData?.streakDays || 1);
-    const lastActiveDate = userData?.lastActiveDate ? String(userData.lastActiveDate).slice(0, 10) : null;
-
+    const currentStreak = Math.max(0, userData?.streakDays || 0);
     const todayStr = new Date().toISOString().split("T")[0];
-    const streakResult = nextStreak({
-      current: currentStreak,
-      lastActiveDate,
-      today: todayStr,
-      freezes: userData?.streakFreezes ?? 0,
-    });
-    const newStreak = streakResult.streak;
 
     // 6. Transactional writes
     const masteryUpdates: Record<string, unknown> = {
@@ -222,21 +221,15 @@ export async function applyEvidence({
     });
 
     // Update user doc
-    t.update(userRef, {
-      xp: currentXp,
-      streakDays: newStreak,
-      streakFreezes: streakResult.freezes,
-      lastActiveDate: todayStr,
-      updatedAt: Timestamp.now(),
-    });
-    streakHolder.value = streakResult;
+    // The streak is NOT touched here: a day counts only once enough learning points are recorded (recordLearning below)
+    t.update(userRef, { xp: currentXp, updatedAt: Timestamp.now() });
 
     return {
       pLBefore: pLPrev,
       pLAfter,
       xpGained: xpEarned,
       totalXp: currentXp,
-      streakDays: newStreak,
+      streakDays: currentStreak,
       mastered: pLAfter >= MASTERY_THRESHOLD,
       crossedMasteryFirstTime,
     };
@@ -258,23 +251,12 @@ export async function applyEvidence({
     },
     reason: `evidence:${activity}`,
   });
-  const streakEvent = streakHolder.value;
-  if (streakEvent?.freezesUsed) {
-    await notify(uid, {
-      type: "system",
-      title: `🧊 Streak freeze used — your ${result.streakDays}-day streak is safe`,
-      body: `${streakEvent.freezes} freeze${streakEvent.freezes === 1 ? "" : "s"} left.`,
-      href: "/dashboard",
-      icon: "🧊",
-    }).catch(() => null);
-  } else if (streakEvent?.freezeEarned) {
-    await notify(uid, {
-      type: "system",
-      title: `🧊 You earned a streak freeze for your ${result.streakDays}-day streak!`,
-      body: "It saves your streak automatically if you miss a day.",
-      href: "/dashboard",
-      icon: "🧊",
-    }).catch(() => null);
+  // Streak: a credited learning action earns learning points; the day qualifies at 30 (lib/streak/qualify.ts)
+  const kind = LEARNING_KIND_FOR[activity];
+  const creditable = kind === "lab" || kind === "peer_explain" ? correct : true; // a lab counts when completed
+  if (kind && creditable && metadata?.diagnostic !== true) {
+    const learned = await recordLearning(uid, kind).catch(() => null);
+    if (learned) result.streakDays = learned.streakDays;
   }
   if (result.crossedMasteryFirstTime) {
     try {

@@ -2,127 +2,154 @@ import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { dayIdFor } from "@/lib/game/quests";
 import { nextStreak } from "@/lib/game/streak";
 import { bumpUserSignal } from "@/lib/live/server";
-import { recordActivityDay, readActivityDays } from "@/lib/activity/server";
-import { computeStreak } from "@/lib/streaks/days";
-
-export interface TouchStreakResult {
-  streakDays: number;
-  lastActiveDate: string;
-  freezes: number;
-  freezesUsed: number;
-  freezeEarned: boolean;
-  isNewDay: boolean;
-}
+import { notify } from "@/lib/notifications/server";
+import {
+  addLearning,
+  dayPoints,
+  dayProgress,
+  isLearningKind,
+  qualifies,
+  shouldCountReader,
+  streakAnchorDate,
+  type DayProgress,
+  type LearningCounts,
+} from "./qualify";
+import { currentStreakDays } from "./logic";
 
 /**
- * Atomically updates and heals the user's daily study streak when they are active on Sunroot.
- * - Idempotent for same-day activity (preserves existing streak).
- * - Correctly advances consecutive days (Day 1 -> Day 2 -> Day 3).
- * - Uses streak freezes for missed days if available.
- * - Reconstructs/heals streaks if the user has been active on consecutive days (activityDays, evidence, deviceStats).
- * - Records activity in activityDays for heatmap and calendar consistency.
- * - Emits a realtime signal so open tabs (topbar, dashboard, streak page) update live.
+ * Streaks count LEARNING, not logging in. The only writer of streakDays / lastQualifiedDate / lastActiveDate is
+ * recordLearning, called from the server paths that credit real learning (quiz answers, flashcard reviews, written
+ * practice, labs, lesson reading signals, past-question attempts). Opening the app, presence pings,
+ * notifications and logins never call it.
+ *
+ * Per-day progress lives in streakDays/{uid}_{YYYY-MM-DD}: { uid, day, counts, points, qualified, lastReaderAt }.
  */
-export async function touchUserStreak(
-  uid: string,
-  options?: { xp?: number; source?: string }
-): Promise<TouchStreakResult> {
-  const today = dayIdFor();
+
+export interface LearningResult {
+  points: number;
+  qualified: boolean;
+  newlyQualified: boolean;
+  streakDays: number;
+}
+
+const dayDocId = (uid: string, day: string) => `${uid}_${day}`;
+
+export async function recordLearning(uid: string, kind: string, opts: { n?: number; now?: Date } = {}): Promise<LearningResult | null> {
+  if (!isLearningKind(kind)) return null;
+  const now = opts.now ?? new Date();
+  const today = dayIdFor(now);
   const userRef = adminDb().collection("users").doc(uid);
+  const dayRef = adminDb().collection("streakDays").doc(dayDocId(uid, today));
 
-  // Read user doc, activity days, and device reports
-  const [userSnap, activityDaysData, devDoc] = await Promise.all([
-    userRef.get(),
-    readActivityDays(uid, 30).catch(() => ({ counts: {}, xp: {} })),
-    adminDb().collection("deviceStats").doc(uid).get().catch(() => null),
-  ]);
+  const out = await adminDb().runTransaction(async (t) => {
+    const [userSnap, daySnap] = await Promise.all([t.get(userRef), t.get(dayRef)]);
+    if (!userSnap.exists) return null;
+    const user = userSnap.data() || {};
+    const day = daySnap.exists ? daySnap.data() || {} : {};
+    const before: LearningCounts = (day.counts as LearningCounts) || {};
+    const wasQualified = day.qualified === true;
+    const storedStreak = typeof user.streakDays === "number" ? Math.max(0, user.streakDays) : 0;
 
-  if (!userSnap.exists) {
-    return {
-      streakDays: 1,
-      lastActiveDate: today,
-      freezes: 0,
-      freezesUsed: 0,
-      freezeEarned: false,
-      isNewDay: true,
-    };
-  }
-
-  const data = userSnap.data()!;
-  const lastActiveDate: string | null = data.lastActiveDate ? String(data.lastActiveDate).slice(0, 10) : null;
-  const currentStreak = typeof data.streakDays === "number" ? Math.max(0, data.streakDays) : 0;
-  const currentFreezes = typeof data.streakFreezes === "number" ? Math.max(0, data.streakFreezes) : 0;
-
-  // Gather active dates from activityDays, deviceStats, and user doc to compute proven streak
-  const counts: Record<string, number> = activityDaysData?.counts || {};
-  const activeDates = new Set<string>(Object.keys(counts).filter((d) => (counts[d] ?? 0) > 0));
-  if (lastActiveDate) activeDates.add(lastActiveDate);
-
-  if (devDoc && devDoc.exists) {
-    const devData = devDoc.data();
-    if (devData?.lastSeen) {
-      activeDates.add(String(devData.lastSeen).slice(0, 10));
+    if (kind === "reader" && !shouldCountReader(typeof day.lastReaderAt === "number" ? day.lastReaderAt : null, now.getTime())) {
+      return { points: Math.min(30, dayPoints(before)), qualified: wasQualified, newlyQualified: false, streakDays: storedStreak, calc: null };
     }
-  }
 
-  let result: TouchStreakResult;
+    const counts = addLearning(before, kind, opts.n ?? 1);
+    const points = dayPoints(counts);
+    const qualified = wasQualified || qualifies(counts);
+    const newlyQualified = qualified && !wasQualified;
 
-  if (lastActiveDate === today) {
-    // Already active today; ensure streak is at least 1 and respects proven streak
-    activeDates.add(today);
-    const provenStreak = computeStreak(activeDates, today).current;
-    const healedStreak = Math.max(1, currentStreak, provenStreak);
-    if (healedStreak !== currentStreak) {
-      await userRef.update({ streakDays: healedStreak, updatedAt: Timestamp.now() });
+    const dayUpdate: Record<string, unknown> = { uid, day: today, counts, points, qualified, updatedAt: Timestamp.now() };
+    if (kind === "reader") dayUpdate.lastReaderAt = now.getTime();
+    t.set(dayRef, dayUpdate, { merge: true });
+
+    let streakDays = storedStreak;
+    let calc: ReturnType<typeof nextStreak> | null = null;
+    if (newlyQualified) {
+      calc = nextStreak({
+        current: storedStreak,
+        lastActiveDate: streakAnchorDate(user),
+        today,
+        freezes: typeof user.streakFreezes === "number" ? user.streakFreezes : 0,
+      });
+      streakDays = calc.streak;
+      // lastActiveDate mirrors lastQualifiedDate so older readers (shop recovery, admin) keep working
+      t.update(userRef, { streakDays, streakFreezes: calc.freezes, lastQualifiedDate: today, lastActiveDate: today, updatedAt: Timestamp.now() });
     }
-    result = {
-      streakDays: healedStreak,
-      lastActiveDate: today,
-      freezes: currentFreezes,
-      freezesUsed: 0,
-      freezeEarned: false,
-      isNewDay: false,
-    };
-  } else {
-    // New active day: calculate base streak from stored or proven past streak
-    const pastDates = new Set<string>(activeDates);
-    pastDates.delete(today);
-    const provenPastStreak = lastActiveDate ? computeStreak(pastDates, lastActiveDate).current : 0;
-    const baseStreak = Math.max(currentStreak, provenPastStreak);
+    return { points: Math.min(30, points), qualified, newlyQualified, streakDays, calc };
+  });
 
-    const calc = nextStreak({
-      current: baseStreak,
-      lastActiveDate,
-      today,
-      freezes: currentFreezes,
-    });
-
-    activeDates.add(today);
-    const totalProvenStreak = computeStreak(activeDates, today).current;
-    const finalStreak = Math.max(calc.streak, totalProvenStreak, 1);
-
-    await userRef.update({
-      streakDays: finalStreak,
-      lastActiveDate: today,
-      streakFreezes: calc.freezes,
-      updatedAt: Timestamp.now(),
-    });
-
-    result = {
-      streakDays: finalStreak,
-      lastActiveDate: today,
-      freezes: calc.freezes,
-      freezesUsed: calc.freezesUsed,
-      freezeEarned: calc.freezeEarned,
-      isNewDay: true,
-    };
-  }
-
-  // Record in activityDays collection
-  await recordActivityDay(uid, options?.xp || 0).catch(() => {});
-  if (result.isNewDay) {
+  if (!out) return null;
+  if (out.newlyQualified) {
     await bumpUserSignal(uid, { topic: "streak" }).catch(() => {});
+    if (out.calc?.freezesUsed) {
+      await notify(uid, {
+        type: "system",
+        title: `Streak freeze used: your ${out.streakDays}-day streak is safe`,
+        body: `${out.calc.freezes} freeze${out.calc.freezes === 1 ? "" : "s"} left.`,
+        href: "/streak",
+        icon: "🧊",
+      }).catch(() => null);
+    } else if (out.calc?.freezeEarned) {
+      await notify(uid, {
+        type: "system",
+        title: `You earned a streak freeze for your ${out.streakDays}-day streak`,
+        body: "It saves your streak automatically if you miss a day.",
+        href: "/streak",
+        icon: "🧊",
+      }).catch(() => null);
+    }
   }
+  return { points: out.points, qualified: out.qualified, newlyQualified: out.newlyQualified, streakDays: out.streakDays };
+}
 
-  return result;
+export interface StreakToday extends DayProgress {
+  counts: LearningCounts;
+}
+
+/** Read-only: today's learning points. Never creates, extends or heals a streak. */
+export async function readStreakToday(uid: string, now: Date = new Date()): Promise<StreakToday> {
+  try {
+    const snap = await adminDb().collection("streakDays").doc(dayDocId(uid, dayIdFor(now))).get();
+    const d = snap.exists ? snap.data() || {} : {};
+    const counts = (d.counts as LearningCounts) || {};
+    return { ...dayProgress(counts, d.qualified === true), counts };
+  } catch {
+    return { ...dayProgress({}), counts: {} };
+  }
+}
+
+/** Days (YYYY-MM-DD) in the list that were qualified by learning, for the streak calendar. */
+export async function readQualifiedDays(uid: string, days: string[]): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (days.length === 0) return out;
+  try {
+    const refs = days.map((d) => adminDb().collection("streakDays").doc(dayDocId(uid, d)));
+    const snaps = await adminDb().getAll(...refs);
+    snaps.forEach((s, i) => {
+      if (s.exists && s.data()?.qualified === true) out.add(days[i]);
+    });
+  } catch (err) {
+    console.warn("[streak] read qualified days failed", err instanceof Error ? err.message : err);
+  }
+  return out;
+}
+
+export interface StreakView {
+  streakDays: number;
+  /** last day that extended the streak (qualified day, or legacy lastActiveDate) */
+  anchor: string | null;
+  qualifiedToday: boolean;
+  /** has a streak but has not qualified today */
+  atRisk: boolean;
+}
+
+/** Pure read of a user doc: the live streak, with freezes covering gaps. Never writes. */
+export function viewStreak(u: Record<string, unknown>, today: string = dayIdFor()): StreakView {
+  const anchor = streakAnchorDate(u);
+  const freezes = typeof u.streakFreezes === "number" ? u.streakFreezes : 0;
+  const stored = typeof u.streakDays === "number" ? u.streakDays : 0;
+  const streakDays = currentStreakDays({ streakDays: stored, lastActiveDate: anchor, freezes, today });
+  const qualifiedToday = anchor === today;
+  return { streakDays, anchor, qualifiedToday, atRisk: streakDays > 0 && !qualifiedToday };
 }

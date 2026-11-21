@@ -1,3 +1,4 @@
+import { recordLearning } from "@/lib/streak/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
@@ -99,6 +100,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const result = buildResult(questions, answers, aiMarks);
     const submittedAt = new Date().toISOString();
     await ref.update({ answers, result, submittedAt });
+    // A marked past-question attempt is learning: it earns streak points (only the first submission reaches here)
+    // Each answered question counts (blank submissions earn nothing); the kind is capped per day
+    const answered = Object.values(answers).filter((a) => typeof a === "string" && a.trim().length > 0).length;
+    if (answered > 0) await recordLearning(caller.uid, "past_question", { n: Math.min(5, answered) }).catch(() => null);
     return NextResponse.json({ ok: true, data: { result, submittedAt } });
   } catch (error) {
     return handleAuthError(error);

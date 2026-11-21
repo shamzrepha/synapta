@@ -1,4 +1,4 @@
-/** Weekly leagues: ~30 learners per cohort, ranked by XP earned Monday–Sunday (UTC). */
+/** Weekly leagues: ~30 learners per cohort, ranked by XP earned Monday-Sunday (WAT). */
 export const LEAGUE_TIERS = [
   { name: "Bronze", color: "#b45309", emoji: "🥉" },
   { name: "Silver", color: "#64748b", emoji: "🥈" },
@@ -23,9 +23,18 @@ export function tierInfo(tier: number) {
   return LEAGUE_TIERS[Math.min(MAX_TIER, Math.max(0, Math.floor(tier || 0)))];
 }
 
-/** ISO week id in UTC, e.g. "2026-W42". Weeks start Monday 00:00 UTC. */
+/** Weeks run Monday 00:00 to Sunday 23:59:59 in West Africa Time (Africa/Lagos, UTC+1, no daylight saving). */
+export const WAT_OFFSET_MS = 60 * 60 * 1000;
+
+/** The moment on a WAT wall clock, expressed as a UTC-field date so getUTC* reads WAT values. */
+function toWat(date: Date): Date {
+  return new Date(date.getTime() + WAT_OFFSET_MS);
+}
+
+/** ISO-style week id in WAT, e.g. "2026-W42". A week starts Monday 00:00 WAT (= Sunday 23:00 UTC). */
 export function weekIdFor(date: Date = new Date()): string {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const w = toWat(date);
+  const d = new Date(Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate()));
   const day = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + 4 - day);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
@@ -33,12 +42,13 @@ export function weekIdFor(date: Date = new Date()): string {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
-/** When the current league week ends (next Monday 00:00 UTC). */
+/** When the current league week ends (next Monday 00:00 WAT). */
 export function weekEndsAt(date: Date = new Date()): Date {
-  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const w = toWat(date);
+  const d = new Date(Date.UTC(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate()));
   const day = d.getUTCDay() || 7;
   d.setUTCDate(d.getUTCDate() + (8 - day));
-  return d;
+  return new Date(d.getTime() - WAT_OFFSET_MS);
 }
 
 export type LeagueOutcome = "promoted" | "demoted" | "stayed";

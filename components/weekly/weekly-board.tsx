@@ -23,6 +23,7 @@ interface Payload {
   rows: Row[];
   me: Row | null;
   channel: string;
+  gap?: { aboveXp: number | null; xpToPass: number | null } | null;
   lastWeek: { weekId: string; winners: Row[] };
 }
 
@@ -73,6 +74,23 @@ export function WeeklyBoard() {
 
   return (
     <div className="space-y-4">
+      <p className="text-xs text-slate-500">
+        Ranked by <strong>XP earned this week</strong>, not total XP, so anyone can climb. It resets every Monday at 00:00 Nigeria time. Ties go to whoever got there first.
+      </p>
+
+      {data.me && (
+        <Card className="flex items-center gap-3 px-4 py-3 border-brand-500/50">
+          <span className="text-sm font-extrabold text-brand-600">#{data.me.rank}</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Your rank this week</p>
+            <p className="text-[11px] text-slate-500">
+              {data.gap?.xpToPass != null ? `${formatNumber(data.gap.xpToPass)} XP to pass the next person` : data.me.rank === 1 ? "You are leading the week" : ""}
+            </p>
+          </div>
+          <span className="text-sm font-bold tabular-nums">+{formatNumber(data.me.xp)} XP</span>
+        </Card>
+      )}
+
       {winners.length > 0 && (
         <Card className="p-4 space-y-2 border-amber-500/30 bg-amber-500/5">
           <p className="text-sm font-bold flex items-center gap-1.5">
@@ -105,24 +123,14 @@ export function WeeklyBoard() {
                 <p className={cn("min-w-0 flex-1 text-sm font-semibold truncate", r.isMe && "text-brand-700 dark:text-brand-300")}>
                   {r.isMe ? `${r.displayName} (you)` : r.displayName}
                 </p>
-                <span className="text-sm font-bold tabular-nums">{formatNumber(r.xp)} XP</span>
+                <span className="text-sm font-bold tabular-nums">+{formatNumber(r.xp)} XP</span>
               </li>
             ))}
           </ul>
         </Card>
       )}
 
-      {data.me ? (
-        data.me.rank > 50 || !rows.some((r) => r.isMe) ? (
-          <Card className="flex items-center gap-3 px-4 py-3 border-brand-500/50">
-            <span className="text-sm font-extrabold text-brand-600">#{data.me.rank}</span>
-            <p className="flex-1 text-sm font-semibold">Your rank this week</p>
-            <span className="text-sm font-bold">{formatNumber(data.me.xp)} XP</span>
-          </Card>
-        ) : null
-      ) : (
-        <p className="text-xs text-slate-500 text-center">Earn XP this week to appear on the board.</p>
-      )}
+      {!data.me && <p className="text-xs text-slate-500 text-center">Earn XP this week to appear on the board.</p>}
     </div>
   );
 }

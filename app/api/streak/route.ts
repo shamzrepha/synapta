@@ -6,8 +6,9 @@ import { MAX_STREAK_FREEZES } from "@/lib/game/streak";
 import { readActivityDays } from "@/lib/activity/server";
 import { getShopState } from "@/lib/shop/server";
 import { SHOP_ITEMS } from "@/lib/shop/catalog";
-import { buildCalendar, currentStreakDays, daysToNextFreeze, inferFrozenDays } from "@/lib/streak/logic";
-import { touchUserStreak } from "@/lib/streak/server";
+import { addDays, buildCalendar, daysToNextFreeze, inferFrozenDays } from "@/lib/streak/logic";
+import { readQualifiedDays, readStreakToday, viewStreak } from "@/lib/streak/server";
+import { progressMessage, QUALIFY_RULE_START } from "@/lib/streak/qualify";
 
 export const runtime = "nodejs";
 
@@ -21,21 +22,19 @@ export async function GET(req: NextRequest) {
       getShopState(caller.uid),
     ]);
     const u = userSnap.data() || {};
-    const active = new Set(Object.keys(activity.counts).filter((d) => activity.counts[d] > 0));
+    const view = viewStreak(u, today);
+    const streakDays = view.streakDays;
+    const lastActiveDate = view.anchor;
+    // Calendar: days before the qualified-learning rule keep their old activity data; from then on only qualified days are "studied"
+    const recentDays = Array.from({ length: 30 }, (_, i) => addDays(today, -i)).filter((d) => d >= QUALIFY_RULE_START);
+    const [qualifiedDays, todayProgress] = await Promise.all([readQualifiedDays(caller.uid, recentDays), readStreakToday(caller.uid)]);
+    const active = new Set([
+      ...Object.keys(activity.counts).filter((d) => activity.counts[d] > 0 && d < QUALIFY_RULE_START),
+      ...qualifiedDays,
+      ...(lastActiveDate && streakDays > 0 && lastActiveDate < QUALIFY_RULE_START ? [lastActiveDate] : []),
+    ]);
     // Frozen days can only be inferred where we have activity data; use the earliest recorded day
     const since = [...active].sort()[0] || null;
-    let lastActiveDate: string | null = u.lastActiveDate ? String(u.lastActiveDate).slice(0, 10) : null;
-    let streakDays: number = typeof u.streakDays === "number" ? u.streakDays : 0;
-    let freezes: number = typeof u.streakFreezes === "number" ? u.streakFreezes : 0;
-
-    if (lastActiveDate !== today) {
-      const touched = await touchUserStreak(caller.uid);
-      streakDays = touched.streakDays;
-      lastActiveDate = touched.lastActiveDate;
-      freezes = touched.freezes;
-    } else {
-      streakDays = Math.max(1, currentStreakDays({ streakDays, lastActiveDate, freezes, today }));
-    }
     const frozen = inferFrozenDays({ active, lastActiveDate, streakDays, since });
     const calendar = buildCalendar({ today, active, frozen });
 
@@ -56,7 +55,8 @@ export async function GET(req: NextRequest) {
         freezes: u.streakFreezes || 0,
         maxFreezes: MAX_STREAK_FREEZES,
         daysToNextFreeze: daysToNextFreeze(streakDays),
-        studiedToday: lastActiveDate === today,
+        studiedToday: view.qualifiedToday,
+        progress: { points: todayProgress.points, threshold: todayProgress.threshold, remaining: todayProgress.remaining, qualified: todayProgress.qualified, message: progressMessage(todayProgress) },
         freezePrice: freezeItem.price,
         spendable: shop.spendable,
         recovery: shop.recovery,

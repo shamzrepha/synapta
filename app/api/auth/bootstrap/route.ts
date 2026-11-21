@@ -4,7 +4,7 @@ import { getServerEnv } from "@/lib/env";
 import { UserRole } from "@/lib/store/use-user-store";
 import { z } from "zod";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { touchUserStreak } from "@/lib/streak/server";
+import { viewStreak } from "@/lib/streak/server";
 import { recordActivityDay } from "@/lib/activity/server";
 import { isPlaceholderHandle, isPlaceholderName } from "@/lib/auth/placeholders";
 
@@ -127,8 +127,7 @@ export async function POST(req: NextRequest) {
         role,
         roleRequest: grantAdmin ? "none" : roleRequest,
         xp: 0,
-        streakDays: 1,
-        lastActiveDate: new Date().toISOString().split("T")[0],
+        streakDays: 0,
         monthlyTokenLimit: defaultTokenLimit,
         monthlyTokensUsed: 0,
         usagePeriod: currentPeriod,
@@ -214,8 +213,8 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Atomically touch daily presence and keep streak alive/incrementing
-      const streakInfo = await touchUserStreak(uid);
+      // Signing in never creates or extends a streak (only qualified learning does): just report it
+      const streakInfo = viewStreak(existing);
 
       const effectiveTokenLimit =
         role === "admin"
@@ -234,7 +233,7 @@ export async function POST(req: NextRequest) {
         roleRequest: existing.roleRequest || "none",
         xp: existing.xp || 0,
         streakDays: streakInfo.streakDays,
-        lastActiveDate: streakInfo.lastActiveDate,
+        lastActiveDate: streakInfo.anchor,
         monthlyTokenLimit: effectiveTokenLimit,
         monthlyTokensUsed: existing.monthlyTokensUsed || 0,
         disabled: !!existing.disabled,

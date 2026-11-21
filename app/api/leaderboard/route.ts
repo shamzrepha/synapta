@@ -23,7 +23,7 @@ interface Row {
 }
 
 function toRows(
-  items: Array<{ uid: string; score: number; weeklyXp: number }>,
+  items: Array<{ uid: string; score: number; weeklyXp: number; reachedAt?: number }>,
   profiles: Map<string, PublicProfile>,
   me: string
 ): Row[] {
@@ -33,7 +33,8 @@ function toRows(
       // People who opted out are hidden from everyone but themselves
       return p && (p.showOnLeaderboard || i.uid === me);
     })
-    .sort((a, b) => b.score - a.score)
+    // Ties: whoever reached the XP earlier ranks higher
+    .sort((a, b) => b.score - a.score || (a.reachedAt ?? Infinity) - (b.reachedAt ?? Infinity))
     .map((i, idx) => {
       const p = profiles.get(i.uid)!;
       return {
@@ -88,13 +89,13 @@ export async function GET(req: NextRequest) {
         const cohortId = me.data()!.cohortId;
         channel = `league:${cohortId}`;
         const snap = await adminDb().collection("leagueEntries").where("cohortId", "==", cohortId).orderBy("xp", "desc").limit(40).get();
-        const items = snap.docs.map((d) => ({ uid: d.data().uid, score: d.data().xp || 0, weeklyXp: d.data().xp || 0 }));
+        const items = snap.docs.map((d) => ({ uid: d.data().uid, score: d.data().xp || 0, weeklyXp: d.data().xp || 0, reachedAt: d.data().updatedAt?.toMillis?.() as number | undefined }));
         rows = toRows(items, await getPublicProfiles(items.map((i) => i.uid)), caller.uid);
       }
     } else if (scope === "weekly") {
       channel = `leaderboard:week:${weekId}`;
       const snap = await adminDb().collection("leagueEntries").where("weekId", "==", weekId).orderBy("xp", "desc").limit(60).get();
-      const items = snap.docs.map((d) => ({ uid: d.data().uid, score: d.data().xp || 0, weeklyXp: d.data().xp || 0 }));
+      const items = snap.docs.map((d) => ({ uid: d.data().uid, score: d.data().xp || 0, weeklyXp: d.data().xp || 0, reachedAt: d.data().updatedAt?.toMillis?.() as number | undefined }));
       rows = toRows(items, await getPublicProfiles(items.map((i) => i.uid)), caller.uid).slice(0, 50);
     } else if (scope === "global") {
       const snap = await adminDb().collection("users").orderBy("xp", "desc").limit(80).get();

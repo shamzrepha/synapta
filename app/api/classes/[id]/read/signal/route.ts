@@ -6,7 +6,7 @@ import { ApiError, parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { safeBktParams } from "@/lib/bkt/engine";
-import { nextStreak } from "@/lib/game/streak";
+import { recordLearning } from "@/lib/streak/server";
 import { trackProgress } from "@/lib/game/progress";
 
 export const runtime = "nodejs";
@@ -180,24 +180,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       const userData = userSnap.exists ? userSnap.data() : {};
       let totalXp = Number(userData?.xp || 0);
-      let streakDays = Number(userData?.streakDays || 1);
+      const streakDays = Number(userData?.streakDays || 0);
 
       if (xpGained > 0 && userSnap.exists) {
         totalXp += xpGained;
-        const streakRes = nextStreak({
-          current: streakDays,
-          lastActiveDate: (userData?.lastActiveDate as string | null) ?? null,
-          today: todayStr,
-          freezes: Number(userData?.streakFreezes || 0),
-        });
-        streakDays = streakRes.streak;
+        // The streak is not touched here: reading earns streak points through recordLearning below
         t.update(userRef, {
           xp: totalXp,
-          streakDays,
-          streakFreezes: streakRes.freezes,
           readXpDate: todayStr,
           readXpToday: paidToday + xpGained,
-          lastActiveDate: todayStr,
           updatedAt: Timestamp.now(),
         });
       }
@@ -212,6 +203,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         bonusLabel: xpGained > 0 ? BONUS_LABEL[body.event] : null,
       };
     });
+
+    // Server-recorded reading progress: every accepted in-lesson signal is one reader action. recordLearning
+    // throttles them (one per 15 s) and caps the kind per day, so reading alone can never qualify a day.
+    const learned = await recordLearning(uid, "reader").catch(() => null);
+    if (learned) tx.streakDays = learned.streakDays;
 
     if (tx.xpGained > 0) {
       await trackProgress({

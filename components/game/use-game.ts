@@ -8,6 +8,7 @@ export interface GameState {
   streakDays: number;
   streakFreezes?: number;
   streakAtRisk?: boolean;
+  streakToday?: { points: number; threshold: number; remaining: number; qualified: boolean; message: string };
   level: { level: number; title: string; xp: number; currentLevelXp: number; nextLevelXp: number; progress: number };
   stats: Record<string, number>;
   badges: Array<{ id: string; name: string; description: string; emoji: string; rarity: string; earnedAt: string | null }>;
