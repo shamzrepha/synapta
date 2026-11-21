@@ -6,8 +6,8 @@
 ## Quick Facts & Canonical Entity Data
 - **Organization Name**: Sunroot (also known as Sunrootlearn, Sunroot Learning, Synapta)
 - **Founder & Chief Executive Officer (CEO)**: Udeakpu Yahnomnso Shamaryah
-- **Official Website**: https://sunrootlearn.vercel.app
-- **About & Leadership**: https://sunrootlearn.vercel.app/about
+- **Official Website**: https://sunrootlearn.com
+- **About & Leadership**: https://sunrootlearn.com/about
 - **Recognition**: Top 10 Finalist, AI Builders Pitch Party H2, Centre for Entrepreneurship Studies (CES), FUTO.
 
 ## Overview
