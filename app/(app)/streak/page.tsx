@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { asArray } from "@/lib/api/client";
 import { cn, formatNumber } from "@/lib/utils";
 import type { CalendarDay } from "@/lib/streak/logic";
+import { StreakProgress, type StreakTodayData } from "@/components/game/streak-progress";
 
 interface StreakData {
   today: string;
@@ -16,6 +17,7 @@ interface StreakData {
   maxFreezes: number;
   daysToNextFreeze: number;
   studiedToday: boolean;
+  progress?: StreakTodayData;
   freezePrice: number;
   spendable: number;
   recovery: { available: boolean; cost: number; streak: number; expiresAt: string | null };
@@ -70,15 +72,17 @@ export default function StreakPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Streak freezes</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">A freeze covers a missed day automatically. You earn one every 7-day streak.</p>
+        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Your streak</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">A streak day counts when you earn 30 learning points (quizzes, flashcards, labs, written practice, past questions, lesson reading). Opening the app does not count. A freeze covers a missed day automatically; you earn one every 7-day streak.</p>
       </div>
+
+      {data?.progress && <StreakProgress data={data.progress} />}
 
       <div className="grid grid-cols-2 gap-3">
         <Card className="p-4">
           <p className="text-xs text-slate-500">Current streak</p>
           <p className="text-3xl font-extrabold">🔥 {data?.streakDays ?? "…"}</p>
-          {data && <p className="text-[11px] text-slate-500">{data.studiedToday ? "Done for today" : "Study today to keep it"}</p>}
+          {data && <p className="text-[11px] text-slate-500">{data.studiedToday ? "Done for today" : "Earn 30 learning points today to keep it"}</p>}
         </Card>
         <Card className="p-4">
           <p className="text-xs text-slate-500">Freezes held</p>

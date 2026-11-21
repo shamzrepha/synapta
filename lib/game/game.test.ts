@@ -44,11 +44,13 @@ describe("leagues", () => {
     expect(leagueOutcome({ rank: 1, cohortSize: 1, tier: 0, xp: 0 })).toBe("stayed");
   });
 
-  it("uses ISO weeks starting Monday UTC", () => {
-    expect(weekIdFor(new Date("2026-10-12T00:00:00Z"))).toBe("2026-W42"); // Monday
-    expect(weekIdFor(new Date("2026-10-18T23:59:59Z"))).toBe("2026-W42"); // Sunday
-    expect(weekIdFor(new Date("2026-10-19T00:00:00Z"))).toBe("2026-W43");
-    expect(weekEndsAt(new Date("2026-10-15T10:00:00Z")).toISOString()).toBe("2026-10-19T00:00:00.000Z");
+  it("uses ISO weeks starting Monday 00:00 WAT (Sunday 23:00 UTC)", () => {
+    expect(weekIdFor(new Date("2026-10-11T22:59:59Z"))).toBe("2026-W41"); // Sunday 23:59:59 WAT
+    expect(weekIdFor(new Date("2026-10-11T23:00:00Z"))).toBe("2026-W42"); // Monday 00:00:00 WAT
+    expect(weekIdFor(new Date("2026-10-18T22:59:59Z"))).toBe("2026-W42");
+    expect(weekIdFor(new Date("2026-10-18T23:00:00Z"))).toBe("2026-W43");
+    expect(weekEndsAt(new Date("2026-10-15T10:00:00Z")).toISOString()).toBe("2026-10-18T23:00:00.000Z");
+    expect(weekEndsAt(new Date("2026-10-18T23:00:00Z")).toISOString()).toBe("2026-10-25T23:00:00.000Z");
   });
 });
 

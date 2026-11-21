@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { Crown, Timer, Users, Globe, CalendarDays, Shield, GraduationCap, Flame, School } from "lucide-react";
+import { Crown, Timer, Users, Globe, CalendarDays, Shield, GraduationCap, Flame, School, Trophy } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar } from "@/components/ui/avatar";
@@ -9,10 +9,11 @@ import { useLiveChannel } from "@/lib/live/client";
 import { formatCountdown, useNow } from "@/components/game/use-game";
 import { LEAGUE_TIERS, PROMOTE_COUNT, DEMOTE_COUNT, MIN_SIZE_FOR_DEMOTION } from "@/lib/game/leagues";
 import { WeeklyBoard } from "@/components/weekly/weekly-board";
+import { HallOfFame } from "@/components/weekly/hall-of-fame";
 import { asArray } from "@/lib/api/client";
 import { cn, formatNumber } from "@/lib/utils";
 
-type Scope = "league" | "weekly" | "global" | "schools" | "friends" | "class";
+type Scope = "league" | "weekly" | "winners" | "global" | "schools" | "friends" | "class";
 
 interface Row {
   rank: number;
@@ -38,8 +39,9 @@ interface Payload {
 const TABS: Array<{ key: Scope; label: string; icon: React.ReactNode }> = [
   { key: "league", label: "My league", icon: <Shield className="h-4 w-4" /> },
   { key: "weekly", label: "This week", icon: <CalendarDays className="h-4 w-4" /> },
+  { key: "winners", label: "Past winners", icon: <Trophy className="h-4 w-4" /> },
   { key: "schools", label: "Inter-Uni Cup", icon: <School className="h-4 w-4" /> },
-  { key: "global", label: "All time", icon: <Globe className="h-4 w-4" /> },
+  { key: "global", label: "All time (total XP)", icon: <Globe className="h-4 w-4" /> },
   { key: "friends", label: "Friends", icon: <Users className="h-4 w-4" /> },
   { key: "class", label: "Class", icon: <GraduationCap className="h-4 w-4" /> },
 ];
@@ -88,6 +90,7 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     if (scope === "class" && !classId) return;
+    if (scope === "winners") return;
     let ignore = false;
     fetchBoard(scope, classId).then((d) => {
       if (ignore) return;
@@ -120,7 +123,7 @@ export default function LeaderboardPage() {
           </h1>
           <p className="text-sm text-slate-500">Updates live as people learn.</p>
         </div>
-        {data?.meta.endsAt && scope !== "global" && (
+        {data?.meta.endsAt && scope !== "global" && scope !== "winners" && (
           <div className="flex items-center gap-1.5 text-sm font-semibold rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 px-3 py-1.5">
             <Timer className="h-4 w-4" /> Week ends in {formatCountdown(new Date(data.meta.endsAt).getTime() - now)}
           </div>
@@ -186,7 +189,11 @@ export default function LeaderboardPage() {
         </Card>
       )}
 
-      {scope === "weekly" ? (
+      {scope === "global" && <p className="text-xs text-slate-500">All time is ranked by total XP ever earned. For a fair weekly race, see This week.</p>}
+
+      {scope === "winners" ? (
+        <HallOfFame />
+      ) : scope === "weekly" ? (
         <WeeklyBoard />
       ) : loading ? (
         <div className="space-y-2">

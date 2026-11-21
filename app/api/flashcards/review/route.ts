@@ -4,6 +4,7 @@ import { adminDb, FieldValue } from "@/lib/firebase/admin";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { trackProgress } from "@/lib/game/progress";
+import { recordLearning } from "@/lib/streak/server";
 import { cardsRef } from "@/lib/flashcards/generate";
 import { RATINGS, reviewStored, type StoredFsrs } from "@/lib/flashcards/serde";
 import { z } from "zod";
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
       .doc(caller.uid)
       .set({ total: FieldValue.increment(1), byDay: { [day]: FieldValue.increment(1) }, updatedAt: now.toISOString() }, { merge: true });
     await trackProgress({ uid: caller.uid, stats: { flashcards: 1 }, reason: "flashcard_review" });
+    await recordLearning(caller.uid, "flashcard").catch(() => null);
 
     return NextResponse.json({ ok: true, data: { due: next.due, reps: next.reps } });
   } catch (error) {

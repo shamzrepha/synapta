@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb } from "@/lib/firebase/admin";
-import { currentStreakDays } from "@/lib/streak/logic";
-import { touchUserStreak } from "@/lib/streak/server";
-import { dayIdFor } from "@/lib/game/quests";
+import { viewStreak } from "@/lib/streak/server";
 
 export const runtime = "nodejs";
 
@@ -15,21 +13,10 @@ export async function GET(req: NextRequest) {
     const userDoc = await adminDb().collection("users").doc(caller.uid).get();
     const userData = userDoc.exists ? userDoc.data()! : {};
 
-    const today = dayIdFor();
-    const lastActiveDate = userData.lastActiveDate ? String(userData.lastActiveDate).slice(0, 10) : null;
-    let streakDays = typeof userData.streakDays === "number" ? userData.streakDays : 0;
-
-    if (lastActiveDate !== today) {
-      const touched = await touchUserStreak(caller.uid);
-      streakDays = touched.streakDays;
-    } else {
-      streakDays = Math.max(1, currentStreakDays({
-        streakDays,
-        lastActiveDate,
-        freezes: typeof userData.streakFreezes === "number" ? userData.streakFreezes : 0,
-        today,
-      }));
-    }
+    // Read-only: opening the dashboard never creates, extends or heals a streak
+    const view = viewStreak(userData);
+    const streakDays = view.streakDays;
+    const lastActiveDate = view.anchor;
 
     const profile = {
       uid: caller.uid,

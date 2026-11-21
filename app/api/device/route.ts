@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { parseJson } from "@/lib/api/errors";
 import { adminDb } from "@/lib/firebase/admin";
-import { touchUserStreak } from "@/lib/streak/server";
 
 export const runtime = "nodejs";
 
@@ -24,8 +23,8 @@ export async function POST(req: NextRequest) {
       .collection("deviceStats")
       .doc(user.uid)
       .set({ ...body, appBuild: body.appBuild ?? null, role: user.role, lastSeen: new Date().toISOString() }, { merge: true });
-    const streakInfo = await touchUserStreak(user.uid);
-    return NextResponse.json({ ok: true, data: { saved: true, streakDays: streakInfo.streakDays } });
+    // A device report is presence: it never touches the streak
+    return NextResponse.json({ ok: true, data: { saved: true } });
   } catch (error) {
     return handleAuthError(error);
   }

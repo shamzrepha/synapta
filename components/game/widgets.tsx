@@ -44,8 +44,8 @@ export function LevelCard({ game }: { game: GameState }) {
       </div>
       {game.streakAtRisk && (
         <div className="relative mt-3 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2 text-xs font-semibold text-amber-800 dark:text-amber-300">
-          🔥 Study today to keep your {game.streakDays}-day streak
-          {game.streakFreezes ? ` (or a 🧊 freeze will cover you)` : ""} — ends at midnight UTC.
+          🔥 Learn today to keep your {game.streakDays}-day streak: opening the app does not count
+          {game.streakFreezes ? ` (or a 🧊 freeze will cover you)` : ""}. The day ends at midnight UTC.
         </div>
       )}
     </Card>
