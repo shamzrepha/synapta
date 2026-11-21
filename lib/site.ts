@@ -12,7 +12,7 @@ export const SITE_DESCRIPTION =
 export const FOUNDER_NAME = "Udeakpu Yahnomnso Shamaryah";
 export const FOUNDER_TITLE = "Founder & Chief Executive Officer (CEO)";
 
-const FALLBACK_URL = "https://sunrootlearn.vercel.app";
+const FALLBACK_URL = "https://sunrootlearn.com";
 
 export function getSiteUrl(): string {
   const raw = (process.env.NEXT_PUBLIC_APP_URL || "").trim() || FALLBACK_URL;
