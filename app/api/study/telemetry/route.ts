@@ -141,7 +141,6 @@ export async function POST(req: NextRequest) {
     await userRef.set(
       {
         telemetryProfile: updatedProfile,
-        lastActiveDate: new Date().toISOString().slice(0, 10),
         updatedAt: Timestamp.now(),
       },
       { merge: true }

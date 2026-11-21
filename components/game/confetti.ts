@@ -12,6 +12,7 @@ export interface CelebrationOptions {
  * Respects Reduced Motion by no-oping immediately.
  */
 export function fireCelebration({ reduceMotion, intensity = "small" }: CelebrationOptions = {}) {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("sunroot:favicon", { detail: { kind: intensity === "grand" ? "levelup" : "correct" } }));
   if (reduceMotion || typeof window === "undefined") return;
   try {
     const particleCount = intensity === "grand" ? 85 : intensity === "medium" ? 45 : 22;

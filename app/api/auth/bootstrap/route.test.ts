@@ -33,7 +33,7 @@ vi.mock("@/lib/firebase/admin", () => ({
 }));
 vi.mock("@/lib/env", () => ({ getServerEnv: () => ({ ADMIN_EMAILS: "", TEACHER_TOKEN_LIMIT: 1, STUDENT_TOKEN_LIMIT: 1 }) }));
 vi.mock("@/lib/rateLimit", () => ({ checkRateLimit: async () => null }));
-vi.mock("@/lib/streak/server", () => ({ touchUserStreak: async () => ({ streakDays: 1, lastActiveDate: "2026-01-01" }) }));
+vi.mock("@/lib/streak/server", () => ({ viewStreak: () => ({ streakDays: 1, anchor: "2026-01-01" }) }));
 vi.mock("@/lib/activity/server", () => ({ recordActivityDay: async () => undefined }));
 
 import { NextRequest } from "next/server";

@@ -5,8 +5,8 @@ import { levelFromXp } from "@/lib/game/levels";
 import { BADGES, normalizeStats } from "@/lib/game/badges";
 import { getDailyQuests } from "@/lib/game/progress";
 import { tierInfo, weekEndsAt, weekIdFor } from "@/lib/game/leagues";
-import { currentStreakDays } from "@/lib/streak/logic";
-import { touchUserStreak } from "@/lib/streak/server";
+import { readStreakToday, viewStreak } from "@/lib/streak/server";
+import { progressMessage } from "@/lib/streak/qualify";
 
 export const runtime = "nodejs";
 
@@ -35,31 +35,19 @@ export async function GET(req: NextRequest) {
 
     const tier = typeof u.leagueTier === "number" ? u.leagueTier : 0;
     const owned = (u.badges || {}) as Record<string, { toDate?: () => Date }>;
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const lastActiveDate = u.lastActiveDate ? String(u.lastActiveDate).slice(0, 10) : null;
-    let streakDays = typeof u.streakDays === "number" ? u.streakDays : 0;
-    let streakFreezes = typeof u.streakFreezes === "number" ? u.streakFreezes : 0;
-
-    if (lastActiveDate !== todayStr) {
-      const touched = await touchUserStreak(caller.uid);
-      streakDays = touched.streakDays;
-      streakFreezes = touched.freezes;
-    } else {
-      streakDays = Math.max(1, currentStreakDays({
-        streakDays,
-        lastActiveDate,
-        freezes: streakFreezes,
-        today: todayStr,
-      }));
-    }
+    // Read-only: opening the app never creates, extends or heals a streak
+    const view = viewStreak(u);
+    const streakDays = view.streakDays;
+    const today = await readStreakToday(caller.uid);
     return NextResponse.json({
       ok: true,
       data: {
         xp: u.xp || 0,
         streakDays,
         streakFreezes: u.streakFreezes || 0,
-        // Studied before, but not yet today: today's activity keeps the streak alive
-        streakAtRisk: streakDays > 0 && !!lastActiveDate && lastActiveDate !== todayStr,
+        // Has a streak but has not earned today's 30 learning points yet
+        streakAtRisk: view.atRisk,
+        streakToday: { points: today.points, threshold: today.threshold, remaining: today.remaining, qualified: today.qualified, message: progressMessage(today) },
         level: levelFromXp(u.xp || 0),
         stats: normalizeStats(u.stats),
         badges: BADGES.map((b) => ({

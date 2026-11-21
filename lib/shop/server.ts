@@ -1,3 +1,4 @@
+import { streakAnchorDate } from "@/lib/streak/qualify";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { ApiError } from "@/lib/api/errors";
 import { MAX_STREAK_FREEZES } from "@/lib/game/streak";
@@ -54,7 +55,7 @@ export async function getShopState(uid: string): Promise<ShopState> {
   const xp = u.xp || 0;
   const xpSpent = u.xpSpent || 0;
   const freezes = u.streakFreezes || 0;
-  const rec = recoveryState({ streakDays: u.streakDays || 0, lastActiveDate: u.lastActiveDate || null, freezes, today: dayIdFor() });
+  const rec = recoveryState({ streakDays: u.streakDays || 0, lastActiveDate: streakAnchorDate(u), freezes, today: dayIdFor() });
   return {
     xp,
     xpSpent,
@@ -97,7 +98,7 @@ export async function purchaseItem(uid: string, itemId: string): Promise<{ spent
     const freezes = u.streakFreezes || 0;
     let price = item.price;
     if (item.kind === "recovery") {
-      const rec = recoveryState({ streakDays: u.streakDays || 0, lastActiveDate: u.lastActiveDate || null, freezes, today });
+      const rec = recoveryState({ streakDays: u.streakDays || 0, lastActiveDate: streakAnchorDate(u), freezes, today });
       if (!rec.available) throw new ApiError(409, "NOT_AVAILABLE", "There is no recently broken streak to recover.");
       price = recoveryCost(u.streakDays || 0);
     }
@@ -118,7 +119,10 @@ export async function purchaseItem(uid: string, itemId: string): Promise<{ spent
     };
     if (isEquippable(item)) update[`shopOwned.${item.id}`] = Timestamp.now();
     if (item.kind === "freeze") update.streakFreezes = freezes + 1;
-    if (item.kind === "recovery") update.lastActiveDate = addDays(today, -1);
+    if (item.kind === "recovery") {
+      update.lastActiveDate = addDays(today, -1);
+      update.lastQualifiedDate = addDays(today, -1);
+    }
     t.update(userRef, update);
     t.set(ledgerRef, {
       itemId: item.id,
