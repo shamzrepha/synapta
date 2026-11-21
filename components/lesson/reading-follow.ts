@@ -1,5 +1,5 @@
-import { perchOnWord, hopPath, type Box } from "@/lib/pet/read-hop";
-import { hopDuration, leadClipMs } from "@/lib/pet/read-timing";
+import { perchOnWord, type Box } from "@/lib/pet/read-hop";
+import { leadClipMs } from "@/lib/pet/read-timing";
 import { alignSpoken, splitDomWords } from "@/lib/study/word-sync";
 import { wordAt, type WordTiming } from "@/lib/voice/word-timing";
 import type { BotApi } from "@/components/bot/bot-provider";
@@ -80,23 +80,11 @@ export function followReading(opts: {
   let lastScroll = 0;
   let off = false;
   let lost = false;
-  /** the page word Sprout is standing on, and when its current hop ends (until then the hop itself moves it) */
-  let perch = -1;
-  let hopEnds = 0;
-  let hopWordTop = 0;
+  /** where Sprout is drawn this frame, and when the last frame ran */
+  let pos: { x: number; y: number } | null = null;
+  let lastFrame = performance.now();
 
   const boxOf = (r: DOMRect): Box => ({ left: r.left, top: r.top, width: r.width, height: r.height });
-
-  /** Hop to the word. A new hop takes over from where Sprout really is, so it never queues up behind the voice or gets stuck on a hop that was left behind. */
-  const hopTo = (to: { x: number; y: number }, ms: number, wordTop: number) => {
-    if (off) return;
-    const from = bot.where();
-    const path = hopPath(from, to);
-    hopEnds = performance.now() + ms;
-    hopWordTop = wordTop;
-    // never wait on a hop that cannot finish (a hidden tab pauses animations): give it its time plus a little, then let the next one run
-    void Promise.race([bot.path(path, { duration: ms, pose: "idle" }), new Promise<void>((r) => window.setTimeout(r, ms + 150))]).catch(() => {});
-  };
 
   const rangeOf = (j: number): Range => {
     const r = document.createRange();
@@ -152,18 +140,15 @@ export function followReading(opts: {
     follower.next = next;
     last = -2;
     lastDomIdx = -1;
-    perch = -1;
     return dom.length > 0;
   };
 
-  let lastLead = -2;
   const step = () => {
     if (off) return;
     raf = requestAnimationFrame(step);
     try {
       if (dom.length === 0 || !dom[0].node.isConnected) {
         if (!recover()) return;
-        lastLead = -2;
       }
       const ms = audio.currentTime * 1000;
 
@@ -189,35 +174,39 @@ export function followReading(opts: {
         }
       }
 
-      // Sprout is a little ahead of the voice, so it has landed on a word by the time it is said (even at the start of a new line);
-      // before the voice has started it stands on the very first word, not on one a little way in
-      const lead = ms < 40 ? 0 : wordAt(words, ms + leadClipMs(audio.playbackRate));
-      if (lead !== lastLead && lead >= 0) {
-        lastLead = lead;
-        const j = pageIndex(lead);
-        if (j >= 0 && dom[j]) {
-          perch = j;
-          const wRect = rectOfWord(j);
-          const to = perchOnWord(boxOf(wRect), { width: window.innerWidth, height: window.innerHeight });
-          const from = bot.where();
-          if (Math.hypot(to.x - from.x, to.y - from.y) > 1.5) {
-            // the hop is timed so it lands before the word starts, whatever the speed; a word on the same line is a short hop
-            const sameLine = Math.abs(to.y - from.y) < 14;
-            hopTo(
-              to,
-              hopDuration({ from, to, wordMs: words[lead].e - words[lead].s, rate: audio.playbackRate, sameLine }),
-              wRect.top
-            );
+      // Sprout glides along the words: every frame it is eased toward a point that moves with the voice, a little ahead of it.
+      // (Per-word hops could not keep up with a fast voice: each new hop restarted an animation. A point that glides never falls behind.)
+      const t = ms + leadClipMs(audio.playbackRate);
+      const L = ms < 40 ? 0 : wordAt(words, t);
+      if (L >= 0) {
+        const jL = pageIndex(L);
+        if (jL >= 0 && dom[jL]) {
+          const viewport = { width: window.innerWidth, height: window.innerHeight };
+          const a = perchOnWord(boxOf(rectOfWord(jL)), viewport);
+          let target = a;
+          const jN = L + 1 < words.length ? pageIndex(L + 1) : -1;
+          if (jN >= 0 && jN !== jL && dom[jN]) {
+            const b = perchOnWord(boxOf(rectOfWord(jN)), viewport);
+            const span = Math.max(80, words[L + 1].s - words[L].s);
+            const u = Math.min(1, Math.max(0, (t - words[L].s) / span));
+            if (Math.abs(b.y - a.y) < 14) {
+              // same line: slide from this word to the next, with a small bounce on the way
+              const e = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+              target = { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e - Math.sin(Math.PI * u) * 6 };
+            } else if (u > 0.6) {
+              target = b; // a new line: wait on the last word, then go
+            }
           }
-        }
-      } else if (perch >= 0 && dom[perch]) {
-        const wRect = rectOfWord(perch);
-        const scrolledWhileHopping = Math.abs(wRect.top - hopWordTop) > 8;
-        if (performance.now() > hopEnds || scrolledWhileHopping) {
-          // keep Sprout locked onto its active word even while the page scrolls under it
-          hopWordTop = wRect.top;
-          const to = perchOnWord(boxOf(wRect), { width: window.innerWidth, height: window.innerHeight });
-          bot.stick(to.x, to.y);
+          const now = performance.now();
+          const dt = Math.min(50, Math.max(8, now - lastFrame));
+          lastFrame = now;
+          if (!pos) pos = bot.where();
+          const dist = Math.hypot(target.x - pos.x, target.y - pos.y);
+          // quick on a long move (a new line), soft on a short one; quicker still when the voice is faster
+          const tau = (dist > 140 ? 45 : 85) / Math.max(0.75, Math.min(2, audio.playbackRate || 1));
+          const k = 1 - Math.exp(-dt / tau);
+          pos = { x: pos.x + (target.x - pos.x) * k, y: pos.y + (target.y - pos.y) * k };
+          bot.track(pos.x, pos.y);
         }
       }
     } catch {
