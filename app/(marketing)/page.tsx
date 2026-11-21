@@ -1,5 +1,6 @@
 import { LandingButtons } from "@/components/auth/landing-buttons";
 import { MobileLandingRedirect } from "@/components/auth/mobile-landing-redirect";
+import { AnimatedFavicon } from "@/components/shell/animated-favicon";
 import { HeroEngine } from "@/components/landing/hero-engine";
 import { PixelField } from "@/components/landing/pixel-field";
 import { Reveal } from "@/components/landing/reveal";
@@ -103,6 +104,7 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground selection:bg-brand-500 selection:text-slate-950">
       <MobileLandingRedirect />
+      <AnimatedFavicon fetchMood={false} />
       <noscript>
         <style>{".reveal{opacity:1;transform:none}"}</style>
       </noscript>
