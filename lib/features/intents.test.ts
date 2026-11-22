@@ -7,7 +7,7 @@ describe("feature intents", () => {
     const byId = Object.fromEntries(FEATURES.map((f) => [f.id, intentOf(f)]));
     expect(byId.notes).toBe("Capture");
     expect(byId.snap).toBe("Capture");
-    expect(byId.flashcards).toBe("Practice");
+    expect(byId.flashcards).toBe("Review");
     expect(byId.exams).toBe("Plan");
   });
   it("gives every live feature an intent and never loses one when grouping", () => {
@@ -17,7 +17,7 @@ describe("feature intents", () => {
     for (const g of grouped) expect(INTENT_ORDER).toContain(g.intent);
   });
   it("keeps groups in the fixed order and drops empty ones", () => {
-    const g = groupByIntent([{ intent: "Practice" as const }, { intent: "Capture" as const }]);
-    expect(g.map((x) => x.intent)).toEqual(["Capture", "Practice"]);
+    const g = groupByIntent([{ intent: "Practise" as const }, { intent: "Capture" as const }]);
+    expect(g.map((x) => x.intent)).toEqual(["Capture", "Practise"]);
   });
 });

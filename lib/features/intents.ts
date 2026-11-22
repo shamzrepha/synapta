@@ -1,16 +1,18 @@
 import type { FeatureEntry, FeatureGroup } from "./registry";
 
 /** What a person is trying to do. The hubs group features by this, not by which team built them. */
-export type Intent = "Capture" | "Learn" | "Practice" | "Plan" | "Build" | "Together" | "Rewards" | "Teach";
+export type Intent = "Capture" | "Understand" | "Practise" | "Review" | "Plan" | "Build" | "Progress" | "Together" | "Rewards" | "Teach";
 
-export const INTENT_ORDER: Intent[] = ["Capture", "Learn", "Practice", "Plan", "Build", "Together", "Rewards", "Teach"];
+export const INTENT_ORDER: Intent[] = ["Capture", "Understand", "Practise", "Review", "Plan", "Build", "Progress", "Together", "Rewards", "Teach"];
 
 export const INTENT_HINT: Record<Intent, string> = {
   Capture: "Get your material in",
-  Learn: "Understand it",
-  Practice: "Check you know it",
+  Understand: "Make sense of it",
+  Practise: "Check you know it",
+  Review: "Bring it back before you forget",
   Plan: "Organise your time",
   Build: "Make and test things",
+  Progress: "See how you are doing",
   Together: "Study with others",
   Rewards: "Stay motivated",
   Teach: "For teachers",
@@ -19,27 +21,29 @@ export const INTENT_HINT: Record<Intent, string> = {
 const BY_ID: Record<string, Intent> = {
   notes: "Capture",
   snap: "Capture",
-  evaluation: "Practice",
-  flashcards: "Practice",
-  daily: "Practice",
-  "for-you": "Learn",
-  "learning-map": "Learn",
-  papers: "Practice",
-  mistakes: "Practice",
+  "for-you": "Understand",
+  eli: "Understand",
+  voice: "Understand",
+  mindmap: "Understand",
+  papers: "Practise",
+  flashcards: "Review",
+  daily: "Review",
+  mistakes: "Review",
   exams: "Plan",
   focus: "Plan",
-  eli: "Learn",
-  voice: "Learn",
-  mindmap: "Learn",
+  goals: "Plan",
+  evaluation: "Progress",
+  "learning-map": "Progress",
+  heatmap: "Progress",
 };
 
 const BY_GROUP: Record<FeatureGroup, Intent> = {
-  Study: "Learn",
+  Study: "Understand",
   Social: "Together",
   Maker: "Build",
   Rewards: "Rewards",
   Teachers: "Teach",
-  Everywhere: "Learn",
+  Everywhere: "Understand",
 };
 
 export function intentOf(f: Pick<FeatureEntry, "id" | "group">): Intent {

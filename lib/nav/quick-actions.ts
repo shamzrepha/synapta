@@ -28,7 +28,8 @@ export function normalizeRole(role: unknown): Role {
   return role === "teacher" || role === "admin" ? role : "student";
 }
 
-export function pickQuickActions(s: QuickState): QuickAction[] {
+/** Every action for the role. The Home grid shows only a few of them (see pickQuickActions); the command palette shows all. */
+export function allQuickActions(s: QuickState): QuickAction[] {
   const role = normalizeRole(s.role);
   if (role !== "student") {
     const list: QuickAction[] = [
@@ -59,9 +60,22 @@ export function pickQuickActions(s: QuickState): QuickAction[] {
   ];
 }
 
+/** Home shows at most four shortcuts, so the next-step card stays the one main thing. Everything else is in Study and the palette. */
+export const HOME_SHORTCUTS = 4;
+
+export function pickQuickActions(s: QuickState): QuickAction[] {
+  const all = allQuickActions(s);
+  const role = normalizeRole(s.role);
+  if (role === "admin") return [...all.slice(0, HOME_SHORTCUTS - 1), all.find((a) => a.id === "admin")!];
+  if (role !== "student") return all.slice(0, HOME_SHORTCUTS);
+  const by = (id: string) => all.find((a) => a.id === id);
+  const pick = [by("notes"), by("cards"), by("quiz"), by("tutor")].filter((a): a is QuickAction => !!a);
+  return pick.map((a) => (a.id === "notes" ? { ...a, label: "Add material" } : a.id === "quiz" ? { ...a, label: "Practise questions" } : a.id === "cards" ? { ...a, label: "Review", href: "/study/review" } : a));
+}
+
 /** Palette suggestions shown before the user types: the same tiles plus For you and Labs. */
 export function paletteSuggestions(role: unknown): QuickAction[] {
-  const base = pickQuickActions({ role: normalizeRole(role) });
+  const base = allQuickActions({ role: normalizeRole(role) });
   if (normalizeRole(role) !== "student") return base;
   return [...base, { id: "forYou", label: "For you", href: hrefOf("for-you", "/for-you"), icon: "forYou" }, { id: "labs", label: "Labs and studio", href: "/studio", icon: "labs" }];
 }

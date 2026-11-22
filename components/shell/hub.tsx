@@ -14,12 +14,12 @@ export interface HubLink {
 
 /**
  * A landing page for one area. The few things to start with are large; everything else is grouped by what you are trying to do
- * (get material in, learn, practise, plan, build) as compact rows, so forty features read as five or six short lists.
+ * (get material in, understand, practise, review, plan, build) as compact rows, so forty features read as five or six short lists.
  */
 export function Hub({ eyebrow, title, intro, start, groups, extraLinks = [] }: { eyebrow: string; title: string; intro: string; start: HubLink[]; groups: FeatureGroup[]; extraLinks?: HubLink[] }) {
   const taken = new Set(start.map((s) => s.href));
   const more: Array<HubLink & { intent: Intent }> = [
-    ...extraLinks.map((l) => ({ ...l, intent: l.intent ?? ("Learn" as Intent) })),
+    ...extraLinks.map((l) => ({ ...l, intent: l.intent ?? ("Understand" as Intent) })),
     ...FEATURES.filter((f) => f.status === "live" && groups.includes(f.group)).map((f) => ({ title: f.title, blurb: f.blurb, href: f.href, emoji: f.emoji, intent: intentOf(f) })),
   ].filter((m, i, a) => !taken.has(m.href) && a.findIndex((x) => x.href === m.href) === i);
   const sections = groupByIntent(more);

@@ -346,25 +346,28 @@ export function ReadPlayer({ api, title, className }: { api: ReturnType<typeof u
   const busy = api.state === "loading";
   return (
     <div role="region" aria-label="Listening controls" className={cn("rounded-2xl border border-border bg-card/95 backdrop-blur shadow-elevated px-3 py-2.5", className)}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">{busy ? "Getting the voice ready" : api.state === "paused" ? "Paused" : "Listening"}</p>
           <p className="text-sm font-semibold truncate">{title}</p>
         </div>
-        <button type="button" onClick={() => api.skip(-1)} aria-label="Previous topic" className="h-10 w-10 grid place-items-center rounded-full hover:bg-muted"><SkipBack className="h-4 w-4" /></button>
+        <button type="button" onClick={api.stop} aria-label="Stop listening" className="h-11 w-11 -mr-1 -mt-1 grid shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted"><Square className="h-4 w-4" /></button>
+      </div>
+      {/* the main control sits in the middle of the bottom edge, where a thumb rests; skipping is secondary */}
+      <div className="flex items-center justify-center gap-5 pt-1">
+        <button type="button" onClick={() => api.skip(-1)} aria-label="Previous topic" className="h-11 w-11 grid place-items-center rounded-full hover:bg-muted"><SkipBack className="h-5 w-5" /></button>
         <button
           type="button"
           onClick={() => (api.state === "paused" ? api.resume() : api.pause())}
           aria-label={api.state === "paused" ? "Resume" : "Pause"}
-          className="h-11 w-11 grid place-items-center rounded-full bg-brand-600 text-white"
+          className="h-14 w-14 grid place-items-center rounded-full bg-brand-600 text-white shadow-elevated"
         >
-          {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : api.state === "paused" ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+          {busy ? <Loader2 className="h-6 w-6 animate-spin" /> : api.state === "paused" ? <Play className="h-6 w-6" /> : <Pause className="h-6 w-6" />}
         </button>
-        <button type="button" onClick={() => api.skip(1)} aria-label="Next topic" className="h-10 w-10 grid place-items-center rounded-full hover:bg-muted"><SkipForward className="h-4 w-4" /></button>
-        <button type="button" onClick={api.stop} aria-label="Stop listening" className="h-10 w-10 grid place-items-center rounded-full hover:bg-muted"><Square className="h-4 w-4" /></button>
+        <button type="button" onClick={() => api.skip(1)} aria-label="Next topic" className="h-11 w-11 grid place-items-center rounded-full hover:bg-muted"><SkipForward className="h-5 w-5" /></button>
       </div>
       <div className="flex items-center justify-between gap-3 pt-1.5 text-xs">
-        <button type="button" onClick={api.cycleRate} className="rounded-lg border border-border px-2 py-1 font-semibold tabular-nums" aria-label="Change speed">{api.rate}×</button>
+        <button type="button" onClick={api.cycleRate} className="min-h-[44px] min-w-[44px] rounded-lg border border-border px-2 py-1 font-semibold tabular-nums" aria-label="Change speed">{api.rate}×</button>
         <label className="flex items-center gap-1.5 font-semibold text-muted-foreground cursor-pointer">
           <input type="checkbox" checked={api.autoNext} onChange={(e) => api.setAutoNext(e.target.checked)} className="h-4 w-4 accent-[var(--color-brand-600,#2563eb)]" />
           Go to the next topic automatically
