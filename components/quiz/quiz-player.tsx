@@ -20,6 +20,9 @@ interface QuizQuestion {
   question: string;
   options: string[];
   difficulty?: string;
+  /** sent with the question so the check is instant; the server still decides what counts for mastery and XP */
+  correctIndex?: number;
+  explanation?: string;
 }
 
 interface AnswerResult {
@@ -109,39 +112,54 @@ export function QuizPlayer({ classId, kcId, onEvidence, viewLang }: QuizPlayerPr
 
   const submit = useCallback(async () => {
     if (selected === null || !sessionId || answered || submitting) return;
-    setSubmitting(true);
+    const here = current;
+    const local = questions[here];
+    const instant = typeof local?.correctIndex === "number";
+    // The answer is checked on the phone, so the result shows at once. Saving it (mastery, XP, mistakes) happens behind it.
+    if (instant) {
+      setResults((prev) => ({
+        ...prev,
+        [here]: { selected, correct: selected === local.correctIndex, correctIndex: local.correctIndex as number, explanation: local.explanation || "" },
+      }));
+      if (selected === local.correctIndex) fireCelebration({ reduceMotion, intensity: combo + 1 >= 3 ? "medium" : "small" });
+      setCombo(selected === local.correctIndex ? combo + 1 : 0);
+    } else {
+      setSubmitting(true);
+    }
     try {
       const res = await fetch(`/api/quiz/${sessionId}/answer${viewLang ? `?lang=${viewLang}` : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionIndex: current, selectedOptionIndex: selected }),
+        body: JSON.stringify({ questionIndex: here, selectedOptionIndex: selected }),
       });
       const data = await res.json();
       if (!data.ok) {
-        toast({ title: "Couldn't grade answer", description: data.error?.message, variant: "destructive" });
+        toast({ title: instant ? "Answer shown, but not saved" : "Couldn't grade answer", description: data.error?.message, variant: "destructive" });
         return;
       }
       const d = data.data;
-      setResults((prev) => ({
-        ...prev,
-        [current]: { selected, correct: !!d.correct, correctIndex: d.correctIndex, explanation: d.explanation || "" },
-      }));
+      if (!instant) {
+        setResults((prev) => ({
+          ...prev,
+          [here]: { selected, correct: !!d.correct, correctIndex: d.correctIndex, explanation: d.explanation || "" },
+        }));
+      }
       if (typeof d.streakDays === "number") setStreakDays(d.streakDays);
       onEvidence?.({ pLAfter: d.pLAfter, totalXp: d.totalXp, streakDays: d.streakDays });
       const nextCombo = d.correct ? combo + 1 : 0;
-      setCombo(nextCombo);
+      if (!instant) setCombo(nextCombo);
       if (d.crossedMasteryFirstTime) {
         if (!reduceMotion) confetti({ particleCount: 140, spread: 75, origin: { y: 0.6 }, disableForReducedMotion: true });
         toast({ title: "Mastery achieved!", description: "You crossed 95% mastery. +100 bonus XP.", variant: "success" });
-      } else if (d.correct) {
+      } else if (d.correct && !instant) {
         fireCelebration({ reduceMotion, intensity: nextCombo >= 3 ? "medium" : "small" });
       }
     } catch {
-      toast({ title: "Network error", description: "Your answer wasn't submitted.", variant: "destructive" });
+      toast({ title: "Network error", description: instant ? "Your answer is shown, but it may not be saved." : "Your answer wasn't submitted.", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
-  }, [selected, sessionId, answered, submitting, current, viewLang, onEvidence, toast, combo, reduceMotion]);
+  }, [selected, sessionId, answered, submitting, current, questions, viewLang, onEvidence, toast, combo, reduceMotion]);
 
   const next = useCallback(() => {
     if (current < questions.length - 1) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminDb, FieldValue } from "@/lib/firebase/admin";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { afterRetest } from "@/lib/mistakes/logic";
 import { z } from "zod";
@@ -23,15 +23,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const { selectedIndex } = await parseJson(req, retestSchema);
     const { ref, data } = await loadOwn(id, caller.uid);
-    const correct = selectedIndex === data.correctIndex;
+    // a retest asks a fresh question (saved on the mistake); the original is the fallback
+    const v = data.variant as { correctIndex?: number; explanation?: string } | undefined;
+    const answerIndex = typeof v?.correctIndex === "number" ? v.correctIndex : data.correctIndex;
+    const answerExplanation = typeof v?.correctIndex === "number" ? v.explanation || "" : data.explanation || "";
+    const correct = selectedIndex === answerIndex;
     const next = afterRetest(
       { wrongCount: data.wrongCount || 1, retestCorrect: data.retestCorrect || 0, mastered: !!data.mastered },
       correct
     );
-    await ref.update({ ...next, updatedAt: new Date().toISOString() });
+    // the fresh question is used once; the next retest writes another
+    await ref.update({ ...next, variant: FieldValue.delete(), updatedAt: new Date().toISOString() });
     return NextResponse.json({
       ok: true,
-      data: { correct, correctIndex: data.correctIndex, explanation: data.explanation || "", mastered: next.mastered, retestCorrect: next.retestCorrect },
+      data: { correct, correctIndex: answerIndex, explanation: answerExplanation, mastered: next.mastered, retestCorrect: next.retestCorrect },
     });
   } catch (error) {
     return handleAuthError(error);

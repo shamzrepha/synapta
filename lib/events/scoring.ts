@@ -10,6 +10,17 @@ export const STREAK_CAP = 500;
 /** Network grace so a last-second answer isn't unfairly marked late. */
 export const LATE_GRACE_MS = 2000;
 
+/**
+ * How long the answer took. The server's clock includes the time the answer spent travelling and being saved, which the
+ * player cannot control, so the phone's own stopwatch (started when the question appeared, stopped on the tap) is trusted
+ * down to a limit: it can never be less than the server's time minus LATE_GRACE_MS, so it cannot be faked by much.
+ */
+export function effectiveElapsedMs(serverMs: number, clientMs: number | null | undefined): number {
+  const server = Math.max(0, serverMs);
+  if (typeof clientMs !== "number" || !Number.isFinite(clientMs) || clientMs < 0) return server;
+  return Math.min(server, Math.max(clientMs, server - LATE_GRACE_MS));
+}
+
 export function scoreAnswer(params: { correct: boolean; elapsedMs: number; limitMs: number; streakBefore: number }): {
   points: number;
   streak: number;

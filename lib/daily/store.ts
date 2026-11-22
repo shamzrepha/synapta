@@ -26,7 +26,7 @@ export async function readStreak(uid: string): Promise<DailyStreak | null> {
   return s.exists ? (s.data() as DailyStreak) : null;
 }
 
-/** Client view: correct answers and explanations are revealed only for questions already answered. */
+/** Client view. The answer and explanation go with each question so the check is instant (practice only; the server still scores from its own copy). */
 export function toView(doc: DailyDoc, streak: DailyStreak | null, today: string) {
   const correctCount = Object.values(doc.answers).filter((a) => a.correct).length;
   return {
@@ -43,7 +43,9 @@ export function toView(doc: DailyDoc, streak: DailyStreak | null, today: string)
         question: q.question,
         options: q.options,
         topic: q.topic,
-        ...(a ? { answered: true, selectedIndex: a.selectedIndex, correct: a.correct, correctIndex: q.correctIndex, explanation: q.explanation } : { answered: false }),
+        correctIndex: q.correctIndex,
+        explanation: q.explanation,
+        ...(a ? { answered: true, selectedIndex: a.selectedIndex, correct: a.correct } : { answered: false }),
       };
     }),
   };

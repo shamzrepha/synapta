@@ -3,7 +3,7 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { adminDb, FieldValue, Timestamp } from "@/lib/firebase/admin";
 import { loadEvent, statusOf, toDate } from "@/lib/events/store";
-import { scoreAnswer } from "@/lib/events/scoring";
+import { effectiveElapsedMs, scoreAnswer } from "@/lib/events/scoring";
 import { bumpChannel } from "@/lib/live/server";
 import { z } from "zod";
 
@@ -13,13 +13,15 @@ const schema = z.object({
   index: z.number().int().min(0),
   // -1 = ran out of time without answering
   choice: z.number().int().min(-1).max(5),
+  // the player's own stopwatch for this question, so slow networks do not cost points
+  elapsedMs: z.number().min(0).max(600_000).optional(),
 });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
   try {
     const { eventId } = await params;
     const caller = await requireUser(req);
-    const { index, choice } = await parseJson(req, schema);
+    const { index, choice, elapsedMs: clientMs } = await parseJson(req, schema);
     const { ref, ev } = await loadEvent(caller, eventId);
     if (ev.kind !== "quiz_sprint") throw new ApiError(400, "BAD_KIND", "Not a quiz sprint.");
     if (statusOf(ev) !== "live") throw new ApiError(409, "NOT_LIVE", "This sprint has ended.");
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ eve
       const q = questions[index];
       if (!q) throw new ApiError(400, "INVALID_QUESTION", "No such question.");
 
-      const elapsedMs = Date.now() - toDate(entry.servedAt).getTime();
+      const elapsedMs = effectiveElapsedMs(Date.now() - toDate(entry.servedAt).getTime(), clientMs);
       const correct = choice === q.correctIndex;
       const scored = scoreAnswer({ correct, elapsedMs, limitMs, streakBefore: entry.streak || 0 });
       const nextIndex = index + 1;
