@@ -42,3 +42,19 @@ describe("ranking", () => {
     expect(r.map((x) => x.rank)).toEqual([1, 2, 3]);
   });
 });
+
+import { effectiveElapsedMs } from "./scoring";
+describe("effectiveElapsedMs", () => {
+  it("trusts the phone's stopwatch when it is close to the server's", () => {
+    expect(effectiveElapsedMs(6000, 4500)).toBe(4500);
+  });
+  it("never trusts a time more than the grace below the server's", () => {
+    expect(effectiveElapsedMs(10000, 100)).toBe(8000);
+  });
+  it("never reports more than the server saw, or accepts junk", () => {
+    expect(effectiveElapsedMs(5000, 9000)).toBe(5000);
+    expect(effectiveElapsedMs(5000, undefined)).toBe(5000);
+    expect(effectiveElapsedMs(5000, -3)).toBe(5000);
+    expect(effectiveElapsedMs(5000, NaN)).toBe(5000);
+  });
+});

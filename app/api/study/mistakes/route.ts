@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { listMistakes } from "@/lib/mistakes/store";
+import { ensureVariants } from "@/lib/mistakes/variants";
 
 export const runtime = "nodejs";
 
 /**
  * GET /api/study/mistakes?status=open|mastered|all&classId=&topic=&retest=1
- * With retest=1 the answers are withheld and at most 10 open mistakes are returned (most-missed first).
+ * With retest=1 at most 10 open mistakes are returned (most-missed first), each as a NEW question on the same idea
+ * (never the one already seen), sent with its answer so the check on the phone is instant.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -35,10 +37,23 @@ export async function GET(req: NextRequest) {
 
     if (retest) {
       items = items.sort((a, b) => b.wrongCount - a.wrongCount).slice(0, 10);
+      const variants = await ensureVariants(caller.uid, items);
       return NextResponse.json({
         ok: true,
         data: {
-          items: items.map((m) => ({ id: m.id, question: m.question, options: m.options, topic: m.topic, classTitle: m.classTitle })),
+          items: items.map((m) => {
+            const v = variants.get(m.id);
+            return {
+              id: m.id,
+              question: v?.question ?? m.question,
+              options: v?.options ?? m.options,
+              correctIndex: v?.correctIndex ?? m.correctIndex,
+              explanation: v?.explanation ?? m.explanation,
+              fresh: !!v,
+              topic: m.topic,
+              classTitle: m.classTitle,
+            };
+          }),
         },
       });
     }

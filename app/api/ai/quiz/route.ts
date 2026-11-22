@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       data: {
         sessionId: sessionRef.id,
-        questions: await localizeFor(req, caller, access.canMutate, questions.map((q, idx) => ({ id: idx, question: q.question, options: q.options, difficulty: q.difficulty })), await classSourceLanguage(access.classData)),
+        questions: await localizeFor(req, caller, access.canMutate, questions.map((q, idx) => ({ id: idx, question: q.question, options: q.options, difficulty: q.difficulty, correctIndex: q.correctIndex, explanation: q.explanation })), await classSourceLanguage(access.classData)),
         bankSize: bank.length,
         freshCount: Math.max(0, bank.length - seen.length),
         adaptiveFocus: adaptiveFocus || focus,

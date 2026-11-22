@@ -38,7 +38,6 @@ export default function DailyPage() {
   const [data, setData] = useState<Daily | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [finished, setFinished] = useState<Finished | null>(null);
-  const [busy, setBusy] = useState(false);
   const [picked, setPicked] = useState<number | null>(null);
 
   useEffect(() => {
@@ -54,27 +53,50 @@ export default function DailyPage() {
   const current = data ? data.questions.findIndex((q) => !q.answered) : -1;
   const allDone = !!data && current === -1;
 
-  const answer = async (selectedIndex: number) => {
-    if (!data || current < 0 || busy || picked !== null) return;
+  const answer = (selectedIndex: number) => {
+    if (!data || current < 0 || picked !== null) return;
+    const cur = data.questions[current];
+    const instant = typeof cur.correctIndex === "number";
     setPicked(selectedIndex);
-    setBusy(true);
-    try {
-      const r = await send<{ correct: boolean; correctIndex: number; explanation: string; finished: Finished | null }>("/api/study/daily/answer", { index: current, selectedIndex });
+    const index = current;
+    // Checked on the phone so the result shows at once; saving it (and the streak) follows in the background.
+    if (instant) {
+      const correct = selectedIndex === cur.correctIndex;
       setData((d) =>
         d && {
           ...d,
-          questions: d.questions.map((q, i) => (i === current ? { ...q, answered: true, selectedIndex, correct: r.correct, correctIndex: r.correctIndex, explanation: r.explanation } : q)),
-          correctCount: d.correctCount + (r.correct ? 1 : 0),
-          ...(r.finished ? { completed: true, xp: r.finished.xp, streak: r.finished.streak, bestStreak: Math.max(d.bestStreak, r.finished.streak) } : {}),
+          questions: d.questions.map((q, i) => (i === index ? { ...q, answered: true, selectedIndex, correct } : q)),
+          correctCount: d.correctCount + (correct ? 1 : 0),
         }
       );
-      if (r.finished) setFinished(r.finished);
-    } catch (e) {
-      toast({ title: "Couldn't save your answer", description: errMsg(e), variant: "destructive" });
-      setPicked(null);
-    } finally {
-      setBusy(false);
     }
+    const save = async (attempt: number): Promise<void> => {
+      try {
+        const r = await send<{ correct: boolean; correctIndex: number; explanation: string; finished: Finished | null }>("/api/study/daily/answer", { index, selectedIndex });
+        if (!instant) {
+          setData((d) =>
+            d && {
+              ...d,
+              questions: d.questions.map((q, i) => (i === index ? { ...q, answered: true, selectedIndex, correct: r.correct, correctIndex: r.correctIndex, explanation: r.explanation } : q)),
+              correctCount: d.correctCount + (r.correct ? 1 : 0),
+            }
+          );
+        }
+        if (r.finished) {
+          const f = r.finished;
+          setData((d) => d && { ...d, completed: true, xp: f.xp, streak: f.streak, bestStreak: Math.max(d.bestStreak, f.streak) });
+          setFinished(f);
+        }
+      } catch (e) {
+        if (attempt < 2) {
+          await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
+          return save(attempt + 1);
+        }
+        toast({ title: "Couldn't save that answer", description: errMsg(e), variant: "destructive" });
+        if (!instant) setPicked(null);
+      }
+    };
+    void save(0);
   };
 
   // The question just answered stays on screen (with feedback) until the student taps Next.
@@ -140,8 +162,8 @@ export default function DailyPage() {
                 <button
                   key={i}
                   type="button"
-                  disabled={done || busy}
-                  onClick={() => void answer(i)}
+                  disabled={done || picked !== null}
+                  onClick={() => answer(i)}
                   className={cn(
                     "w-full min-h-[48px] text-left rounded-xl border px-3 py-2.5 text-sm flex items-center gap-2 transition-colors",
                     !done && "border-slate-300 dark:border-slate-700 hover:border-brand-500 active:bg-brand-50 dark:active:bg-brand-950/30",

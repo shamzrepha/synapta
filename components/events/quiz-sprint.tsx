@@ -49,6 +49,9 @@ export function QuizSprintPlayer({ eventId, onProgress }: { eventId: string; onP
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const answeredRef = useRef(false);
+  /** the stopwatch: starts when the question is on screen and stops at the tap, so saving the answer never costs time */
+  const shownAtRef = useRef(0);
+  const [frozenMs, setFrozenMs] = useState<number | null>(null);
 
   const loadNext = useCallback(async () => {
     setFeedback(null);
@@ -67,6 +70,8 @@ export function QuizSprintPlayer({ eventId, onProgress }: { eventId: string; onP
         return;
       }
       answeredRef.current = false;
+      setFrozenMs(null);
+      shownAtRef.current = performance.now();
       setQ(data.data);
       setDeadline(Date.now() + data.data.remainingMs);
     } finally {
@@ -78,17 +83,21 @@ export function QuizSprintPlayer({ eventId, onProgress }: { eventId: string; onP
     async (choice: number) => {
       if (!q || answeredRef.current) return;
       answeredRef.current = true;
+      // stop the clock the moment the player taps (or time runs out); checking the answer does not count
+      const tookMs = Math.min(q.limitMs, performance.now() - shownAtRef.current);
+      setFrozenMs(tookMs);
       setBusy(true);
       try {
         const res = await fetch(`/api/events/${eventId}/answer`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ index: q.index, choice }),
+          body: JSON.stringify({ index: q.index, choice, elapsedMs: Math.round(tookMs) }),
         });
         const data = await res.json();
         if (!data.ok) {
           toast({ title: "Answer not recorded", description: data.error?.message, variant: "destructive" });
           answeredRef.current = false;
+          setFrozenMs(null);
           return;
         }
         setFeedback({ ...data.data, choice });
@@ -103,14 +112,14 @@ export function QuizSprintPlayer({ eventId, onProgress }: { eventId: string; onP
 
   // Countdown tick + auto-submit "no answer" at zero
   useEffect(() => {
-    if (!q || feedback) return;
+    if (!q || feedback || frozenMs !== null) return;
     const t = setInterval(() => {
       const n = Date.now();
       setNow(n);
       if (n >= deadline && !answeredRef.current) answer(-1);
     }, 100);
     return () => clearInterval(t);
-  }, [q, feedback, deadline, answer]);
+  }, [q, feedback, frozenMs, deadline, answer]);
 
   // Keyboard 1-4
   useEffect(() => {
@@ -146,7 +155,8 @@ export function QuizSprintPlayer({ eventId, onProgress }: { eventId: string; onP
     );
   }
 
-  const remaining = Math.max(0, deadline - now);
+  // once the player has answered, the clock stays where they stopped it
+  const remaining = frozenMs !== null ? Math.max(0, q.limitMs - frozenMs) : Math.max(0, deadline - now);
   const pct = (remaining / q.limitMs) * 100;
 
   return (
@@ -156,7 +166,7 @@ export function QuizSprintPlayer({ eventId, onProgress }: { eventId: string; onP
           Question {q.index + 1}/{q.total}
         </span>
         <span className={cn("flex items-center gap-1 tabular-nums", remaining < 5000 && !feedback && "text-rose-600 animate-pulse")}>
-          <Clock className="h-4 w-4" /> {feedback ? "—" : `${Math.ceil(remaining / 1000)}s`}
+          <Clock className="h-4 w-4" /> {feedback ? "—" : frozenMs !== null ? "Checking…" : `${Math.ceil(remaining / 1000)}s`}
         </span>
       </div>
       <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
