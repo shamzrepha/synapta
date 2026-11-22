@@ -38,6 +38,8 @@ const EXTRAS: MoreEntry[] = [
   { id: "x-classes", title: "My classes", blurb: "Your courses, lessons and quizzes.", emoji: "🎓", href: "/classes/manage", group: "Study" },
   { id: "x-explore", title: "Find a class", blurb: "Search for a class or join with a code.", emoji: "🧭", href: "/explore", group: "Study" },
   { id: "x-notebook", title: "AI Notebook", blurb: "Chat with your own documents, with sources.", emoji: "📓", href: "/notebook", group: "Study" },
+  { id: "x-library", title: "Library", blurb: "Your notes, notebooks, decks and Worlds in one place.", emoji: "📚", href: "/study/library", group: "Study" },
+  { id: "x-review", title: "Review", blurb: "Flashcards, mistakes and topics that are due.", emoji: "🔁", href: "/study/review", group: "Practice" },
   { id: "x-written", title: "Written practice", blurb: "Answer in your own words and get marked.", emoji: "📝", href: "/practice/written", group: "Practice" },
   { id: "x-weak", title: "Weak topics", blurb: "See what to revise next.", emoji: "🎯", href: "/classes/heatmap", group: "Practice" },
   { id: "x-studio", title: "Maker Studio", blurb: "Build circuits, robots and 3D designs.", emoji: "🛠️", href: "/studio", group: "Build and labs" },

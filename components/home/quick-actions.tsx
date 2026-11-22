@@ -12,8 +12,8 @@ const ICONS: Record<IconKey, React.ComponentType<{ className?: string }>> = {
   progress: TrendingUp, create: Plus, plans: NotebookPen, grading: ClipboardCheck, attendance: UserCheck, announce: Megaphone, labs: FlaskConical, forYou: Target, admin: ShieldCheck,
 };
 
-/** "Continue where I left off" plus the eight most useful actions for the role. */
-export function QuickActions({ role, classes }: { role: string | undefined; classes: Array<{ id: string; title: string }> }) {
+/** "Continue where I left off", then whatever Home puts in `after` (the next-step card), then four shortcuts. */
+export function QuickActions({ role, classes, after }: { role: string | undefined; classes: Array<{ id: string; title: string }>; after?: React.ReactNode }) {
   const r = normalizeRole(role);
   const [due, setDue] = useState(0);
   const [stamp, setStamp] = useState(0);
@@ -69,7 +69,8 @@ export function QuickActions({ role, classes }: { role: string | undefined; clas
           <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         </Link>
       )}
-      <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Quick actions</h2>
+      {after}
+      <h2 className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Shortcuts</h2>
       <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         {actions.map((a) => {
           const Icon = ICONS[a.icon];

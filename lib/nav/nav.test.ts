@@ -26,25 +26,22 @@ const routes = routePatterns();
 const exists = (href: string) => routes.some((r) => r.test(href.split("?")[0].split("#")[0]));
 
 describe("quick actions", () => {
-  it("gives students 8 tiles with no duplicate hrefs", () => {
+  it("gives students 4 shortcuts with no duplicate hrefs", () => {
     const a = pickQuickActions({ role: "student" });
-    expect(a).toHaveLength(8);
-    expect(new Set(a.map((x) => x.href)).size).toBe(8);
+    expect(a).toHaveLength(4);
+    expect(new Set(a.map((x) => x.href)).size).toBe(4);
+    expect(a.map((x) => x.id)).toEqual(["notes", "cards", "quiz", "tutor"]);
   });
-  it("shows a due badge and a resume tile only when there is something to show", () => {
-    const none = pickQuickActions({ role: "student" });
-    expect(none[0].id).toBe("classes");
-    expect(none.find((x) => x.id === "cards")?.badge).toBeUndefined();
-    const s = pickQuickActions({ role: "student", dueCards: 12, resume: { href: "/classes/c1/read" } });
-    expect(s[0]).toMatchObject({ id: "continue", href: "/classes/c1/read" });
-    expect(s.find((x) => x.id === "cards")?.badge).toBe("12");
+  it("shows a due badge only when there is something due, and caps it", () => {
+    expect(pickQuickActions({ role: "student" }).find((x) => x.id === "cards")?.badge).toBeUndefined();
+    expect(pickQuickActions({ role: "student", dueCards: 12 }).find((x) => x.id === "cards")?.badge).toBe("12");
     expect(pickQuickActions({ dueCards: 250 }).find((x) => x.id === "cards")?.badge).toBe("99+");
   });
   it("keeps teacher tools away from students and student-only tiles away from teachers", () => {
     const stu = pickQuickActions({ role: "student" }).map((x) => x.href);
     expect(stu.some((h) => h.startsWith("/teach") || h === "/admin" || h.includes("create=1"))).toBe(false);
     const t = pickQuickActions({ role: "teacher" });
-    expect(t).toHaveLength(8);
+    expect(t).toHaveLength(4);
     expect(t.some((x) => x.href === "/teach/grading")).toBe(true);
     expect(t.some((x) => x.href === "/admin")).toBe(false);
     expect(pickQuickActions({ role: "admin" }).some((x) => x.href === "/admin")).toBe(true);

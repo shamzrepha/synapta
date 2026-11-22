@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { NextStepCard } from "@/components/home/next-step-card";
 import { Play, RefreshCw, Sparkles, WifiOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { asArray } from "@/lib/api/client";
@@ -141,8 +142,23 @@ export function HomeHero({
     if (failed) note = "Couldn't refresh your progress just now, showing what we had.";
   }
 
+  const topicStep =
+    next?.action && next.action.kind !== "open-class"
+      ? { classId: next.classId, kcId: next.action.kcId, title: next.action.title, pct: next.action.pct, kind: next.action.kind }
+      : null;
+  const showStepCard = (state === "returning" || state === "done-today") && !failed;
+
   return (
     <div className="space-y-4">
+      {showStepCard ? (
+        <NextStepCard
+          topic={topicStep}
+          classCount={asArray(classes).length}
+          offline={offline}
+          allDoneToday={state === "done-today"}
+          progressNote={progress?.tracked ? `${progress.mastered} of ${progress.tracked} topics mastered · average mastery ${progress.average}%` : null}
+        />
+      ) : (
       <div
         className="relative overflow-hidden rounded-3xl border border-brand-500/25 bg-card p-6 md:p-8 space-y-4 shadow-sm"
         aria-busy={state === "loading"}
@@ -168,6 +184,7 @@ export function HomeHero({
           </>
         )}
       </div>
+      )}
 
       {!hidden && (
         <div className="relative rounded-2xl border border-border bg-card p-5 shadow-2xs">

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, CheckCircle2, Layers, Layers3, ListChecks, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { extractRecallItems } from "@/lib/study/recall";
+import { pickEndAction } from "@/lib/study/end-action";
 import { useBot } from "@/components/bot/bot-provider";
 
 /**
@@ -77,6 +78,9 @@ export function TopicDone({
     if (next.length >= items.length && next.filter(Boolean).length / items.length >= 0.75) onRecallPass?.(kcId);
   };
 
+  const lead = pickEndAction({ recallFinished: finished, recallPassed: passed, hasPractice, hasNext: !!(nextTitle && onNext) });
+  const primary = "inline-flex min-h-[44px] items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700";
+  const secondary = "inline-flex min-h-[44px] items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold hover:bg-muted";
   const link = (tab: string) => `/classes/${classId}/topics/${kcId}?tab=${tab}`;
   return (
     <div ref={box} className="mt-8 space-y-3">
@@ -114,20 +118,20 @@ export function TopicDone({
           <>
             <p className="text-sm text-muted-foreground">Lock it in while it&apos;s fresh. Quick practice makes it stick.</p>
             <div className="flex flex-wrap gap-2">
-              <Link href={link("quiz")} className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
+              <Link href={link("quiz")} className={lead === "quiz" ? primary : secondary}>
                 <ListChecks className="h-4 w-4" /> Take the quiz
               </Link>
-              <Link href={link("flashcards")} className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold hover:bg-muted">
-                <Layers className="h-4 w-4" /> Flashcards
+              <Link href={link("flashcards")} className={lead === "review-tricky" ? primary : secondary}>
+                <Layers className="h-4 w-4" /> {lead === "review-tricky" ? "Review what was tricky" : "Flashcards"}
               </Link>
-              <Link href={link("teach")} className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold hover:bg-muted">
+              <Link href={link("teach")} className={secondary}>
                 <Sparkles className="h-4 w-4" /> Teach me
               </Link>
             </div>
           </>
         )}
         {nextTitle && onNext && (
-          <Button type="button" variant="outline" onClick={onNext} className="w-full sm:w-auto">
+          <Button type="button" variant={lead === "next" ? "default" : "outline"} onClick={onNext} className="w-full sm:w-auto min-h-[44px]">
             Next chapter: {nextTitle} <ArrowRight className="h-4 w-4 ml-1.5" />
           </Button>
         )}

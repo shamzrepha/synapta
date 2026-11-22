@@ -123,28 +123,25 @@ export default function DashboardPage() {
       </header>
 
       {/* 1b. One tap to the things people use most */}
-      <QuickActions role={user?.role} classes={sessionClasses} />
-      {/* Streak strip: a day counts after real learning (30 points), not after opening the app */}
-      {game?.streakToday && <StreakProgress data={game.streakToday} />}
-
-      {/* Campus Setup & Streak Urgency Banner */}
-      <CampusStreakBanner />
-
-      {/* 2. What to do next */}
-      <HomeHero
+      <QuickActions
         role={user?.role}
-        classes={asArray(classes).map((c) => ({ id: c.id, title: c.title }))}
-        loading={loading}
-        failed={failed}
-        offline={offline}
-        questsAllDone={!!game && game.quests.length > 0 && game.quests.every((q) => q.done)}
-        progress={progress}
-        onRetry={() => {
-          setLoading(true);
-          setAttempt((n) => n + 1);
-        }}
+        classes={sessionClasses}
+        after={
+          <HomeHero
+                  role={user?.role}
+                  classes={asArray(classes).map((c) => ({ id: c.id, title: c.title }))}
+                  loading={loading}
+                  failed={failed}
+                  offline={offline}
+                  questsAllDone={!!game && game.quests.length > 0 && game.quests.every((q) => q.done)}
+                  progress={progress}
+                  onRetry={() => {
+                    setLoading(true);
+                    setAttempt((n) => n + 1);
+                  }}
+                />
+        }
       />
-
       {/* 3. Put something in */}
       <AddMaterialStrip />
 
@@ -163,6 +160,12 @@ export default function DashboardPage() {
           </div>
         )}
       </section>
+
+      {/* Streak strip (secondary, below the goals): a day counts after real learning (30 points), not after opening the app */}
+      {game?.streakToday && <StreakProgress data={game.streakToday} />}
+
+      {/* Campus Setup & Streak Urgency Banner */}
+      <CampusStreakBanner />
 
       {/* 5. Your classes, as a list you can scan */}
       {loading ? (
