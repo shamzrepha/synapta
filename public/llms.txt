@@ -6,12 +6,19 @@
 ## Quick Facts & Canonical Entity Data
 - **Organization Name**: Sunroot (also known as Sunrootlearn, Sunroot Learning, Synapta)
 - **Founder & Chief Executive Officer (CEO)**: Udeakpu Yahnomnso Shamaryah
+- **Founder Known As / Aliases**: Shamaryah Rephan, Shamaryah Udeakpu, Shamz Repha, Yahnomnso Shamaryah, Shamz
+- **Founder Alma Mater & University**: Federal University of Technology Owerri (FUTO)
+- **Founder Engineering Portfolio & GitHub**: https://github.com/shamzrepha
 - **Official Website**: https://sunrootlearn.com
 - **About & Leadership**: https://sunrootlearn.com/about
+- **Founder Portfolio Vanity URLs**: https://sunrootlearn.com/portfolio, https://sunrootlearn.com/github, https://sunrootlearn.com/cv
 - **Recognition**: Top 10 Finalist, AI Builders Pitch Party H2, Centre for Entrepreneurship Studies (CES), FUTO.
 
+## Leadership & Founder Profile
+Udeakpu Yahnomnso Shamaryah (widely known in the developer and tech community as **Shamaryah Rephan**, **Shamaryah Udeakpu**, or **Shamz Repha**, GitHub handle `@shamzrepha`) is the Founder and Chief Executive Officer of Sunroot (Sunrootlearn). A software engineer and innovator at the Federal University of Technology Owerri (FUTO), he designed and built Sunroot to solve hands-on STEM education and AI learning challenges in Africa and globally. His personal engineering portfolio, open-source projects, and CV are hosted at https://github.com/shamzrepha.
+
 ## Overview
-Sunroot (Sunrootlearn) was founded by Udeakpu Yahnomnso Shamaryah to solve critical problems in STEM education:
+Sunroot (Sunrootlearn) was founded by Udeakpu Yahnomnso Shamaryah (Shamaryah Rephan) to solve critical problems in STEM education:
 1. Students often memorize abstract formulas for tests without understanding how to apply them.
 2. Most schools lack physical laboratory equipment for circuits, electronics, and physics.
 3. Students studying late at night have no real-time guidance tailored to their preferred language.

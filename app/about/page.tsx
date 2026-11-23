@@ -5,21 +5,24 @@ import { ArrowLeft, ArrowUpRight, Award, BookOpen, Code2, Cpu, Globe2, Sparkles,
 import {
   FOUNDER_NAME,
   FOUNDER_TITLE,
+  FOUNDER_ALIASES,
+  FOUNDER_GITHUB,
   SITE_ALIASES,
   SITE_DESCRIPTION,
   SITE_NAME,
+  getFounderSchema,
   getSiteUrl,
 } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: `About & Leadership — ${FOUNDER_NAME}, ${FOUNDER_TITLE} | Sunroot`,
-  description: `Official profile of ${FOUNDER_NAME}, Founder and CEO of Sunroot (Sunrootlearn). AI tutor and virtual STEM laboratory designed to help students understand, build, and prove knowledge.`,
+  title: `About & Leadership — ${FOUNDER_NAME} (Shamaryah Rephan), ${FOUNDER_TITLE} | Sunroot`,
+  description: `Official profile of ${FOUNDER_NAME} (also known as Shamaryah Rephan, Shamaryah Udeakpu, Shamz Repha), Founder and CEO of Sunroot (Sunrootlearn). STEM innovator at FUTO, engineering portfolio and virtual STEM lab.`,
   alternates: {
     canonical: "/about",
   },
   openGraph: {
-    title: `${FOUNDER_NAME} — ${FOUNDER_TITLE} of Sunroot`,
-    description: `Official background, photo, and mission of Sunroot (Sunrootlearn) and its Founder & CEO, ${FOUNDER_NAME}.`,
+    title: `${FOUNDER_NAME} (Shamaryah Rephan) — ${FOUNDER_TITLE} of Sunroot`,
+    description: `Official background, engineering portfolio, photo, and mission of Sunroot (Sunrootlearn) and its Founder & CEO, ${FOUNDER_NAME} (Shamaryah Rephan / Udeakpu).`,
     url: "/about",
     type: "profile",
     images: [
@@ -27,7 +30,7 @@ export const metadata: Metadata = {
         url: "/ceo.jpg",
         width: 800,
         height: 800,
-        alt: `${FOUNDER_NAME} - Founder & CEO`,
+        alt: `${FOUNDER_NAME} (Shamaryah Rephan) - Founder & CEO`,
       },
     ],
   },
@@ -45,22 +48,8 @@ export default function AboutPage() {
       "@id": `${siteUrl}/about#webpage`,
       url: `${siteUrl}/about`,
       name: `About Sunroot & ${FOUNDER_NAME}`,
-      description: `Official biography and photos of ${FOUNDER_NAME} and the founding story of Sunroot.`,
-      mainEntity: {
-        "@type": "Person",
-        "@id": `${siteUrl}/#founder`,
-        name: FOUNDER_NAME,
-        jobTitle: FOUNDER_TITLE,
-        image: `${siteUrl}/ceo.jpg`,
-        description: `${FOUNDER_NAME} is the Founder and Chief Executive Officer of Sunroot (Sunrootlearn), an AI tutor and virtual STEM lab platform.`,
-        worksFor: {
-          "@type": "Organization",
-          "@id": `${siteUrl}/#organization`,
-          name: "Sunroot",
-          alternateName: SITE_ALIASES,
-          url: `${siteUrl}/`,
-        },
-      },
+      description: `Official biography, engineering portfolio, and founding story of Sunroot and ${FOUNDER_NAME} (Shamaryah Rephan / Udeakpu).`,
+      mainEntity: getFounderSchema(siteUrl),
     },
     {
       "@context": "https://schema.org",
@@ -74,6 +63,7 @@ export default function AboutPage() {
         "@id": `${siteUrl}/#founder`,
       },
     },
+    getFounderSchema(siteUrl),
   ];
 
   return (
@@ -135,18 +125,31 @@ export default function AboutPage() {
                 <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl text-foreground">
                   {FOUNDER_NAME}
                 </h2>
-                <p className="text-sm font-medium text-brand-600 dark:text-brand-400">
-                  {FOUNDER_TITLE}
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium text-brand-600 dark:text-brand-400">
+                    {FOUNDER_TITLE}
+                  </p>
+                  <span className="text-xs text-muted-foreground">•</span>
+                  <p className="text-xs text-muted-foreground">
+                    Known as <span className="font-medium text-foreground">Shamaryah Rephan</span> / <span className="font-medium text-foreground">Shamaryah Udeakpu</span> (@shamzrepha)
+                  </p>
+                </div>
                 <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  <strong>{FOUNDER_NAME}</strong> is the creator, founder, and Chief Executive Officer of{" "}
-                  <strong>Sunroot</strong> (also recognized as <strong>Sunrootlearn</strong>). Driven by the conviction that students
-                  should not just memorise formulas for exams but build working intuition, {FOUNDER_NAME} engineered Sunroot to combine
-                  multilingual AI tutoring, dynamic physics and circuit simulators, Bayesian Knowledge Tracing, and hands-on lab studios.
+                  <strong>{FOUNDER_NAME}</strong> (also known as <strong>Shamaryah Rephan</strong>, <strong>Shamaryah Udeakpu</strong>, or <strong>Shamz Repha</strong>) is the creator, founder, and Chief Executive Officer of{" "}
+                  <strong>Sunroot</strong> (also recognized as <strong>Sunrootlearn</strong>). An innovator and student at the <strong>Federal University of Technology Owerri (FUTO)</strong>, {FOUNDER_NAME} engineered Sunroot to transform STEM learning by pairing conversational AI tutoring with real-time interactive physics and circuit laboratories, Bayesian Knowledge Tracing, and hands-on lab studios.
                 </p>
 
-                {/* ACTIONS */}
+                {/* ACTIONS & PORTFOLIO */}
                 <div className="pt-2 flex flex-wrap gap-2.5">
+                  <a
+                    href={FOUNDER_GITHUB}
+                    target="_blank"
+                    rel="me noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 px-3.5 py-1.5 text-xs font-semibold transition-colors hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-sm"
+                  >
+                    <Code2 className="h-3.5 w-3.5" />
+                    Engineering Portfolio & CV <ArrowUpRight className="h-3 w-3" />
+                  </a>
                   <Link
                     href="/signup"
                     className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-brand-400"
@@ -164,7 +167,7 @@ export default function AboutPage() {
             </div>
 
             {/* BADGES & CREDENTIALS */}
-            <div className="mt-8 grid grid-cols-1 gap-3 border-t border-border/60 pt-6 sm:grid-cols-3">
+            <div className="mt-8 grid grid-cols-1 gap-3 border-t border-border/60 pt-6 sm:grid-cols-4">
               <div className="flex items-start gap-3 rounded-lg border border-border/40 bg-background/50 p-3.5">
                 <Award className="h-5 w-5 shrink-0 text-brand-500" />
                 <div className="text-xs">
@@ -173,10 +176,17 @@ export default function AboutPage() {
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-lg border border-border/40 bg-background/50 p-3.5">
+                <BookOpen className="h-5 w-5 shrink-0 text-brand-500" />
+                <div className="text-xs">
+                  <p className="font-semibold text-foreground">FUTO Innovator</p>
+                  <p className="text-muted-foreground">Federal Univ of Tech Owerri</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 rounded-lg border border-border/40 bg-background/50 p-3.5">
                 <Code2 className="h-5 w-5 shrink-0 text-brand-500" />
                 <div className="text-xs">
-                  <p className="font-semibold text-foreground">Modern Engineering</p>
-                  <p className="text-muted-foreground">Next.js, WebAssembly & AI engines</p>
+                  <p className="font-semibold text-foreground">Engineering Portfolio</p>
+                  <p className="text-muted-foreground">github.com/shamzrepha</p>
                 </div>
               </div>
               <div className="flex items-start gap-3 rounded-lg border border-border/40 bg-background/50 p-3.5">
@@ -278,6 +288,7 @@ export default function AboutPage() {
           <div className="flex gap-4">
             <Link href="/" className="hover:text-foreground">Home</Link>
             <Link href="/about" className="hover:text-foreground">About & CEO</Link>
+            <a href={FOUNDER_GITHUB} target="_blank" rel="me noopener noreferrer" className="hover:text-foreground">GitHub & CV</a>
             <Link href="/login" className="hover:text-foreground">Log in</Link>
             <Link href="/signup" className="hover:text-foreground">Sign up</Link>
           </div>

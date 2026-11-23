@@ -16,6 +16,7 @@ import {
   SITE_ALT_NAME,
   SITE_DESCRIPTION,
   SITE_NAME,
+  getFounderSchema,
   getSiteUrl,
 } from "@/lib/site";
 
@@ -79,25 +80,12 @@ export default function LandingPage() {
       logo: `${siteUrl}/logo-mark.svg`,
       description: SITE_DESCRIPTION,
       founder: {
-        "@type": "Person",
         "@id": `${siteUrl}/#founder`,
-        name: FOUNDER_NAME,
-        jobTitle: FOUNDER_TITLE,
-        image: `${siteUrl}/ceo.jpg`,
-        url: `${siteUrl}/about`,
       },
     },
     {
+      ...getFounderSchema(siteUrl),
       "@context": "https://schema.org",
-      "@type": "Person",
-      "@id": `${siteUrl}/#founder`,
-      name: FOUNDER_NAME,
-      jobTitle: FOUNDER_TITLE,
-      image: `${siteUrl}/ceo.jpg`,
-      worksFor: {
-        "@id": `${siteUrl}/#organization`,
-      },
-      url: `${siteUrl}/about`,
     },
   ];
 

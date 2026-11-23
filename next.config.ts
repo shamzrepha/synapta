@@ -86,6 +86,30 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async redirects() {
+    return [
+      {
+        source: "/portfolio",
+        destination: "https://github.com/shamzrepha",
+        permanent: false,
+      },
+      {
+        source: "/github",
+        destination: "https://github.com/shamzrepha",
+        permanent: false,
+      },
+      {
+        source: "/cv",
+        destination: "https://github.com/shamzrepha",
+        permanent: false,
+      },
+      {
+        source: "/shamz",
+        destination: "https://github.com/shamzrepha",
+        permanent: false,
+      },
+    ];
+  },
   async headers() {
     return [
       {
