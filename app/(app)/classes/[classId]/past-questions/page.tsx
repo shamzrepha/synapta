@@ -45,6 +45,8 @@ import {
 } from "@/lib/learning/telemetry";
 
 import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
+import { plainMathToLatex } from "@/lib/study/math-text";
+import { toCbtItem, type BankQuestion } from "@/lib/practice/sprint";
 
 /** A formula the model wrote as plain text is shown as maths; one that already has maths markers is left alone. */
 function mathy(f: string): string {
@@ -354,38 +356,22 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
 
   // Build CBT question items from all questions that have either direct options or a solution.cbtBlock
   const cbtPool = useMemo(() => {
-    return filteredQuestions.map((q) => {
-      const cbt = q.solution?.cbtBlock;
-      const opts =
-        q.options && q.options.length >= 2
-          ? q.options
-          : cbt?.options && cbt.options.length >= 2
-          ? cbt.options
-          : [
-              "Apply primary recurrence / conservation theorem directly",
-              "Neglect boundary conditions and initial state constants",
-              "Assume constant O(1) complexity regardless of input size",
-              "Skip intermediate unit conversion before substitution",
-            ];
-      const correctIdx =
-        typeof q.correctIndex === "number"
-          ? q.correctIndex
-          : typeof cbt?.correctIndex === "number"
-          ? cbt.correctIndex
-          : 0;
-      const stem = cbt?.stem || q.questionText;
-      const explanation =
-        q.explanation || cbt?.explanation || q.solution?.keyPrinciple || "Review the step-by-step derivation.";
-      return {
-        id: q.id,
-        year: q.year || "Past Exam",
-        questionNumber: q.questionNumber || "1",
-        topic: q.topic || "Core Syllabus",
-        stem,
-        options: opts,
-        correctIndex: correctIdx,
-        explanation,
-      };
+    // Only questions that really have options. A question without any is never given made-up ones.
+    return filteredQuestions.flatMap((q) => {
+      const it = toCbtItem(q as unknown as BankQuestion);
+      if (!it) return [];
+      return [
+        {
+          id: q.id,
+          year: q.year || "Past Exam",
+          questionNumber: q.questionNumber || "1",
+          topic: it.topic,
+          stem: it.stem,
+          options: it.options,
+          correctIndex: it.correctIndex,
+          explanation: it.explanation || q.solution?.keyPrinciple || "Review the step-by-step derivation.",
+        },
+      ];
     });
   }, [filteredQuestions]);
 
@@ -1394,7 +1380,7 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
                             <span className="text-sm font-bold text-brand-800 dark:text-brand-200 flex items-center gap-1.5">
                               <Lightbulb className="h-4 w-4" /> Core idea
                             </span>
-                            <MarkdownRenderer content={displayedSolution.keyPrinciple} className="text-[15px] leading-relaxed text-foreground prose-p:my-1" />
+                            <MarkdownRenderer content={plainMathToLatex(displayedSolution.keyPrinciple)} className="text-[15px] leading-relaxed text-foreground prose-p:my-1" />
                             {displayedSolution.formulas && displayedSolution.formulas.length > 0 && (
                               <div className="flex flex-wrap gap-1.5 pt-1">
                                 {displayedSolution.formulas.map((f, i) => (
@@ -1402,7 +1388,7 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
                                     key={i}
                                     className="max-w-full overflow-x-auto rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
                                   >
-                                    <MarkdownRenderer content={mathy(f)} className="prose-p:my-0" />
+                                    <MarkdownRenderer content={mathy(plainMathToLatex(f))} className="prose-p:my-0" />
                                   </span>
                                 ))}
                               </div>
@@ -1423,7 +1409,7 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
                                 </span>
                                 <div className="min-w-0 flex-1 space-y-1">
                                   <p className="text-[15px] font-semibold leading-snug text-foreground">{step.title}</p>
-                                  <MarkdownRenderer content={step.detail} className="text-[15px] leading-relaxed text-foreground/90 prose-p:my-1.5" />
+                                  <MarkdownRenderer content={plainMathToLatex(step.detail)} className="text-[15px] leading-relaxed text-foreground/90 prose-p:my-1.5" />
                                 </div>
                               </div>
                             ))}
@@ -1436,7 +1422,7 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
                               Answer
                             </span>
                             <span className="min-w-0 text-right text-[15px] font-semibold text-emerald-800 dark:text-emerald-300">
-                              <MarkdownRenderer content={displayedSolution.finalAnswer} className="prose-p:my-0" />
+                              <MarkdownRenderer content={plainMathToLatex(displayedSolution.finalAnswer)} className="prose-p:my-0" />
                             </span>
                           </div>
                         )}
@@ -1448,7 +1434,7 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
                             </span>
                             <ul className="list-disc space-y-1 pl-5 text-[15px] leading-relaxed text-foreground/90">
                               {displayedSolution.examinerTraps.map((trap, i) => (
-                                <li key={i}><MarkdownRenderer content={trap} className="inline prose-p:inline prose-p:my-0" /></li>
+                                <li key={i}><MarkdownRenderer content={plainMathToLatex(trap)} className="inline prose-p:inline prose-p:my-0" /></li>
                               ))}
                             </ul>
                           </div>
@@ -1459,11 +1445,11 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
                             <span className="text-sm font-bold text-brand-700 dark:text-brand-300 flex items-center gap-1.5">
                               <Sparkles className="h-4 w-4" /> Try a similar one
                             </span>
-                            <MarkdownRenderer content={displayedSolution.twinQuestion.question} className="text-[15px] font-medium text-foreground prose-p:my-1" />
+                            <MarkdownRenderer content={plainMathToLatex(displayedSolution.twinQuestion.question)} className="text-[15px] font-medium text-foreground prose-p:my-1" />
                             <div>
                               {showTwinSolution ? (
                                 <div className="mt-2 rounded-md bg-muted/60 p-3 text-[15px] text-foreground">
-                                  <MarkdownRenderer content={displayedSolution.twinQuestion.solution} className="prose-p:my-1" />
+                                  <MarkdownRenderer content={plainMathToLatex(displayedSolution.twinQuestion.solution)} className="prose-p:my-1" />
                                 </div>
                               ) : (
                                 <Button
