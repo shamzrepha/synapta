@@ -8,7 +8,7 @@ import { AuthProvider } from "@/components/providers/auth-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { ClientErrorListener } from "@/components/providers/client-error-listener";
 import { ACCENT_BOOT_SCRIPT } from "@/lib/settings/accents";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, getSiteUrl } from "@/lib/site";
+import { FOUNDER_NAME, SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, getSiteUrl } from "@/lib/site";
 
 // Sunroot's type: Instrument Sans for everything you read, Instrument Serif italic for one emphasised word in a headline, IBM Plex Mono for labels and numbers (see app/globals.css)
 const instrumentSans = Instrument_Sans({
@@ -60,6 +60,9 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   alternates: { canonical: "/" },
+  authors: [{ name: FOUNDER_NAME, url: `/founder` }],
+  creator: FOUNDER_NAME,
+  publisher: SITE_NAME,
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
