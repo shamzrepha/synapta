@@ -13,7 +13,7 @@ export const S1: React.FC = () => {
   const pw = (vertical ? 560 : 400) * u;
   const ph = pw * 1.32;
   const cx = vertical ? width / 2 : width * 0.7;
-  const cy = height * (vertical ? 0.62 : 0.55);
+  const cy = height * (vertical ? 0.7 : 0.55);
   const push = interpolate(f, [0, sec(5)], [1, 1.14], { easing: easeInOut, ...c });
   return (
     <AbsoluteFill>

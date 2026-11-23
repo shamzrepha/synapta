@@ -23,7 +23,7 @@ Vector scenes (desk and paper, the maze, the learning path, the saved-mistake ca
 
 ## Things to verify before publishing (brief, part 13)
 - The notes, quiz question and tutor answer shown are genuine output from the live app (they are), but the founder should approve them for public use.
-- The "Free to start" line and the "Start learning" call to action.
+- The "(removed: the app is not free)" line and the "Start learning" call to action.
 - The end-card credit (founder name and Top 10 finalist line) is included as a draft; remove it in src/film/scenes.tsx (scene 11) if not approved.
 - The scene 5 read-along clip is muted: the live product speaks; the film's voiceover covers it.
 - No private data appears: the demo account is "Demo", with no real names or emails. The "Teacher plan" line and "Free" badge visible in a few frames belong to the demo account.
