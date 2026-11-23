@@ -11,6 +11,13 @@ export interface KcNode {
   week?: number;
   prerequisiteIds?: string[];
   parentId?: string | null;
+  title?: string;
+  sourceMaterialIds?: string[];
+}
+
+export interface MaterialRef {
+  id: string;
+  title: string;
 }
 
 export interface KcChange {
@@ -19,16 +26,38 @@ export interface KcChange {
   week?: number;
   prerequisiteIds?: string[];
   parentId?: string | null;
+  sourceMaterialIds?: string[];
 }
 
 export interface RestructureResult {
   changes: KcChange[];
-  summary: { topics: number; changed: number; reordered: number; prerequisitesRemoved: number; weeksFixed: number; parentsFixed: number };
+  summary: { topics: number; changed: number; reordered: number; prerequisitesRemoved: number; weeksFixed: number; parentsFixed: number; sourcesRelinked: number };
 }
 
 const validWeek = (w: unknown, max: number): w is number => typeof w === "number" && Number.isInteger(w) && w >= 1 && w <= max;
 
-export function restructureKcs(kcs: KcNode[], opts: { durationWeeks?: number } = {}): RestructureResult {
+const STOP = new Set(["the", "and", "of", "to", "in", "a", "an", "for", "on", "with", "introduction", "intro", "basics", "pdf", "docx", "pptx", "notes", "chapter", "lecture", "week"]);
+const words = (s: string) => (s.toLowerCase().match(/[a-z0-9]{3,}/g) || []).filter((w) => !STOP.has(w));
+
+/**
+ * Which uploaded materials a topic comes from, worked out from names only (no AI, no reading of the files): links to files that
+ * were deleted are dropped, and a topic left with none is matched to the material whose title shares the most words with it.
+ * If nothing matches it is linked to every material, which is what a class build does by default.
+ */
+export function relinkSources(kc: KcNode, materials: MaterialRef[]): string[] {
+  const have = new Set(materials.map((m) => m.id));
+  const kept = (kc.sourceMaterialIds || []).filter((id) => have.has(id));
+  if (kept.length > 0 || materials.length === 0) return kept;
+  const tw = new Set(words(kc.title || ""));
+  let best: { id: string; score: number } | null = null;
+  for (const m of materials) {
+    const shared = words(m.title).filter((w) => tw.has(w)).length;
+    if (shared > 0 && (!best || shared > best.score)) best = { id: m.id, score: shared };
+  }
+  return best ? [best.id] : materials.map((m) => m.id);
+}
+
+export function restructureKcs(kcs: KcNode[], opts: { durationWeeks?: number; materials?: MaterialRef[] } = {}): RestructureResult {
   const n = kcs.length;
   const weeksMax = Math.max(1, Math.min(52, Math.floor(opts.durationWeeks || 0) || Math.max(1, Math.ceil(n / 3))));
   const ids = new Set(kcs.map((k) => k.id));
@@ -126,6 +155,7 @@ export function restructureKcs(kcs: KcNode[], opts: { durationWeeks?: number } =
 
   const changes: KcChange[] = [];
   let reordered = 0;
+  let sourcesRelinked = 0;
   for (const k of kcs) {
     const c: KcChange = { id: k.id };
     const o = newOrder.get(k.id) ?? (k.order ?? 0);
@@ -139,7 +169,14 @@ export function restructureKcs(kcs: KcNode[], opts: { durationWeeks?: number } =
     if (JSON.stringify(pr) !== JSON.stringify(k.prerequisiteIds || [])) c.prerequisiteIds = pr;
     const pa = parentOf.get(k.id) ?? null;
     if (pa !== (k.parentId || null)) c.parentId = pa;
+    if (opts.materials) {
+      const linked = relinkSources(k, opts.materials);
+      if (JSON.stringify(linked) !== JSON.stringify(k.sourceMaterialIds || [])) {
+        c.sourceMaterialIds = linked;
+        sourcesRelinked++;
+      }
+    }
     if (Object.keys(c).length > 1) changes.push(c);
   }
-  return { changes, summary: { topics: n, changed: changes.length, reordered, prerequisitesRemoved: prereqRemoved, weeksFixed, parentsFixed } };
+  return { changes, summary: { topics: n, changed: changes.length, reordered, prerequisitesRemoved: prereqRemoved, weeksFixed, parentsFixed, sourcesRelinked } };
 }
