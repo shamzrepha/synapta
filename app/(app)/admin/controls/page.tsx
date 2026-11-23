@@ -18,6 +18,19 @@ interface Site {
 
 /** Site-wide switches: the AI kill switch and a notice for everyone. */
 export default function AdminControlsPage() {
+  const [prerecording, setPrerecording] = useState(false);
+  const [prerecordNote, setPrerecordNote] = useState("");
+  const prerecord = async () => {
+    setPrerecording(true);
+    try {
+      const j = await fetchJson<{ made: number; alreadyDone: number; remaining: number }>("/api/admin/system/question-audio", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      setPrerecordNote(j.ok ? `Made ${j.data.made}, ${j.data.alreadyDone} already done, ${j.data.remaining} to go.` : j.error.message);
+    } catch (e) {
+      setPrerecordNote(e instanceof Error ? e.message : "Couldn't make the voices.");
+    } finally {
+      setPrerecording(false);
+    }
+  };
   const { user } = useUserStore();
   const { toast } = useToast();
   const [site, setSite] = useState<Site | null>(null);
@@ -120,6 +133,17 @@ export default function AdminControlsPage() {
                 {text.trim() ? "Publish notice" : "Remove notice"}
               </Button>
               <span className="text-[11px] text-slate-400">{text.length}/240</span>
+            </div>
+          </Card>
+
+          <Card className="space-y-3 p-4">
+            <div className="min-w-0">
+              <p className="font-bold">Pre-record past-question voices</p>
+              <p className="text-xs text-slate-500">Makes the spoken version of every past question ahead of time, a few at a time, so students never wait and no voice is generated twice. Safe to press again: finished ones are skipped.</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" isLoading={prerecording} onClick={() => void prerecord()}>Make the next batch</Button>
+              {prerecordNote && <span className="text-xs text-slate-500">{prerecordNote}</span>}
             </div>
           </Card>
         </>

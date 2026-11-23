@@ -1,5 +1,6 @@
 "use client";
 
+import { TidyStructure } from "@/components/classes/tidy-structure";
 import { readableText } from "@/lib/text/readable";
 import { ClassWorlds } from "@/components/worlds/class-worlds";
 import { EditClassDetails } from "@/components/classes/edit-details";
@@ -433,6 +434,7 @@ export default function ClassOverviewPage({
                     <Zap className="h-3.5 w-3.5 mr-1 text-amber-500" /> Build with AI
                   </Button>
 
+                  <TidyStructure classId={classId} onDone={() => window.location.reload()} />
                   <Button
                     variant="outline"
                     size="sm"

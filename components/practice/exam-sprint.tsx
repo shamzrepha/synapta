@@ -284,14 +284,61 @@ function QuestionCard({ classId, item, onScore, onNext, onBusy, last, toast }: {
   // speaking an answer: the browser's own speech recognition, so it costs nothing; typing always works
   const [listening, setListening] = useState(false);
   const rec = useRef<SpeechRec | null>(null);
-  const canSpeak = typeof window !== "undefined" && !!speechCtor();
+  // where the browser has no speech recognition (some app browsers), the recording is sent to the cloud instead
+  const [transcribing, setTranscribing] = useState(false);
+  const recorder = useRef<MediaRecorder | null>(null);
+  const canRecord = typeof window !== "undefined" && typeof MediaRecorder !== "undefined" && !!navigator.mediaDevices?.getUserMedia;
+  const canSpeak = typeof window !== "undefined" && (!!speechCtor() || canRecord);
+  const recordToCloud = async () => {
+    if (listening) {
+      recorder.current?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks: Blob[] = [];
+      const mr = new MediaRecorder(stream);
+      recorder.current = mr;
+      mr.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setListening(false);
+        const blob = new Blob(chunks, { type: mr.mimeType || "audio/webm" });
+        if (blob.size < 1500) return toast({ title: "Didn't catch that", description: "Try again, or type your answer." });
+        setTranscribing(true);
+        try {
+          const fd = new FormData();
+          fd.append("audio", blob, "speech.webm");
+          const res = await fetch("/api/stt", { method: "POST", body: fd });
+          const j = await res.json().catch(() => null);
+          const said = String(j?.data?.text || "").trim();
+          if (!res.ok || !said) throw new Error("stt");
+          setText((t) => (t ? `${t} ${said}` : said));
+        } catch {
+          toast({ title: "Couldn't turn that into text", description: "Type your answer instead.", variant: "destructive" });
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      mr.start();
+      setListening(true);
+      // a spoken answer is short; stop by itself after two minutes so a forgotten recording is not sent
+      setTimeout(() => mr.state === "recording" && mr.stop(), 120_000);
+    } catch {
+      toast({ title: "Microphone not available", description: "Allow the microphone, or type your answer.", variant: "destructive" });
+    }
+  };
   const toggleMic = () => {
     if (listening) {
       rec.current?.stop();
+      recorder.current?.stop();
       return;
     }
     const C = speechCtor();
-    if (!C) return;
+    if (!C) {
+      void recordToCloud();
+      return;
+    }
     const r = new C();
     r.continuous = true;
     r.interimResults = false;
@@ -394,8 +441,8 @@ function QuestionCard({ classId, item, onScore, onNext, onBusy, last, toast }: {
           {photo && <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Photo added. <button type="button" onClick={() => setPhoto(null)} className="underline">Remove</button></p>}
           <div className="flex flex-wrap gap-2">
             {canSpeak && (
-              <Button type="button" variant="outline" onClick={toggleMic} className="min-h-[44px]">
-                {listening ? <><MicOff className="mr-1.5 h-4 w-4" /> Stop</> : <><Mic className="mr-1.5 h-4 w-4" /> Speak</>}
+              <Button type="button" variant="outline" onClick={toggleMic} disabled={transcribing} className="min-h-[44px]">
+                {transcribing ? <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> Writing it down…</> : listening ? <><MicOff className="mr-1.5 h-4 w-4" /> Stop</> : <><Mic className="mr-1.5 h-4 w-4" /> Speak</>}
               </Button>
             )}
             <label className="inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-sm font-medium hover:bg-muted/60">
