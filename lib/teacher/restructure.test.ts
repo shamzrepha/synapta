@@ -47,3 +47,23 @@ describe("restructureKcs", () => {
     for (const c of r.changes) expect(Object.keys(c).every((x) => ["id", "order", "week", "prerequisiteIds", "parentId"].includes(x))).toBe(true);
   });
 });
+
+import { relinkSources } from "./restructure";
+describe("relinkSources", () => {
+  const mats = [{ id: "m1", title: "Thermodynamics lecture notes.pdf" }, { id: "m2", title: "Circuits week 3.pptx" }];
+  it("drops links to deleted files and keeps good ones", () => {
+    expect(relinkSources({ id: "a", sourceMaterialIds: ["m1", "gone"] }, mats)).toEqual(["m1"]);
+  });
+  it("matches a topic with no links to the material with the most shared words, by name only", () => {
+    expect(relinkSources({ id: "a", title: "First law of thermodynamics", sourceMaterialIds: [] }, mats)).toEqual(["m1"]);
+  });
+  it("links to every material when nothing matches, like a class build, and to none when there are none", () => {
+    expect(relinkSources({ id: "a", title: "Unrelated", sourceMaterialIds: [] }, mats)).toEqual(["m1", "m2"]);
+    expect(relinkSources({ id: "a", title: "x", sourceMaterialIds: ["z"] }, [])).toEqual([]);
+  });
+  it("is part of the restructure summary", () => {
+    const r = restructureKcs([{ id: "a", order: 1, week: 1, title: "Circuits basics", sourceMaterialIds: [] }], { durationWeeks: 4, materials: mats });
+    expect(r.summary.sourcesRelinked).toBe(1);
+    expect(r.changes[0].sourceMaterialIds).toEqual(["m2"]);
+  });
+});

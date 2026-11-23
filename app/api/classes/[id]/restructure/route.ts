@@ -29,10 +29,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const snap = await col.get();
     const kcs: Array<KcNode & { title: string }> = snap.docs.map((d) => {
       const x = d.data();
-      return { id: d.id, title: String(x.title || "Topic"), order: typeof x.order === "number" ? x.order : undefined, week: typeof x.week === "number" ? x.week : undefined, prerequisiteIds: Array.isArray(x.prerequisiteIds) ? x.prerequisiteIds.filter((p: unknown): p is string => typeof p === "string") : [], parentId: typeof x.parentId === "string" ? x.parentId : null };
+      return { id: d.id, title: String(x.title || "Topic"), order: typeof x.order === "number" ? x.order : undefined, week: typeof x.week === "number" ? x.week : undefined, prerequisiteIds: Array.isArray(x.prerequisiteIds) ? x.prerequisiteIds.filter((p: unknown): p is string => typeof p === "string") : [], parentId: typeof x.parentId === "string" ? x.parentId : null, sourceMaterialIds: Array.isArray(x.sourceMaterialIds) ? x.sourceMaterialIds.filter((p: unknown): p is string => typeof p === "string") : [] };
     });
+    // names only: the text of the files is never read here
+    const matSnap = await adminDb().collection("classes").doc(id).collection("materials").select("title", "fileName").get().catch(() => null);
+    const materials = (matSnap?.docs || []).map((d) => ({ id: d.id, title: String(d.data().title || d.data().fileName || "") }));
     const durationWeeks = typeof access.classData.durationWeeks === "number" ? access.classData.durationWeeks : undefined;
-    const result = restructureKcs(kcs, { durationWeeks });
+    const result = restructureKcs(kcs, { durationWeeks, materials });
     const titles = new Map(kcs.map((k) => [k.id, k.title]));
 
     if (apply && result.changes.length > 0) {

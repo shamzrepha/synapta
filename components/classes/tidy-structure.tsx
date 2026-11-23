@@ -5,7 +5,7 @@ import { ListTree } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 
-interface Summary { topics: number; changed: number; reordered: number; prerequisitesRemoved: number; weeksFixed: number; parentsFixed: number }
+interface Summary { topics: number; changed: number; reordered: number; prerequisitesRemoved: number; weeksFixed: number; parentsFixed: number; sourcesRelinked: number }
 
 /** Lecturer button: tidy the topic order, prerequisites and weeks. No AI, no reading of notes, no lesson rewritten, so it uses no tokens. */
 export function TidyStructure({ classId, onDone }: { classId: string; onDone: () => void }) {
@@ -49,6 +49,7 @@ export function TidyStructure({ classId, onDone }: { classId: string; onDone: ()
               {preview.reordered > 0 && <li>{preview.reordered} moved so prerequisites come first</li>}
               {preview.prerequisitesRemoved > 0 && <li>{preview.prerequisitesRemoved} broken or circular prerequisite link{preview.prerequisitesRemoved === 1 ? "" : "s"} removed</li>}
               {preview.weeksFixed > 0 && <li>{preview.weeksFixed} week{preview.weeksFixed === 1 ? "" : "s"} adjusted</li>}
+              {preview.sourcesRelinked > 0 && <li>{preview.sourcesRelinked} topic{preview.sourcesRelinked === 1 ? "" : "s"} re-linked to the uploaded notes they come from (by name only)</li>}
               {preview.parentsFixed > 0 && <li>{preview.parentsFixed} parent link{preview.parentsFixed === 1 ? "" : "s"} fixed</li>}
             </ul>
             <div className="flex justify-end gap-2 pt-1">
