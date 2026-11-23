@@ -44,6 +44,15 @@ import {
   type PastQuestionFormat,
 } from "@/lib/learning/telemetry";
 
+import { MarkdownRenderer } from "@/components/markdown/markdown-renderer";
+
+/** A formula the model wrote as plain text is shown as maths; one that already has maths markers is left alone. */
+function mathy(f: string): string {
+  const t = f.trim();
+  if (t.includes("$") || t.includes("\\(") || t.includes("\\[")) return t;
+  return "$$" + t + "$$";
+}
+
 interface StepDetail {
   stepNumber: number;
   title: string;
@@ -732,6 +741,10 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
           </p>
         </div>
 
+        <Link href={`/classes/${classId}/past-questions/sprint`} className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-brand-600 bg-brand-600/10 px-3 text-xs font-bold text-brand-800 dark:text-brand-200 md:mr-2">
+          <Clock className="h-4 w-4" aria-hidden="true" /> Timed sprint
+        </Link>
+
         {/* Mode Switcher Tabs — Responsive grid on mobile, inline pill bar on desktop */}
         <div className="grid grid-cols-3 sm:inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl w-full md:w-auto shrink-0">
           <button
@@ -1311,7 +1324,7 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
                     {/* Cohort Style Switcher */}
                     <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border/60">
                       <span className="text-[11px] font-semibold text-muted-foreground mr-1">
-                        Cohort Style:
+                        Explain it as:
                       </span>
                       {COHORT_IDS.map((cid) => {
                         const active = selectedCohort === cid;
@@ -1378,21 +1391,18 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
 
                         {displayedSolution.keyPrinciple && (
                           <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 space-y-1.5">
-                            <span className="text-xs font-extrabold text-blue-700 dark:text-blue-300 flex items-center gap-1">
-                              <Lightbulb className="h-4 w-4" /> Core Concept (
-                              {LEARNING_COHORTS[selectedCohort].shortLabel})
+                            <span className="text-sm font-bold text-brand-800 dark:text-brand-200 flex items-center gap-1.5">
+                              <Lightbulb className="h-4 w-4" /> Core idea
                             </span>
-                            <p className="text-xs text-foreground leading-relaxed">
-                              {displayedSolution.keyPrinciple}
-                            </p>
+                            <MarkdownRenderer content={displayedSolution.keyPrinciple} className="text-[15px] leading-relaxed text-foreground prose-p:my-1" />
                             {displayedSolution.formulas && displayedSolution.formulas.length > 0 && (
                               <div className="flex flex-wrap gap-1.5 pt-1">
                                 {displayedSolution.formulas.map((f, i) => (
                                   <span
                                     key={i}
-                                    className="font-mono text-[11px] px-2 py-0.5 rounded bg-white dark:bg-slate-900 border text-foreground break-all sm:break-words max-w-full"
+                                    className="max-w-full overflow-x-auto rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground"
                                   >
-                                    {f}
+                                    <MarkdownRenderer content={mathy(f)} className="prose-p:my-0" />
                                   </span>
                                 ))}
                               </div>
@@ -1401,21 +1411,20 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
                         )}
 
                         <div className="space-y-3">
-                          <h4 className="text-xs font-extrabold uppercase tracking-wider text-muted-foreground">
-                            Step-by-Step Worked Derivation
-                          </h4>
-                          <div className="space-y-2.5">
+                          <h4 className="text-sm font-bold text-foreground">Worked solution</h4>
+                          <div className="space-y-3">
                             {displayedSolution.steps?.map((step) => (
                               <div
                                 key={step.stepNumber}
-                                className="p-3 rounded-xl border border-border bg-slate-50 dark:bg-slate-800/40 space-y-1"
+                                className="flex gap-3 rounded-xl border border-border bg-card p-3.5"
                               >
-                                <span className="text-xs font-bold text-brand-600">
-                                  Step {step.stepNumber}: {step.title}
+                                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-bold text-white" aria-hidden="true">
+                                  {step.stepNumber}
                                 </span>
-                                <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                                  {step.detail}
-                                </p>
+                                <div className="min-w-0 flex-1 space-y-1">
+                                  <p className="text-[15px] font-semibold leading-snug text-foreground">{step.title}</p>
+                                  <MarkdownRenderer content={step.detail} className="text-[15px] leading-relaxed text-foreground/90 prose-p:my-1.5" />
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -1423,23 +1432,23 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
 
                         {displayedSolution.finalAnswer && (
                           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                              Final Answer:
+                            <span className="text-sm font-bold text-emerald-800 dark:text-emerald-300 shrink-0">
+                              Answer
                             </span>
-                            <span className="font-mono text-xs font-extrabold text-emerald-700 dark:text-emerald-400">
-                              {displayedSolution.finalAnswer}
+                            <span className="min-w-0 text-right text-[15px] font-semibold text-emerald-800 dark:text-emerald-300">
+                              <MarkdownRenderer content={displayedSolution.finalAnswer} className="prose-p:my-0" />
                             </span>
                           </div>
                         )}
 
                         {displayedSolution.examinerTraps && displayedSolution.examinerTraps.length > 0 && (
                           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
-                            <span className="text-xs font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1">
-                              <AlertTriangle className="h-4 w-4 text-amber-600" /> Where Students Lose Marks (Examiner Traps)
+                            <span className="text-sm font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                              <AlertTriangle className="h-4 w-4 text-amber-600" /> Where students lose marks
                             </span>
-                            <ul className="text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+                            <ul className="list-disc space-y-1 pl-5 text-[15px] leading-relaxed text-foreground/90">
                               {displayedSolution.examinerTraps.map((trap, i) => (
-                                <li key={i}>{trap}</li>
+                                <li key={i}><MarkdownRenderer content={trap} className="inline prose-p:inline prose-p:my-0" /></li>
                               ))}
                             </ul>
                           </div>
@@ -1447,17 +1456,15 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
 
                         {displayedSolution.twinQuestion && (
                           <div className="p-4 rounded-xl border border-dashed border-brand-500/40 bg-card space-y-2">
-                            <span className="text-xs font-bold text-brand-600 flex items-center gap-1">
-                              <Sparkles className="h-3.5 w-3.5" /> Twin Practice Question (Test Yourself)
+                            <span className="text-sm font-bold text-brand-700 dark:text-brand-300 flex items-center gap-1.5">
+                              <Sparkles className="h-4 w-4" /> Try a similar one
                             </span>
-                            <p className="text-xs text-foreground font-medium">
-                              {displayedSolution.twinQuestion.question}
-                            </p>
+                            <MarkdownRenderer content={displayedSolution.twinQuestion.question} className="text-[15px] font-medium text-foreground prose-p:my-1" />
                             <div>
                               {showTwinSolution ? (
-                                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-mono mt-2 bg-slate-50 dark:bg-slate-900 p-2 rounded">
-                                  {displayedSolution.twinQuestion.solution}
-                                </p>
+                                <div className="mt-2 rounded-md bg-muted/60 p-3 text-[15px] text-foreground">
+                                  <MarkdownRenderer content={displayedSolution.twinQuestion.solution} className="prose-p:my-1" />
+                                </div>
                               ) : (
                                 <Button
                                   size="sm"
@@ -1465,7 +1472,7 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
                                   className="text-xs text-muted-foreground h-7 px-2"
                                   onClick={() => setShowTwinSolution(true)}
                                 >
-                                  Reveal Twin Solution
+                                  Show the solution
                                 </Button>
                               )}
                             </div>
@@ -1474,7 +1481,7 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
 
                         <div className="pt-3 border-t flex flex-wrap items-center justify-between gap-2">
                           <span className="text-xs text-muted-foreground">
-                            Did this cohort explanation click for you?
+                            Did this explanation click for you?
                           </span>
                           <div className="flex flex-wrap items-center gap-2">
                             <Button
