@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, ArrowUpRight, Award, BookOpen, Code2, Cpu, Globe2, Sparkles, UserCheck } from "lucide-react";
+import { founderPerson, organizationNode } from "@/lib/founder";
 import {
+  FOUNDER_ALT_NAMES,
   FOUNDER_NAME,
   FOUNDER_TITLE,
   SITE_ALIASES,
@@ -46,34 +48,11 @@ export default function AboutPage() {
       url: `${siteUrl}/about`,
       name: `About Sunroot & ${FOUNDER_NAME}`,
       description: `Official biography and photos of ${FOUNDER_NAME} and the founding story of Sunroot.`,
-      mainEntity: {
-        "@type": "Person",
-        "@id": `${siteUrl}/#founder`,
-        name: FOUNDER_NAME,
-        jobTitle: FOUNDER_TITLE,
-        image: `${siteUrl}/ceo.jpg`,
-        description: `${FOUNDER_NAME} is the Founder and Chief Executive Officer of Sunroot (Sunrootlearn), an AI tutor and virtual STEM lab platform.`,
-        worksFor: {
-          "@type": "Organization",
-          "@id": `${siteUrl}/#organization`,
-          name: "Sunroot",
-          alternateName: SITE_ALIASES,
-          url: `${siteUrl}/`,
-        },
-      },
+      about: { "@id": `${siteUrl}/#organization` },
+      mainEntity: { "@id": `${siteUrl}/#founder` },
     },
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "@id": `${siteUrl}/#organization`,
-      name: "Sunroot",
-      alternateName: SITE_ALIASES,
-      url: `${siteUrl}/`,
-      logo: `${siteUrl}/logo-mark.svg`,
-      founder: {
-        "@id": `${siteUrl}/#founder`,
-      },
-    },
+    { "@context": "https://schema.org", ...organizationNode(siteUrl, SITE_DESCRIPTION) },
+    { "@context": "https://schema.org", ...founderPerson(siteUrl) },
   ];
 
   return (
@@ -138,6 +117,7 @@ export default function AboutPage() {
                 <p className="text-sm font-medium text-brand-600 dark:text-brand-400">
                   {FOUNDER_TITLE}
                 </p>
+                <p className="text-xs text-muted-foreground">Also written as {FOUNDER_ALT_NAMES.slice(0, 2).join(" or ")}.</p>
                 <p className="text-sm leading-relaxed text-muted-foreground sm:text-base">
                   <strong>{FOUNDER_NAME}</strong> is the creator, founder, and Chief Executive Officer of{" "}
                   <strong>Sunroot</strong> (also recognized as <strong>Sunrootlearn</strong>). Driven by the conviction that students
@@ -147,6 +127,12 @@ export default function AboutPage() {
 
                 {/* ACTIONS */}
                 <div className="pt-2 flex flex-wrap gap-2.5">
+                  <Link
+                    href="/founder"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3.5 py-1.5 text-xs font-semibold transition-colors hover:border-muted-foreground/60"
+                  >
+                    Full profile and projects <ArrowUpRight className="h-3 w-3" />
+                  </Link>
                   <Link
                     href="/signup"
                     className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-brand-400"

@@ -6,6 +6,7 @@ import { PixelField } from "@/components/landing/pixel-field";
 import { Reveal } from "@/components/landing/reveal";
 import { SchoolRegisterSection } from "@/components/landing/school-register-section";
 import React from "react";
+import { founderPerson, organizationNode } from "@/lib/founder";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ArrowUpRight, BookOpenText, Briefcase, Download, GraduationCap, Languages, ListChecks, MessagesSquare, Presentation, Route, School, Sprout, Users, Wrench } from "lucide-react";
@@ -69,36 +70,8 @@ export default function LandingPage() {
       url: `${siteUrl}/`,
       description: SITE_DESCRIPTION,
     },
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "@id": `${siteUrl}/#organization`,
-      name: "Sunroot",
-      alternateName: SITE_ALIASES,
-      url: `${siteUrl}/`,
-      logo: `${siteUrl}/logo-mark.svg`,
-      description: SITE_DESCRIPTION,
-      founder: {
-        "@type": "Person",
-        "@id": `${siteUrl}/#founder`,
-        name: FOUNDER_NAME,
-        jobTitle: FOUNDER_TITLE,
-        image: `${siteUrl}/ceo.jpg`,
-        url: `${siteUrl}/about`,
-      },
-    },
-    {
-      "@context": "https://schema.org",
-      "@type": "Person",
-      "@id": `${siteUrl}/#founder`,
-      name: FOUNDER_NAME,
-      jobTitle: FOUNDER_TITLE,
-      image: `${siteUrl}/ceo.jpg`,
-      worksFor: {
-        "@id": `${siteUrl}/#organization`,
-      },
-      url: `${siteUrl}/about`,
-    },
+    { "@context": "https://schema.org", ...organizationNode(siteUrl, SITE_DESCRIPTION) },
+    { "@context": "https://schema.org", ...founderPerson(siteUrl) },
   ];
 
   return (
