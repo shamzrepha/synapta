@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, ArrowUpRight, Award, Code2, ExternalLink } from "lucide-react";
 import { FOUNDER_PROJECTS, founderPerson, organizationNode } from "@/lib/founder";
-import { FOUNDER_ALT_NAMES, FOUNDER_GITHUB, FOUNDER_NAME, FOUNDER_PATH, FOUNDER_TITLE, SITE_DESCRIPTION, getSiteUrl } from "@/lib/site";
+import { FOUNDER_ALT_NAMES, FOUNDER_GITHUB, FOUNDER_LINKEDIN, FOUNDER_NAME, FOUNDER_PATH, FOUNDER_TITLE, SITE_DESCRIPTION, getSiteUrl } from "@/lib/site";
 
 const SHORT = "Shamaryah Udeakpu";
 
@@ -81,6 +81,9 @@ export default function FounderPage() {
               <div className="flex flex-wrap gap-2.5 pt-1">
                 <a href={FOUNDER_GITHUB} rel="me noopener" target="_blank" className="inline-flex items-center gap-1.5 rounded-md bg-brand-500 px-3.5 py-1.5 text-xs font-semibold text-slate-950 transition-colors hover:bg-brand-400">
                   <Code2 className="h-3.5 w-3.5" /> GitHub portfolio <ExternalLink className="h-3 w-3" />
+                </a>
+                <a href={FOUNDER_LINKEDIN} rel="me noopener" target="_blank" className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3.5 py-1.5 text-xs font-semibold transition-colors hover:border-muted-foreground/60">
+                  LinkedIn profile <ExternalLink className="h-3 w-3" />
                 </a>
                 <Link href="/" className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3.5 py-1.5 text-xs font-semibold transition-colors hover:border-muted-foreground/60">
                   sunrootlearn.com <ArrowUpRight className="h-3 w-3" />
