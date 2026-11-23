@@ -386,6 +386,8 @@ ${body.writtenWork ? `Student's Typed/Additional Notes:\n${wrapUserInput(body.wr
 Break down this university examination past question for the "${cohortMeta.label}" learner group.
 ${cohortMeta.aiPromptDirective}${healNote}
 
+Write it the way a good textbook worked example is written: say what is given and what is asked, then number the steps, each with a short plain title and one or two sentences saying what is done AND why. Put every formula, symbol and number in LaTeX between single dollar signs for inline ($T(n)=2T(n/2)+n$) or double dollar signs for a displayed line. Never write exponents as ^ in plain text. Keep sentences short; the reader is a student on a phone.
+
 Output clean JSON matching:
 {
   "cohortStyle": "${targetCohort}",
