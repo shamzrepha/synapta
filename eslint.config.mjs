@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // third-party design skills installed for the coding assistant: not our code, never linted
     ".agent/**",
+    "video-production/**",
     ".antigravity/**",
     ".claude/**",
   ]),
