@@ -912,3 +912,8 @@ html[data-reduce-motion="true"] .sunroot-bot[data-glide="true"] .sprout { animat
   color: inherit;
   text-shadow: 0 0 10px color-mix(in srgb, var(--color-brand-400, #6b93ff) 85%, transparent);
 }
+
+/* Phones: a user's own font-size setting must not break a layout that was designed at 100%; the app has its own text-size setting. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* long words, links and numbers wrap instead of pushing the page sideways */
+body { overflow-wrap: break-word; }
