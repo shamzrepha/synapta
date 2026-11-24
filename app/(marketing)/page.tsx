@@ -7,6 +7,11 @@ import { Reveal } from "@/components/landing/reveal";
 import { SchoolRegisterSection } from "@/components/landing/school-register-section";
 import React from "react";
 import { founderPerson, organizationNode } from "@/lib/founder";
+import fs from "node:fs";
+import path from "node:path";
+import { AppCta } from "@/components/landing/app-cta";
+import { StickyAppBar } from "@/components/landing/sticky-app-bar";
+import { PhoneFrame } from "@/components/landing/phone-frame";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight, ArrowUpRight, BookOpenText, Briefcase, Download, GraduationCap, Languages, ListChecks, MessagesSquare, Presentation, Route, School, Sprout, Users, Wrench } from "lucide-react";
@@ -59,8 +64,19 @@ function Plus({ className }: { className?: string }) {
 const label = "font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground";
 const rail = "mx-auto w-full max-w-[1280px] border-x border-border";
 
+/** The newest Android version, from the file the app's own updater reads. Absent on a build without it, so the label simply disappears. */
+function latestAppVersion(): string | undefined {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(process.cwd(), "public", "app-version.json"), "utf8"));
+    return typeof raw?.versionName === "string" ? raw.versionName : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function LandingPage() {
   const siteUrl = getSiteUrl();
+  const appVersion = latestAppVersion();
   const structuredData = [
     {
       "@context": "https://schema.org",
@@ -91,7 +107,7 @@ export default function LandingPage() {
             <span translate="no" className="text-[17px] font-semibold tracking-tight">Sunroot</span>
           </Link>
           <nav className="hidden items-center gap-6 xl:gap-8 lg:flex" aria-label="Page sections">
-            {[["How it works", "#how"], ["Features", "#features"], ["Who it's for", "#who"], ["Register School", "#schools"], ["Teachers", "#teachers"], ["Languages", "#languages"], ["About", "/about"]].map(([t, h]) => (
+            {[["The app", "#app"], ["How it works", "#how"], ["Features", "#features"], ["Schools", "#schools"], ["Teachers", "#teachers"], ["About", "/about"]].map(([t, h]) => (
               <Link key={h} href={h} className="whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground">{t}</Link>
             ))}
           </nav>
@@ -100,45 +116,61 @@ export default function LandingPage() {
       </header>
 
       <main>
-        {/* HERO */}
+        {/* HERO: the app first, because most people arrive on a phone */}
         <section className="relative overflow-hidden border-b border-border">
-          <div className={`${rail} relative px-5 pb-0 pt-14 sm:px-8 lg:pt-20`}>
+          <div className={`${rail} relative grid items-center gap-12 px-5 pb-16 pt-12 sm:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8 lg:pb-24 lg:pt-20`}>
             <Plus className="-left-[5px] top-[-5px]" />
             <Plus className="-right-[5px] top-[-5px]" />
-            <div className="flex flex-wrap items-center gap-3">
-              <p className={label}>Study platform</p>
-              <span className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-[0.16em] text-foreground">Every subject. Every student.</span>
-            </div>
-            <h1 className="mt-6 max-w-[16ch] text-[clamp(2.75rem,7.4vw,6.25rem)] font-medium leading-[0.98] tracking-[-0.035em] sm:max-w-none">
-              Study anything.
-              <br />
-              Understand it <em className="whitespace-nowrap font-serif font-normal italic tracking-[-0.02em] text-brand-600 dark:text-brand-400">for real.</em>
-            </h1>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
-              Drop in your notes, scans or slides. Sunroot turns them into lessons, practice and a tutor that speaks your language, built for exactly what you are learning.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href="/signup" className="group inline-flex h-12 items-center gap-2 rounded-md bg-brand-500 px-6 text-sm font-semibold text-slate-950 transition-colors hover:bg-brand-400">
-                Start free <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <a href="#schools" className="inline-flex h-12 items-center gap-2 rounded-md border border-brand-500/40 bg-brand-500/10 px-6 text-sm font-semibold text-brand-700 dark:text-brand-300 transition-colors hover:bg-brand-500/20">
-                <School className="h-4 w-4" /> Register Your School
-              </a>
-              <a href="#how" className="inline-flex h-12 items-center gap-2 rounded-md border border-border bg-card px-6 text-sm font-medium transition-colors hover:border-muted-foreground/60">
-                See how it works
-              </a>
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className={label}>Now on Android</p>
+                <span className="rounded border border-border px-2 py-1 font-mono text-[11px] uppercase tracking-[0.16em] text-foreground">Built for Nigerian students</span>
+              </div>
+              <h1 className="mt-6 max-w-[14ch] text-[clamp(2.75rem,7vw,5.75rem)] font-medium leading-[0.98] tracking-[-0.035em] sm:max-w-none">
+                Your classes, in your <em className="whitespace-nowrap font-serif font-normal italic tracking-[-0.02em] text-brand-600 dark:text-brand-400">pocket.</em>
+              </h1>
+              <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
+                Join your department&apos;s classes, or bring your own notes. Sunroot reads them out loud, explains what you missed, and tests you until it sticks. On the app or in your browser.
+              </p>
+              <AppCta version={appVersion} className="mt-8" />
+              <ul className="mt-8 grid max-w-xl gap-3 text-sm text-muted-foreground sm:grid-cols-3">
+                <li className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" /> Reads along with you, word by word</li>
+                <li className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" /> Classes made for your department</li>
+                <li className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" /> Save files to read with no data</li>
+              </ul>
+              <a href="#how" className="mt-6 inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">See how it works <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>
             </div>
 
-            {/* product frame */}
-            <div className="relative mt-14 lg:mt-20">
-              <div className="edge-sweep rounded-xl border border-border bg-card p-2 sm:p-3">
-                <HeroEngine />
-              </div>
-              <Plus className="-left-[5px] -top-[5px]" />
-              <Plus className="-right-[5px] -top-[5px]" />
+            {/* real screens from the app */}
+            <div className="relative mx-auto flex h-[520px] w-full max-w-[420px] items-center justify-center sm:h-[600px] lg:h-[640px] lg:max-w-none" aria-hidden="false">
+              <PhoneFrame src="/landing/app-lab.jpg" alt="The virtual science lab in the Sunroot app" className="absolute left-0 top-10 hidden w-[44%] -rotate-6 opacity-95 sm:block" />
+              <PhoneFrame src="/landing/app-studio.jpg" alt="The Maker Studio in the Sunroot app" className="absolute right-0 top-14 hidden w-[44%] rotate-6 opacity-95 sm:block" />
+              <PhoneFrame src="/landing/app-read.jpg" alt="Read-along in the Sunroot app: the word being read is highlighted and Sprout stands on it" priority className="relative z-10 w-[62%] max-w-[270px] sm:w-[48%] sm:max-w-[300px]" />
             </div>
-            <div className="relative h-24 sm:h-36">
-              <PixelField className="absolute inset-x-0 bottom-0 h-full w-full" />
+          </div>
+        </section>
+
+        {/* THE APP */}
+        <section id="app" className="scroll-mt-14 border-b border-border">
+          <div className={`${rail} px-5 py-16 sm:px-8 lg:py-24`}>
+            <Reveal className="max-w-3xl space-y-4">
+              <p className={label}>The Sunroot app</p>
+              <h2 className="text-[clamp(2rem,4.6vw,3.5rem)] font-medium leading-[1.04] tracking-[-0.03em]">Keep it on your home screen. <em className="font-serif font-normal italic text-brand-600 dark:text-brand-400">Open it before class.</em></h2>
+            </Reveal>
+            <div className="mt-12 grid border-y border-border md:grid-cols-3">
+              {[
+                { t: "Opens like any app", b: "Full screen, one tap from your home screen. No browser bar, no typing the address." },
+                { t: "Updates itself", b: "When a new version is ready, the app tells you and installs it. You never hunt for a new file." },
+                { t: "Same account everywhere", b: "Start on your phone, carry on in your browser. Your classes, notes and progress are the same." },
+              ].map((x, i) => (
+                <Reveal key={x.t} delay={i * 100} className="space-y-3 border-b border-border p-6 last:border-b-0 sm:p-8 md:border-b-0 md:border-r md:last:border-r-0">
+                  <h3 className="text-lg font-medium tracking-tight">{x.t}</h3>
+                  <p className="text-[15px] leading-relaxed text-muted-foreground">{x.b}</p>
+                </Reveal>
+              ))}
+            </div>
+            <div className="mt-10">
+              <AppCta version={appVersion} />
             </div>
           </div>
         </section>
@@ -168,6 +200,11 @@ export default function LandingPage() {
               <p className={label}>How it works</p>
               <h2 className="text-[clamp(2rem,4.6vw,3.5rem)] font-medium leading-[1.04] tracking-[-0.03em]">From a pile of files to something you can actually learn from</h2>
             </Reveal>
+            <div className="relative mt-12">
+              <div className="edge-sweep rounded-xl border border-border bg-card p-2 sm:p-3">
+                <HeroEngine />
+              </div>
+            </div>
             <ol className="mt-14 grid border-y border-border md:grid-cols-3">
               {STEPS.map((s, i) => (
                 <Reveal as="li" key={s.n} delay={i * 110} className="space-y-4 border-b border-border p-6 last:border-b-0 sm:p-8 md:border-b-0 md:border-r md:last:border-r-0">
@@ -293,15 +330,10 @@ export default function LandingPage() {
           <div className={`${rail} relative px-5 py-24 sm:px-8 lg:py-32`}>
             <Reveal className="max-w-3xl space-y-8">
               <h2 className="text-[clamp(2.25rem,5.6vw,4.75rem)] font-medium leading-[1.02] tracking-[-0.035em]">
-                Bring the files you already have. <em className="font-serif font-normal italic text-brand-600 dark:text-brand-400">Start learning</em> in minutes.
+                Bring the files you already have. <em className="font-serif font-normal italic text-brand-600 dark:text-brand-400">Start learning</em> today.
               </h2>
               <div className="flex flex-wrap items-center gap-4">
-                <Link href="/signup" className="group inline-flex h-12 items-center gap-2 rounded-md bg-brand-500 px-6 text-sm font-semibold text-slate-950 transition-colors hover:bg-brand-400">
-                  Start free <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-                <a href="/download/android" download className="inline-flex h-12 items-center gap-2 rounded-md border border-border bg-card/80 px-6 text-sm font-medium transition-colors hover:border-muted-foreground/60">
-                  <Download className="h-4 w-4" /> Download for Android (v3.1) <span className="text-xs text-muted-foreground">8.5 MB</span>
-                </a>
+                <AppCta version={appVersion} />
               </div>
             </Reveal>
           </div>
@@ -317,6 +349,7 @@ export default function LandingPage() {
             <span className={label}>&copy; 2026</span>
           </div>
           <nav className="flex flex-wrap gap-6" aria-label="Account">
+            <a href="/download/android" download className={`${label} hover:text-foreground`}>Android app</a>
             <Link href="/about" className={`${label} hover:text-foreground`}>About & Leadership</Link>
             <Link href="/privacy" className={`${label} hover:text-foreground`}>Privacy</Link>
             <Link href="/terms" className={`${label} hover:text-foreground`}>Terms</Link>
@@ -325,6 +358,7 @@ export default function LandingPage() {
           </nav>
         </div>
       </footer>
+      <StickyAppBar version={appVersion} />
     </div>
   );
 }

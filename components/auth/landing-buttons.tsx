@@ -8,7 +8,7 @@ import { useTheme } from "@/components/providers/theme-provider";
 
 const cta = "inline-flex h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-brand-600 px-4 text-sm font-semibold text-white dark:bg-brand-500 transition-colors hover:bg-brand-400";
 
-/** The landing page's top-right controls: light/dark switch, then "Open Sunroot" for signed-in people or "Log in" and "Start free" for guests. */
+/** The landing page's top-right controls: light/dark switch, then "Open Sunroot" for signed-in people or "Log in" and "Create account" for guests. */
 export function LandingButtons() {
   const { firebaseUser, isLoading } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -35,7 +35,7 @@ export function LandingButtons() {
             Log in
           </Link>
           <Link href="/signup" className={cta}>
-            Start free
+            Create account
           </Link>
         </>
       )}
