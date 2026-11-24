@@ -42,6 +42,12 @@ export default function TimetablesPage() {
       setBusy(false);
     }
   };
+  const makeClasses = async () => {
+    const res = await fetch("/api/admin/course-classes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ institution: instId }) });
+    const j = await res.json().catch(() => null);
+    if (!res.ok || !j?.ok) return toast({ title: "Couldn't make classes", description: j?.error?.message, variant: "destructive" });
+    toast({ title: `Made ${j.data.created} new classes, updated ${j.data.updated}`, variant: "success" });
+  };
   if (user && user.role !== "admin") return <p className="text-sm">This page is for admins.</p>;
   return (
     <div className="mx-auto max-w-2xl space-y-4">
@@ -58,6 +64,11 @@ export default function TimetablesPage() {
         <textarea className="min-h-[200px] w-full rounded-lg border border-border bg-background p-3 text-sm" placeholder="Paste the text here" value={text} onChange={(e) => setText(e.target.value)} aria-label="Pasted text" />
         <Button isLoading={busy} disabled={!dept || text.trim().length < 20} onClick={() => void go()}>Read and save</Button>
         {result && <p className="text-sm">{result}</p>}
+      </Card>
+      <Card className="space-y-2 p-4">
+        <p className="font-semibold">Make a class for every course</p>
+        <p className="text-xs text-muted-foreground">Creates an empty class for each course of this school that has none, and keeps shared courses as one class for all their departments. Nothing is built by AI.</p>
+        <Button variant="outline" onClick={() => void makeClasses()}>Make the classes</Button>
       </Card>
     </div>
   );
