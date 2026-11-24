@@ -685,6 +685,9 @@ export default function AdminConsolePage() {
           <Link href="/admin/ambassadors">
             <Button variant="outline" size="sm" className="text-xs">Ambassadors</Button>
           </Link>
+          <Link href="/admin/timetables">
+            <Button variant="outline" size="sm" className="text-xs">Timetables</Button>
+          </Link>
           <Link href="/admin/academic">
             <Button variant="outline" size="sm" className="text-xs">Course changes</Button>
           </Link>

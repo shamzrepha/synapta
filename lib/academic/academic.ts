@@ -94,6 +94,8 @@ export function checkAcademic(i: AcademicInput): Checked {
 export interface ClassAudience {
   institution?: unknown;
   department?: unknown;
+  /** a class shared by several departments (a general course) lists them all; it takes the place of `department` */
+  departments?: unknown;
   levels?: unknown;
   /** a class a lecturer marks as open to every student, whatever their school */
   open?: unknown;
@@ -109,8 +111,13 @@ export function eligibleFor(c: ClassAudience, a: Academic | null, now = Date.now
   const cInst = institutionByName(c.institution)?.id ?? norm(c.institution);
   const aInst = a.institutionId ?? norm(a.institution);
   if (!cInst || cInst !== aInst) return false;
-  const dep = norm(c.department);
-  if (dep && dep !== norm(a.department)) return false;
+  const shared = Array.isArray(c.departments) ? (c.departments as unknown[]).map(norm).filter(Boolean) : [];
+  if (shared.length > 0) {
+    if (!shared.includes(norm(a.department))) return false;
+  } else {
+    const dep = norm(c.department);
+    if (dep && dep !== norm(a.department)) return false;
+  }
   const levels = Array.isArray(c.levels) ? (c.levels as unknown[]).filter((x): x is number => typeof x === "number") : [];
   if (levels.length > 0 && !levels.includes(levelNow(a, now))) return false;
   return true;
