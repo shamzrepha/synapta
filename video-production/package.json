@@ -1,0 +1,17 @@
+{
+  "name": "sunroot-video",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render:proof": "remotion render src/index.ts Proof out/proof.mp4 --scale=0.5",
+    "render:proof:vertical": "remotion render src/index.ts ProofVertical out/proof-vertical.mp4 --scale=0.5"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.546",
+    "@remotion/google-fonts": "^4.0.546",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "^4.0.546"
+  }
+}

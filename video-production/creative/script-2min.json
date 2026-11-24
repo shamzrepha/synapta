@@ -1,0 +1,77 @@
+[
+ {
+  "id": 1,
+  "scene": "S1",
+  "text": "It's week three. The slides keep piling up, the exam date keeps getting closer, and honestly, you're not sure you actually understand any of it."
+ },
+ {
+  "id": 2,
+  "scene": "S2",
+  "text": "So you do what everyone does. You read it again. And again. It feels like studying. But re-reading does very little for memory. Recalling the idea is what makes it stick."
+ },
+ {
+  "id": 3,
+  "scene": "N3",
+  "text": "Then exam week arrives, and what you need isn't more pages. You need to know what you remember, and what you don't, before the exam finds out first."
+ },
+ {
+  "id": 4,
+  "scene": "N4",
+  "text": "That's why we built Sunroot. A study app that turns the material you already have into something you can actually learn from."
+ },
+ {
+  "id": 5,
+  "scene": "N5",
+  "text": "Maybe your lecturer's class is already there. Find it, join it, and the whole course is laid out for you. Chapter by chapter, ready to read."
+ },
+ {
+  "id": 6,
+  "scene": "N6",
+  "text": "Press start, and the lesson reads out loud. Every word lights up as it's spoken, and Sprout moves with it, so you never lose your place."
+ },
+ {
+  "id": 7,
+  "scene": "N7",
+  "text": "Stuck on an idea? Ask the tutor in your own words. Or tap Teach me, and get it as a short lesson, scene by scene."
+ },
+ {
+  "id": 8,
+  "scene": "N8",
+  "text": "And if nothing's set up yet, bring your own slides, a PDF, or a photo of handwritten notes. Within a minute, they become clean, structured study notes."
+ },
+ {
+  "id": 9,
+  "scene": "N9",
+  "text": "Then comes the part that makes it stick. Quiz yourself. Flip flashcards. Write answers in your own words. The result shows the moment you answer."
+ },
+ {
+  "id": 10,
+  "scene": "S7",
+  "text": "Got one wrong? Good. That's useful information. Sunroot keeps it in your mistake notebook, sends you back to the idea, and tests you again with a fresh question."
+ },
+ {
+  "id": 11,
+  "scene": "S8",
+  "text": "Spaced review brings back what you're about to forget. And the exam planner builds your revision backwards from your exam date."
+ },
+ {
+  "id": 12,
+  "scene": "N12",
+  "text": "Some ideas need to be seen. So there are virtual labs, and a maker studio, where you can build and test circuits without buying a single part."
+ },
+ {
+  "id": 13,
+  "scene": "N13",
+  "text": "And you don't have to do it alone. Study in focus rooms with friends, and climb a weekly leaderboard that resets, so newcomers can win too."
+ },
+ {
+  "id": 14,
+  "scene": "N14",
+  "text": "Because understanding isn't about reading more. It's about practising the right way, at the right time. Sunroot does that part with you."
+ },
+ {
+  "id": 15,
+  "scene": "S11",
+  "text": "Sunroot. Understand it. Build it. Prove it. Find it at sunrootlearn.com."
+ }
+]
