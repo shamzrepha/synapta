@@ -15,6 +15,7 @@ export default function StudyHub() {
       groups={["Study", "Maker", "Rewards"]}
       extraLinks={[
         { title: "Library", href: "/study/library", emoji: "📚", blurb: "All your notes, notebooks, decks, Worlds and saved items in one place.", intent: "Capture" },
+        { title: "Timetable", href: "/timetable", emoji: "🗓️", blurb: "Your department's lectures this week, and the courses you share with other departments.", intent: "Plan" },
         { title: "AI Notebook", href: "/notebook", emoji: "📓", blurb: "Chat with your own documents, with sources.", intent: "Capture" },
         { title: "Written practice", href: "/practice/written", emoji: "✍️", blurb: "Answer in your own words and get marked against a guide.", intent: "Practise" },
         { title: "Maker Studio", href: "/studio", emoji: "🛠️", blurb: "Build circuits, robots and 3D designs, test them, and share them.", intent: "Build" },
