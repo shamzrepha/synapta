@@ -35,6 +35,7 @@ const plexMono = IBM_Plex_Mono({
 
 import { RealtimeProvider } from "@/components/providers/realtime-provider";
 import { KeyboardGuard } from "@/components/shell/keyboard-guard";
+import { NativeBars } from "@/components/shell/native-bars";
 
 // Phones, tablets and laptops: scale to device width; respect notches / home indicators
 export const viewport: Viewport = {
@@ -112,6 +113,7 @@ export default function RootLayout({
                 <ToastProvider>
                   <ClientErrorListener />
                   <KeyboardGuard />
+                  <NativeBars />
                   <PageTranslator />
                   {children}
                 </ToastProvider>

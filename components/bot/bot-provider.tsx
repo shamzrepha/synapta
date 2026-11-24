@@ -922,7 +922,7 @@ export function BotProvider({ children }: { children: React.ReactNode }) {
                 }, 400);
               }}
             />
-            <div ref={layer} className="sunroot-bot" data-moving={moving} data-glide={gliding} data-landed={landed} data-peek={peek} data-side={side} aria-live="polite">
+            <div ref={layer} className="sunroot-bot" data-no-ptr="" data-moving={moving} data-glide={gliding} data-landed={landed} data-peek={peek} data-side={side} aria-live="polite">
               {bubble && !menuOpen && <div className="sunroot-bot-bubble" role="status">{bubble}</div>}
               {focusLabel && (
                 <div className="sunroot-bot-timer" data-break={focusBreak} aria-label={focusBreak ? "Break time left" : "Focus time left"}>
