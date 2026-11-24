@@ -1,6 +1,6 @@
 {
-  "versionCode": 14,
-  "versionName": "3.3",
-  "url": "https://sunrootlearn.vercel.app/sunroot-3.3.apk",
-  "notes": "Campus Setup Quest, Adaptive FYP Learning Cohorts, CBT Simulator & Handwritten Paper Snap Grader."
+  "versionCode": 18,
+  "versionName": "3.7",
+  "url": "https://github.com/shamzrepha/synapta/releases/download/v3.7/sunroot-3.7.apk",
+  "notes": "Paystack in-page popup support, pull-to-refresh on page hang/offline, 100% text zoom wrapping lock, dynamic status & navigation bar color sync."
 }
