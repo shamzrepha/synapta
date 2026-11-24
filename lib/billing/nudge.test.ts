@@ -13,7 +13,7 @@ describe("which upgrade notice to show", () => {
   it("welcomes a free user once, naming the plan to move up to", () => {
     const n = pickNudge(me(), "u1")!;
     expect(n.title).toBe("You're on the Free plan");
-    expect(n.message).toContain("Plus");
+    expect(n.message).toContain("Student");
     expect(n.everyDay).toBe(false);
     expect(n.key).toBe("welcome:u1:0");
   });
@@ -21,7 +21,7 @@ describe("which upgrade notice to show", () => {
     const n = pickNudge(me({ usage: { ...zero, notes: 3 } }), "u1")!;
     expect(n.title).toBe("You've used it all");
     expect(n.message).toContain("3 of 3 study notes sets");
-    expect(n.message).toContain("Upgrade to Plus");
+    expect(n.message).toContain("Upgrade to Student");
     expect(pickNudge(me({ usage: { ...zero, practice: 4 } }), "u1")!.title).toBe("Running low");
     expect(pickNudge(me({ usage: { ...zero, practice: 3 } }), "u1")!.title).toBe("You're on the Free plan");
   });
@@ -29,9 +29,9 @@ describe("which upgrade notice to show", () => {
     const n = pickNudge(me({ usage: { ...zero, notes: 3, scan_pages: 12 } }), "u1")!;
     expect(n.message).toContain("study notes sets");
   });
-  it("moves a Plus user up to Pro and a paid user with room gets nothing", () => {
+  it("a paid Student user with room gets nothing, and there is no higher student plan to push", () => {
     const plus = me({ paid: true, plan: wire("plus"), usage: { ...zero, notes: 45 } });
-    expect(pickNudge(plus, "u1")!.message).toContain("Upgrade to Pro");
+    expect(pickNudge(plus, "u1")).toBeNull();
     expect(pickNudge(me({ paid: true, plan: wire("plus") }), "u1")).toBeNull();
   });
   it("has nothing to offer at the top of the ladder", () => {

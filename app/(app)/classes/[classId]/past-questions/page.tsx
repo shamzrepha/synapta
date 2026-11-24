@@ -1785,18 +1785,18 @@ export default function PastQuestionsPage({ params }: { params: Promise<{ classI
             <div className="space-y-2.5 pt-1">
               <div className="p-3 rounded-xl border border-brand-500/40 bg-brand-500/10 space-y-1">
                 <div className="flex justify-between items-baseline font-bold text-xs">
-                  <span className="text-brand-900 dark:text-brand-200">Exam Month Pass</span>
+                  <span className="text-brand-900 dark:text-brand-200">Student plan, monthly</span>
                   <span className="text-brand-600">₦1,500 / month</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  30 days of full step-by-step past questions, CBT simulator, and handwritten paper snap grading.
+                  30 days of full step-by-step past questions, CBT simulator, handwritten paper snap grading, and your own notes.
                 </p>
               </div>
 
               <div className="p-3 rounded-xl border-2 border-brand-600 bg-brand-50 dark:bg-brand-950/30 space-y-1">
                 <div className="flex justify-between items-baseline font-bold text-xs">
-                  <span className="text-brand-900 dark:text-brand-200">Plus Semester Pass (Best Value)</span>
-                  <span className="text-brand-600">₦11,000 / 135 Days</span>
+                  <span className="text-brand-900 dark:text-brand-200">Student plan, semester (Best Value)</span>
+                  <span className="text-brand-600">₦4,500 / 135 Days</span>
                 </div>
                 <p className="text-[11px] text-muted-foreground">
                   Everything included: Past Questions at no extra cost, upload own notes, 3D Maker Studio labs, and audio podcasts.

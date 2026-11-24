@@ -20,6 +20,7 @@ import { DeviceReporter } from "@/components/shell/device-reporter";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { BotProvider } from "@/components/bot/bot-provider";
 import { ProfileSetup } from "@/components/profile/profile-setup";
+import { AcademicGate } from "@/components/academic/academic-gate";
 import { AnimatedFavicon } from "@/components/shell/animated-favicon";
 
 export default function AppLayout({
@@ -61,6 +62,7 @@ export default function AppLayout({
       <AccessibilityApplier />
       <DeviceReporter />
       <ProfileSetup />
+      <AcademicGate />
       <AnimatedFavicon />
     </div>
     </BotProvider>

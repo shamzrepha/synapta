@@ -29,7 +29,7 @@ describe("monthly allowances", () => {
     expect(allowance(PLANS.free, { notes: 2 }, "notes").ok).toBe(true);
     const a = allowance(PLANS.free, { notes: 3 }, "notes");
     expect(a.ok).toBe(false);
-    expect(limitMessage(PLANS.free, "notes", a)).toContain("Upgrade to Plus");
+    expect(limitMessage(PLANS.free, "notes", a)).toContain("Upgrade to Student");
   });
   it("counts scanned pages by the amount asked for", () => {
     expect(allowance(PLANS.free, { scan_pages: 13 }, "scan_pages", 3).ok).toBe(false);
@@ -53,7 +53,7 @@ describe("paying", () => {
   });
   const ok = (over: Record<string, unknown> = {}) => ({ event: "charge.success", data: { status: "success", reference: "r1", amount: priceFor("plus", "month") * 100, currency: "NGN", metadata: { uid: "u1", plan: "plus", term: "month" }, ...over } });
   it("reads a good payment", () => {
-    expect(readCharge(ok({ channel: "bank_transfer", customer: { email: "a@b.com" } }))).toEqual({ reference: "r1", uid: "u1", plan: "plus", term: "month", amountKobo: 350_000, channel: "bank_transfer", email: "a@b.com" });
+    expect(readCharge(ok({ channel: "bank_transfer", customer: { email: "a@b.com" } }))).toEqual({ reference: "r1", uid: "u1", plan: "plus", term: "month", amountKobo: 150_000, channel: "bank_transfer", email: "a@b.com" });
   });
   it("rejects underpaying, wrong currency, unknown plan, wrong event", () => {
     expect(readCharge(ok({ amount: 100 }))).toBeNull();
@@ -88,11 +88,11 @@ describe("the agreed prices and limits", () => {
     expect(PLANS.free).toMatchObject({ priceMonthNgn: 0, monthlyTokens: 100_000 });
     expect(PLANS.free.limits).toEqual({ notes: 3, scan_pages: 15, lessons: 5, practice: 5, studio_ai: 3, class_build: 0 });
   });
-  it("student plus", () => {
-    expect(PLANS.plus).toMatchObject({ priceMonthNgn: 3_500, priceTermNgn: 11_000, monthlyTokens: 1_200_000 });
+  it("the one student plan: 1,500 a month, 4,500 a semester", () => {
+    expect(PLANS.plus).toMatchObject({ label: "Student", priceMonthNgn: 1_500, priceTermNgn: 4_500, monthlyTokens: 1_200_000 });
     expect(PLANS.plus.limits).toEqual({ notes: 50, scan_pages: 400, lessons: 80, practice: 150, studio_ai: 40, class_build: 0 });
-    expect(priceFor("plus", "month") * 100).toBe(350_000);
-    expect(priceFor("plus", "term") * 100).toBe(1_100_000);
+    expect(priceFor("plus", "month") * 100).toBe(150_000);
+    expect(priceFor("plus", "term") * 100).toBe(450_000);
   });
   it("student exam pass", () => {
     expect(PLANS.exam).toMatchObject({ priceMonthNgn: 1_500, priceTermNgn: 5_000, monthlyTokens: 600_000 });
@@ -115,12 +115,12 @@ describe("the agreed prices and limits", () => {
     expect(MONTH_DAYS).toBe(30);
   });
   it("shows the real saving for paying by the semester", () => {
-    expect(termSavingsPercent(PLANS.plus)).toBe(21);
+    expect(termSavingsPercent(PLANS.plus)).toBe(25);
     expect(termSavingsPercent(PLANS.teacher)).toBe(33);
     expect(termSavingsPercent(PLANS.free)).toBe(0);
   });
-  it("won't accept a student plus payment of the old price", () => {
-    const old = { event: "charge.success", data: { status: "success", reference: "r2", amount: 250_000, currency: "NGN", metadata: { uid: "u", plan: "plus", term: "month" } } };
+  it("won't accept a student plan payment below the price", () => {
+    const old = { event: "charge.success", data: { status: "success", reference: "r2", amount: 100_000, currency: "NGN", metadata: { uid: "u", plan: "plus", term: "month" } } };
     expect(readCharge(old)).toBeNull();
   });
 });
@@ -128,13 +128,13 @@ describe("the agreed prices and limits", () => {
 describe("the plan ladder", () => {
   const ladder = (a: "student" | "teacher") => PLAN_IDS.filter((id) => PLANS[id].audience === a).map((id) => PLANS[id]).sort((x, y) => x.priceMonthNgn - y.priceMonthNgn);
 
-  it("students have Free, Exam Pass, Plus, Pro, Pro Max and Ultra; teachers have Teacher and Teacher Pro", () => {
-    expect(ladder("student").map((p) => p.label)).toEqual(["Free", "Exam Pass", "Plus", "Pro", "Pro Max", "Ultra"]);
+  it("students are offered Free and the one Student plan (the older plans are still honoured); teachers have Teacher and Teacher Pro", () => {
+    expect(ladder("student").filter((p) => !p.retired).map((p) => p.label)).toEqual(["Free", "Student"]);
     expect(ladder("teacher").map((p) => p.label)).toEqual(["Teacher", "Teacher Pro"]);
   });
   it("every step up costs more and never gives less of anything", () => {
     for (const a of ["student", "teacher"] as const) {
-      const l = ladder(a);
+      const l = ladder(a).filter((p) => !p.retired);
       for (let i = 1; i < l.length; i++) {
         expect(l[i].priceMonthNgn, `${l[i].label} price`).toBeGreaterThan(l[i - 1].priceMonthNgn);
         expect(l[i].priceTermNgn, `${l[i].label} semester price`).toBeGreaterThan(l[i - 1].priceTermNgn);
@@ -146,6 +146,7 @@ describe("the plan ladder", () => {
   });
   it("a semester is always cheaper than four months paid monthly", () => {
     for (const id of PAYABLE) expect(termSavingsPercent(PLANS[id]), id).toBeGreaterThan(0);
+    expect(PLANS.exam.retired && PLANS.pro.retired).toBe(true);
   });
   it("every plan has a name, a tagline and a short code name", () => {
     for (const id of PLAN_IDS) expect(PLANS[id].codename.length, id).toBeGreaterThan(2);
@@ -164,8 +165,8 @@ describe("the plan ladder", () => {
     expect(canBuy("free", "student")).toBe(false);
   });
   it("points to the next plan up, and says class building is for teachers when no student plan has it", () => {
-    expect(nextTier(PLANS.free)?.id).toBe("exam");
-    expect(nextTier(PLANS.exam)?.id).toBe("plus");
+    expect(nextTier(PLANS.free)?.id).toBe("plus");
+    expect(nextTier(PLANS.plus)).toBeNull();
     expect(nextTier(PLANS.pro)).toBeNull(); // Pro Max and Ultra are retired: still honoured, no longer offered
     expect(nextTier(PLANS.ultra)).toBeNull();
     expect(nextTier(PLANS.teacher)?.id).toBe("teacherpro");

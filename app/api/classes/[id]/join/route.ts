@@ -5,6 +5,8 @@ import { ApiError } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { notify, notifyMany } from "@/lib/notifications/server";
 import { z } from "zod";
+import { eligibleFor } from "@/lib/academic/academic";
+import { readAcademic } from "@/lib/academic/server";
 
 const bodySchema = z.object({ code: z.string().trim().max(40).optional(), as: z.enum(["student", "teacher"]).optional() }).default({});
 
@@ -29,6 +31,9 @@ export async function POST(
     });
     if (rateLimitRes) return rateLimitRes;
 
+    // A student who has set their course can join only classes for it without an invite; a lecturer's code still works for anyone
+    const academic = caller.role === "teacher" || caller.role === "admin" ? null : readAcademic((await adminDb().collection("users").doc(caller.uid).get()).data());
+
     const classRef = adminDb().collection("classes").doc(id);
     const enrollmentDocId = `${id}_${caller.uid}`;
     const enrollmentRef = adminDb().collection("enrollments").doc(enrollmentDocId);
@@ -50,6 +55,10 @@ export async function POST(
 
       const isCoTeacher = Array.isArray(classData.coTeacherIds) && classData.coTeacherIds.includes(caller.uid);
       const isAdmin = caller.role === "admin";
+      const hasInvite = !!inviteCode && typeof classData.joinCode === "string" && classData.joinCode.toUpperCase() === inviteCode;
+      if (joinAs === "student" && academic && !hasInvite && !eligibleFor(classData, academic)) {
+        throw new ApiError(403, "NOT_YOUR_COURSE", "This class is for a different school, department or level than yours. If your lecturer gave you a code, enter it.");
+      }
 
       // Administrators can step into any class as a co-teacher
       if (joinAs === "teacher") {

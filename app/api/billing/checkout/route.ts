@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { PAYABLE, canBuy, priceFor, type PlanId } from "@/lib/billing/plans";
+import { PAYABLE, PLANS, canBuy, priceFor, type PlanId } from "@/lib/billing/plans";
 import { PAYSTACK_CHANNELS } from "@/lib/billing/paystack";
 
 export const runtime = "nodejs";
@@ -20,6 +20,8 @@ export async function POST(req: NextRequest) {
     const secret = process.env.PAYSTACK_SECRET_KEY;
     if (!secret) throw new ApiError(503, "PAYMENTS_UNAVAILABLE", "Payments aren't set up yet. Please try again soon.");
     if (!PAYABLE.includes(plan as PlanId)) throw new ApiError(400, "VALIDATION", "That plan can't be bought online.");
+    // retired plans are no longer sold; anyone who already holds one keeps it until it ends
+    if (PLANS[plan as PlanId]?.retired) throw new ApiError(400, "VALIDATION", "That plan is no longer sold. Choose the Student plan.");
     if (!canBuy(plan as PlanId, caller.role)) throw new ApiError(403, "FORBIDDEN", "The Teacher plans are for teacher accounts. Ask to become a teacher first.");
     if (!caller.email) throw new ApiError(400, "VALIDATION", "Add an email address to your account before paying.");
 

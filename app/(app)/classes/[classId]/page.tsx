@@ -1,5 +1,6 @@
 "use client";
 
+import { ClassAudience } from "@/components/academic/class-audience";
 import { TidyStructure } from "@/components/classes/tidy-structure";
 import { readableText } from "@/lib/text/readable";
 import { ClassWorlds } from "@/components/worlds/class-worlds";
@@ -435,6 +436,7 @@ export default function ClassOverviewPage({
                   </Button>
 
                   <TidyStructure classId={classId} onDone={() => window.location.reload()} />
+                  <ClassAudience classId={classId} institution={(classData as { institution?: string }).institution} department={(classData as { department?: string }).department} levels={(classData as { levels?: number[] }).levels} open={(classData as { open?: boolean }).open} onSaved={() => window.location.reload()} />
                   <Button
                     variant="outline"
                     size="sm"
