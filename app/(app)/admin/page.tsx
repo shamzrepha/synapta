@@ -676,6 +676,12 @@ export default function AdminConsolePage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link href="/admin/feedback">
+            <Button variant="outline" size="sm" className="text-xs">Feedback</Button>
+          </Link>
+          <Link href="/admin/reps">
+            <Button variant="outline" size="sm" className="text-xs">Course reps</Button>
+          </Link>
           <Link href="/admin/academic">
             <Button variant="outline" size="sm" className="text-xs">Course changes</Button>
           </Link>

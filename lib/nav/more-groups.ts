@@ -51,6 +51,7 @@ const EXTRAS: MoreEntry[] = [
   { id: "x-profile", title: "Profile and badges", blurb: "Your level, badges and details.", emoji: "🧑", href: "/profile", group: "Account" },
   { id: "x-saved", title: "Saved", blurb: "Things you bookmarked.", emoji: "🔖", href: "/saved", group: "Account" },
   { id: "x-notifications", title: "Notifications", blurb: "What happened while you were away.", emoji: "🔔", href: "/notifications", group: "Account" },
+  { id: "x-feedback", title: "Feedback and ideas", blurb: "Tell the founder what to build or fix. Good ones get a thank-you gift.", emoji: "💡", href: "/feedback", group: "Account" },
   { id: "x-settings", title: "Settings", blurb: "Theme, language, data saver, and a tour of the app.", emoji: "⚙️", href: "/settings", group: "Account" },
 ];
 

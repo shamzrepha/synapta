@@ -6,6 +6,7 @@ import { ArrowRight, Bookmark, BookOpen, FileText, Layers, Map as MapIcon, Plus 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DepartmentLibrary } from "@/components/library/department-library";
 import { asArray } from "@/lib/api/client";
 
 interface Row { id: string; title: string; detail?: string; href: string }
@@ -51,6 +52,8 @@ export default function LibraryPage() {
         </div>
         <Link href="/study/notes"><Button><Plus className="mr-1.5 h-4 w-4" /> Add material</Button></Link>
       </div>
+
+      <DepartmentLibrary />
 
       {empty && (
         <Card className="space-y-2 p-6 text-center">
