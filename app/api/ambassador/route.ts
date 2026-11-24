@@ -57,7 +57,7 @@ const payoutBody = z.object({
 export async function POST(req: NextRequest) {
   try {
     const caller = await requireUser(req);
-    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "ambassador-payout", limit: 10, windowMs: 60 * 60 * 1000 });
+    const limited = await checkRateLimit(req, { uid: caller.uid, keyPrefix: "ambassador-payout", limit: 10, windowMs: 60 * 60 * 1000, shared: true });
     if (limited) return limited;
     const b = await parseJson(req, payoutBody);
     await adminDb().collection("users").doc(caller.uid).set({ payout: { ...b, updatedAt: Timestamp.now() } }, { merge: true });
