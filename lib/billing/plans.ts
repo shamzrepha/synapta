@@ -64,7 +64,7 @@ export const PLANS: Record<PlanId, Plan> = {
     limits: { notes: 3, scan_pages: 15, lessons: 5, practice: 5, studio_ai: 3, class_build: NONE },
     perks: [
       "Unlimited class lessons, podcasts, quizzes and simulations that your teachers publish",
-      "3 personal notes sets and 15 scanned pages a month",
+      "7 days from the day you sign up: 3 personal notes sets and 15 scanned pages",
       "5 interactive lessons and 5 flashcard or quiz sets a month",
       "AI tutor with a monthly allowance, community, challenges and streaks",
     ],
@@ -254,6 +254,7 @@ interface UserLike {
   plan?: unknown;
   planExpiresAt?: unknown;
   role?: unknown;
+  createdAt?: unknown;
 }
 
 const millis = (v: unknown): number => {
@@ -263,6 +264,28 @@ const millis = (v: unknown): number => {
   return 0;
 };
 
+/** The free trial lasts this many days from the day the account was made. */
+export const TRIAL_DAYS = 7;
+/** Accounts made before the trial rule existed get their 7 days counted from this day instead, so nobody is cut off the moment it ships. */
+export const TRIAL_RULE_STARTS = Date.parse("2026-11-24T00:00:00Z");
+
+/** When this user's free trial ends (a time in ms). */
+export function trialEndsAt(user: UserLike): number {
+  const made = millis(user.createdAt);
+  return Math.max(made, TRIAL_RULE_STARTS) + TRIAL_DAYS * 86_400_000;
+}
+export const trialActive = (user: UserLike, now = Date.now()) => now < trialEndsAt(user);
+
+/** After the trial and with no paid plan: classes marked Free still open, but AI that works on your own material needs the Student plan. */
+export const TRIAL_ENDED: Plan = {
+  ...PLANS.free,
+  label: "Trial ended",
+  blurb: "Your 7-day free trial is over. Classes marked Free are still open. Get the Student plan for the rest.",
+  monthlyTokens: 20_000,
+  perMinute: 5,
+  limits: { notes: NONE, scan_pages: NONE, lessons: NONE, practice: NONE, studio_ai: NONE, class_build: NONE },
+};
+
 /** The plan a user is on right now: a paid plan only while it hasn't expired. Admins get Teacher limits; unpaid teachers get the trial. */
 export function planOf(user: UserLike, now = Date.now()): Plan {
   const id = typeof user.plan === "string" && (PLAN_IDS as string[]).includes(user.plan) ? (user.plan as PlanId) : "free";
@@ -270,7 +293,7 @@ export function planOf(user: UserLike, now = Date.now()): Plan {
   if (paid) return PLANS[id];
   if (user.role === "admin") return PLANS.teacher; // staff are never limited by a plan they didn't buy
   if (user.role === "teacher") return TEACHER_TRIAL;
-  return PLANS.free;
+  return trialActive(user, now) ? PLANS.free : TRIAL_ENDED;
 }
 
 export interface Allowance {
