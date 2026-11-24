@@ -116,12 +116,43 @@ export default function PlansPage() {
     return () => clearTimeout(t);
   }, [load, toast]);
 
+  /** Confirms a payment straight away; the signed webhook is still what activates the plan. */
+  const confirm = async (reference: string) => {
+    const j = await fetchJson<{ paid: boolean }>(`/api/billing/verify?reference=${encodeURIComponent(reference)}`);
+    if (j.ok && j.data.paid) toast({ title: "Payment received", description: "Your plan is active. Thank you!", variant: "success" });
+    else toast({ title: "Checking your payment…", description: "If it doesn't show in a minute, contact us with your payment reference.", variant: "amber" });
+    void load();
+  };
+
   const buy = async (plan: string, period: "month" | "term") => {
     setBusy(`${plan}-${period}`);
-    const j = await fetchJson<{ url: string }>("/api/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan, term: period }) });
-    setBusy("");
-    if (j.ok) window.location.assign(j.data.url);
-    else toast({ title: "Couldn't start the payment", description: j.error.message, variant: "destructive" });
+    const j = await fetchJson<{ url: string; accessCode?: string }>("/api/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan, term: period }) });
+    if (!j.ok) {
+      setBusy("");
+      toast({ title: "Couldn't start the payment", description: j.error.message, variant: "destructive" });
+      return;
+    }
+    // pay in a window on this page; if the window can't open, fall back to the full payment page
+    try {
+      const w = window as unknown as { PaystackPop?: new () => { resumeTransaction: (code: string, cb: { onSuccess: (t: { reference: string }) => void; onCancel: () => void }) => void } };
+      if (!w.PaystackPop) {
+        await new Promise<void>((resolve, reject) => {
+          const el = document.createElement("script");
+          el.src = "https://js.paystack.co/v2/inline.js";
+          el.onload = () => resolve();
+          el.onerror = () => reject(new Error("load"));
+          document.head.appendChild(el);
+        });
+      }
+      if (!w.PaystackPop || !j.data.accessCode) throw new Error("unavailable");
+      new w.PaystackPop().resumeTransaction(j.data.accessCode, {
+        onSuccess: (t) => void confirm(t.reference),
+        onCancel: () => setBusy(""),
+      });
+      setBusy("");
+    } catch {
+      window.location.assign(j.data.url);
+    }
   };
 
   const submitInquiry = async (e: React.FormEvent) => {

@@ -10,14 +10,14 @@ const isProd = process.env.NODE_ENV === "production";
 const contentSecurityPolicy = (extraScript: string[] = []) =>
   [
     "default-src 'self'",
-    `script-src 'self'${isProd ? "" : " 'unsafe-eval'"} 'unsafe-inline' https://apis.google.com${extraScript.length ? ` ${extraScript.join(" ")}` : ""}`,
+    `script-src 'self'${isProd ? "" : " 'unsafe-eval'"} 'unsafe-inline' https://apis.google.com https://js.paystack.co https://checkout.paystack.com${extraScript.length ? ` ${extraScript.join(" ")}` : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "media-src 'self' blob:",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://generativelanguage.googleapis.com",
+    "connect-src 'self' https://api.paystack.co https://checkout.paystack.com https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://generativelanguage.googleapis.com",
     // build videos embed from YouTube (privacy-enhanced) and Vimeo
-    "frame-src 'self' https://*.firebaseapp.com https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
+    "frame-src 'self' https://checkout.paystack.com https://js.paystack.co https://*.firebaseapp.com https://www.youtube-nocookie.com https://www.youtube.com https://player.vimeo.com",
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
