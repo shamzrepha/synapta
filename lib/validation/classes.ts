@@ -38,6 +38,10 @@ export const updateClassSchema = z.object({
   level: z.enum(["school", "undergrad", "professional"]).optional(),
   institution: z.string().max(100).optional(),
   department: z.string().max(100).optional(),
+  /** the levels this class is for (100, 200 ...); empty means every level */
+  levels: z.array(z.number().int().min(100).max(600)).max(6).optional(),
+  /** shown to every student whatever their school or course */
+  open: z.boolean().optional(),
   audienceTags: z.array(z.string()).optional(),
   durationWeeks: z.number().int().min(1).max(52).optional(),
   visibility: z.enum(["public", "private"]).optional(),

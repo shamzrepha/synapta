@@ -3,6 +3,8 @@ import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { createClassSchema, generateSecureJoinCode } from "@/lib/validation/classes";
 import { parseJson } from "@/lib/api/errors";
+import { eligibleFor } from "@/lib/academic/academic";
+import { readAcademic } from "@/lib/academic/server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -201,6 +203,7 @@ export async function GET(req: NextRequest) {
     let userDepartment = "";
     let userLevel = "";
     let userInterests: string[] = [];
+    let userAcademic: ReturnType<typeof readAcademic> = null;
 
     if (caller) {
       const [eSnap, uDoc] = await Promise.all([
@@ -219,6 +222,7 @@ export async function GET(req: NextRequest) {
         userDepartment = String(u?.department || "").trim();
         userLevel = String(u?.level || "").trim();
         userInterests = Array.isArray(u?.interests) ? u?.interests : [];
+        userAcademic = readAcademic(u);
       }
     }
 
@@ -241,9 +245,12 @@ export async function GET(req: NextRequest) {
         // Show if published, or if caller is owner or admin
         if (caller && (c.isOwner || caller.role === "admin")) return true;
         if (c.status !== "published") return false;
+        const member = c.userEnrollmentStatus === "active" || c.userEnrollmentStatus === "pending";
+        // A student who has set their course only sees classes for it (their own school, department and level), plus classes they are already in.
+        if (caller && caller.role !== "teacher" && caller.role !== "admin" && userAcademic && !member && !eligibleFor(c as { institution?: unknown; department?: unknown; levels?: unknown; open?: unknown }, userAcademic)) return false;
         // Private classes are reachable only by their join code; they are listed to enrolled members only.
         if (c.visibility !== "private") return true;
-        return c.userEnrollmentStatus === "active" || c.userEnrollmentStatus === "pending";
+        return member;
       })
       .sort((a: Record<string, unknown>, b: Record<string, unknown>) => {
         // AI Recommendation Algorithm based on academic profile

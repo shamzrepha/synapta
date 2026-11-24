@@ -735,8 +735,8 @@ export function ProfileSetup() {
                   Best Value — 135 Days
                 </span>
                 <div className="flex justify-between items-baseline gap-2">
-                  <h3 className="text-sm font-bold text-brand-900 dark:text-brand-200">Plus Semester Pass</h3>
-                  <span className="text-base font-extrabold text-brand-600 shrink-0">₦11,000</span>
+                  <h3 className="text-sm font-bold text-brand-900 dark:text-brand-200">Student plan, semester</h3>
+                  <span className="text-base font-extrabold text-brand-600 shrink-0">₦4,500</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Covers full 4.5 months through final exams. Unlocks own PDF uploads, 3D Maker Studio labs, audio podcasts, and all past questions at no extra cost.
@@ -746,7 +746,7 @@ export function ProfileSetup() {
               {/* Option B: Exam Month Pass */}
               <div className="p-3 rounded-xl border border-border bg-slate-50 dark:bg-slate-800/50 space-y-1">
                 <div className="flex justify-between items-baseline gap-2">
-                  <h3 className="text-sm font-bold">Exam Month Pass</h3>
+                  <h3 className="text-sm font-bold">Student plan, monthly</h3>
                   <span className="text-sm font-bold text-foreground shrink-0">₦1,500 / month</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
