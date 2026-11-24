@@ -22,6 +22,7 @@ interface WirePlan {
   priceMonthNgn: number;
   priceTermNgn: number;
   perSeatTermNgn?: number;
+  perSeatMonthNgn?: number;
   monthlyTokens: number;
   perMinute: number;
   perks: string[];
@@ -262,7 +263,7 @@ export default function PlansPage() {
                 <p className="flex flex-wrap items-baseline gap-x-1 text-2xl font-extrabold">₦0<span className="whitespace-nowrap text-xs font-normal text-slate-500">/ month</span></p>
               ) : p.audience === "school" ? (
                 <div>
-                  <p className="flex flex-wrap items-baseline gap-x-1 text-2xl font-extrabold">{naira(p.perSeatTermNgn ?? 1200)}<span className="whitespace-nowrap text-xs font-normal text-slate-500">/ student / semester</span></p>
+                  <p className="flex flex-wrap items-baseline gap-x-1 text-2xl font-extrabold">{naira(term === "month" ? p.perSeatMonthNgn ?? 1200 : p.perSeatTermNgn ?? 3700)}<span className="whitespace-nowrap text-xs font-normal text-slate-500">/ student / {term === "month" ? "month" : "semester"}</span></p>
                   <p className="text-xs text-slate-500">Custom price for a whole department</p>
                 </div>
               ) : (
@@ -338,7 +339,7 @@ export default function PlansPage() {
             </span>
           </div>
           <h2 className="text-base font-extrabold text-foreground">
-            Onboard your entire Department or Faculty at ₦1,200 / student / semester
+            Onboard your entire Department or Faculty at ₦1,200 / student / month or ₦3,700 / semester
           </h2>
           <p className="text-xs text-muted-foreground max-w-2xl">
             Every lecturer in your department gets Studio Plan tools (AI syllabus builder, CBT exam bank, handwritten script grader, 3D labs), and every student gets full Plus Semester access.
@@ -452,10 +453,10 @@ export default function PlansPage() {
 
               <div className="p-3 rounded-xl bg-brand-500/10 border border-brand-500/25 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-muted-foreground">
-                  Estimated Semester License ({Math.max(10, Number(inqSeats) || 10)} seats × ₦1,200):
+                  Estimated Semester License ({Math.max(10, Number(inqSeats) || 10)} seats × ₦3,700):
                 </span>
                 <span className="text-sm font-extrabold text-brand-700 dark:text-brand-300">
-                  {naira(Math.max(10, Number(inqSeats) || 10) * 1200)} / semester
+                  {naira(Math.max(10, Number(inqSeats) || 10) * 3700)} / semester
                 </span>
               </div>
 

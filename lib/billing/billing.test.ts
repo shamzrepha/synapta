@@ -106,7 +106,8 @@ describe("the agreed prices and limits", () => {
     expect(priceFor("teacher", "term") * 100).toBe(750_000);
   });
   it("school is invoiced per student", () => {
-    expect(PLANS.school.perSeatTermNgn).toBe(1_200);
+    expect(PLANS.school.perSeatTermNgn).toBe(3_700);
+    expect(PLANS.school.perSeatMonthNgn).toBe(1_200);
     expect(PAYABLE).toEqual(["exam", "plus", "pro", "promax", "ultra", "teacher", "teacherpro"]);
     expect(PLANS.school.audience).toBe("school");
   });
@@ -128,9 +129,9 @@ describe("the agreed prices and limits", () => {
 describe("the plan ladder", () => {
   const ladder = (a: "student" | "teacher") => PLAN_IDS.filter((id) => PLANS[id].audience === a).map((id) => PLANS[id]).sort((x, y) => x.priceMonthNgn - y.priceMonthNgn);
 
-  it("students are offered Free and the one Student plan (the older plans are still honoured); teachers have Teacher and Teacher Pro", () => {
-    expect(ladder("student").filter((p) => !p.retired).map((p) => p.label)).toEqual(["Free", "Student"]);
-    expect(ladder("teacher").map((p) => p.label)).toEqual(["Teacher", "Teacher Pro"]);
+  it("students are offered Free and the one Student plan (the older plans are still honoured); teachers have Teacher only (Teacher Pro is retired)", () => {
+    expect(ladder("student").filter((p) => !p.retired).map((p) => p.label)).toEqual(["Free trial", "Student"]);
+    expect(ladder("teacher").filter((p) => !p.retired).map((p) => p.label)).toEqual(["Teacher"]);
   });
   it("every step up costs more and never gives less of anything", () => {
     for (const a of ["student", "teacher"] as const) {
@@ -153,7 +154,7 @@ describe("the plan ladder", () => {
   });
   it("shows students the student ladder only, and teachers and admins both", () => {
     expect(plansForRole("student").every((p) => p.audience === "student")).toBe(true);
-    expect(plansForRole("teacher").some((p) => p.id === "teacherpro")).toBe(true);
+    expect(plansForRole("teacher").some((p) => p.id === "teacherpro")).toBe(false);
     expect(plansForRole("admin").length).toBe(PLAN_IDS.filter((id) => !PLANS[id].retired).length);
     expect(plansForRole("student").some((p) => p.id === "promax" || p.id === "ultra")).toBe(false);
   });
@@ -169,7 +170,7 @@ describe("the plan ladder", () => {
     expect(nextTier(PLANS.plus)).toBeNull();
     expect(nextTier(PLANS.pro)).toBeNull(); // Pro Max and Ultra are retired: still honoured, no longer offered
     expect(nextTier(PLANS.ultra)).toBeNull();
-    expect(nextTier(PLANS.teacher)?.id).toBe("teacherpro");
+    expect(nextTier(PLANS.teacher)).toBeNull();
     expect(limitMessage(PLANS.free, "class_build", allowance(PLANS.free, {}, "class_build"))).toContain("teacher accounts");
   });
 });

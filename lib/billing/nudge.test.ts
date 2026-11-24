@@ -12,7 +12,7 @@ describe("which upgrade notice to show", () => {
   });
   it("welcomes a free user once, naming the plan to move up to", () => {
     const n = pickNudge(me(), "u1")!;
-    expect(n.title).toBe("You're on the Free plan");
+    expect(n.title).toBe("You're on the free trial");
     expect(n.message).toContain("Student");
     expect(n.everyDay).toBe(false);
     expect(n.key).toBe("welcome:u1:0");
@@ -23,7 +23,7 @@ describe("which upgrade notice to show", () => {
     expect(n.message).toContain("3 of 3 study notes sets");
     expect(n.message).toContain("Upgrade to Student");
     expect(pickNudge(me({ usage: { ...zero, practice: 4 } }), "u1")!.title).toBe("Running low");
-    expect(pickNudge(me({ usage: { ...zero, practice: 3 } }), "u1")!.title).toBe("You're on the Free plan");
+    expect(pickNudge(me({ usage: { ...zero, practice: 3 } }), "u1")!.title).toBe("You're on the free trial");
   });
   it("picks the most used feature when several are low", () => {
     const n = pickNudge(me({ usage: { ...zero, notes: 3, scan_pages: 12 } }), "u1")!;

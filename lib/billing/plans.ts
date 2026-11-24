@@ -38,6 +38,8 @@ export interface Plan {
   priceTermNgn: number;
   /** School only: naira per student per semester, billed by invoice */
   perSeatTermNgn?: number;
+  /** School only: naira per student per month */
+  perSeatMonthNgn?: number;
   monthlyTokens: number;
   /** AI requests allowed per minute: higher plans are faster when many things happen at once */
   perMinute: number;
@@ -52,9 +54,9 @@ export const PLANS: Record<PlanId, Plan> = {
   free: {
     id: "free",
     audience: "student",
-    label: "Free",
+    label: "Free trial",
     codename: "Seed",
-    blurb: "Everything your lecturers publish, plus a taste of AI for your own notes.",
+    blurb: "A taste of the AI on your own notes. Classes marked Free stay free; the rest needs the Student plan.",
     priceMonthNgn: 0,
     priceTermNgn: 0,
     monthlyTokens: 100_000,
@@ -171,6 +173,7 @@ export const PLANS: Record<PlanId, Plan> = {
   },
   teacherpro: {
     id: "teacherpro",
+    retired: true,
     audience: "teacher",
     label: "Teacher Pro",
     codename: "Taproot",
@@ -191,11 +194,12 @@ export const PLANS: Record<PlanId, Plan> = {
     blurb: "For a university department or school, billed by invoice per student.",
     priceMonthNgn: 0,
     priceTermNgn: 0,
-    perSeatTermNgn: 1_200,
+    perSeatTermNgn: 3_700,
+    perSeatMonthNgn: 1_200,
     monthlyTokens: 15_000_000,
     perMinute: 60,
     limits: { notes: ALL, scan_pages: 5_000, lessons: ALL, practice: ALL, studio_ai: 500, class_build: 100 },
-    perks: ["₦1,200 per student per semester, or a custom quote for a whole department", "Teacher-level tools for every lecturer", "Direct bank invoice and onboarding"],
+    perks: ["₦1,200 per student per month or ₦3,700 per semester, or a custom quote for a whole department", "Teacher-level tools for every lecturer", "Direct bank invoice and onboarding"],
   },
 };
 
@@ -222,7 +226,7 @@ export const MONTH_DAYS = 30;
 /** The plans to show someone: students see the student ladder; teachers and admins see both ladders. */
 export function plansForRole(role: unknown): Plan[] {
   const student = PLAN_IDS.filter((id) => PLANS[id].audience === "student" && !PLANS[id].retired).map((id) => PLANS[id]);
-  if (role === "teacher" || role === "admin") return [...student, ...PLAN_IDS.filter((id) => PLANS[id].audience !== "student").map((id) => PLANS[id])];
+  if (role === "teacher" || role === "admin") return [...student, ...PLAN_IDS.filter((id) => PLANS[id].audience !== "student" && !PLANS[id].retired).map((id) => PLANS[id])];
   return student;
 }
 
