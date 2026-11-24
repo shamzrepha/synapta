@@ -21,7 +21,7 @@ const inquirySchema = z.object({
 /**
  * B2B University, Faculty & Departmental Licensing Pipeline.
  * Allows Deans, HODs, Lecturers, School Admins, and Student Union / Class Reps
- * to request a departmental pilot or semester invoice (₦1,200 / student / semester).
+ * to request a departmental pilot or semester invoice (₦1,200 / student / month or ₦3,700 / semester).
  */
 export async function POST(req: NextRequest) {
   try {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const body = await parseJson(req, inquirySchema);
     const seats = body.estimatedStudents ?? 150;
-    const estimatedSemesterNgn = seats * 1200;
+    const estimatedSemesterNgn = seats * 3700;
 
     const ref = adminDb().collection("institutionInquiries").doc();
     const record = {

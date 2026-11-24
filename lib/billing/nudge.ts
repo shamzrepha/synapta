@@ -59,7 +59,7 @@ export function pickNudge(me: NudgeInfo, uid: string): Nudge | null {
     if (target) {
       return {
         key: `welcome:${uid}:${me.resetAt}`,
-        title: `You're on the ${me.plan.label} plan`,
+        title: me.plan.id === "free" ? "You're on the free trial" : `You're on the ${me.plan.label} plan`,
         message: `Everything your teachers publish is free. For your own notes, scans, lessons and practice you get a monthly allowance. ${target.label} (${target.codename}) gives you much more.`,
         everyDay: false,
       };
