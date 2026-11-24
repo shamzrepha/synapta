@@ -17,6 +17,7 @@ import { BotToggle } from "@/components/bot/bot-toggle";
 import { AppVersionCard } from "@/components/settings/app-version-card";
 import { PrivacyCard } from "@/components/settings/privacy-card";
 import { AcademicCard } from "@/components/academic/academic-gate";
+import { UserIdCard } from "@/components/settings/user-id-card";
 
 const OPTIONS: Array<{ key: "dataSaver" | "reduceMotion" | "noAutoplay" | "soundEffects"; title: string; desc: string; icon: React.ReactNode }> = [
   { key: "dataSaver", title: "Data saver", desc: "Audio and 3D wait for a tap, images load smaller, videos don't autoplay.", icon: <Gauge className="h-5 w-5" /> },
@@ -220,6 +221,7 @@ export default function SettingsPage() {
       <AppVersionCard />
 
       <AcademicCard />
+      <UserIdCard />
       <PrivacyCard />
 
       <Link href="/offline" className="inline-block rounded-xl border border-slate-200 dark:border-slate-800 px-3 py-2 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-900">
