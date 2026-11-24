@@ -40,11 +40,11 @@ describe("starting a Paystack payment", () => {
     caller = { ...caller, role: "teacher" };
     spy = paystackOk();
     await post({ plan: "teacher", term: "month" });
-    expect(sent(spy).amount).toBe(750_000);
+    expect(sent(spy).amount).toBe(250_000);
     vi.restoreAllMocks();
     spy = paystackOk();
     await post({ plan: "teacher", term: "term" });
-    expect(sent(spy).amount).toBe(2_000_000);
+    expect(sent(spy).amount).toBe(750_000);
   });
   it("keeps the Teacher plan for teacher accounts and refuses plans that can't be bought online", async () => {
     const spy = paystackOk();

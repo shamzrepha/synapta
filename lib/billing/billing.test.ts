@@ -100,10 +100,10 @@ describe("the agreed prices and limits", () => {
     expect(priceFor("exam", "month") * 100).toBe(150_000);
   });
   it("teacher", () => {
-    expect(PLANS.teacher).toMatchObject({ priceMonthNgn: 7_500, priceTermNgn: 20_000, monthlyTokens: 15_000_000 });
+    expect(PLANS.teacher).toMatchObject({ priceMonthNgn: 2_500, priceTermNgn: 7_500, monthlyTokens: 15_000_000 });
     expect(PLANS.teacher.limits).toEqual({ notes: Infinity, scan_pages: 1_500, lessons: Infinity, practice: Infinity, studio_ai: 150, class_build: 25 });
-    expect(priceFor("teacher", "month") * 100).toBe(750_000);
-    expect(priceFor("teacher", "term") * 100).toBe(2_000_000);
+    expect(priceFor("teacher", "month") * 100).toBe(250_000);
+    expect(priceFor("teacher", "term") * 100).toBe(750_000);
   });
   it("school is invoiced per student", () => {
     expect(PLANS.school.perSeatTermNgn).toBe(1_200);
@@ -116,7 +116,7 @@ describe("the agreed prices and limits", () => {
   });
   it("shows the real saving for paying by the semester", () => {
     expect(termSavingsPercent(PLANS.plus)).toBe(25);
-    expect(termSavingsPercent(PLANS.teacher)).toBe(33);
+    expect(termSavingsPercent(PLANS.teacher)).toBe(25);
     expect(termSavingsPercent(PLANS.free)).toBe(0);
   });
   it("won't accept a student plan payment below the price", () => {

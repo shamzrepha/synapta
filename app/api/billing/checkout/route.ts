@@ -41,9 +41,9 @@ export async function POST(req: NextRequest) {
       }),
       signal: AbortSignal.timeout(15_000),
     });
-    const j = (await res.json().catch(() => null)) as { status?: boolean; data?: { authorization_url?: string } } | null;
+    const j = (await res.json().catch(() => null)) as { status?: boolean; data?: { authorization_url?: string; access_code?: string } } | null;
     if (!res.ok || !j?.status || !j.data?.authorization_url) throw new ApiError(502, "PAYMENTS_UNAVAILABLE", "Couldn't start the payment. Please try again.");
-    return NextResponse.json({ ok: true, data: { url: j.data.authorization_url } });
+    return NextResponse.json({ ok: true, data: { url: j.data.authorization_url, accessCode: j.data.access_code } });
   } catch (error) {
     return handleAuthError(error);
   }
