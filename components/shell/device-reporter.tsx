@@ -3,17 +3,43 @@
 import { useEffect } from "react";
 import { classifyDevice } from "@/lib/device/classify";
 import { installedBuild } from "@/lib/native/app-update";
+import { registerCurrentDevice, fetchDeviceSessions } from "@/lib/auth/device-client";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useToast } from "@/components/ui/toast";
+import { EVICTION_MESSAGE } from "@/lib/auth/concurrent-sessions";
 
 const KEY = "sunroot:deviceReported";
 
-/** Tells the server, at most once a day, what kind of device this is (phone/tablet/computer, app or website). Renders nothing. */
+/** Tells the server what kind of device this is and registers concurrent login sessions. Renders nothing. */
 export function DeviceReporter() {
+  const { signOut } = useAuth();
+  const { toast } = useToast();
+
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    try {
-      if (window.localStorage.getItem(KEY) === today) return;
-    } catch {}
+    let cancelled = false;
+
     (async () => {
+      // 1. Register device session for concurrent-login tracking
+      await registerCurrentDevice();
+
+      // 2. Check if current device was evicted by another sign-in
+      const sessionStatus = await fetchDeviceSessions();
+      if (!cancelled && sessionStatus.isCurrentRevoked) {
+        toast({
+          title: "Signed out",
+          description: sessionStatus.revokedReason || EVICTION_MESSAGE,
+          variant: "destructive",
+        });
+        await signOut();
+        return;
+      }
+
+      // 3. Daily device hardware/browser stats
+      const today = new Date().toISOString().slice(0, 10);
+      try {
+        if (window.localStorage.getItem(KEY) === today) return;
+      } catch {}
+
       const build = await installedBuild();
       const nav = window.navigator as Navigator & { standalone?: boolean };
       const info = classifyDevice(nav.userAgent, {
@@ -33,6 +59,11 @@ export function DeviceReporter() {
         } catch {}
       }
     })();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [signOut, toast]);
+
   return null;
 }

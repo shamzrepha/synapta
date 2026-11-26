@@ -15,6 +15,7 @@ import { AccentPicker } from "@/components/settings/accent-picker";
 import { READ_PACES } from "@/lib/study/read-offer";
 import { BotToggle } from "@/components/bot/bot-toggle";
 import { AppVersionCard } from "@/components/settings/app-version-card";
+import { DevicesCard } from "@/components/settings/devices-card";
 import { PrivacyCard } from "@/components/settings/privacy-card";
 import { AcademicCard } from "@/components/academic/academic-gate";
 import { UserIdCard } from "@/components/settings/user-id-card";
@@ -219,6 +220,8 @@ export default function SettingsPage() {
       </div>
 
       <AppVersionCard />
+
+      <DevicesCard />
 
       <AcademicCard />
       <UserIdCard />
