@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { founderPerson, organizationNode } from "@/lib/founder";
+import { SITE_DESCRIPTION, getSiteUrl } from "@/lib/site";
 import { RENEWAL_RATE, RENEWAL_PAYMENTS_PAID, HOLD_DAYS, MIN_PAYOUT_NGN, TIERS, commissionFor } from "@/lib/ambassador/commission";
 
 export const metadata: Metadata = {
@@ -13,6 +15,12 @@ const STUDENT_MONTH = 1_500;
 const STUDENT_TERM = 4_500;
 
 export default function AmbassadorPage() {
+  const siteUrl = getSiteUrl();
+  const graph = [
+    { "@context": "https://schema.org", "@type": "WebPage", "@id": `${siteUrl}/ambassador#webpage`, url: `${siteUrl}/ambassador`, name: "SunRootLearn Ambassador program", description: metadata.description, isPartOf: { "@id": `${siteUrl}/#organization` }, publisher: { "@id": `${siteUrl}/#organization` } },
+    { "@context": "https://schema.org", ...organizationNode(siteUrl, SITE_DESCRIPTION) },
+    { "@context": "https://schema.org", ...founderPerson(siteUrl) },
+  ];
   const examples = [
     { who: "5 coursemates on the monthly plan", n: 5, price: STUDENT_MONTH },
     { who: "20 coursemates on the semester plan", n: 20, price: STUDENT_TERM },
@@ -24,6 +32,7 @@ export default function AmbassadorPage() {
   });
   return (
     <main className="mx-auto max-w-4xl px-5 py-10 sm:px-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(graph).replace(/</g, "\\u003c") }} />
       <Link href="/" className="text-sm font-semibold text-brand-600 hover:underline dark:text-brand-400">&larr; SunRootLearn</Link>
       <section className="mt-6">
         <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">Ambassador program</p>
