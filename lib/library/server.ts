@@ -42,6 +42,7 @@ export function publicFile(d: Record<string, unknown>) {
     readPolicy: d.readPolicy === "index_only" ? "index_only" : "full",
     department: String(d.department || ""),
     uploaderName: String(d.uploaderName || ""),
+    chapters: Array.isArray(d.chapters) ? d.chapters : [],
     createdAt: c?.toDate?.().toISOString?.() || "",
   };
 }

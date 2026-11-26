@@ -12,6 +12,12 @@ import { classifyFile, type Classified } from "@/lib/library/classify";
 import { readRep, repCovers } from "@/lib/library/access";
 import { putFile } from "@/lib/library/storage";
 import { FILES, Timestamp, deptKey, publicFile } from "@/lib/library/server";
+import {
+  splitPageRanges,
+  classifyChaptersWithSpendCap,
+  type ChapterIndex,
+  type SpendLogEntry,
+} from "@/lib/library/book-index";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -100,6 +106,16 @@ export async function POST(req: NextRequest) {
     const where = await putFile(ref.id, bytes, mime).catch((e: { status?: number; message?: string }) => {
       throw new ApiError(e.status || 500, "STORAGE_UNAVAILABLE", e.message || "Couldn't store the file.");
     });
+
+    let chapters: ChapterIndex[] = [];
+    let spendLogs: SpendLogEntry[] = [];
+    if (c.readPolicy === "index_only" && type.ext === "pdf" && pages && pages > 0) {
+      const initialRanges = splitPageRanges(pages);
+      const indexed = await classifyChaptersWithSpendCap(ref.id, initialRanges, {}, { userId: caller.uid });
+      chapters = indexed.chapters;
+      spendLogs = indexed.spendLogs;
+    }
+
     const doc = {
       id: ref.id,
       title: c.title,
@@ -120,10 +136,12 @@ export async function POST(req: NextRequest) {
       uploaderName: String(user.displayName || caller.email || "Course rep"),
       where,
       status: "ready" as const,
+      chapters,
+      spendLogs,
       createdAt: Timestamp.now(),
     };
     await ref.set(doc);
-    return NextResponse.json({ ok: true, data: { file: publicFile(doc), reasons: c.reasons } });
+    return NextResponse.json({ ok: true, data: { file: publicFile(doc), chapters, reasons: c.reasons } });
   } catch (error) {
     return handleAuthError(error);
   }
