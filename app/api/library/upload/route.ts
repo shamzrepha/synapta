@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     const bytes = Buffer.from(await file.arrayBuffer());
     const type = sniff(bytes);
-    if (!type) throw new ApiError(400, "VALIDATION", "Only PDF, Word, PowerPoint or text files can be added.");
+    if (!type || type.ext !== "pdf") throw new ApiError(400, "VALIDATION", "Please upload a PDF. In Word or PowerPoint, choose Save as PDF first.");
 
     let pages: number | null = null;
     if (type.ext === "pdf") {
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
         pages = null;
       }
     }
-    const mime = type.ext === "zip-office" ? (/\.pptx?$/i.test(fileName) ? "application/vnd.openxmlformats-officedocument.presentationml.presentation" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document") : type.mime;
+    const mime = "application/pdf";
 
     let c = classifyFile({ fileName, pages, sizeBytes: bytes.length, mime });
     c = await refine(c, fileName, pages, department, caller.uid);

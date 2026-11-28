@@ -30,6 +30,9 @@ export const INSTITUTIONS: Institution[] = [
 ];
 
 export const DEFAULT_MAX_LEVEL = 600;
+/** Someone using Sunroot without being at a university (secondary school, exam prep, self-study). */
+export const INDEPENDENT_ID = "independent";
+export const INDEPENDENT_NAME = "Independent learner (not in a university)";
 export const LEVELS = [100, 200, 300, 400, 500, 600];
 
 const norm = (s: unknown) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -57,6 +60,7 @@ export function sessionsBetween(fromMs: number, toMs: number): number {
 
 /** The level a student is at today: the level they set, plus one for every new academic year since, up to the programme's last year. */
 export function levelNow(a: Pick<Academic, "level" | "levelSetAt" | "institutionId">, now = Date.now()): number {
+  if (a.institutionId === INDEPENDENT_ID) return a.level;
   const max = institutionById(a.institutionId)?.maxLevel ?? DEFAULT_MAX_LEVEL;
   return Math.min(max, a.level + sessionsBetween(a.levelSetAt, now) * 100);
 }
@@ -67,6 +71,8 @@ export interface AcademicInput {
   school?: string;
   department: string;
   level: number;
+  /** the department is real but missing from our list: it is kept as typed and the admin is told to add it */
+  unlisted?: boolean;
 }
 
 export type Checked = { ok: true; value: Omit<Academic, "levelSetAt" | "lockedAt"> } | { ok: false; message: string };
@@ -74,12 +80,17 @@ export type Checked = { ok: true; value: Omit<Academic, "levelSetAt" | "lockedAt
 /** Checks a student's answers. For a catalog institution the school and department must be real choices from its list. */
 export function checkAcademic(i: AcademicInput): Checked {
   if (!LEVELS.includes(i.level)) return { ok: false, message: "Pick your level." };
+  if (i.institution.trim() === INDEPENDENT_NAME || i.institutionId === INDEPENDENT_ID) {
+    const what = i.department.trim().slice(0, 100) || "Self-study";
+    return { ok: true, value: { institutionId: INDEPENDENT_ID, institution: INDEPENDENT_NAME, school: "", department: what, level: i.level } };
+  }
   const inst = institutionById(i.institutionId) ?? null;
   if (inst) {
     if (i.level > inst.maxLevel) return { ok: false, message: `${inst.name} goes up to ${inst.maxLevel} level.` };
     const school = inst.schools.find((s) => s.name === i.school || s.id === i.school);
     if (!school) return { ok: false, message: "Pick your school." };
     const dep = school.departments.find((d) => norm(d) === norm(i.department));
+    if (!dep && i.unlisted && i.department.trim().length >= 3) return { ok: true, value: { institutionId: inst.id, institution: inst.name, school: school.name, department: i.department.trim().slice(0, 100), level: i.level } };
     if (!dep) return { ok: false, message: "Pick your department from the list." };
     return { ok: true, value: { institutionId: inst.id, institution: inst.name, school: school.name, department: dep, level: i.level } };
   }
@@ -108,6 +119,7 @@ export interface ClassAudience {
 export function eligibleFor(c: ClassAudience, a: Academic | null, now = Date.now()): boolean {
   if (!a) return true; // no course set yet: nothing to filter by
   if (c.open === true) return true;
+  if (a.institutionId === INDEPENDENT_ID) return !c.institution && !c.department && !(Array.isArray(c.departments) && c.departments.length > 0); // only classes for everyone
   const cInst = institutionByName(c.institution)?.id ?? norm(c.institution);
   const aInst = a.institutionId ?? norm(a.institution);
   if (!cInst || cInst !== aInst) return false;

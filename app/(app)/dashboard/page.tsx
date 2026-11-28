@@ -15,6 +15,7 @@ import { useGameState } from "@/components/game/use-game";
 import { LevelCard, QuestsCard } from "@/components/game/widgets";
 import { AchievementPrompts } from "@/components/feed/achievement-prompts";
 import { QuickActions } from "@/components/home/quick-actions";
+import { AmbassadorBanner } from "@/components/ambassador/ambassador-banner";
 import { HomeHero } from "@/components/home/home-hero";
 import { StreakProgress } from "@/components/game/streak-progress";
 import { CampusStreakBanner } from "@/components/dashboard/campus-streak-banner";
@@ -121,6 +122,8 @@ export default function DashboardPage() {
           </div>
         )}
       </header>
+
+      {user?.role !== "admin" && <AmbassadorBanner />}
 
       {/* 1b. One tap to the things people use most */}
       <QuickActions

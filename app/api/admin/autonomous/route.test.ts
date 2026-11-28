@@ -39,10 +39,11 @@ describe("admin autonomous course seeding", () => {
     await seed({});
     expect(ai).not.toHaveBeenCalled();
   });
-  it("only tells students of that campus and department, not everyone in the department nationwide", async () => {
+  it("makes no sample questions and tells no one, because there are no real past questions yet", async () => {
     const r = await seed({});
-    expect((await r.json()).data.notifiedCount).toBe(2);
-    expect(notes().sort()).toEqual([expect.stringContaining("users/a/"), expect.stringContaining("users/b/")]);
+    expect((await r.json()).data.notifiedCount).toBe(0);
+    expect(notes()).toEqual([]);
+    expect([...store.keys()].filter((k) => k.includes("/pastQuestions/"))).toEqual([]);
   });
   it("is rate limited, and refuses to seed the same campus and department twice", async () => {
     expect((await seed({})).status).toBe(200);
