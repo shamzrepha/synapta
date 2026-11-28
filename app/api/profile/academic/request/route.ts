@@ -11,6 +11,7 @@ export const runtime = "nodejs";
 
 const body = z.object({
   institutionId: z.string().trim().max(40).nullable().optional(),
+  unlisted: z.boolean().optional(),
   institution: z.string().trim().max(100).default(""),
   school: z.string().trim().max(120).optional(),
   department: z.string().trim().max(100),
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     const b = await parseJson(req, body);
     const current = readAcademic((await adminDb().collection("users").doc(caller.uid).get()).data());
     if (!current) throw new ApiError(400, "NOT_SET", "Set your course first.");
-    const c = checkAcademic({ institutionId: b.institutionId ?? null, institution: b.institution ?? "", school: b.school, department: b.department, level: b.level });
+    const c = checkAcademic({ institutionId: b.institutionId ?? null, institution: b.institution ?? "", school: b.school, department: b.department, level: b.level, unlisted: b.unlisted });
     if (!c.ok) throw new ApiError(400, "BAD_ACADEMIC", c.message);
     await adminDb().collection("academicChangeRequests").doc(caller.uid).set({
       uid: caller.uid,

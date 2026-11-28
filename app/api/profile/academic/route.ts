@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireUser, handleAuthError } from "@/lib/auth/requireUser";
 import { ApiError, parseJson } from "@/lib/api/errors";
 import { checkRateLimit } from "@/lib/rateLimit";
-import { adminDb } from "@/lib/firebase/admin";
+import { adminDb, Timestamp } from "@/lib/firebase/admin";
 import { INSTITUTIONS, LEVELS, levelNow } from "@/lib/academic/academic";
 import { buildAcademic, readAcademic, saveAcademic } from "@/lib/academic/server";
 
@@ -38,6 +38,7 @@ const body = z.object({
   school: z.string().trim().max(120).optional(),
   department: z.string().trim().max(100),
   level: z.number().int().min(100).max(600),
+  unlisted: z.boolean().optional(),
 });
 
 /** Sets the student's course for the first time. After that it is locked: only an admin approving a change request can alter it. */
@@ -49,9 +50,13 @@ export async function POST(req: NextRequest) {
     const b = await parseJson(req, body);
     const snap = await adminDb().collection("users").doc(caller.uid).get();
     if (readAcademic(snap.data())) throw new ApiError(409, "ACADEMIC_LOCKED", "Your school and course are locked. Send a change request and an admin will review it.");
-    const r = buildAcademic({ institutionId: b.institutionId ?? null, institution: b.institution ?? "", school: b.school, department: b.department, level: b.level });
+    const r = buildAcademic({ institutionId: b.institutionId ?? null, institution: b.institution ?? "", school: b.school, department: b.department, level: b.level, unlisted: b.unlisted });
     if (!r.ok) throw new ApiError(400, "BAD_ACADEMIC", r.message);
     await saveAcademic(caller.uid, r.academic);
+    if (b.unlisted) {
+      // so the admin can add the department to the list
+      await adminDb().collection("missingDepartments").doc(caller.uid).set({ uid: caller.uid, institution: r.academic.institution, school: r.academic.school, department: r.academic.department, level: r.academic.level, createdAt: Timestamp.now() }).catch(() => null);
+    }
     return NextResponse.json({ ok: true, data: { academic: { ...r.academic, level: levelNow(r.academic) } } });
   } catch (error) {
     return handleAuthError(error);

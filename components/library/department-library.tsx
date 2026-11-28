@@ -91,7 +91,7 @@ export function DepartmentLibrary() {
         <h2 className="flex items-center gap-2 text-sm font-semibold"><FileText className="h-4 w-4 text-brand-600 dark:text-brand-300" /> {data.rep ? `${data.rep.department} library` : "Your department's library"}</h2>
         {canEdit && (
           <>
-            <input ref={input} type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.txt" className="sr-only" onChange={(e) => void upload(e.target.files)} />
+            <input ref={input} type="file" multiple accept=".pdf,application/pdf" className="sr-only" onChange={(e) => void upload(e.target.files)} />
             <Button size="sm" isLoading={busy} onClick={() => input.current?.click()}><Upload className="mr-1.5 h-4 w-4" /> Add files</Button>
           </>
         )}

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { asArray } from "@/lib/api/client";
 import { useUserStore } from "@/lib/store/use-user-store";
 import { useToast } from "@/components/ui/toast";
+import { INDEPENDENT_NAME } from "@/lib/academic/academic";
 
 interface School { id: string; name: string; short: string; departments: string[] }
 interface Inst { id: string; name: string; maxLevel: number; verified: boolean; schools: School[] }
@@ -17,7 +18,7 @@ const field = "h-11 w-full rounded-lg border border-border bg-background px-3 te
  * The course picker: school (search), then, for a school in our list, its faculty, department and level.
  * Used twice: as a full-screen step a new student must finish, and inside a change request.
  */
-export function AcademicForm({ info, onSubmit, busy, submitLabel, withReason }: { info: Info; onSubmit: (v: { institutionId: string | null; institution: string; school: string; department: string; level: number; reason?: string }) => void; busy: boolean; submitLabel: string; withReason?: boolean }) {
+export function AcademicForm({ info, onSubmit, busy, submitLabel, withReason }: { info: Info; onSubmit: (v: { institutionId: string | null; institution: string; unlisted?: boolean; school: string; department: string; level: number; reason?: string }) => void; busy: boolean; submitLabel: string; withReason?: boolean }) {
   const [q, setQ] = useState("");
   const [instId, setInstId] = useState<string | null | undefined>(undefined); // undefined = not chosen, null = another school
   const [other, setOther] = useState("");
@@ -25,12 +26,14 @@ export function AcademicForm({ info, onSubmit, busy, submitLabel, withReason }: 
   const [dept, setDept] = useState("");
   const [level, setLevel] = useState(0);
   const [reason, setReason] = useState("");
+  const [indep, setIndep] = useState(false);
+  const [unlisted, setUnlisted] = useState(false);
 
   const matches = useMemo(() => info.institutions.filter((i) => i.name.toLowerCase().includes(q.trim().toLowerCase())), [info.institutions, q]);
   const inst = info.institutions.find((i) => i.id === instId) ?? null;
   const sch = inst?.schools.find((s) => s.name === school) ?? null;
   const levels = info.levels.filter((l) => !inst || l <= inst.maxLevel);
-  const ready = (inst ? !!sch && !!dept : other.trim().length > 1 && dept.trim().length > 1) && level > 0 && (!withReason || reason.trim().length >= 5);
+  const ready = indep ? level > 0 : (inst ? !!sch && dept.trim().length > 1 : other.trim().length > 1 && dept.trim().length > 1) && level > 0 && (!withReason || reason.trim().length >= 5);
 
   return (
     <div className="space-y-4">
@@ -43,16 +46,25 @@ export function AcademicForm({ info, onSubmit, busy, submitLabel, withReason }: 
         <ul className="max-h-48 space-y-1 overflow-y-auto" role="listbox" aria-label="Schools">
           {matches.map((i) => (
             <li key={i.id}>
-              <button type="button" role="option" aria-selected={instId === i.id} onClick={() => { setInstId(i.id); setSchool(""); setDept(""); setLevel(0); }} className={`min-h-[44px] w-full rounded-lg border px-3 text-left text-sm ${instId === i.id ? "border-brand-600 bg-brand-600/10 font-semibold" : "border-border hover:bg-muted/60"}`}>{i.name}</button>
+              <button type="button" role="option" aria-selected={instId === i.id} onClick={() => { setIndep(false); setInstId(i.id); setSchool(""); setDept(""); setLevel(0); }} className={`min-h-[44px] w-full rounded-lg border px-3 text-left text-sm ${instId === i.id ? "border-brand-600 bg-brand-600/10 font-semibold" : "border-border hover:bg-muted/60"}`}>{i.name}</button>
             </li>
           ))}
           <li>
-            <button type="button" role="option" aria-selected={instId === null} onClick={() => { setInstId(null); setSchool(""); setDept(""); setLevel(0); }} className={`min-h-[44px] w-full rounded-lg border px-3 text-left text-sm ${instId === null ? "border-brand-600 bg-brand-600/10 font-semibold" : "border-border hover:bg-muted/60"}`}>My school is not listed</button>
+            <button type="button" role="option" aria-selected={instId === null} onClick={() => { setIndep(false); setInstId(null); setSchool(""); setDept(""); setLevel(0); }} className={`min-h-[44px] w-full rounded-lg border px-3 text-left text-sm ${instId === null ? "border-brand-600 bg-brand-600/10 font-semibold" : "border-border hover:bg-muted/60"}`}>My school is not listed</button>
+          </li>
+          <li>
+            <button type="button" role="option" aria-selected={indep} onClick={() => { setIndep(true); setInstId(null); setSchool(""); setDept(""); setLevel(0); setUnlisted(false); }} className={`min-h-[44px] w-full rounded-lg border px-3 text-left text-sm ${indep ? "border-brand-500 bg-brand-500/10" : "border-border"}`}>I&apos;m not in a university (secondary school, exam prep, self-study)</button>
           </li>
         </ul>
       </div>
 
-      {instId === null && (
+      {indep && (
+        <div className="space-y-3">
+          <input className={field} placeholder="What are you studying or preparing for? (optional)" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="What are you studying" />
+        </div>
+      )}
+
+      {instId === null && !indep && (
         <div className="space-y-3">
           <input className={field} placeholder="Your school's name" value={other} onChange={(e) => setOther(e.target.value)} aria-label="Your school's name" />
           <input className={field} placeholder="Your department or course" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Your department or course" />
@@ -66,14 +78,16 @@ export function AcademicForm({ info, onSubmit, busy, submitLabel, withReason }: 
             <option value="">Your school or faculty</option>
             {inst.schools.map((s) => <option key={s.id} value={s.name}>{s.short} · {s.name}</option>)}
           </select>
-          <select className={field} value={dept} onChange={(e) => setDept(e.target.value)} disabled={!sch} aria-label="Your department">
+          <select className={field} value={unlisted ? "__other" : dept} onChange={(e) => { if (e.target.value === "__other") { setUnlisted(true); setDept(""); } else { setUnlisted(false); setDept(e.target.value); } }} disabled={!sch} aria-label="Your department">
             <option value="">{sch ? "Your department" : "Pick your school first"}</option>
             {(sch?.departments ?? []).map((d) => <option key={d} value={d}>{d}</option>)}
+            {sch && <option value="__other">My department isn&apos;t listed</option>}
           </select>
+          {unlisted && <input className={field} placeholder="Type your department" value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Type your department" />}
         </div>
       )}
 
-      {instId !== undefined && (
+      {(instId !== undefined || indep) && (
         <select className={field} value={level || ""} onChange={(e) => setLevel(Number(e.target.value))} aria-label="Your level">
           <option value="">Your level</option>
           {levels.map((l) => <option key={l} value={l}>{l} level</option>)}
@@ -82,7 +96,7 @@ export function AcademicForm({ info, onSubmit, busy, submitLabel, withReason }: 
 
       {withReason && <textarea className={`${field} h-24 py-2`} placeholder="Why does this need to change?" value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Why does this need to change?" />}
 
-      <Button className="w-full min-h-[48px]" disabled={!ready || busy} isLoading={busy} onClick={() => onSubmit({ institutionId: inst ? inst.id : null, institution: inst ? inst.name : other, school: inst ? school : "", department: dept, level, ...(withReason ? { reason } : {}) })}>{submitLabel}</Button>
+      <Button className="w-full min-h-[48px]" disabled={!ready || busy} isLoading={busy} onClick={() => onSubmit({ institutionId: indep ? "independent" : inst ? inst.id : null, institution: indep ? INDEPENDENT_NAME : inst ? inst.name : other, ...(unlisted ? { unlisted: true } : {}), school: inst && !indep ? school : "", department: dept, level, ...(withReason ? { reason } : {}) })}>{submitLabel}</Button>
     </div>
   );
 }
@@ -105,7 +119,7 @@ export function AcademicGate() {
 
   if (!isStudent || !info || info.locked || done) return null;
 
-  const submit = async (v: { institutionId: string | null; institution: string; school: string; department: string; level: number }) => {
+  const submit = async (v: { institutionId: string | null; institution: string; unlisted?: boolean; school: string; department: string; level: number }) => {
     setBusy(true);
     try {
       const res = await fetch("/api/profile/academic", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(v) });
